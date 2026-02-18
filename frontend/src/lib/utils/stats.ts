@@ -20,7 +20,8 @@ const AGGREGATIONS = ['Average', 'Maximum', 'Minimum', 'Max', 'Min'] as const
  */
 export function parseStat(statType: string): ParsedStat {
   const trimmed = statType.trim()
-  const inIndex = trimmed.toLowerCase().lastIndexOf(' in ')
+  const lower = trimmed.toLowerCase()
+  const inIndex = lower.lastIndexOf(' in ')
   const unitVariant: string | null =
     inIndex >= 0 ? trimmed.slice(inIndex + 4).trim() : null
   const beforeUnit = inIndex >= 0 ? trimmed.slice(0, inIndex).trim() : trimmed
@@ -166,25 +167,18 @@ export function getStatIconMaterialName(statIcon: StatIcon): string {
 }
 
 /**
- * Gets a display unit for a stat type (e.g. "s", "km", "bpm").
- * API does not return units; these are sensible defaults.
- * Uses parsed unit variant when present (e.g. "Kilometers per Hour" -> "km/h").
+ * Gets a display unit for a stat type (e.g. "km/h", "bpm").
+ * Time and distance use empty unit (value string includes the unit).
  */
 export function getStatUnit(statType: string): string {
   const parsed = parseStat(statType)
   const lower = parsed.metric.toLowerCase()
-  const variant = (parsed.unitVariant || '').toLowerCase()
   if (lower === 'duration' || lower === 'time' || lower === 'moving time' || lower === 'movingtime')
-    return '' // time shown as e.g. "08:08" or "1:04:50", no unit suffix
-  if (lower === 'distance') return 'm'
+    return '' // time shown as "08:08" or "1:04:50"
+  if (lower === 'distance') return '' // distance shown as "1.69km" or "789m"
   if (lower.includes('heart rate') || lower.includes('heartrate')) return 'bpm'
   if (lower === 'energy' || lower.includes('calorie')) return 'kcal'
-  if (lower.includes('speed')) {
-    if (variant.includes('kilometer') || variant.includes('km')) return 'km/h'
-    if (variant.includes('knot')) return 'kn'
-    if (variant.includes('mile')) return 'mph'
-    return 'm/s'
-  }
+  if (lower.includes('speed')) return 'km/h' // always metric
   if (lower.includes('cadence')) return 'rpm'
   if (lower.includes('power')) return 'W'
   if (lower.includes('ascent') || lower.includes('descent') || lower.includes('altitude'))
@@ -193,12 +187,13 @@ export function getStatUnit(statType: string): string {
 }
 
 /**
- * Gets a display label for a stat type.
- * Returns the stat type name with basic formatting.
+ * Gets a display label for a stat type (aggregation + metric only, no unit variant).
+ * e.g. "Average Speed in Feet per Minute" -> "Average Speed".
  */
 export function getStatLabel(statType: string): string {
-  // Capitalize first letter of each word
-  return statType
+  const parsed = parseStat(statType)
+  const part = parsed.aggregation ? `${parsed.aggregation} ${parsed.metric}` : parsed.metric
+  return part
     .split(' ')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ')
@@ -213,6 +208,58 @@ export function isTimeStat(statType: string): boolean {
     metric === 'moving time' ||
     metric === 'movingtime'
   )
+}
+
+/** Whether this stat type is a distance metric (value in meters). */
+export function isDistanceStat(statType: string): boolean {
+  return parseStat(statType).metric.toLowerCase() === 'distance'
+}
+
+/** Whether this stat type is a speed metric. */
+export function isSpeedStat(statType: string): boolean {
+  return parseStat(statType).metric.toLowerCase().includes('speed')
+}
+
+/** Multipliers to convert speed value to km/h (value * factor = km/h). */
+const SPEED_TO_KMH: Record<string, number> = {
+  'kilometers per hour': 1,
+  'km/h': 1,
+  'meters per second': 3.6,
+  'm/s': 3.6,
+  'miles per hour': 1.60934,
+  'mph': 1.60934,
+  'feet per minute': 0.018288,
+  'knots': 1.852,
+}
+
+function speedToKmh(value: number, unitVariant: string | null): number {
+  if (value == null || !Number.isFinite(value)) return value
+  if (!unitVariant) return value // assume m/s or unknown; treat as m/s for safety
+  const key = unitVariant.toLowerCase()
+  const factor = SPEED_TO_KMH[key]
+  if (factor != null) return value * factor
+  return value
+}
+
+/** Rounds a number to 2 decimal places and returns a string (no trailing .00 for integers). */
+export function roundTo2Decimals(n: number): string {
+  if (!Number.isFinite(n)) return String(n)
+  const r = Math.round(n * 100) / 100
+  return Number.isInteger(r) ? String(r) : r.toFixed(2)
+}
+
+/**
+ * Formats distance in meters as human-friendly metric string.
+ * Examples: 654 -> "654m", 1690 -> "1.69km", 1000 -> "1.00km".
+ */
+export function formatDistance(meters: number): string {
+  const m = Number(meters)
+  if (!Number.isFinite(m) || m < 0) return String(meters)
+  if (m >= 1000) {
+    const km = m / 1000
+    return km % 1 === 0 ? `${km}km` : `${km.toFixed(2)}km`
+  }
+  return `${Math.round(m)}m`
 }
 
 /**
@@ -232,23 +279,35 @@ export function formatDuration(seconds: number): string {
 
 /**
  * Formats a stat value for display.
- * When statType is provided and is a time stat, numeric values are shown as duration (e.g. "08:08", "1:04:50").
- * Handles numbers, strings, arrays, and objects.
+ * - Time stats: duration (e.g. "08:08", "1:04:50").
+ * - Distance: human-friendly metric (e.g. "789m", "1.69km").
+ * - Speed: always km/h (converts from other units if needed).
  */
 export function formatStatValue(
   value: number | string | number[] | Record<string, unknown> | undefined | null,
   statType?: string
 ): string {
   if (value == null) return ''
-  if (statType && isTimeStat(statType)) {
+  if (statType) {
     const n = typeof value === 'string' ? Number(value) : value
-    if (typeof n === 'number' && Number.isFinite(n)) return formatDuration(n)
+    if (typeof n === 'number' && Number.isFinite(n)) {
+      if (isTimeStat(statType)) return formatDuration(n)
+      if (isDistanceStat(statType)) return formatDistance(n)
+      if (isSpeedStat(statType)) {
+        const parsed = parseStat(statType)
+        const kmh = speedToKmh(n, parsed.unitVariant)
+        return typeof kmh === 'number' && Number.isFinite(kmh) ? roundTo2Decimals(kmh) : String(value)
+      }
+    }
   }
   if (Array.isArray(value)) {
-    return value.join(', ')
+    return value.map((v) => (typeof v === 'number' && Number.isFinite(v) ? roundTo2Decimals(v) : String(v))).join(', ')
   }
   if (typeof value === 'object') {
     return JSON.stringify(value)
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return roundTo2Decimals(value)
   }
   return String(value)
 }
@@ -296,12 +355,20 @@ export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCatego
   const byCategory = new Map<string, StatEntry[]>()
   const seenKey = new Set<string>() // (metric + aggregation) to avoid duplicates
 
-  for (const entry of entries) {
+  // Prefer preferred-unit variants (e.g. km/h for speed) so we keep them when both exist
+  const sorted = [...entries].sort((a, b) => {
+    const pa = parseStat(a.statType)
+    const pb = parseStat(b.statType)
+    return (keepStatByPreferredUnit(pb) ? 1 : 0) - (keepStatByPreferredUnit(pa) ? 1 : 0)
+  })
+
+  for (const entry of sorted) {
     const parsed = parseStat(entry.statType)
     if (!getStatIcon(entry.statType)) continue
-    if (!keepStatByPreferredUnit(parsed)) continue
-
     const key = metricAggregationKey(parsed)
+    const preferred = keepStatByPreferredUnit(parsed)
+    // Keep preferred variant, or for speed keep one variant (we convert to km/h at display)
+    if (!preferred && !(isSpeedStat(entry.statType) && !seenKey.has(key))) continue
     if (seenKey.has(key)) continue
     seenKey.add(key)
 
@@ -339,12 +406,23 @@ export function selectKeyMetrics(
   const statTypes = Object.keys(stats)
   for (const keyMetric of keys) {
     const keyNorm = keyMetric.toLowerCase()
-    const found = statTypes.find((statType) => {
+    const isSpeedKey = keyNorm.includes('speed')
+    // Prefer preferred-unit variant; for speed, accept any variant (value converted to km/h at display)
+    let found = statTypes.find((statType) => {
       const parsed = parseStat(statType)
-      if (!keepStatByPreferredUnit(parsed)) return false
-      const matchKey = metricAggregationKey(parsed)
-      return matchKey.toLowerCase() === keyNorm
+      if (!keepStatByPreferredUnit(parsed)) {
+        if (!isSpeedKey || !parsed.metric.toLowerCase().includes('speed')) return false
+      }
+      return metricAggregationKey(parsed).toLowerCase() === keyNorm
     })
+    if (isSpeedKey) {
+      const preferred = statTypes.find(
+        (statType) =>
+          keepStatByPreferredUnit(parseStat(statType)) &&
+          metricAggregationKey(parseStat(statType)).toLowerCase() === keyNorm
+      )
+      if (preferred) found = preferred
+    }
     if (found) {
       const raw = stats[found]
       entries.push({
