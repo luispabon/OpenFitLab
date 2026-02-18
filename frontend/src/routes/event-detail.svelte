@@ -5,23 +5,28 @@
   let { params = {} }: Props = $props()
 
   import { push } from 'svelte-spa-router'
-  import { getEvent } from '../lib/api'
-  import type { EventDetail as EventDetailType } from '../lib/types'
+  import { getEvent, getStreams } from '../lib/api'
+  import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
   import {
     formatDate,
     getActivityIcon,
     getStatUnit,
     formatStatValue,
     groupStatsByCategory,
+    isChartableStream,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
+  import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
 
   const id = $derived(params?.id ?? '')
 
   let eventDetail = $state<EventDetailType | null>(null)
   let loading = $state(true)
   let error = $state<string | null>(null)
+  let streams = $state<StreamData[]>([])
+  let streamsLoading = $state(false)
+  let streamsError = $state<string | null>(null)
   const event = $derived(eventDetail?.event ?? null)
 
   const mainActivityType = $derived.by(() => {
@@ -90,6 +95,15 @@
 
   const groupedStats = $derived(groupStatsByCategory(statEntries))
 
+  // Get first activity for stream loading
+  const firstActivity = $derived(eventDetail?.activities?.[0] ?? null)
+  const activityStartDate = $derived(firstActivity?.startDate ?? event?.startDate ?? Date.now())
+
+  // Filter to chartable streams only
+  const chartableStreams = $derived(
+    streams.filter((s) => isChartableStream(s.type) && s.data && s.data.length > 0)
+  )
+
   async function loadEvent() {
     if (!id) {
       eventDetail = null
@@ -108,8 +122,35 @@
     }
   }
 
+  async function loadStreams() {
+    if (!id || !firstActivity?.id) {
+      streams = []
+      return
+    }
+
+    streamsLoading = true
+    streamsError = null
+    try {
+      const loadedStreams = await getStreams(id, firstActivity.id)
+      streams = loadedStreams
+    } catch (e) {
+      streamsError = e instanceof Error ? e.message : 'Failed to load streams'
+      streams = []
+    } finally {
+      streamsLoading = false
+    }
+  }
+
+  // Load event when ID changes
   $effect(() => {
     if (id) loadEvent()
+  })
+
+  // Load streams when event and first activity are available
+  $effect(() => {
+    if (eventDetail && firstActivity?.id && !loading) {
+      loadStreams()
+    }
   })
 </script>
 
@@ -189,6 +230,30 @@
         {/each}
       </div>
     </div>
+
+    <!-- Stream Charts Section -->
+    {#if streamsLoading}
+      <div class="mt-6 flex justify-center py-12">
+        <LoadingSpinner />
+      </div>
+    {:else if streamsError}
+      <div class="mt-6 rounded-md bg-yellow-50 p-4 dark:bg-yellow-900/20">
+        <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+          {streamsError}
+        </p>
+      </div>
+    {:else if chartableStreams.length > 0}
+      <div class="mt-6 space-y-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+        {#each chartableStreams as stream (stream.type)}
+          <div
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+          >
+            <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
+          </div>
+        {/each}
+      </div>
+    {/if}
   {:else}
     <p class="text-gray-500 dark:text-gray-400">Event not found.</p>
   {/if}
