@@ -19,10 +19,10 @@
       {getStatIconMaterialName(icon)}
     </span>
     <div class="min-w-0 flex-1">
-      <div class="text-xs font-medium uppercase tracking-wide text-text-secondary">
+      <div class="text-sm font-medium uppercase tracking-wide text-text-secondary">
         {getStatLabel(statType)}
       </div>
-      <div class="text-sm font-medium text-text-primary">
+      <div class="text-base font-medium text-text-primary">
         {value} {unit}
       </div>
     </div>

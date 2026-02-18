@@ -219,10 +219,10 @@
   })
 </script>
 
-<section class="max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
   <button
     type="button"
-    class="mb-4 rounded border border-border px-3 py-1.5 text-sm text-text-secondary hover:bg-card-hover hover:text-text-primary"
+    class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
     onclick={() => push('/')}
   >
     ← Back to Dashboard
@@ -261,14 +261,14 @@
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-baseline gap-2 text-text-primary">
+            <div class="flex flex-wrap items-baseline gap-2 text-lg text-text-primary">
               <span class="font-medium">{formatDate(event.startDate).date}</span>
               <span class="text-sm text-text-secondary">at</span>
               <span class="text-text-secondary">{formatDate(event.startDate).time}</span>
             </div>
             {#if mainActivityType}
               <span
-                class="mt-1 inline-block rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium uppercase text-text-secondary"
+                class="mt-1 inline-block rounded-full bg-surface px-2.5 py-0.5 text-sm font-medium uppercase text-text-secondary"
               >
                 {mainActivityType}
               </span>
@@ -279,8 +279,8 @@
         <div class="flex flex-shrink-0 items-center gap-8">
           {#each heroStats as hero}
             <div class="flex flex-col items-center gap-0.5">
-              <span class="text-2xl font-light text-text-primary">{hero.value}</span>
-              <span class="text-xs uppercase tracking-wide text-text-secondary">
+              <span class="text-3xl font-light text-text-primary">{hero.value}</span>
+              <span class="text-sm uppercase tracking-wide text-text-secondary">
                 {hero.unit}
               </span>
             </div>
@@ -300,7 +300,7 @@
     {#if streamsLoading}
       <div class="mt-6 space-y-6">
         <div class="flex flex-col gap-4">
-          <h2 class="text-lg font-semibold text-text-primary">Activity Metrics</h2>
+          <h2 class="text-xl font-semibold text-text-primary">Activity Metrics</h2>
           <!-- Loading skeleton -->
           <div class="space-y-6">
             {#each [1, 2, 3] as _}
@@ -327,7 +327,7 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between">
             <div class="flex flex-col gap-2">
-              <h2 class="text-lg font-semibold text-text-primary">Activity Metrics</h2>
+              <h2 class="text-xl font-semibold text-text-primary">Activity Metrics</h2>
               
               <!-- Activity Selector Tabs (only show if multiple activities) -->
               {#if activities.length > 1}

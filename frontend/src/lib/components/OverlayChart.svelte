@@ -80,11 +80,13 @@
     return index % 2 === 0 ? 'y' : 'y1'
   }
 
+  const smoothPath = uPlot.paths.spline()
+
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.configs.length === 0) return
 
-    const textColor = '#9ca3af'
-    const gridColor = 'rgba(255,255,255,0.06)'
+    const textColor = '#d1d5db'
+    const gridColor = 'rgba(255,255,255,0.12)'
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -103,6 +105,21 @@
         stroke: cfg.color,
         width: 2,
         scale: scaleKey,
+        paths: smoothPath,
+        fill: (u, seriesIdx) => {
+          const s = u.series[seriesIdx]
+          const sk = (s.scale as string) || 'y'
+          const sc = u.scales[sk]
+          if (!sc || sc.min == null || sc.max == null) return cfg.color + '30'
+          const top = u.valToPos(sc.max, sk, true)
+          const bottom = u.valToPos(sc.min, sk, true)
+          const ctx = u.ctx
+          if (!ctx) return cfg.color + '30'
+          const grd = ctx.createLinearGradient(0, top, 0, bottom)
+          grd.addColorStop(0, cfg.color + '30')
+          grd.addColorStop(1, cfg.color + '00')
+          return grd
+        },
         value: (_u, raw) =>
           raw == null ? '' : `${formatYValue(raw, cfg.label)}${cfg.unit ? ' ' + cfg.unit : ''}`,
       })
@@ -121,8 +138,8 @@
         ticks: { stroke: textColor },
         values: (_u, ticks) => ticks.map((t) => formatElapsedTime(t)),
         label: 'Elapsed Time',
-        labelFont: '12px system-ui',
-        font: '12px system-ui',
+        labelFont: '13px system-ui',
+        font: '13px system-ui',
         size: 28,
         gap: 5,
         space: 40,
@@ -139,8 +156,8 @@
       values: (_u, ticks) =>
         ticks.map((t) => (typeof t === 'number' ? formatYValue(t, leftConfig.label) : '')),
       label: leftConfig.label + (leftConfig.unit ? ` (${leftConfig.unit})` : ''),
-      labelFont: '12px system-ui',
-      font: '12px system-ui',
+      labelFont: '13px system-ui',
+      font: '13px system-ui',
       size: 36,
       gap: 5,
       space: 50,
@@ -155,8 +172,8 @@
         values: (_u, ticks) =>
           ticks.map((t) => (typeof t === 'number' ? formatYValue(t, rightConfig.label) : '')),
         label: rightConfig.label + (rightConfig.unit ? ` (${rightConfig.unit})` : ''),
-        labelFont: '12px system-ui',
-        font: '12px system-ui',
+        labelFont: '13px system-ui',
+        font: '13px system-ui',
         size: 36,
         gap: 5,
         space: 50,

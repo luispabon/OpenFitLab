@@ -12,7 +12,7 @@
 
 <div class="min-h-screen">
   <header class="sticky top-0 z-40 border-b border-border bg-surface backdrop-blur-xl">
-    <div class="mx-auto max-w-4xl px-4 py-3">
+    <div class="mx-auto w-[85%] max-w-screen-2xl py-3">
       <h1 class="text-lg font-medium text-text-primary">OpenFitLab</h1>
     </div>
   </header>

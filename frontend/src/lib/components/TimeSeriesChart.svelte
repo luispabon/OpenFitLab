@@ -21,6 +21,8 @@
 
   const streamConfig = $derived(config ?? getStreamConfig(streamData.type))
 
+  const smoothPath = uPlot.paths.spline()
+
   function formatElapsedTime(ms: number): string {
     const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
     const hours = Math.floor(totalSeconds / 3600)
@@ -67,8 +69,8 @@
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.pointCount === 0) return
 
-    const textColor = '#9ca3af'
-    const gridColor = 'rgba(255,255,255,0.06)'
+    const textColor = '#d1d5db'
+    const gridColor = 'rgba(255,255,255,0.12)'
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -85,6 +87,21 @@
           label: streamConfig.label,
           stroke: streamConfig.color,
           width: 2,
+          paths: smoothPath,
+          fill: (u, seriesIdx) => {
+            const s = u.series[seriesIdx]
+            const scaleKey = (s.scale as string) || 'y'
+            const sc = u.scales[scaleKey]
+            if (!sc || sc.min == null || sc.max == null) return streamConfig.color + '40'
+            const top = u.valToPos(sc.max, scaleKey, true)
+            const bottom = u.valToPos(sc.min, scaleKey, true)
+            const ctx = u.ctx
+            if (!ctx) return streamConfig.color + '40'
+            const grd = ctx.createLinearGradient(0, top, 0, bottom)
+            grd.addColorStop(0, streamConfig.color + '40')
+            grd.addColorStop(1, streamConfig.color + '00')
+            return grd
+          },
           value: (_u, raw) => (raw == null ? '' : `${formatYValue(raw)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`),
         },
       ],
@@ -99,8 +116,8 @@
           ticks: { stroke: textColor },
           values: (_u, ticks) => ticks.map((t) => formatElapsedTime(t)),
           label: 'Elapsed Time',
-          labelFont: '12px system-ui',
-          font: '12px system-ui',
+          labelFont: '13px system-ui',
+          font: '13px system-ui',
           size: 28,
           gap: 5,
           space: 40,
@@ -111,8 +128,8 @@
           ticks: { stroke: textColor },
           values: (_u, ticks) => ticks.map((t) => (typeof t === 'number' ? formatYValue(t) : '')),
           label: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
-          labelFont: '12px system-ui',
-          font: '12px system-ui',
+          labelFont: '13px system-ui',
+          font: '13px system-ui',
           size: 36,
           gap: 5,
           space: 50,

@@ -128,7 +128,7 @@
   })
 </script>
 
-<section class="p-6">
+<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
   <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
 
   <!-- Upload Section -->
