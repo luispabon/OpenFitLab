@@ -97,9 +97,30 @@
 
   const groupedStats = $derived(groupStatsByCategory(statEntries))
 
-  // Get first activity for stream loading
-  const firstActivity = $derived(eventDetail?.activities?.[0] ?? null)
-  const activityStartDate = $derived(firstActivity?.startDate ?? event?.startDate ?? Date.now())
+  // Selected activity (defaults to first)
+  let selectedActivityId = $state<string | null>(null)
+
+  // Activities list
+  const activities = $derived(eventDetail?.activities ?? [])
+
+  // Selected activity (or first if none selected)
+  const selectedActivity = $derived.by(() => {
+    if (selectedActivityId) {
+      return activities.find((a) => a.id === selectedActivityId) ?? activities[0] ?? null
+    }
+    return activities[0] ?? null
+  })
+
+  // Initialize selected activity when activities load
+  $effect(() => {
+    if (activities.length > 0 && !selectedActivityId) {
+      selectedActivityId = activities[0].id
+    }
+  })
+
+  const activityStartDate = $derived(
+    selectedActivity?.startDate ?? event?.startDate ?? Date.now()
+  )
 
   // Filter to chartable streams only
   const chartableStreams = $derived(
@@ -159,7 +180,7 @@
   }
 
   async function loadStreams() {
-    if (!id || !firstActivity?.id) {
+    if (!id || !selectedActivity?.id) {
       streams = []
       return
     }
@@ -167,7 +188,7 @@
     streamsLoading = true
     streamsError = null
     try {
-      const loadedStreams = await getStreams(id, firstActivity.id)
+      const loadedStreams = await getStreams(id, selectedActivity.id)
       streams = loadedStreams
     } catch (e) {
       streamsError = e instanceof Error ? e.message : 'Failed to load streams'
@@ -182,9 +203,16 @@
     if (id) loadEvent()
   })
 
-  // Load streams when event and first activity are available
+  // Load streams when event and selected activity are available
   $effect(() => {
-    if (eventDetail && firstActivity?.id && !loading) {
+    if (eventDetail && selectedActivity?.id && !loading) {
+      loadStreams()
+    }
+  })
+
+  // Reload streams when selected activity changes
+  $effect(() => {
+    if (selectedActivityId && !loading) {
       loadStreams()
     }
   })
@@ -269,20 +297,55 @@
 
     <!-- Stream Charts Section -->
     {#if streamsLoading}
-      <div class="mt-6 flex justify-center py-12">
-        <LoadingSpinner />
+      <div class="mt-6 space-y-6">
+        <div class="flex flex-col gap-4">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+          <!-- Loading skeleton -->
+          <div class="space-y-6">
+            {#each [1, 2, 3] as _}
+              <div
+                class="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div class="h-64 w-full rounded bg-gray-200 dark:bg-gray-700"></div>
+              </div>
+            {/each}
+          </div>
+        </div>
       </div>
     {:else if streamsError}
       <div class="mt-6 rounded-md bg-yellow-50 p-4 dark:bg-yellow-900/20">
         <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
           {streamsError}
         </p>
+        <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
+          Charts will not be available for this activity.
+        </p>
       </div>
     {:else if chartableStreams.length > 0}
       <div class="mt-6 space-y-6">
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+            <div class="flex flex-col gap-2">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+              
+              <!-- Activity Selector Tabs (only show if multiple activities) -->
+              {#if activities.length > 1}
+                <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+                  {#each activities as activity (activity.id)}
+                    {@const isSelected = selectedActivityId === activity.id}
+                    <button
+                      type="button"
+                      class="px-3 py-2 text-sm font-medium transition-colors {isSelected
+                        ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+                      onclick={() => (selectedActivityId = activity.id)}
+                    >
+                      {activity.name || activity.type || `Activity ${activities.indexOf(activity) + 1}`}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
             
             <!-- View Mode Toggle -->
             <div class="flex items-center gap-2">
@@ -358,6 +421,16 @@
             </p>
           </div>
         {/if}
+      </div>
+    {:else if selectedActivity && !streamsLoading}
+      <!-- No streams available for this activity -->
+      <div class="mt-6 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+        <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+          No stream data available
+        </p>
+        <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+          This activity does not contain time-series data (heart rate, speed, etc.).
+        </p>
       </div>
     {/if}
   {:else}

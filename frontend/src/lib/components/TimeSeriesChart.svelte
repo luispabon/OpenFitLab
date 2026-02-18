@@ -43,6 +43,22 @@
   let chartInstance: Chart | null = $state(null)
   let isZoomed = $state(false)
 
+  // Detect dark mode
+  function isDarkMode(): boolean {
+    if (typeof document === 'undefined') return false
+    return document.documentElement.classList.contains('dark')
+  }
+
+  // Get chart colors based on theme
+  const chartColors = $derived.by(() => {
+    const dark = isDarkMode()
+    return {
+      text: dark ? '#d1d5db' : '#374151', // gray-300 : gray-700
+      grid: dark ? '#374151' : '#e5e7eb', // gray-700 : gray-200
+      background: dark ? '#1f2937' : '#ffffff', // gray-800 : white
+    }
+  })
+
   // Reset zoom function (can be called from parent if needed)
   export function resetZoom() {
     if (chartInstance) {
@@ -57,7 +73,7 @@
   // Prepare chart data: convert absolute timestamps to elapsed time (relative to activity start)
   const chartData = $derived.by(() => {
     if (!streamData.data || streamData.data.length === 0) {
-      return { labels: [], values: [] }
+      return { labels: [], values: [], pointCount: 0 }
     }
 
     // Filter out non-numeric values and convert timestamps
@@ -71,7 +87,7 @@
         // Convert absolute timestamp to elapsed milliseconds from activity start
         const elapsedMs = point.time - activityStartDate
         return {
-          x: elapsedMs,
+          x: Math.max(0, elapsedMs),
           y: value,
         }
       })
@@ -80,7 +96,17 @@
     return {
       labels: points.map((p) => p.x),
       values: points.map((p) => p.y),
+      pointCount: points.length,
     }
+  })
+
+  // Adaptive decimation threshold based on dataset size
+  const decimationSamples = $derived.by(() => {
+    const count = chartData.pointCount
+    if (count <= 1000) return undefined // No decimation for small datasets
+    if (count <= 5000) return 1000 // Decimate to 1000 points
+    if (count <= 10000) return 1500 // Decimate to 1500 points
+    return 2000 // Decimate to 2000 points for very large datasets
   })
 
   // Format elapsed time for X-axis labels (mm:ss or h:mm:ss)
@@ -161,6 +187,7 @@
             labels: {
               usePointStyle: true,
               padding: 15,
+              color: chartColors.text,
               font: {
                 size: 12,
               },
@@ -184,9 +211,9 @@
             },
           },
           decimation: {
-            enabled: true,
+            enabled: decimationSamples !== undefined,
             algorithm: 'lttb',
-            samples: 500, // Decimate to ~500 points for performance
+            samples: decimationSamples ?? 500,
           },
           zoom: {
             zoom: {
@@ -216,25 +243,35 @@
             title: {
               display: true,
               text: 'Elapsed Time',
+              color: chartColors.text,
             },
             min: 0, // Start at 0:00
             ticks: {
+              color: chartColors.text,
               callback: function (value) {
                 return formatElapsedTime(value as number)
               },
+            },
+            grid: {
+              color: chartColors.grid,
             },
           },
           y: {
             title: {
               display: true,
               text: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
+              color: chartColors.text,
             },
             beginAtZero: false, // Don't force zero baseline for Y-axis
             ticks: {
+              color: chartColors.text,
               callback: function (value) {
                 if (typeof value !== 'number') return ''
                 return formatYAxisValue(value)
               },
+            },
+            grid: {
+              color: chartColors.grid,
             },
           },
         },
@@ -286,16 +323,22 @@
   })
 </script>
 
-<div class="w-full">
+<div class="w-full animate-fade-in">
   {#if !streamData.data || streamData.data.length === 0}
     <div class="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
       <p class="text-sm text-gray-500 dark:text-gray-400">No data available for {streamConfig.label}</p>
+    </div>
+  {:else if chartData.pointCount === 0}
+    <div class="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        No valid numeric data for {streamConfig.label}
+      </p>
     </div>
   {:else}
     <div class="relative">
       <button
         type="button"
-        class="absolute right-2 top-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-75 hover:opacity-100 dark:bg-gray-200 dark:text-gray-800"
+        class="absolute right-2 top-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-75 transition-opacity hover:opacity-100 dark:bg-gray-200 dark:text-gray-800"
         onclick={resetZoom}
         style="display: {isZoomed ? 'block' : 'none'};"
       >
@@ -307,3 +350,19 @@
     </div>
   {/if}
 </div>
+
+<style>
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+</style>
