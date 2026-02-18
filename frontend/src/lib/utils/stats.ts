@@ -175,7 +175,7 @@ export function getStatUnit(statType: string): string {
   const lower = parsed.metric.toLowerCase()
   const variant = (parsed.unitVariant || '').toLowerCase()
   if (lower === 'duration' || lower === 'time' || lower === 'moving time' || lower === 'movingtime')
-    return 's'
+    return '' // time shown as e.g. "08:08" or "1:04:50", no unit suffix
   if (lower === 'distance') return 'm'
   if (lower.includes('heart rate') || lower.includes('heartrate')) return 'bpm'
   if (lower === 'energy' || lower.includes('calorie')) return 'kcal'
@@ -204,14 +204,46 @@ export function getStatLabel(statType: string): string {
     .join(' ')
 }
 
+/** Whether this stat type is a duration/time metric (value in seconds). */
+export function isTimeStat(statType: string): boolean {
+  const metric = parseStat(statType).metric.toLowerCase()
+  return (
+    metric === 'duration' ||
+    metric === 'time' ||
+    metric === 'moving time' ||
+    metric === 'movingtime'
+  )
+}
+
+/**
+ * Formats a duration in seconds as human-readable time.
+ * Examples: 488 -> "08:08", 3890 -> "1:04:50", 65 -> "01:05".
+ */
+export function formatDuration(seconds: number): string {
+  const s = Math.floor(Number(seconds))
+  if (!Number.isFinite(s) || s < 0) return String(seconds)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  if (h > 0) return `${h}:${pad(m)}:${pad(sec)}`
+  return `${pad(m)}:${pad(sec)}`
+}
+
 /**
  * Formats a stat value for display.
+ * When statType is provided and is a time stat, numeric values are shown as duration (e.g. "08:08", "1:04:50").
  * Handles numbers, strings, arrays, and objects.
  */
 export function formatStatValue(
-  value: number | string | number[] | Record<string, unknown> | undefined | null
+  value: number | string | number[] | Record<string, unknown> | undefined | null,
+  statType?: string
 ): string {
   if (value == null) return ''
+  if (statType && isTimeStat(statType)) {
+    const n = typeof value === 'string' ? Number(value) : value
+    if (typeof n === 'number' && Number.isFinite(n)) return formatDuration(n)
+  }
   if (Array.isArray(value)) {
     return value.join(', ')
   }
@@ -317,7 +349,7 @@ export function selectKeyMetrics(
       const raw = stats[found]
       entries.push({
         statType: found,
-        value: formatStatValue(raw),
+        value: formatStatValue(raw, found),
         unit: getStatUnit(found),
       })
     }

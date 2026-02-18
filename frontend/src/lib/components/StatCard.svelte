@@ -23,7 +23,7 @@
         {getStatLabel(statType)}
       </div>
       <div class="text-base font-medium text-text-primary">
-        {value} {unit}
+        {value}{#if unit} {unit}{/if}
       </div>
     </div>
   </div>

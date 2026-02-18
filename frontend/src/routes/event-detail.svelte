@@ -62,7 +62,7 @@
     if (!ev?.stats) return []
     return Object.entries(ev.stats).map(([statType, raw]) => ({
       statType,
-      value: formatStatValue(raw),
+      value: formatStatValue(raw, statType),
       unit: getStatUnit(statType),
     }))
   })
@@ -253,9 +253,11 @@
           {#each keyMetrics as entry (entry.statType)}
             <div class="flex flex-col items-center gap-0.5">
               <span class="text-2xl font-light text-text-primary sm:text-3xl">{entry.value}</span>
-              <span class="text-xs uppercase tracking-wide text-text-secondary sm:text-sm">
-                {entry.unit}
-              </span>
+              {#if entry.unit}
+                <span class="text-xs uppercase tracking-wide text-text-secondary sm:text-sm">
+                  {entry.unit}
+                </span>
+              {/if}
             </div>
           {/each}
         </div>
