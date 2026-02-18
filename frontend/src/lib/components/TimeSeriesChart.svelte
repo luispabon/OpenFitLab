@@ -16,6 +16,8 @@
   let containerEl: HTMLDivElement | null = $state(null)
   let chartInstance: uPlot | null = $state(null)
   let isZoomed = $state(false)
+  // Ref to avoid effect re-running when we assign chartInstance (effect must not read reactive chartInstance)
+  const chartRef = { current: null as uPlot | null }
 
   function isDarkMode(): boolean {
     if (typeof document === 'undefined') return false
@@ -74,9 +76,9 @@
     const textColor = dark ? '#d1d5db' : '#374151'
     const gridColor = dark ? '#374151' : '#e5e7eb'
 
-    if (chartInstance) {
-      chartInstance.destroy()
-      chartInstance = null
+    if (chartRef.current) {
+      chartRef.current.destroy()
+      chartRef.current = null
     }
 
     const { data, xMin, xMax } = chartData
@@ -133,32 +135,37 @@
       hooks: {
         setSelect: [
           (u) => {
-            const xScale = u.scales.x
-            if (!xScale || xScale.min == null || xScale.max == null) return
-            const tol = (chartData.xMax - chartData.xMin) * 0.01
-            isZoomed =
-              Math.abs(xScale.min - chartData.xMin) > tol || Math.abs(xScale.max - chartData.xMax) > tol
+            // Use setTimeout to avoid synchronous state updates during chart initialization
+            setTimeout(() => {
+              const xScale = u.scales.x
+              if (!xScale || xScale.min == null || xScale.max == null) return
+              const tol = (chartData.xMax - chartData.xMin) * 0.01
+              isZoomed =
+                Math.abs(xScale.min - chartData.xMin) > tol || Math.abs(xScale.max - chartData.xMax) > tol
+            }, 0)
           },
         ],
       },
     }
 
-    chartInstance = new uPlot(opts, data, containerEl)
+    const u = new uPlot(opts, data, containerEl)
+    chartRef.current = u
+    chartInstance = u
 
-    // Track resize
     const ro = new ResizeObserver(() => {
-      if (chartInstance && containerEl) {
-        chartInstance.setSize({ width: containerEl.offsetWidth, height: 256 })
+      if (chartRef.current && containerEl) {
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 256 })
       }
     })
     ro.observe(containerEl)
 
     return () => {
       ro.disconnect()
-      if (chartInstance) {
-        chartInstance.destroy()
-        chartInstance = null
+      if (chartRef.current) {
+        chartRef.current.destroy()
+        chartRef.current = null
       }
+      chartInstance = null
     }
   })
 </script>
