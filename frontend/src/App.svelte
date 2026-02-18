@@ -10,10 +10,10 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
-  <header class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+<div class="min-h-screen">
+  <header class="sticky top-0 z-40 border-b border-border bg-surface backdrop-blur-xl">
     <div class="mx-auto max-w-4xl px-4 py-3">
-      <h1 class="text-lg font-medium text-gray-900 dark:text-white">OpenFitLab</h1>
+      <h1 class="text-lg font-medium text-text-primary">OpenFitLab</h1>
     </div>
   </header>
   <main>
