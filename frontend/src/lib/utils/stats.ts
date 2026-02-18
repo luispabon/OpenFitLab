@@ -1,0 +1,154 @@
+export interface StatIcon {
+  type: 'material' | 'svg'
+  name: string
+}
+
+/**
+ * Maps stat type names (from API) to icon information.
+ * Stat names come from the API as strings like "Duration", "Distance", "Average Heart Rate", etc.
+ */
+export function getStatIcon(statType: string): StatIcon | null {
+  const lower = statType.toLowerCase()
+
+  // Duration / Time
+  if (lower === 'duration' || lower === 'time') {
+    return { type: 'material', name: 'access_time' }
+  }
+
+  // Moving Time
+  if (lower === 'moving time' || lower === 'movingtime') {
+    return { type: 'svg', name: 'moving-time' }
+  }
+
+  // Distance
+  if (lower === 'distance') {
+    return { type: 'material', name: 'trending_flat' }
+  }
+
+  // Heart Rate
+  if (
+    lower.includes('heart rate') ||
+    lower.includes('heartrate') ||
+    lower === 'average heart rate' ||
+    lower === 'min heart rate' ||
+    lower === 'max heart rate'
+  ) {
+    return { type: 'svg', name: 'heart_pulse' }
+  }
+
+  // Energy / Calories
+  if (lower === 'energy' || lower === 'calories' || lower.includes('calorie')) {
+    return { type: 'svg', name: 'energy' }
+  }
+
+  // Speed
+  if (lower === 'speed' || lower === 'average speed' || lower.includes('speed')) {
+    return { type: 'material', name: 'speed' }
+  }
+
+  // Cadence
+  if (lower === 'cadence' || lower === 'average cadence' || lower.includes('cadence')) {
+    return { type: 'material', name: 'cached' }
+  }
+
+  // Power
+  if (lower === 'power' || lower === 'average power' || lower.includes('power')) {
+    return { type: 'material', name: 'bolt' }
+  }
+
+  // Ascent
+  if (lower === 'ascent' || lower.includes('ascent')) {
+    return { type: 'svg', name: 'arrow_up_right' }
+  }
+
+  // Descent
+  if (lower === 'descent' || lower.includes('descent')) {
+    return { type: 'svg', name: 'arrow_down_right' }
+  }
+
+  // Altitude Max
+  if (lower === 'altitude max' || lower === 'max altitude' || lower.includes('altitude max')) {
+    return { type: 'material', name: 'vertical_align_top' }
+  }
+
+  // Altitude Min
+  if (lower === 'altitude min' || lower === 'min altitude' || lower.includes('altitude min')) {
+    return { type: 'material', name: 'vertical_align_bottom' }
+  }
+
+  return null
+}
+
+/**
+ * Gets a display label for a stat type.
+ * Returns the stat type name with basic formatting.
+ */
+export function getStatLabel(statType: string): string {
+  // Capitalize first letter of each word
+  return statType
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/**
+ * Formats a stat value for display.
+ * Handles numbers, strings, arrays, and objects.
+ */
+export function formatStatValue(
+  value: number | string | number[] | Record<string, unknown> | undefined | null
+): string {
+  if (value == null) return ''
+  if (Array.isArray(value)) {
+    return value.join(', ')
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
+/**
+ * Gets stat categories for filtering/grouping stats.
+ */
+export const STAT_CATEGORIES = {
+  OVERALL: [
+    'Duration',
+    'Moving Time',
+    'Distance',
+    'Speed',
+    'Average Speed',
+    'Cadence',
+    'Average Cadence',
+    'Power',
+    'Average Power',
+    'Ascent',
+    'Descent',
+    'Altitude Max',
+    'Altitude Min',
+  ],
+  PERFORMANCE: [
+    'Average Heart Rate',
+    'Min Heart Rate',
+    'Max Heart Rate',
+    'Heart Rate',
+    'Speed',
+    'Average Speed',
+    'Power',
+    'Average Power',
+    'Cadence',
+    'Average Cadence',
+  ],
+  PHYSIOLOGICAL: ['Energy', 'Calories', 'Average Heart Rate', 'Heart Rate'],
+} as const
+
+/**
+ * Checks if a stat type belongs to a category.
+ */
+export function isStatInCategory(statType: string, category: keyof typeof STAT_CATEGORIES): boolean {
+  const lower = statType.toLowerCase()
+  return STAT_CATEGORIES[category].some((catStat) => {
+    const catLower = catStat.toLowerCase()
+    return lower === catLower || lower.includes(catLower) || catLower.includes(lower)
+  })
+}
