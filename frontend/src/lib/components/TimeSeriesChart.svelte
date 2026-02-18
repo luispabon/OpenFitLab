@@ -74,7 +74,9 @@
 
   // Format elapsed time for X-axis labels (mm:ss or h:mm:ss)
   function formatElapsedTime(milliseconds: number): string {
-    const totalSeconds = Math.floor(milliseconds / 1000)
+    // Ensure non-negative
+    const ms = Math.max(0, milliseconds)
+    const totalSeconds = Math.floor(ms / 1000)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
@@ -83,6 +85,16 @@
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  // Format Y-axis value based on stream type
+  function formatYAxisValue(value: number): string {
+    // Heart Rate should be integers
+    if (streamConfig.label === 'Heart Rate') {
+      return Math.round(value).toString()
+    }
+    // Other metrics: show 1 decimal place
+    return value.toFixed(1)
   }
 
   // Initialize chart when canvas is available
@@ -155,7 +167,8 @@
                 const value = context.parsed.y
                 if (value == null || typeof value !== 'number') return `${streamConfig.label}: N/A`
                 const unit = streamConfig.unit
-                return `${streamConfig.label}: ${value.toFixed(1)}${unit ? ' ' + unit : ''}`
+                const formattedValue = formatYAxisValue(value)
+                return `${streamConfig.label}: ${formattedValue}${unit ? ' ' + unit : ''}`
               },
             },
           },
@@ -172,6 +185,7 @@
               display: true,
               text: 'Elapsed Time',
             },
+            min: 0, // Start at 0:00
             ticks: {
               callback: function (value) {
                 return formatElapsedTime(value as number)
@@ -183,7 +197,13 @@
               display: true,
               text: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
             },
-            beginAtZero: false, // Don't force zero baseline
+            beginAtZero: false, // Don't force zero baseline for Y-axis
+            ticks: {
+              callback: function (value) {
+                if (typeof value !== 'number') return ''
+                return formatYAxisValue(value)
+              },
+            },
           },
         },
       },
