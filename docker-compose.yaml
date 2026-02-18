@@ -1,0 +1,67 @@
+services:
+  db:
+    image: mariadb:12.2.2
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-qsroot}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-openfitlab}
+      MARIADB_USER: ${MARIADB_USER:-qs}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-qspass}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    image: node:24-alpine
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: ${MARIADB_USER:-qs}
+      DB_PASSWORD: ${MARIADB_PASSWORD:-qspass}
+      DB_DATABASE: ${MARIADB_DATABASE:-openfitlab}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: sh -c "npm install && npm run dev"
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /workspace/frontend
+    ports:
+      - "4200:4200"
+    environment:
+      API_PROXY_TARGET: http://api:3000
+    depends_on:
+      - api
+    volumes:
+      - .:/workspace
+    command: sh -c "npm install && npm run dev"
+
+  adminer:
+    image: ghcr.io/jeliebig/adminer-autologin:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ADMINER_PLUGINS: login-env-vars
+      ADMINER_DRIVER: server
+      ADMINER_SERVER: db
+      ADMINER_USERNAME: ${MARIADB_USER:-qs}
+      ADMINER_PASSWORD: ${MARIADB_PASSWORD:-qspass}
+      ADMINER_DB: ${MARIADB_DATABASE:-openfitlab}
+
+volumes:
+  db_data:
