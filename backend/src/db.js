@@ -1,0 +1,65 @@
+const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
+
+let pool = null;
+
+function getConfig() {
+  return {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'qs',
+    password: process.env.DB_PASSWORD || 'qspass',
+    database: process.env.DB_DATABASE || 'openfitlab',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    multipleStatements: true,
+  };
+}
+
+async function getPool() {
+  if (pool) return pool;
+  pool = mysql.createPool(getConfig());
+  return pool;
+}
+
+async function ensureDatabaseExists() {
+  const config = getConfig();
+  const dbName = config.database;
+  
+  // Connect without specifying database to create it if needed
+  const adminConfig = { ...config };
+  delete adminConfig.database;
+  
+  const adminPool = mysql.createPool(adminConfig);
+  try {
+    await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    console.log(`Database '${dbName}' ensured.`);
+  } finally {
+    await adminPool.end();
+  }
+}
+
+async function initializeSchema() {
+  // Ensure database exists before connecting to it
+  await ensureDatabaseExists();
+  
+  const p = await getPool();
+  const schemaPath = path.join(__dirname, '..', 'sql', 'schema.sql');
+  const sql = fs.readFileSync(schemaPath, 'utf8');
+  await p.query(sql);
+  console.log('Schema initialized.');
+}
+
+async function query(sql, params = []) {
+  const p = await getPool();
+  const [rows] = await p.execute(sql, params);
+  return rows;
+}
+
+async function queryOne(sql, params = []) {
+  const rows = await query(sql, params);
+  return rows[0] ?? null;
+}
+
+module.exports = { getPool, initializeSchema, query, queryOne };

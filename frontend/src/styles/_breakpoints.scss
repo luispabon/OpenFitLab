@@ -1,0 +1,31 @@
+/**
+ * Global SCSS Breakpoints
+ * Mobile-first approach.
+ */
+
+$bp-xsmall-max: 599.98px;
+$bp-small-min: 600px;
+$bp-small-max: 959.98px;
+$bp-medium-min: 960px;
+$bp-medium-max: 1279.98px;
+$bp-large-min: 1280px;
+$bp-large-max: 1919.98px;
+$bp-xlarge-min: 1920px;
+
+@mixin xsmall {
+  @media only screen and (max-width: $bp-xsmall-max) {
+    @content;
+  }
+}
+
+@mixin small-and-up {
+  @media only screen and (min-width: $bp-small-min) {
+    @content;
+  }
+}
+
+@mixin medium-and-up {
+  @media only screen and (min-width: $bp-medium-min) {
+    @content;
+  }
+}

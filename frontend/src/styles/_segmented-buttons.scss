@@ -1,0 +1,46 @@
+@use 'breakpoints' as *;
+
+.qs-segmented-button-group {
+  border: 1px solid var(--mat-app-outline-variant);
+  border-radius: 20px;
+  overflow: hidden;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+
+  @include xsmall {
+    height: auto;
+    min-height: 32px;
+    flex-wrap: wrap;
+    border-radius: 12px;
+  }
+
+  mat-button-toggle {
+    font-size: 0.8rem;
+    background-color: transparent;
+    color: var(--mat-app-on-surface-variant);
+    border-left: 1px solid var(--mat-app-outline-variant);
+    height: 100%;
+    display: flex;
+    align-items: center;
+
+    &:first-child {
+      border-left: none;
+    }
+
+    &.mat-button-toggle-checked {
+      background-color: var(--mat-app-surface-container-high);
+      color: var(--mat-app-on-surface);
+      font-weight: 500;
+    }
+
+    ::ng-deep .mat-button-toggle-label-content {
+      padding: 0 12px !important;
+      line-height: normal !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}

@@ -1,0 +1,58 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.dashboard {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
+  animation: fadeIn 0.8s ease-out;
+}
+
+h1 {
+  font-size: 1.75rem;
+  font-weight: 400;
+  margin: 0 0 1.25rem 0;
+  color: var(--mat-sys-on-surface, inherit);
+}
+
+.actions {
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.event-list {
+  margin-top: 1rem;
+  background: var(--mat-sys-surface);
+  border-radius: 12px;
+  border: 1px solid var(--mat-app-outline-variant);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.event-list table.mat-mdc-table {
+  background: transparent !important;
+}
+
+.event-list .mat-mdc-header-cell {
+  padding: 16px;
+}
+
+.event-list .mat-mdc-cell {
+  padding: 14px 16px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
