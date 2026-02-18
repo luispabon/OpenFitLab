@@ -79,6 +79,39 @@ export function getStatIcon(statType: string): StatIcon | null {
   return null
 }
 
+/** Material Icons name for display (maps custom SVG names to Material equivalents). */
+const SVG_TO_MATERIAL: Record<string, string> = {
+  'moving-time': 'schedule',
+  heart_pulse: 'favorite',
+  energy: 'local_fire_department',
+  arrow_up_right: 'trending_up',
+  arrow_down_right: 'trending_down',
+}
+
+export function getStatIconMaterialName(statIcon: StatIcon): string {
+  if (statIcon.type === 'material') return statIcon.name
+  return SVG_TO_MATERIAL[statIcon.name] ?? 'info'
+}
+
+/**
+ * Gets a display unit for a stat type (e.g. "s", "km", "bpm").
+ * API does not return units; these are sensible defaults.
+ */
+export function getStatUnit(statType: string): string {
+  const lower = statType.toLowerCase()
+  if (lower === 'duration' || lower === 'time' || lower === 'moving time' || lower === 'movingtime')
+    return 's'
+  if (lower === 'distance') return 'm'
+  if (lower.includes('heart rate') || lower.includes('heartrate')) return 'bpm'
+  if (lower === 'energy' || lower.includes('calorie')) return 'kcal'
+  if (lower.includes('speed')) return 'm/s'
+  if (lower.includes('cadence')) return 'rpm'
+  if (lower.includes('power')) return 'W'
+  if (lower.includes('ascent') || lower.includes('descent') || lower.includes('altitude'))
+    return 'm'
+  return ''
+}
+
 /**
  * Gets a display label for a stat type.
  * Returns the stat type name with basic formatting.
