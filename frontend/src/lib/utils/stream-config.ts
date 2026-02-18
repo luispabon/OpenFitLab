@@ -94,9 +94,9 @@ export function getStreamConfig(type: string): StreamConfig {
     return config
   }
   
-  // Generic fallback for unknown stream types
+  // Generic fallback for unknown stream types (visible on dark background, distinct from disabled state)
   return {
-    color: '#6b7280', // gray-500
+    color: '#38bdf8', // sky-400
     unit: '',
     label: normalized,
     chartable: true, // Assume chartable unless we know otherwise

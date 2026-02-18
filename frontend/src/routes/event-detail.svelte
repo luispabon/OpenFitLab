@@ -380,12 +380,13 @@
               <button
                 type="button"
                 class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isSelected
-                  ? 'border-border bg-card text-text-primary'
-                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
+                  ? 'text-text-primary'
+                  : 'border-border bg-transparent text-text-muted hover:bg-card-hover'}"
+                style={isSelected ? `background-color: ${config.color}26; border-color: ${config.color}66` : ''}
                 onclick={() => toggleStream(stream.type)}
               >
                 <span
-                  class="h-2 w-2 rounded-full"
+                  class="h-2 w-2 rounded-full {isSelected ? '' : 'opacity-40'}"
                   style="background-color: {config.color};"
                 ></span>
                 <span>{config.label}</span>
