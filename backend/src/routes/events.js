@@ -4,6 +4,15 @@ const { randomUUID } = require('crypto');
 const db = require('../db');
 const FileParser = require('../parsers/file-parser');
 const { extractStreamDataPointsFromJSON } = require('../utils/stream-extractor');
+const {
+  parseJSONField,
+  toTimestamp,
+  aggregateStats,
+  mapEventRow,
+  mapActivityRow,
+  extractPayloadRest,
+  placeholders,
+} = require('../utils/transforms');
 
 const router = express.Router();
 
@@ -31,30 +40,12 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
     const eventIds = rows.map((r) => r.id);
-    const placeholders = eventIds.map(() => '?').join(',');
     const statsRows = await db.query(
-      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders})`,
+      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
       eventIds
     );
-    const statsByEventId = {};
-    for (const s of statsRows) {
-      if (!statsByEventId[s.event_id]) statsByEventId[s.event_id] = {};
-      statsByEventId[s.event_id][s.stat_type] = typeof s.value === 'object' ? s.value : JSON.parse(s.value);
-    }
-    const events = rows.map((r) => {
-      const payloadRest = typeof r.payload_rest === 'object' ? r.payload_rest : r.payload_rest ? JSON.parse(r.payload_rest) : {};
-      return {
-        id: r.id,
-        startDate: Number(r.start_date),
-        name: r.name,
-        privacy: r.privacy,
-        ...(r.end_date != null ? { endDate: Number(r.end_date) } : {}),
-        ...(r.description != null ? { description: r.description } : {}),
-        ...(r.is_merge === 1 ? { isMerge: true } : {}),
-        stats: statsByEventId[r.id] || {},
-        ...payloadRest,
-      };
-    });
+    const statsByEventId = aggregateStats(statsRows, 'event_id');
+    const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
     res.json(events);
   } catch (e) {
     console.error('GET /api/events', e);
@@ -78,46 +69,17 @@ router.get('/:id', async (req, res) => {
       db.query('SELECT stat_type, value FROM event_stats WHERE event_id = ?', [req.params.id]),
       activities.length > 0
         ? db.query(
-            `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${activities.map(() => '?').join(',')})`,
+            `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(
+              activities.length
+            )})`,
             activities.map((a) => a.id)
           )
         : [],
     ]);
-    const eventStats = {};
-    for (const s of eventStatsRows) {
-      eventStats[s.stat_type] = typeof s.value === 'object' ? s.value : JSON.parse(s.value);
-    }
-    const activityStatsById = {};
-    for (const s of activityStatsRows) {
-      if (!activityStatsById[s.activity_id]) activityStatsById[s.activity_id] = {};
-      activityStatsById[s.activity_id][s.stat_type] = typeof s.value === 'object' ? s.value : JSON.parse(s.value);
-    }
-    const eventPayloadRest = typeof event.payload_rest === 'object' ? event.payload_rest : event.payload_rest ? JSON.parse(event.payload_rest) : {};
-    const eventJson = {
-      id: event.id,
-      startDate: Number(event.start_date),
-      name: event.name,
-      privacy: event.privacy,
-      ...(event.end_date != null ? { endDate: Number(event.end_date) } : {}),
-      ...(event.description != null ? { description: event.description } : {}),
-      ...(event.is_merge === 1 ? { isMerge: true } : {}),
-      stats: eventStats,
-      ...eventPayloadRest,
-    };
-    const activitiesJson = activities.map((a) => {
-      const aPayloadRest = typeof a.payload_rest === 'object' ? a.payload_rest : a.payload_rest ? JSON.parse(a.payload_rest) : {};
-      return {
-        id: a.id,
-        eventID: a.event_id,
-        eventStartDate: a.event_start_date != null ? Number(a.event_start_date) : undefined,
-        ...(a.name != null ? { name: a.name } : {}),
-        ...(a.start_date != null ? { startDate: Number(a.start_date) } : {}),
-        ...(a.end_date != null ? { endDate: Number(a.end_date) } : {}),
-        ...(a.type != null ? { type: a.type } : {}),
-        stats: activityStatsById[a.id] || {},
-        ...aPayloadRest,
-      };
-    });
+    const eventStats = aggregateStats(eventStatsRows);
+    const activityStatsById = aggregateStats(activityStatsRows, 'activity_id');
+    const eventJson = mapEventRow(event, eventStats);
+    const activitiesJson = activities.map((a) => mapActivityRow(a, activityStatsById[a.id]));
     res.json({ event: eventJson, activities: activitiesJson });
   } catch (e) {
     console.error('GET /api/events/:id', e);
@@ -152,9 +114,7 @@ router.post('/', upload.array('files', 10), async (req, res) => {
 
     // Generate new UUID for event - each upload is a new event
     const eventId = randomUUID();
-    const startDate = event.startDate instanceof Date 
-      ? event.startDate.getTime() 
-      : (typeof event.startDate === 'number' ? event.startDate : Date.now());
+    const startDate = toTimestamp(event.startDate, Date.now());
     // Always use filename as event name (remove extension and trim)
     const name = (primaryFile.originalname && primaryFile.originalname.trim())
       ? primaryFile.originalname.replace(/\.[^/.]+$/, '').trim()
@@ -164,19 +124,20 @@ router.post('/', upload.array('files', 10), async (req, res) => {
     // Extract event JSON and split into columns, stats, and payload_rest
     const eventJson = event.toJSON();
     const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
-    const eventEndDate = eventJson.endDate != null ? (eventJson.endDate instanceof Date ? eventJson.endDate.getTime() : Number(eventJson.endDate)) : null;
+    const eventEndDate = toTimestamp(eventJson.endDate, null);
     const eventDescription = eventJson.description != null ? String(eventJson.description) : null;
     const eventIsMerge = eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0;
-    const eventPayloadRest = { ...eventJson };
-    delete eventPayloadRest.id;
-    delete eventPayloadRest.startDate;
-    delete eventPayloadRest.name;
-    delete eventPayloadRest.privacy;
-    delete eventPayloadRest.activities;
-    delete eventPayloadRest.stats;
-    delete eventPayloadRest.endDate;
-    delete eventPayloadRest.description;
-    delete eventPayloadRest.isMerge;
+    const eventPayloadRest = extractPayloadRest(eventJson, [
+      'id',
+      'startDate',
+      'name',
+      'privacy',
+      'activities',
+      'stats',
+      'endDate',
+      'description',
+      'isMerge',
+    ]);
 
     // Store event
     await db.query(
@@ -205,22 +166,18 @@ router.post('/', upload.array('files', 10), async (req, res) => {
       const streams = activityJson.streams;
       const aStats = activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
       const aName = activityJson.name != null ? String(activityJson.name) : null;
-      const aStartDate = activityJson.startDate != null ? (activityJson.startDate instanceof Date ? activityJson.startDate.getTime() : Number(activityJson.startDate)) : null;
-      const aEndDate = activityJson.endDate != null ? (activityJson.endDate instanceof Date ? activityJson.endDate.getTime() : Number(activityJson.endDate)) : null;
+      const aStartDate = toTimestamp(activityJson.startDate, null);
+      const aEndDate = toTimestamp(activityJson.endDate, null);
       const aType = activityJson.type != null ? String(activityJson.type) : null;
 
-      const aPayloadRest = { ...activityJson };
-      aPayloadRest.eventID = eventId;
-      aPayloadRest.eventStartDate = startDate;
-      delete aPayloadRest.id;
-      delete aPayloadRest.streams;
-      delete aPayloadRest.stats;
-      delete aPayloadRest.name;
-      delete aPayloadRest.startDate;
-      delete aPayloadRest.endDate;
-      delete aPayloadRest.type;
-      delete aPayloadRest.eventID;
-      delete aPayloadRest.eventStartDate;
+      const aPayloadRest = extractPayloadRest(
+        {
+          ...activityJson,
+          eventID: eventId,
+          eventStartDate: startDate,
+        },
+        ['id', 'streams', 'stats', 'name', 'startDate', 'endDate', 'type', 'eventID', 'eventStartDate']
+      );
 
       await db.query(
         'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -238,9 +195,7 @@ router.post('/', upload.array('files', 10), async (req, res) => {
       // Store streams with timestamped data points
       if (streams) {
         // Get activity start date (use activity's own start date if available, otherwise use event start date)
-        const activityStartDate = activity.startDate instanceof Date
-          ? activity.startDate.getTime()
-          : (typeof activity.startDate === 'number' ? activity.startDate : startDate);
+        const activityStartDate = toTimestamp(activity.startDate, startDate);
         
         // Extract stream data points with timestamps
         const streamDataPoints = extractStreamDataPointsFromJSON(
@@ -322,8 +277,7 @@ router.get('/:id/activities/:activityId/streams', async (req, res) => {
     const params = [activityId, eventId];
     
     if (streamTypes && streamTypes.length > 0) {
-      const placeholders = streamTypes.map(() => '?').join(',');
-      sql += ` AND type IN (${placeholders})`;
+      sql += ` AND type IN (${placeholders(streamTypes.length)})`;
       params.push(...streamTypes);
     }
     
@@ -337,13 +291,10 @@ router.get('/:id/activities/:activityId/streams', async (req, res) => {
         [streamRow.id]
       );
       
-      const data = dataPoints.map((dp) => {
-        const value = typeof dp.value === 'object' ? dp.value : JSON.parse(dp.value);
-        return {
-          time: dp.time_ms,
-          value: value
-        };
-      });
+      const data = dataPoints.map((dp) => ({
+        time: dp.time_ms,
+        value: parseJSONField(dp.value),
+      }));
       
       return {
         type: streamRow.type,
@@ -366,16 +317,20 @@ router.delete('/:id', async (req, res) => {
     const activityIds = activityRows.map((r) => r.id);
 
     if (activityIds.length > 0) {
-      const placeholders = activityIds.map(() => '?').join(',');
-      await db.query(`DELETE FROM activity_stats WHERE activity_id IN (${placeholders})`, activityIds);
+      await db.query(
+        `DELETE FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      );
     }
     await db.query('DELETE FROM event_stats WHERE event_id = ?', [eventId]);
 
     const streamRows = await db.query('SELECT id FROM streams WHERE event_id = ?', [eventId]);
     const streamIds = streamRows.map((r) => r.id);
     if (streamIds.length > 0) {
-      const streamPlaceholders = streamIds.map(() => '?').join(',');
-      await db.query(`DELETE FROM stream_data_points WHERE stream_id IN (${streamPlaceholders})`, streamIds);
+      await db.query(
+        `DELETE FROM stream_data_points WHERE stream_id IN (${placeholders(streamIds.length)})`,
+        streamIds
+      );
     }
 
     await db.query('DELETE FROM streams WHERE event_id = ?', [eventId]);
