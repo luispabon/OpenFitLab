@@ -1,5 +1,0 @@
-export enum UPLOAD_STATUS {
-  PROCESSED,
-  PROCESSING,
-  ERROR,
-}

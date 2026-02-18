@@ -14,7 +14,7 @@ A self-hosted fitness activity tracking and comparison platform. Upload activity
 
 ```mermaid
 graph TB
-    User[User] --> Frontend[Angular Frontend<br/>Port 4200]
+    User[User] --> Frontend[Svelte Frontend<br/>Port 4200]
     Frontend --> API[Express API<br/>Port 3000]
     API --> Parser[File Parser<br/>sports-lib]
     API --> DB[(MariaDB<br/>Port 3306)]
@@ -31,7 +31,7 @@ graph TB
 ### Technology Stack
 
 - **Backend**: Node.js 24, Express.js, MariaDB
-- **Frontend**: Angular 20, TypeScript, Angular Material
+- **Frontend**: Svelte 5, Vite, Tailwind CSS v4
 - **Parsing**: `@sports-alliance/sports-lib` for TCX/FIT/GPX/JSON/SML parsing
 - **Deployment**: Docker Compose (self-hosted)
 
@@ -55,7 +55,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture docum
 
 ## Quick Start
 
-From this directory (`refactoring/`):
+From the project root:
 
 ```bash
 docker compose up -d
@@ -64,7 +64,7 @@ docker compose up -d
 This starts:
 - **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yml`)
 - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
-- **Frontend:** http://localhost:4200 (Angular dev server)
+- **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
 - **Adminer:** http://localhost:8080 (database admin UI)
 
 ## Development Mode
@@ -72,7 +72,7 @@ This starts:
 Compose uses base Node images (`node:24-alpine` for the API, `node:22-alpine` for the frontend) and **mounts** `./backend` and `./frontend` into each container. No Dockerfiles are built.
 
 - **Backend:** `./backend` is mounted at `/app`; `node --watch` restarts the server when files under `src/` change.
-- **Frontend:** `./frontend` is mounted at `/app`; `ng serve` live-reloads on file changes.
+- **Frontend:** `./frontend` is mounted at `/workspace/frontend`; Vite dev server hot-reloads on file changes.
 
 Edit files under `backend/` or `frontend/` on your host and changes are reflected immediately (API restarts, frontend hot-reloads).
 
@@ -105,7 +105,7 @@ Edit files under `backend/` or `frontend/` on your host and changes are reflecte
 
 ## Shared Module
 
-`refactoring/shared/` is a TypeScript package used by the frontend:
+`shared/` is a TypeScript package used by the frontend:
 
 - **api-event-writer** – `uploadFileToApi()` – Uploads raw files to API for backend parsing
 - **app-event.interface** – `AppEventInterface`, `OriginalFileMetaData` (extends sports-lib `EventInterface`)
@@ -114,13 +114,13 @@ The frontend is wired via TypeScript path mapping: `@openfitlab/shared` → `../
 
 ## Production Build
 
-From the **repository root** you can run:
+Build the frontend for production:
 
-- **Start stack:** `npm run refactor:up` (brings up DB, API, frontend in Docker)
-- **Stop stack:** `npm run refactor:down`
-- **Production build:** `npm run refactor:build` (builds the refactoring frontend; output in `refactoring/frontend/dist/openfitlab/`)
+```bash
+cd frontend && npm run build
+```
 
-The refactoring frontend has a production configuration that uses `src/environments/environment.prod.ts` (same `apiUrl: '/api'` for same-origin deployment). Use the built assets with any static host and point `/api` at the Node API.
+Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxied in dev, same-origin in production). Deploy the `dist/` folder to any static host and ensure `/api` routes to the Node API.
 
 ## Environment
 

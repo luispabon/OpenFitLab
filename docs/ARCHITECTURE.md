@@ -6,7 +6,7 @@ OpenFitLab is a self-hosted fitness activity tracking platform that allows users
 
 ```mermaid
 graph TB
-    User[User Browser] --> Frontend[Angular Frontend<br/>Port 4200]
+    User[User Browser] --> Frontend[Svelte Frontend<br/>Port 4200]
     Frontend -->|HTTP/REST| API[Express API<br/>Port 3000]
     API -->|Parse Files| Parser[File Parser<br/>sports-lib]
     API -->|Query/Insert| DB[(MariaDB<br/>Port 3306)]
@@ -33,11 +33,12 @@ graph TB
 - **File Upload**: multer v1.4.5
 
 ### Frontend
-- **Framework**: Angular 20.3
-- **Language**: TypeScript 5.8
-- **UI Library**: Angular Material 20.2
-- **Reactive Programming**: RxJS 7.8
-- **Data Processing**: `@sports-alliance/sports-lib` v6.1.14
+- **Framework**: Svelte 5
+- **Build Tool**: Vite 7
+- **Language**: TypeScript 5.9
+- **Styling**: Tailwind CSS v4
+- **Router**: svelte-spa-router
+- **API Client**: Native `fetch()` API
 
 ### Shared
 - **Language**: TypeScript
@@ -366,30 +367,33 @@ sequenceDiagram
 ### Component Structure
 
 ```
-frontend/src/app/
-├── components/
-│   ├── dashboard/          # Event list view
-│   ├── upload/            # File upload component
-│   └── event-detail/      # Event detail with graphs
-├── services/
-│   ├── api-event.service.ts    # API client
-│   ├── app.processing.service.ts
-│   └── logger.service.ts
-└── constants/
-    └── single-user.ts      # User constants
+frontend/src/
+├── lib/
+│   ├── api/
+│   │   └── events.ts          # API client (fetch-based)
+│   ├── types/
+│   │   └── event.ts           # TypeScript interfaces
+│   ├── utils/
+│   │   ├── format-date.ts     # Date formatting
+│   │   ├── activity-icons.ts  # Activity type icon mapping
+│   │   └── stats.ts           # Stat icon/label/unit helpers
+│   └── components/            # Reusable UI components
+├── routes/
+│   ├── dashboard.svelte       # Event list view with upload
+│   └── event-detail.svelte    # Event detail with stats
+├── App.svelte                 # Layout shell and router
+└── main.ts                    # Application entry point
 ```
 
 ### Key Components
 
-- **DashboardComponent**: Lists all events in a table
-- **UploadActivitiesComponent**: Handles file uploads
-- **EventDetailComponent**: Displays event details and visualizations
+- **Dashboard**: Lists all events in a table, handles file uploads
+- **EventDetail**: Displays event details, hero metrics, and stats grid
 
-### Services
+### API Layer
 
-- **ApiEventService**: Communicates with backend API
-- **AppProcessingService**: Handles file processing logic
-- **LoggerService**: Logging utility
+- **events.ts**: Fetch-based API client with functions for all endpoints
+- Works directly with API JSON responses (no client-side sports-lib dependency)
 
 ## Key Architectural Decisions
 

@@ -237,10 +237,11 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - `@sports-alliance/sports-lib` for file parsing
 
 **Frontend**:
-- Angular 20
-- TypeScript 5.8
-- Angular Material
-- RxJS
+- Svelte 5
+- Vite 7
+- TypeScript 5.9
+- Tailwind CSS v4
+- svelte-spa-router
 
 **Infrastructure**:
 - Docker Compose
@@ -407,7 +408,9 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ### 10.2 References
 - [sports-lib Documentation](https://github.com/SportsAlliance/sports-lib)
-- [Angular Documentation](https://angular.io/docs)
+- [Svelte Documentation](https://svelte.dev/docs)
+- [Vite Documentation](https://vite.dev/)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [MariaDB Documentation](https://mariadb.com/docs/)
 
 ### 10.3 Change Log

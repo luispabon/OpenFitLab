@@ -11,5 +11,6 @@ globs: frontend/**
 - **API:** Use `fetch()` in plain `.ts` modules. No RxJS, no Angular HttpClient.
 - **File naming:** Components and routes: `kebab-case.svelte`. Services and utils: `kebab-case.ts` or `camelCase.ts`.
 - **Router:** `svelte-spa-router`. Routes defined in a central config; use `push()`, `replace()`, `params` for navigation and params.
+- **Icons:** Material Icons font (loaded from Google Fonts). Use `<span class="material-icons">{iconName}</span>` for icons. Custom SVG names mapped via `getStatIconMaterialName()`.
 - **Shared code:** Import from `@openfitlab/shared` (Vite alias to `../shared/src`). Use for upload helpers and shared types only.
 - **Data:** Work with plain API JSON and TypeScript interfaces. Do not use `@sports-alliance/sports-lib` in the frontend.
