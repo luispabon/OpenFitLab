@@ -4,10 +4,7 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "baseUrl": ".",
-    "paths": {
-      "@openfitlab/shared": ["../shared/src/index.ts"],
-      "@openfitlab/shared/*": ["../shared/src/*"]
-    },
+    "paths": {},
     "useDefineForClassFields": true,
     "module": "ESNext",
     "types": ["svelte", "vite/client"],

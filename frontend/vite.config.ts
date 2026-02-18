@@ -9,9 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineConfig({
   plugins: [tailwindcss(), svelte()],
   resolve: {
-    alias: {
-      '@openfitlab/shared': path.resolve(__dirname, '../shared/src'),
-    },
+    alias: {},
   },
   server: {
     port: 4200,
