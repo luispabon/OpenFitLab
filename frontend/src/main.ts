@@ -1,8 +1,9 @@
-// Force kalmanjs into the bundle so sports-lib's require('kalmanjs') can resolve (esbuild)
-import 'kalmanjs';
+import { mount } from 'svelte'
+import './app.css'
+import App from './App.svelte'
 
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
+const app = mount(App, {
+  target: document.getElementById('app')!,
+})
 
-bootstrapApplication(AppComponent, appConfig).catch((err) => console.error(err));
+export default app

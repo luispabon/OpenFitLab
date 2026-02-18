@@ -1,40 +1,26 @@
 {
-  "name": "openfitlab-frontend",
-  "version": "0.1.0",
+  "name": "frontend",
   "private": true,
-  "engines": {
-    "node": ">=22"
-  },
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.json",
-    "start:dev": "ng serve --configuration development --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.json",
-    "start:docker": "ng serve --host 0.0.0.0 --port 4200 --proxy-config proxy.docker.conf.json",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development"
-  },
-  "dependencies": {
-    "@angular/animations": "20.3.15",
-    "@angular/cdk": "^20.2.14",
-    "@angular/common": "20.3.15",
-    "@angular/compiler": "20.3.15",
-    "@angular/core": "20.3.15",
-    "@angular/forms": "20.3.15",
-    "@angular/material": "^20.2.14",
-    "@angular/platform-browser": "20.3.15",
-    "@angular/platform-browser-dynamic": "20.3.15",
-    "@angular/router": "20.3.15",
-    "@sports-alliance/sports-lib": "^6.1.14",
-    "buffer": "^6.0.3",
-    "kalmanjs": "^1.1.0",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.15.0"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "20.3.13",
-    "@angular/cli": "20.3.13",
-    "@angular/compiler-cli": "20.3.15",
-    "typescript": "~5.8.0"
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tsconfig/svelte": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "svelte": "^5.45.2",
+    "svelte-check": "^4.3.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "svelte-spa-router": "^4.0.1",
+    "tailwindcss": "^4.1.18"
   }
 }
