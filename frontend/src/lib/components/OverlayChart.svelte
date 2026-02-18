@@ -192,7 +192,8 @@
         x: true,
         y: true,
         drag: { setScale: true, x: true, y: false },
-        points: { show: true, size: 4, width: 2 },
+        focus: { prox: 30 },
+        points: { one: true, show: true, size: 10, width: 2, stroke: '#ffffff', fill: '#ffffff' },
       },
       legend: { show: true, live: true },
       hooks: {

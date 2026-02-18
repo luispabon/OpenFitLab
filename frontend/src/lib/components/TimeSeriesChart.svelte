@@ -140,7 +140,7 @@
         x: true,
         y: true,
         drag: { setScale: true, x: true, y: false },
-        points: { show: true, size: 4, stroke: streamConfig.color, width: 2 },
+        points: { show: true, size: 10, width: 2, stroke: '#ffffff', fill: streamConfig.color },
       },
       legend: { show: true, live: true },
       hooks: {
