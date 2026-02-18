@@ -229,16 +229,20 @@ const SPEED_TO_KMH: Record<string, number> = {
   'miles per hour': 1.60934,
   'mph': 1.60934,
   'feet per minute': 0.018288,
-  'knots': 1.852,
+  'feet per second': 1.09728,
+  knots: 1.852,
+  knot: 1.852, // API sometimes uses singular
+  'meters per minute': 0.06,
 }
 
 function speedToKmh(value: number, unitVariant: string | null): number {
   if (value == null || !Number.isFinite(value)) return value
-  if (!unitVariant) return value // assume m/s or unknown; treat as m/s for safety
+  // sports-lib base "Average Speed" (no "in X") is in m/s
+  if (!unitVariant) return value * 3.6
   const key = unitVariant.toLowerCase()
   const factor = SPEED_TO_KMH[key]
   if (factor != null) return value * factor
-  return value
+  return value * 3.6 // unknown variant, assume m/s
 }
 
 /** Rounds a number to 2 decimal places and returns a string (no trailing .00 for integers). */
@@ -332,7 +336,11 @@ function keepStatByPreferredUnit(parsed: ParsedStat): boolean {
   const preferred = PREFERRED_UNITS[parsed.metric]
   if (preferred === undefined) return true // unknown metric, keep
   if (preferred === null) return parsed.unitVariant === null
-  return parsed.unitVariant === preferred
+  return (
+    parsed.unitVariant != null &&
+    preferred != null &&
+    parsed.unitVariant.toLowerCase() === preferred.toLowerCase()
+  )
 }
 
 /**
