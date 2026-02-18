@@ -48,18 +48,11 @@ This file provides operational instructions for AI coding agents working in this
   - Main: `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `svelte-spa-router`
   - Install: `cd frontend && npm install`
 
-### Shared (`shared/`)
-
-- TypeScript module used by frontend (and optionally backend)
-- Path mapping: `@openfitlab/shared` → `../shared/src` (configured in frontend TypeScript config)
-- Contains: `api-event-writer.ts`, `app-event.interface.ts`, `id-generator.ts`
-
 ## Project layout and architecture
 
 - **Root structure:**
   - `backend/` - Node.js Express API (from backend/package.json)
   - `frontend/` - Svelte 5 + Vite + Tailwind SPA
-  - `shared/` - TypeScript shared module
   - `docs/` - Documentation files
   - `docker-compose.yml` - Docker Compose configuration
 
@@ -131,10 +124,6 @@ This file provides operational instructions for AI coding agents working in this
   - Svelte 5 runes (`$state`, `$derived`, `$effect`); component props via `$props()`
   - Tailwind CSS v4 for all styling; no SCSS or component CSS files
   - API calls via `fetch()` in plain `.ts` modules; no RxJS
-  - Path alias: `@openfitlab/shared` for shared module
-
-- **TypeScript (shared):**
-  - Path mapping: `@openfitlab/shared` for shared module
 
 - **JavaScript (backend):**
   - Node.js 24+ with CommonJS modules
@@ -210,7 +199,6 @@ This file provides operational instructions for AI coding agents working in this
 - **Database connection:** Check `backend/src/db.js`
 - **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
 - **Frontend routes/pages:** Check `frontend/src/routes/`
-- **Shared utilities:** Check `shared/src/`
 - **Docker setup:** Check `docker-compose.yml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
 - **Frontend build:** Check `frontend/vite.config.ts`

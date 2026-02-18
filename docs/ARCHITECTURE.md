@@ -11,7 +11,6 @@ graph TB
     API -->|Parse Files| Parser[File Parser<br/>sports-lib]
     API -->|Query/Insert| DB[(MariaDB<br/>Port 3306)]
     Parser -->|Extract Data| API
-    Frontend -->|Import| Shared[Shared Module<br/>TypeScript]
     
     subgraph "Docker Compose Services"
         Frontend
@@ -39,10 +38,6 @@ graph TB
 - **Styling**: Tailwind CSS v4
 - **Router**: svelte-spa-router
 - **API Client**: Native `fetch()` API
-
-### Shared
-- **Language**: TypeScript
-- **Purpose**: Common code shared between frontend and backend
 
 ## Database Schema
 

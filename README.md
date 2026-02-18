@@ -19,7 +19,6 @@ graph TB
     API --> Parser[File Parser<br/>sports-lib]
     API --> DB[(MariaDB<br/>Port 3306)]
     Parser --> DB
-    Frontend --> Shared[Shared Module<br/>TypeScript]
     
     subgraph "Data Flow"
         Upload[Upload File] --> Parse[Parse File]
@@ -102,15 +101,6 @@ Edit files under `backend/` or `frontend/` on your host and changes are reflecte
 - **DELETE /api/events/:id** – Delete event
   - Cascades to delete all related data (stats, streams, activities)
   - Returns: 204 No Content or 404 Not Found
-
-## Shared Module
-
-`shared/` is a TypeScript package used by the frontend:
-
-- **api-event-writer** – `uploadFileToApi()` – Uploads raw files to API for backend parsing
-- **app-event.interface** – `AppEventInterface`, `OriginalFileMetaData` (extends sports-lib `EventInterface`)
-
-The frontend is wired via TypeScript path mapping: `@openfitlab/shared` → `../shared/src`.
 
 ## Production Build
 
