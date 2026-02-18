@@ -7,6 +7,7 @@ export interface EventSummary {
   description?: string
   isMerge?: boolean
   stats: Record<string, number | string | number[] | Record<string, unknown>>
+  activities?: Activity[]
   [key: string]: unknown // For payload_rest fields
 }
 

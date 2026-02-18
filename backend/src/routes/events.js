@@ -56,12 +56,40 @@ router.get(
       return res.json([]);
     }
     const eventIds = rows.map((r) => r.id);
-    const statsRows = await db.query(
-      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds
-    );
+    const [statsRows, activityRows] = await Promise.all([
+      db.query(
+        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+      db.query(
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+    ]);
     const statsByEventId = aggregateStats(statsRows, 'event_id');
     const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
+
+    if (activityRows.length > 0) {
+      const activityIds = activityRows.map((a) => a.id);
+      const activityStatsRows = await db.query(
+        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      );
+      const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
+      const activitiesByEventId = {};
+      for (const a of activityRows) {
+        if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
+        activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
+      }
+      for (const ev of events) {
+        ev.activities = activitiesByEventId[ev.id] || [];
+      }
+    } else {
+      for (const ev of events) {
+        ev.activities = [];
+      }
+    }
+
     res.json(events);
   })
 );

@@ -2,8 +2,13 @@
   import { onMount } from 'svelte'
   import { push } from 'svelte-spa-router'
   import { getEvents, uploadFile, deleteEvent } from '../lib/api'
-  import type { EventSummary } from '../lib/types'
-  import { formatDateShort } from '../lib/utils'
+  import type { EventSummary, Activity } from '../lib/types'
+  import {
+    formatDateShort,
+    getActivityIcon,
+    findStatByMetric,
+    formatStatValue,
+  } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
 
   let events = $state<EventSummary[]>([])
@@ -126,6 +131,54 @@
   onMount(() => {
     loadEvents()
   })
+
+  type ActivityRow = { activity: Activity | { id: string; eventID: string; startDate?: number; type?: string; stats: Record<string, unknown> }; event: EventSummary }
+
+  const activityRows = $derived.by((): ActivityRow[] => {
+    const rows: ActivityRow[] = []
+    for (const ev of events) {
+      const activities = ev.activities ?? []
+      if (activities.length > 0) {
+        for (const a of activities) {
+          rows.push({ activity: a, event: ev })
+        }
+      } else {
+        rows.push({
+          activity: {
+            id: ev.id,
+            eventID: ev.id,
+            startDate: ev.startDate,
+            stats: {},
+          },
+          event: ev,
+        })
+      }
+    }
+    rows.sort((a, b) => {
+      const dateA = a.activity.startDate ?? a.event.startDate ?? 0
+      const dateB = b.activity.startDate ?? b.event.startDate ?? 0
+      return dateB - dateA
+    })
+    return rows
+  })
+
+  function formatDurationCell(stats: Record<string, unknown>): string {
+    const found = findStatByMetric(stats, 'Duration') ?? findStatByMetric(stats, 'Moving Time')
+    if (!found) return '—'
+    return formatStatValue(found.value, found.statType)
+  }
+
+  function formatAvgHeartRateCell(stats: Record<string, unknown>): string {
+    const found = findStatByMetric(stats, 'Heart Rate', 'Average')
+    if (!found) return '—'
+    return formatStatValue(found.value, found.statType)
+  }
+
+  function formatCaloriesCell(stats: Record<string, unknown>): string {
+    const found = findStatByMetric(stats, 'Energy') ?? findStatByMetric(stats, 'Calories')
+    if (!found) return '—'
+    return formatStatValue(found.value, found.statType)
+  }
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -182,7 +235,7 @@
     </div>
   {/if}
 
-  <!-- Events Table -->
+  <!-- Activity list table -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
     <table class="min-w-full divide-y divide-border">
       <thead class="bg-surface">
@@ -191,7 +244,31 @@
             scope="col"
             class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
           >
-            Name
+            Activity type
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Original filename
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Duration
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Average heart rate
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+          >
+            Calories
           </th>
           <th
             scope="col"
@@ -205,34 +282,47 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-border bg-transparent">
-        {#if events.length === 0 && !isLoading}
+        {#if activityRows.length === 0 && !isLoading}
           <tr>
-            <td colspan="3" class="px-6 py-4 text-center text-sm text-text-secondary">
+            <td colspan="7" class="px-6 py-4 text-center text-sm text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
         {:else}
-          {#each events as event (event.id)}
+          {#each activityRows as row (`${row.event.id}_${row.activity.id}`)}
             <tr
               role="link"
               tabindex="0"
               class="hover:bg-card-hover"
               class:cursor-pointer={!isLoading}
               onclick={() => {
-                if (!isLoading) push(`/event/${event.id}`)
+                if (!isLoading) push(`/event/${row.event.id}`)
               }}
               onkeydown={(e) => {
                 if (!isLoading && (e.key === 'Enter' || e.key === ' ')) {
                   e.preventDefault()
-                  push(`/event/${event.id}`)
+                  push(`/event/${row.event.id}`)
                 }
               }}
             >
               <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-text-primary">
-                {event.name || 'Untitled'}
+                <span class="material-icons mr-1.5 align-middle text-lg" aria-hidden="true">{getActivityIcon(row.activity.type)}</span>
+                <span>{row.activity.type || '—'}</span>
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
-                {formatDateShort(event.startDate)}
+                {row.event.name || '—'}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+                {formatDurationCell(row.activity.stats)}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+                {formatAvgHeartRateCell(row.activity.stats)}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+                {formatCaloriesCell(row.activity.stats)}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+                {formatDateShort(row.activity.startDate ?? row.event.startDate)}
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                 <div class="flex items-center justify-end gap-2">
@@ -241,44 +331,18 @@
                     class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => {
                       e.stopPropagation()
-                      push(`/event/${event.id}`)
+                      push(`/event/${row.event.id}`)
                     }}
                   >
-                    <svg
-                      class="h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
+                    <span class="material-icons h-4 w-4" aria-hidden="true">search</span>
                     View
                   </button>
                   <button
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 py-1.5 text-sm font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
-                    onclick={(e) => handleDeleteClick(event.id, e)}
+                    onclick={(e) => handleDeleteClick(row.event.id, e)}
                   >
-                    <svg
-                      class="h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    <span class="material-icons h-4 w-4" aria-hidden="true">delete</span>
                     Delete
                   </button>
                 </div>

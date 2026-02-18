@@ -396,6 +396,29 @@ export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCatego
 }
 
 /**
+ * Finds the first stat in stats whose parsed metric (and optional aggregation) matches.
+ * Returns { statType, value } for use with formatStatValue(value, statType), or null if not found.
+ */
+export function findStatByMetric(
+  stats: Record<string, unknown>,
+  metric: string,
+  aggregation?: string | null
+): { statType: string; value: unknown } | null {
+  const metricNorm = metric.toLowerCase().trim()
+  for (const statType of Object.keys(stats)) {
+    const parsed = parseStat(statType)
+    if (parsed.metric.toLowerCase().trim() !== metricNorm) continue
+    if (
+      aggregation !== undefined &&
+      (parsed.aggregation?.toLowerCase().trim() ?? null) !== (aggregation?.toLowerCase().trim() ?? null)
+    )
+      continue
+    return { statType, value: stats[statType] }
+  }
+  return null
+}
+
+/**
  * Picks key metrics for an activity type and returns matching stat entries in order.
  * Uses parsed metric/aggregation so "Average Speed in Kilometers per Hour" matches "Average Speed".
  */
