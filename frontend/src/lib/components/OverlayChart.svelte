@@ -16,11 +16,6 @@
   let isZoomed = $state(false)
   const chartRef = { current: null as uPlot | null }
 
-  function isDarkMode(): boolean {
-    if (typeof document === 'undefined') return false
-    return document.documentElement.classList.contains('dark')
-  }
-
   function formatElapsedTime(ms: number): string {
     const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
     const hours = Math.floor(totalSeconds / 3600)
@@ -88,9 +83,8 @@
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.configs.length === 0) return
 
-    const dark = isDarkMode()
-    const textColor = dark ? '#d1d5db' : '#374151'
-    const gridColor = dark ? '#374151' : '#e5e7eb'
+    const textColor = '#9ca3af'
+    const gridColor = 'rgba(255,255,255,0.06)'
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -225,15 +219,15 @@
 <div class="w-full animate-fade-in">
   {#if streams.length === 0 || !chartData.data}
     <div
-      class="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+      class="flex h-64 items-center justify-center rounded-lg border border-border bg-card"
     >
-      <p class="text-sm text-gray-500 dark:text-gray-400">No data available</p>
+      <p class="text-sm text-text-secondary">No data available</p>
     </div>
   {:else}
     <div class="relative">
       <button
         type="button"
-        class="absolute right-2 top-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-75 transition-opacity hover:opacity-100 dark:bg-gray-200 dark:text-gray-800"
+        class="absolute right-2 top-2 z-10 rounded border border-border bg-card px-2 py-1 text-xs text-text-primary opacity-75 transition-opacity hover:opacity-100"
         onclick={resetZoom}
         style="display: {isZoomed ? 'block' : 'none'};"
       >
@@ -259,6 +253,6 @@
     animation: fade-in 0.3s ease-out;
   }
   :global(.uplot .u-legend) {
-    color: var(--uplot-text, #374151);
+    color: #9ca3af;
   }
 </style>
