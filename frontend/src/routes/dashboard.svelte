@@ -129,13 +129,13 @@
 </script>
 
 <section class="p-6">
-  <h1 class="mb-6 text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
+  <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
 
   <!-- Upload Section -->
   <div class="mb-6">
     <label
       for="file-upload"
-      class="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+      class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
       ondrop={handleDrop}
       ondragover={handleDragOver}
     >
@@ -175,27 +175,27 @@
   <!-- Toast Notification -->
   {#if toastMessage}
     <div
-      class="mb-4 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20"
+      class="mb-4 rounded-md border border-border bg-card p-4 backdrop-blur"
       role="alert"
     >
-      <p class="text-sm font-medium text-blue-800 dark:text-blue-200">{toastMessage}</p>
+      <p class="text-sm font-medium text-text-primary">{toastMessage}</p>
     </div>
   {/if}
 
   <!-- Events Table -->
-  <div class="overflow-hidden rounded-lg border border-gray-200 shadow dark:border-gray-700">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-gray-50 dark:bg-gray-800">
+  <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
+    <table class="min-w-full divide-y divide-border">
+      <thead class="bg-surface">
         <tr>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
           >
             Name
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
           >
             Date
           </th>
@@ -204,10 +204,10 @@
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+      <tbody class="divide-y divide-border bg-transparent">
         {#if events.length === 0 && !isLoading}
           <tr>
-            <td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+            <td colspan="3" class="px-6 py-4 text-center text-sm text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
@@ -216,7 +216,7 @@
             <tr
               role="link"
               tabindex="0"
-              class="hover:bg-gray-50 dark:hover:bg-gray-800"
+              class="hover:bg-card-hover"
               class:cursor-pointer={!isLoading}
               onclick={() => {
                 if (!isLoading) push(`/event/${event.id}`)
@@ -228,17 +228,17 @@
                 }
               }}
             >
-              <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+              <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-text-primary">
                 {event.name || 'Untitled'}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
                 {formatDateShort(event.startDate)}
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                 <div class="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => {
                       e.stopPropagation()
                       push(`/event/${event.id}`)
@@ -262,7 +262,7 @@
                   </button>
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-red-600 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 py-1.5 text-sm font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => handleDeleteClick(event.id, e)}
                   >
                     <svg
@@ -300,19 +300,19 @@
       aria-labelledby="dialog-title"
     >
       <div
-        class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
         onclick={(e) => e.stopPropagation()}
       >
-        <h2 id="dialog-title" class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 id="dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
           Delete Event?
         </h2>
-        <p class="mb-6 text-sm text-gray-600 dark:text-gray-400">
+        <p class="mb-6 text-sm text-text-secondary">
           Are you sure you want to delete this event? This action cannot be undone.
         </p>
         <div class="flex justify-end gap-3">
           <button
             type="button"
-            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
             onclick={handleCancelDelete}
             disabled={isDeleting}
           >
@@ -320,7 +320,7 @@
           </button>
           <button
             type="button"
-            class="rounded-md border border-red-300 bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+            class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
             onclick={handleConfirmDelete}
             disabled={isDeleting}
           >
