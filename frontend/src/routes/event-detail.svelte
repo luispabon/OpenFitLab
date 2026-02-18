@@ -222,7 +222,7 @@
 <section class="max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
   <button
     type="button"
-    class="mb-4 rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+    class="mb-4 rounded border border-border px-3 py-1.5 text-sm text-text-secondary hover:bg-card-hover hover:text-text-primary"
     onclick={() => push('/')}
   >
     ← Back to Dashboard
@@ -233,42 +233,42 @@
       <LoadingSpinner />
     </div>
   {:else if error}
-    <div class="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
-      <p class="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
+    <div class="rounded-md border border-danger/20 bg-danger/10 p-4 backdrop-blur">
+      <p class="text-sm font-medium text-danger">{error}</p>
     </div>
   {:else if event}
     <div
-      class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+      class="overflow-hidden rounded-xl border border-border bg-card shadow-sm backdrop-blur-lg"
     >
       <!-- Header -->
       <div
-        class="flex flex-wrap items-center gap-4 border-b border-gray-200 px-6 py-5 dark:border-gray-700 sm:flex-nowrap"
+        class="flex flex-wrap items-center gap-4 border-b border-border px-6 py-5 sm:flex-nowrap"
       >
         <div class="flex flex-1 items-center gap-4 min-w-0">
           <div
-            class="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-700"
+            class="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-surface"
           >
-            <span class="material-icons text-3xl text-gray-700 dark:text-gray-300">
+            <span class="material-icons text-3xl text-text-primary">
               {activityTypeIcon}
             </span>
             <div
-              class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow dark:bg-gray-800"
+              class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card shadow"
               title={event.privacy === 'public' ? 'Public' : 'Private'}
             >
-              <span class="material-icons text-sm text-gray-600 dark:text-gray-400">
+              <span class="material-icons text-sm text-text-muted">
                 {privacyIcon}
               </span>
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-baseline gap-2 text-gray-900 dark:text-white">
+            <div class="flex flex-wrap items-baseline gap-2 text-text-primary">
               <span class="font-medium">{formatDate(event.startDate).date}</span>
-              <span class="text-sm text-gray-500 dark:text-gray-400">at</span>
-              <span class="text-gray-600 dark:text-gray-300">{formatDate(event.startDate).time}</span>
+              <span class="text-sm text-text-secondary">at</span>
+              <span class="text-text-secondary">{formatDate(event.startDate).time}</span>
             </div>
             {#if mainActivityType}
               <span
-                class="mt-1 inline-block rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium uppercase text-gray-700 dark:bg-gray-600 dark:text-gray-300"
+                class="mt-1 inline-block rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium uppercase text-text-secondary"
               >
                 {mainActivityType}
               </span>
@@ -279,8 +279,8 @@
         <div class="flex flex-shrink-0 items-center gap-8">
           {#each heroStats as hero}
             <div class="flex flex-col items-center gap-0.5">
-              <span class="text-2xl font-light text-gray-900 dark:text-white">{hero.value}</span>
-              <span class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <span class="text-2xl font-light text-text-primary">{hero.value}</span>
+              <span class="text-xs uppercase tracking-wide text-text-secondary">
                 {hero.unit}
               </span>
             </div>
@@ -300,25 +300,25 @@
     {#if streamsLoading}
       <div class="mt-6 space-y-6">
         <div class="flex flex-col gap-4">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+          <h2 class="text-lg font-semibold text-text-primary">Activity Metrics</h2>
           <!-- Loading skeleton -->
           <div class="space-y-6">
             {#each [1, 2, 3] as _}
               <div
-                class="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                class="animate-pulse overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur"
               >
-                <div class="h-64 w-full rounded bg-gray-200 dark:bg-gray-700"></div>
+                <div class="h-64 w-full rounded bg-surface"></div>
               </div>
             {/each}
           </div>
         </div>
       </div>
     {:else if streamsError}
-      <div class="mt-6 rounded-md bg-yellow-50 p-4 dark:bg-yellow-900/20">
-        <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+      <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
+        <p class="text-sm font-medium text-text-primary">
           {streamsError}
         </p>
-        <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
+        <p class="mt-1 text-xs text-text-secondary">
           Charts will not be available for this activity.
         </p>
       </div>
@@ -327,18 +327,18 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between">
             <div class="flex flex-col gap-2">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+              <h2 class="text-lg font-semibold text-text-primary">Activity Metrics</h2>
               
               <!-- Activity Selector Tabs (only show if multiple activities) -->
               {#if activities.length > 1}
-                <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex gap-1 border-b border-border">
                   {#each activities as activity (activity.id)}
                     {@const isSelected = selectedActivityId === activity.id}
                     <button
                       type="button"
                       class="px-3 py-2 text-sm font-medium transition-colors {isSelected
-                        ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+                        ? 'border-b-2 border-accent text-accent'
+                        : 'text-text-secondary hover:text-text-primary'}"
                       onclick={() => (selectedActivityId = activity.id)}
                     >
                       {activity.name || activity.type || `Activity ${activities.indexOf(activity) + 1}`}
@@ -350,12 +350,12 @@
             
             <!-- View Mode Toggle -->
             <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-600 dark:text-gray-400">View:</span>
+              <span class="text-sm text-text-secondary">View:</span>
               <button
                 type="button"
                 class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'stacked'
-                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                  ? 'border-border bg-card text-text-primary'
+                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
                 onclick={() => (viewMode = 'stacked')}
               >
                 Stacked
@@ -363,8 +363,8 @@
               <button
                 type="button"
                 class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'overlay'
-                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                  ? 'border-border bg-card text-text-primary'
+                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
                 onclick={() => (viewMode = 'overlay')}
               >
                 Overlay
@@ -380,8 +380,8 @@
               <button
                 type="button"
                 class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isSelected
-                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                  ? 'border-border bg-card text-text-primary'
+                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
                 onclick={() => toggleStream(stream.type)}
               >
                 <span
@@ -399,7 +399,7 @@
           {#if viewMode === 'overlay'}
             <!-- Overlay Mode: Single chart with all metrics -->
             <div
-              class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
             >
               <OverlayChart streams={visibleStreams} activityStartDate={activityStartDate} />
             </div>
@@ -408,7 +408,7 @@
             <div class="space-y-6">
               {#each visibleStreams as stream (stream.type)}
                 <div
-                  class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                  class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
                 >
                   <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
                 </div>
@@ -416,8 +416,8 @@
             </div>
           {/if}
         {:else}
-          <div class="flex h-32 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-            <p class="text-sm text-gray-500 dark:text-gray-400">
+          <div class="flex h-32 items-center justify-center rounded-lg border border-border bg-card">
+            <p class="text-sm text-text-secondary">
               Select metrics above to view charts
             </p>
           </div>
@@ -425,16 +425,16 @@
       </div>
     {:else if selectedActivity && !streamsLoading}
       <!-- No streams available for this activity -->
-      <div class="mt-6 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
-        <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+      <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
+        <p class="text-sm font-medium text-text-primary">
           No stream data available
         </p>
-        <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+        <p class="mt-1 text-xs text-text-secondary">
           This activity does not contain time-series data (heart rate, speed, etc.).
         </p>
       </div>
     {/if}
   {:else}
-    <p class="text-gray-500 dark:text-gray-400">Event not found.</p>
+    <p class="text-text-secondary">Event not found.</p>
   {/if}
 </section>
