@@ -14,6 +14,7 @@
     formatStatValue,
     groupStatsByCategory,
     isChartableStream,
+    isSmoothVariantToHide,
     getStreamConfig,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
@@ -122,9 +123,16 @@
     selectedActivity?.startDate ?? event?.startDate ?? Date.now()
   )
 
-  // Filter to chartable streams only
+  // Filter to chartable streams only; hide "X Smooth" when "X" is also present
+  const allStreamTypes = $derived(streams.map((s) => s.type))
   const chartableStreams = $derived(
-    streams.filter((s) => isChartableStream(s.type) && s.data && s.data.length > 0)
+    streams.filter(
+      (s) =>
+        isChartableStream(s.type) &&
+        s.data &&
+        s.data.length > 0 &&
+        !isSmoothVariantToHide(s.type, allStreamTypes)
+    )
   )
 
   // Selected streams for visibility toggle (all selected by default)
@@ -203,16 +211,9 @@
     if (id) loadEvent()
   })
 
-  // Load streams when event and selected activity are available
+  // Load streams when event and selected activity are available (single effect for initial load and activity switch)
   $effect(() => {
     if (eventDetail && selectedActivity?.id && !loading) {
-      loadStreams()
-    }
-  })
-
-  // Reload streams when selected activity changes
-  $effect(() => {
-    if (selectedActivityId && !loading) {
       loadStreams()
     }
   })

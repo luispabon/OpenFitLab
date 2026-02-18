@@ -112,6 +112,18 @@ export function isChartableStream(type: string): boolean {
   return config.chartable
 }
 
+const SMOOTH_SUFFIX = ' Smooth'
+
+/**
+ * Returns true if this stream type is a "Smooth" variant of another stream that is present.
+ * When both "Altitude" and "Altitude Smooth" exist, we hide "Altitude Smooth" and only show "Altitude".
+ */
+export function isSmoothVariantToHide(streamType: string, allStreamTypes: string[]): boolean {
+  if (!streamType.endsWith(SMOOTH_SUFFIX)) return false
+  const baseName = streamType.slice(0, -SMOOTH_SUFFIX.length).trim()
+  return baseName.length > 0 && allStreamTypes.includes(baseName)
+}
+
 /**
  * Get all configured stream types (for reference)
  */
