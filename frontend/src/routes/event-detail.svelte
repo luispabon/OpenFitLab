@@ -12,7 +12,8 @@
     getActivityIcon,
     getStatUnit,
     formatStatValue,
-    groupStatsByCategory,
+    selectKeyMetrics,
+    getGroupedDeduplicatedStats,
     isChartableStream,
     isSmoothVariantToHide,
     getStreamConfig,
@@ -48,41 +49,11 @@
 
   const privacyIcon = $derived(event?.privacy === 'public' ? 'public' : 'lock')
 
-  /** Hero stat types by activity: Virtual Cycling -> Duration+Power; indoor -> Duration+Energy; else Distance+Duration. */
-  const heroStatTypes = $derived.by(() => {
-    const type = mainActivityType
-    if (!type) return ['Distance', 'Duration']
-    const t = type.toLowerCase()
-    if (t === 'virtual cycling' || t === 'virtualride') return ['Duration', 'Average Power']
-    if (
-      t.includes('weight') ||
-      t.includes('strength') ||
-      t.includes('gym') ||
-      t.includes('indoor')
-    ) {
-      return ['Duration', 'Energy']
-    }
-    return ['Distance', 'Duration']
-  })
-
-  const heroStats = $derived.by(() => {
+  /** Key metrics for this activity type (4–6 stats), used in the header bar. */
+  const keyMetrics = $derived.by(() => {
     const ev = event
     if (!ev?.stats) return []
-    const stats: { value: string; unit: string; type: string }[] = []
-    for (const statType of heroStatTypes) {
-      const key = Object.keys(ev.stats).find(
-        (k) => k.toLowerCase() === statType.toLowerCase()
-      )
-      if (!key) continue
-      const raw = ev.stats[key]
-      if (raw == null) continue
-      stats.push({
-        value: formatStatValue(raw),
-        unit: getStatUnit(key),
-        type: key,
-      })
-    }
-    return stats
+    return selectKeyMetrics(ev.stats, mainActivityType)
   })
 
   type StatEntry = { statType: string; value: string; unit: string }
@@ -96,7 +67,9 @@
     }))
   })
 
-  const groupedStats = $derived(groupStatsByCategory(statEntries))
+  const groupedStatsSections = $derived(getGroupedDeduplicatedStats(statEntries))
+
+  const keyMetricTypes = $derived(new Set(keyMetrics.map((e) => e.statType)))
 
   // Selected activity (defaults to first)
   let selectedActivityId = $state<string | null>(null)
@@ -275,23 +248,50 @@
             {/if}
           </div>
         </div>
-        <!-- Hero metrics -->
-        <div class="flex flex-shrink-0 items-center gap-8">
-          {#each heroStats as hero}
+        <!-- Key metrics bar -->
+        <div class="flex flex-shrink-0 flex-wrap items-center justify-end gap-6">
+          {#each keyMetrics as entry (entry.statType)}
             <div class="flex flex-col items-center gap-0.5">
-              <span class="text-3xl font-light text-text-primary">{hero.value}</span>
-              <span class="text-sm uppercase tracking-wide text-text-secondary">
-                {hero.unit}
+              <span class="text-2xl font-light text-text-primary sm:text-3xl">{entry.value}</span>
+              <span class="text-xs uppercase tracking-wide text-text-secondary sm:text-sm">
+                {entry.unit}
               </span>
             </div>
           {/each}
         </div>
       </div>
 
-      <!-- Stats grid -->
-      <div class="grid grid-cols-2 gap-3 p-6 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
-        {#each [...groupedStats.overall, ...groupedStats.performance, ...groupedStats.physiological] as entry (entry.statType)}
-          <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
+      <!-- Key metrics bar: 4–6 prominent stat cards -->
+      {#if keyMetrics.length > 0}
+        <div
+          class="grid grid-cols-2 gap-3 border-b border-border px-6 pb-6 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
+        >
+          {#each keyMetrics as entry (entry.statType)}
+            <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
+          {/each}
+        </div>
+      {/if}
+
+      <!-- Grouped stats by category (excluding key metrics already shown above) -->
+      <div class="space-y-6 p-6 pt-0">
+        {#each groupedStatsSections as section (section.category)}
+          {@const entries = section.entries.filter((e) => !keyMetricTypes.has(e.statType))}
+          {#if entries.length > 0}
+            <section>
+              <h3
+                class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary"
+              >
+                {section.category}
+              </h3>
+              <div
+                class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+              >
+                {#each entries as entry (entry.statType)}
+                  <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
+                {/each}
+              </div>
+            </section>
+          {/if}
         {/each}
       </div>
     </div>

@@ -3,79 +3,151 @@ export interface StatIcon {
   name: string
 }
 
+// --- Parsed stat (sports-lib naming: [Aggregation] Metric [in UnitVariant]) ---
+
+export interface ParsedStat {
+  metric: string
+  aggregation: string | null
+  unitVariant: string | null
+  original: string
+}
+
+const AGGREGATIONS = ['Average', 'Maximum', 'Minimum', 'Max', 'Min'] as const
+
+/**
+ * Extracts structure from sports-lib stat type names.
+ * Pattern: [Aggregation] Metric [in UnitVariant], e.g. "Average Speed in Kilometers per Hour".
+ */
+export function parseStat(statType: string): ParsedStat {
+  const trimmed = statType.trim()
+  const inIndex = trimmed.toLowerCase().lastIndexOf(' in ')
+  const unitVariant: string | null =
+    inIndex >= 0 ? trimmed.slice(inIndex + 4).trim() : null
+  const beforeUnit = inIndex >= 0 ? trimmed.slice(0, inIndex).trim() : trimmed
+
+  let aggregation: string | null = null
+  let metric = beforeUnit
+  for (const agg of AGGREGATIONS) {
+    if (
+      beforeUnit.toLowerCase().startsWith(agg.toLowerCase() + ' ') &&
+      beforeUnit.length > agg.length + 1
+    ) {
+      aggregation = agg
+      metric = beforeUnit.slice(agg.length + 1).trim()
+      break
+    }
+  }
+
+  return {
+    metric,
+    aggregation,
+    unitVariant,
+    original: statType,
+  }
+}
+
+/** Metric family -> display category label. Unrecognized metrics go to "Other". */
+export const METRIC_CATEGORIES: Record<string, string> = {
+  Duration: 'Time',
+  'Moving Time': 'Time',
+  Distance: 'Distance',
+  Speed: 'Speed',
+  'Heart Rate': 'Heart Rate',
+  Cadence: 'Cadence',
+  Power: 'Power',
+  Ascent: 'Elevation',
+  Descent: 'Elevation',
+  'Altitude Min': 'Elevation',
+  'Altitude Max': 'Elevation',
+  Energy: 'Energy',
+  Calories: 'Energy',
+}
+
+/** Preferred unit variant per metric; null = use base (no "in X"). Only this variant is kept. */
+export const PREFERRED_UNITS: Record<string, string | null> = {
+  Speed: 'Kilometers per Hour',
+  'Heart Rate': null,
+  Cadence: null,
+  Power: null,
+  Distance: null,
+  Duration: null,
+  'Moving Time': null,
+  Ascent: null,
+  Descent: null,
+  'Altitude Min': null,
+  'Altitude Max': null,
+  Energy: null,
+  Calories: null,
+}
+
+/** Key metric names (metric or "Aggregation Metric") to promote per activity type. */
+export const KEY_METRICS: Record<string, string[]> = {
+  running: ['Distance', 'Duration', 'Average Speed', 'Average Heart Rate', 'Ascent'],
+  cycling: ['Distance', 'Duration', 'Average Power', 'Average Speed', 'Average Heart Rate'],
+  swimming: ['Distance', 'Duration', 'Average Speed', 'Average Heart Rate'],
+  default: ['Distance', 'Duration', 'Average Speed', 'Average Heart Rate', 'Energy'],
+}
+
+function getCategoryForMetric(metric: string): string {
+  return METRIC_CATEGORIES[metric] ?? 'Other'
+}
+
+/**
+ * Normalized key for (metric + aggregation) for key-metric matching.
+ * e.g. "Average Speed" -> "Average Speed", "Distance" -> "Distance".
+ */
+function metricAggregationKey(parsed: ParsedStat): string {
+  if (parsed.aggregation) {
+    return `${parsed.aggregation} ${parsed.metric}`.trim()
+  }
+  return parsed.metric
+}
+
 /**
  * Maps stat type names (from API) to icon information.
- * Stat names come from the API as strings like "Duration", "Distance", "Average Heart Rate", etc.
+ * Uses parsed metric for matching so unit variants (e.g. "Average Speed in Knots") still get the right icon.
  */
 export function getStatIcon(statType: string): StatIcon | null {
-  const lower = statType.toLowerCase()
+  const parsed = parseStat(statType)
+  const metric = parsed.metric
+  const lower = metric.toLowerCase()
 
-  // Duration / Time
   if (lower === 'duration' || lower === 'time') {
     return { type: 'material', name: 'access_time' }
   }
-
-  // Moving Time
   if (lower === 'moving time' || lower === 'movingtime') {
     return { type: 'svg', name: 'moving-time' }
   }
-
-  // Distance
   if (lower === 'distance') {
     return { type: 'material', name: 'trending_flat' }
   }
-
-  // Heart Rate
-  if (
-    lower.includes('heart rate') ||
-    lower.includes('heartrate') ||
-    lower === 'average heart rate' ||
-    lower === 'min heart rate' ||
-    lower === 'max heart rate'
-  ) {
+  if (lower.includes('heart rate') || lower.includes('heartrate')) {
     return { type: 'svg', name: 'heart_pulse' }
   }
-
-  // Energy / Calories
   if (lower === 'energy' || lower === 'calories' || lower.includes('calorie')) {
     return { type: 'svg', name: 'energy' }
   }
-
-  // Speed
-  if (lower === 'speed' || lower === 'average speed' || lower.includes('speed')) {
+  if (lower.includes('speed')) {
     return { type: 'material', name: 'speed' }
   }
-
-  // Cadence
-  if (lower === 'cadence' || lower === 'average cadence' || lower.includes('cadence')) {
+  if (lower.includes('cadence')) {
     return { type: 'material', name: 'cached' }
   }
-
-  // Power
-  if (lower === 'power' || lower === 'average power' || lower.includes('power')) {
+  if (lower.includes('power')) {
     return { type: 'material', name: 'bolt' }
   }
-
-  // Ascent
-  if (lower === 'ascent' || lower.includes('ascent')) {
+  if (lower.includes('ascent')) {
     return { type: 'svg', name: 'arrow_up_right' }
   }
-
-  // Descent
-  if (lower === 'descent' || lower.includes('descent')) {
+  if (lower.includes('descent')) {
     return { type: 'svg', name: 'arrow_down_right' }
   }
-
-  // Altitude Max
-  if (lower === 'altitude max' || lower === 'max altitude' || lower.includes('altitude max')) {
+  if (lower.includes('altitude max') || lower.includes('max altitude')) {
     return { type: 'material', name: 'vertical_align_top' }
   }
-
-  // Altitude Min
-  if (lower === 'altitude min' || lower === 'min altitude' || lower.includes('altitude min')) {
+  if (lower.includes('altitude min') || lower.includes('min altitude')) {
     return { type: 'material', name: 'vertical_align_bottom' }
   }
-
   return null
 }
 
@@ -96,15 +168,23 @@ export function getStatIconMaterialName(statIcon: StatIcon): string {
 /**
  * Gets a display unit for a stat type (e.g. "s", "km", "bpm").
  * API does not return units; these are sensible defaults.
+ * Uses parsed unit variant when present (e.g. "Kilometers per Hour" -> "km/h").
  */
 export function getStatUnit(statType: string): string {
-  const lower = statType.toLowerCase()
+  const parsed = parseStat(statType)
+  const lower = parsed.metric.toLowerCase()
+  const variant = (parsed.unitVariant || '').toLowerCase()
   if (lower === 'duration' || lower === 'time' || lower === 'moving time' || lower === 'movingtime')
     return 's'
   if (lower === 'distance') return 'm'
   if (lower.includes('heart rate') || lower.includes('heartrate')) return 'bpm'
   if (lower === 'energy' || lower.includes('calorie')) return 'kcal'
-  if (lower.includes('speed')) return 'm/s'
+  if (lower.includes('speed')) {
+    if (variant.includes('kilometer') || variant.includes('km')) return 'km/h'
+    if (variant.includes('knot')) return 'kn'
+    if (variant.includes('mile')) return 'mph'
+    return 'm/s'
+  }
   if (lower.includes('cadence')) return 'rpm'
   if (lower.includes('power')) return 'W'
   if (lower.includes('ascent') || lower.includes('descent') || lower.includes('altitude'))
@@ -141,89 +221,106 @@ export function formatStatValue(
   return String(value)
 }
 
-/**
- * Gets stat categories for filtering/grouping stats.
- */
-export const STAT_CATEGORIES = {
-  OVERALL: [
-    'Duration',
-    'Moving Time',
-    'Distance',
-    'Speed',
-    'Average Speed',
-    'Cadence',
-    'Average Cadence',
-    'Power',
-    'Average Power',
-    'Ascent',
-    'Descent',
-    'Altitude Max',
-    'Altitude Min',
-  ],
-  PERFORMANCE: [
-    'Average Heart Rate',
-    'Min Heart Rate',
-    'Max Heart Rate',
-    'Heart Rate',
-    'Speed',
-    'Average Speed',
-    'Power',
-    'Average Power',
-    'Cadence',
-    'Average Cadence',
-  ],
-  PHYSIOLOGICAL: ['Energy', 'Calories', 'Average Heart Rate', 'Heart Rate'],
-} as const
-
-/**
- * Checks if a stat type belongs to a category.
- */
-export function isStatInCategory(statType: string, category: keyof typeof STAT_CATEGORIES): boolean {
-  const lower = statType.toLowerCase()
-  return STAT_CATEGORIES[category].some((catStat) => {
-    const catLower = catStat.toLowerCase()
-    return lower === catLower || lower.includes(catLower) || catLower.includes(lower)
-  })
-}
-
 export interface StatEntry {
   statType: string
   value: string
   unit: string
 }
 
-export interface GroupedStats {
-  overall: StatEntry[]
-  performance: StatEntry[]
-  physiological: StatEntry[]
+/** One category of stats (e.g. "Speed", "Heart Rate") with its entries. */
+export interface StatsByCategory {
+  category: string
+  entries: StatEntry[]
 }
 
 /**
- * Groups stat entries by category in a single pass, avoiding duplicates.
- * Stats are assigned to the first matching category (OVERALL > PERFORMANCE > PHYSIOLOGICAL).
+ * Returns whether this stat should be kept after preferred-unit deduplication.
+ * Only the preferred unit variant for each (metric + aggregation) is kept.
  */
-export function groupStatsByCategory(entries: StatEntry[]): GroupedStats {
-  const seen = new Set<string>()
-  const result: GroupedStats = {
-    overall: [],
-    performance: [],
-    physiological: [],
-  }
+function keepStatByPreferredUnit(parsed: ParsedStat): boolean {
+  const preferred = PREFERRED_UNITS[parsed.metric]
+  if (preferred === undefined) return true // unknown metric, keep
+  if (preferred === null) return parsed.unitVariant === null
+  return parsed.unitVariant === preferred
+}
+
+/**
+ * Deduplicates by preferred unit and groups entries by metric family category.
+ * Empty categories are omitted. Order of categories is stable (Time, Distance, Speed, …).
+ */
+const CATEGORY_ORDER = [
+  'Time',
+  'Distance',
+  'Speed',
+  'Heart Rate',
+  'Cadence',
+  'Power',
+  'Elevation',
+  'Energy',
+  'Other',
+]
+
+export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCategory[] {
+  const byCategory = new Map<string, StatEntry[]>()
+  const seenKey = new Set<string>() // (metric + aggregation) to avoid duplicates
 
   for (const entry of entries) {
-    if (!getStatIcon(entry.statType) || seen.has(entry.statType)) continue
+    const parsed = parseStat(entry.statType)
+    if (!getStatIcon(entry.statType)) continue
+    if (!keepStatByPreferredUnit(parsed)) continue
 
-    if (isStatInCategory(entry.statType, 'OVERALL')) {
-      result.overall.push(entry)
-      seen.add(entry.statType)
-    } else if (isStatInCategory(entry.statType, 'PERFORMANCE')) {
-      result.performance.push(entry)
-      seen.add(entry.statType)
-    } else if (isStatInCategory(entry.statType, 'PHYSIOLOGICAL')) {
-      result.physiological.push(entry)
-      seen.add(entry.statType)
+    const key = metricAggregationKey(parsed)
+    if (seenKey.has(key)) continue
+    seenKey.add(key)
+
+    const category = getCategoryForMetric(parsed.metric)
+    if (!byCategory.has(category)) {
+      byCategory.set(category, [])
     }
+    byCategory.get(category)!.push(entry)
   }
 
+  const result: StatsByCategory[] = []
+  for (const cat of CATEGORY_ORDER) {
+    const list = byCategory.get(cat)
+    if (list && list.length > 0) result.push({ category: cat, entries: list })
+  }
   return result
+}
+
+/**
+ * Picks key metrics for an activity type and returns matching stat entries in order.
+ * Uses parsed metric/aggregation so "Average Speed in Kilometers per Hour" matches "Average Speed".
+ */
+export function selectKeyMetrics(
+  stats: Record<string, unknown>,
+  activityType: string
+): StatEntry[] {
+  const typeNorm = (activityType || '').toLowerCase().trim()
+  let keys = KEY_METRICS.default
+  if (typeNorm.includes('run')) keys = KEY_METRICS.running
+  else if (typeNorm.includes('cycl') || typeNorm.includes('ride') || typeNorm.includes('bike'))
+    keys = KEY_METRICS.cycling
+  else if (typeNorm.includes('swim')) keys = KEY_METRICS.swimming
+
+  const entries: StatEntry[] = []
+  const statTypes = Object.keys(stats)
+  for (const keyMetric of keys) {
+    const keyNorm = keyMetric.toLowerCase()
+    const found = statTypes.find((statType) => {
+      const parsed = parseStat(statType)
+      if (!keepStatByPreferredUnit(parsed)) return false
+      const matchKey = metricAggregationKey(parsed)
+      return matchKey.toLowerCase() === keyNorm
+    })
+    if (found) {
+      const raw = stats[found]
+      entries.push({
+        statType: found,
+        value: formatStatValue(raw),
+        unit: getStatUnit(found),
+      })
+    }
+  }
+  return entries
 }
