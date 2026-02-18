@@ -7,13 +7,13 @@ This file provides operational instructions for AI coding agents working in this
 ## Quickstart (local dev)
 
 1. **Start the stack:**
-   - From `refactoring/` directory: `docker compose up -d`
+   - From project root: `docker compose up -d`
    - This starts MariaDB (port 3306), API (port 3000), and frontend (port 4200)
    - Services run in dev mode with file watching enabled
 
 2. **Access services:**
    - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
-   - **Frontend:** http://localhost:4200 (Angular dev server)
+   - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
    - **Database:** MariaDB on `localhost:3306` (default user: `qs`, password: `qspass`, database: `openfitlab`)
    - **Adminer:** http://localhost:8080 (database admin UI)
 
@@ -37,15 +37,15 @@ This file provides operational instructions for AI coding agents working in this
 ### Frontend (`frontend/`)
 
 - **Run:**
-  - `npm start` - Start dev server on port 4200 (from frontend/package.json script "start")
-  - `npm run start:dev` - Start with development configuration (from frontend/package.json script "start:dev")
-  - `npm run start:docker` - Start with Docker proxy config (from frontend/package.json script "start:docker")
-  - `npm run build` - Production build (from frontend/package.json script "build")
-  - `npm run watch` - Build in watch mode (from frontend/package.json script "watch")
-  - Requires Node 22+ (from frontend/package.json engines)
+  - `npm run dev` - Start Vite dev server on port 4200
+  - `npm run build` - Production build
+  - `npm run preview` - Preview production build locally
+  - Requires Node 22+
+
+- **Stack:** Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router
 
 - **Dependencies:**
-  - Main: Angular 20, Angular Material, `@sports-alliance/sports-lib`, `rxjs`
+  - Main: `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `svelte-spa-router`
   - Install: `cd frontend && npm install`
 
 ### Shared (`shared/`)
@@ -58,7 +58,7 @@ This file provides operational instructions for AI coding agents working in this
 
 - **Root structure:**
   - `backend/` - Node.js Express API (from backend/package.json)
-  - `frontend/` - Angular application (from frontend/package.json)
+  - `frontend/` - Svelte 5 + Vite + Tailwind SPA
   - `shared/` - TypeScript shared module
   - `docs/` - Documentation files
   - `docker-compose.yml` - Docker Compose configuration
@@ -73,12 +73,10 @@ This file provides operational instructions for AI coding agents working in this
   - `backend/sql/schema.sql` - Database schema (runs on startup via `db.initializeSchema()`)
 
 - **Frontend structure:**
-  - `frontend/src/app/components/` - Angular components
-  - `frontend/src/app/services/` - Angular services
-  - `frontend/src/app/components/dashboard/` - Dashboard component
-  - `frontend/src/app/components/upload/` - File upload component
-  - `frontend/src/app/components/event-detail/` - Event detail view
-  - `frontend/angular.json` - Angular configuration
+  - `frontend/src/lib/` - API modules, types, utils, reusable components
+  - `frontend/src/routes/` - Page components (Dashboard, EventDetail)
+  - `frontend/src/App.svelte` - Layout shell and router
+  - `frontend/vite.config.ts` - Vite and Tailwind configuration
 
 - **Database schema:**
   - `events` - Event metadata (id, start_date, name, privacy, end_date, description, is_merge, payload_rest)
@@ -129,10 +127,13 @@ This file provides operational instructions for AI coding agents working in this
 
 ## Conventions (coding, naming, error handling)
 
-- **TypeScript (frontend/shared):**
-  - Angular 20 with standalone components
-  - Component selector prefix: `app` (from angular.json)
-  - Uses Angular Material for UI components
+- **Svelte (frontend):**
+  - Svelte 5 runes (`$state`, `$derived`, `$effect`); component props via `$props()`
+  - Tailwind CSS v4 for all styling; no SCSS or component CSS files
+  - API calls via `fetch()` in plain `.ts` modules; no RxJS
+  - Path alias: `@openfitlab/shared` for shared module
+
+- **TypeScript (shared):**
   - Path mapping: `@openfitlab/shared` for shared module
 
 - **JavaScript (backend):**
@@ -207,10 +208,10 @@ This file provides operational instructions for AI coding agents working in this
 - **File parsing:** Check `backend/src/parsers/file-parser.js`
 - **Stream extraction:** Check `backend/src/utils/stream-extractor.js`
 - **Database connection:** Check `backend/src/db.js`
-- **Frontend services:** Check `frontend/src/app/services/`
-- **Frontend components:** Check `frontend/src/app/components/`
+- **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
+- **Frontend routes/pages:** Check `frontend/src/routes/`
 - **Shared utilities:** Check `shared/src/`
 - **Docker setup:** Check `docker-compose.yml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
-- **Angular config:** Check `frontend/angular.json`
+- **Frontend build:** Check `frontend/vite.config.ts`
 - **Unknown:** Read relevant source files before making assumptions

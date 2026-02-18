@@ -1,0 +1,15 @@
+---
+description: Conventions for the Svelte 5 + Vite + Tailwind frontend
+globs: frontend/**
+---
+
+# Svelte frontend
+
+- **Svelte 5 runes:** Use `$state()`, `$derived()`, `$effect()` for reactivity. Do not use legacy `let` reactivity or `$:`.
+- **Component props:** Use `$props()` (Svelte 5), not `export let`.
+- **Styling:** Tailwind CSS v4 only. No component-level `<style>` blocks for layout/colors; use Tailwind classes. No SCSS/Sass.
+- **API:** Use `fetch()` in plain `.ts` modules. No RxJS, no Angular HttpClient.
+- **File naming:** Components and routes: `kebab-case.svelte`. Services and utils: `kebab-case.ts` or `camelCase.ts`.
+- **Router:** `svelte-spa-router`. Routes defined in a central config; use `push()`, `replace()`, `params` for navigation and params.
+- **Shared code:** Import from `@openfitlab/shared` (Vite alias to `../shared/src`). Use for upload helpers and shared types only.
+- **Data:** Work with plain API JSON and TypeScript interfaces. Do not use `@sports-alliance/sports-lib` in the frontend.
