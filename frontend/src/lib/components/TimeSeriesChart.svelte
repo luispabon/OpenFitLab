@@ -11,6 +11,7 @@
     Legend,
     Decimation,
   } from 'chart.js'
+  import zoomPlugin from 'chartjs-plugin-zoom'
   import 'chartjs-adapter-date-fns'
   import type { StreamData } from '../types'
   import type { StreamConfig } from '../utils/stream-config'
@@ -26,7 +27,8 @@
     LineController,
     Tooltip,
     Legend,
-    Decimation
+    Decimation,
+    zoomPlugin
   )
 
   interface Props {
@@ -39,6 +41,15 @@
 
   let canvasElement: HTMLCanvasElement | null = $state(null)
   let chartInstance: Chart | null = $state(null)
+  let isZoomed = $state(false)
+
+  // Reset zoom function (can be called from parent if needed)
+  export function resetZoom() {
+    if (chartInstance) {
+      chartInstance.resetZoom()
+      isZoomed = false
+    }
+  }
 
   // Get config for this stream type
   const streamConfig = $derived(config ?? getStreamConfig(streamData.type))
@@ -177,6 +188,27 @@
             algorithm: 'lttb',
             samples: 500, // Decimate to ~500 points for performance
           },
+          zoom: {
+            zoom: {
+              wheel: {
+                enabled: true,
+                speed: 0.1,
+              },
+              pinch: {
+                enabled: true,
+              },
+              mode: 'x', // Only zoom X-axis
+            },
+            pan: {
+              enabled: true,
+              mode: 'x', // Only pan X-axis
+            },
+            limits: {
+              x: {
+                min: 0, // Don't allow panning before start
+              },
+            },
+          },
         },
         scales: {
           x: {
@@ -206,8 +238,43 @@
             },
           },
         },
+        onHover: (event, activeElements) => {
+          // Change cursor to crosshair when hovering over chart
+          if (event.native && canvasElement) {
+            canvasElement.style.cursor = activeElements.length > 0 ? 'crosshair' : 'default'
+          }
+        },
       },
+      plugins: [],
     })
+
+    // Check zoom state periodically
+    const checkZoomState = () => {
+      if (!chartInstance) return
+      const xScale = chartInstance.scales.x
+      if (!xScale) return
+      
+      const data = chartData
+      if (data.values.length === 0) return
+      
+      const minX = Math.min(...data.labels)
+      const maxX = Math.max(...data.labels)
+      const tolerance = (maxX - minX) * 0.01
+      
+      isZoomed =
+        Math.abs(xScale.min - minX) > tolerance || Math.abs(xScale.max - maxX) > tolerance
+    }
+    
+    // Update zoom state after chart renders
+    setTimeout(checkZoomState, 100)
+    
+    // Override update to check zoom state
+    const originalUpdate = chartInstance.update.bind(chartInstance)
+    chartInstance.update = function(mode?: any) {
+      const result = originalUpdate(mode)
+      setTimeout(checkZoomState, 50)
+      return result
+    }
 
     // Cleanup function
     return () => {
@@ -225,8 +292,18 @@
       <p class="text-sm text-gray-500 dark:text-gray-400">No data available for {streamConfig.label}</p>
     </div>
   {:else}
-    <div class="h-64 w-full">
-      <canvas bind:this={canvasElement}></canvas>
+    <div class="relative">
+      <button
+        type="button"
+        class="absolute right-2 top-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-75 hover:opacity-100 dark:bg-gray-200 dark:text-gray-800"
+        onclick={resetZoom}
+        style="display: {isZoomed ? 'block' : 'none'};"
+      >
+        Reset Zoom
+      </button>
+      <div class="h-64 w-full">
+        <canvas bind:this={canvasElement}></canvas>
+      </div>
     </div>
   {/if}
 </div>

@@ -19,6 +19,7 @@
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
   import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
+  import OverlayChart from '../lib/components/OverlayChart.svelte'
 
   const id = $derived(params?.id ?? '')
 
@@ -108,6 +109,9 @@
   // Selected streams for visibility toggle (all selected by default)
   let selectedStreamTypes = $state<Set<string>>(new Set())
 
+  // View mode: 'stacked' or 'overlay'
+  let viewMode = $state<'stacked' | 'overlay'>('stacked')
+
   // Initialize selected streams when chartableStreams change (all selected by default)
   $effect(() => {
     if (chartableStreams.length > 0 && selectedStreamTypes.size === 0) {
@@ -124,6 +128,11 @@
       newSet.add(type)
     }
     selectedStreamTypes = newSet
+  }
+
+  // Toggle view mode
+  function toggleViewMode() {
+    viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked'
   }
 
   // Filter to only selected streams
@@ -272,7 +281,32 @@
     {:else if chartableStreams.length > 0}
       <div class="mt-6 space-y-6">
         <div class="flex flex-col gap-4">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+            
+            <!-- View Mode Toggle -->
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600 dark:text-gray-400">View:</span>
+              <button
+                type="button"
+                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'stacked'
+                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                onclick={() => (viewMode = 'stacked')}
+              >
+                Stacked
+              </button>
+              <button
+                type="button"
+                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'overlay'
+                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                onclick={() => (viewMode = 'overlay')}
+              >
+                Overlay
+              </button>
+            </div>
+          </div>
           
           <!-- Metric Selection Pills -->
           <div class="flex flex-wrap gap-2">
@@ -298,15 +332,25 @@
 
         <!-- Charts for selected metrics -->
         {#if visibleStreams.length > 0}
-          <div class="space-y-6">
-            {#each visibleStreams as stream (stream.type)}
-              <div
-                class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-              >
-                <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
-              </div>
-            {/each}
-          </div>
+          {#if viewMode === 'overlay'}
+            <!-- Overlay Mode: Single chart with all metrics -->
+            <div
+              class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+            >
+              <OverlayChart streams={visibleStreams} activityStartDate={activityStartDate} />
+            </div>
+          {:else}
+            <!-- Stacked Mode: One chart per metric -->
+            <div class="space-y-6">
+              {#each visibleStreams as stream (stream.type)}
+                <div
+                  class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
+                </div>
+              {/each}
+            </div>
+          {/if}
         {:else}
           <div class="flex h-32 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
             <p class="text-sm text-gray-500 dark:text-gray-400">
