@@ -13,16 +13,16 @@
 
 {#if icon}
   <div
-    class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50"
+    class="flex items-center gap-3 rounded-xl border border-border bg-card p-3 backdrop-blur"
   >
-    <span class="material-icons text-xl text-gray-500 dark:text-gray-400">
+    <span class="material-icons text-xl text-text-muted">
       {getStatIconMaterialName(icon)}
     </span>
     <div class="min-w-0 flex-1">
-      <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <div class="text-xs font-medium uppercase tracking-wide text-text-secondary">
         {getStatLabel(statType)}
       </div>
-      <div class="text-sm font-medium text-gray-900 dark:text-white">
+      <div class="text-sm font-medium text-text-primary">
         {value} {unit}
       </div>
     </div>
