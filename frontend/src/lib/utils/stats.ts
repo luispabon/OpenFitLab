@@ -185,3 +185,45 @@ export function isStatInCategory(statType: string, category: keyof typeof STAT_C
     return lower === catLower || lower.includes(catLower) || catLower.includes(lower)
   })
 }
+
+export interface StatEntry {
+  statType: string
+  value: string
+  unit: string
+}
+
+export interface GroupedStats {
+  overall: StatEntry[]
+  performance: StatEntry[]
+  physiological: StatEntry[]
+}
+
+/**
+ * Groups stat entries by category in a single pass, avoiding duplicates.
+ * Stats are assigned to the first matching category (OVERALL > PERFORMANCE > PHYSIOLOGICAL).
+ */
+export function groupStatsByCategory(entries: StatEntry[]): GroupedStats {
+  const seen = new Set<string>()
+  const result: GroupedStats = {
+    overall: [],
+    performance: [],
+    physiological: [],
+  }
+
+  for (const entry of entries) {
+    if (!getStatIcon(entry.statType) || seen.has(entry.statType)) continue
+
+    if (isStatInCategory(entry.statType, 'OVERALL')) {
+      result.overall.push(entry)
+      seen.add(entry.statType)
+    } else if (isStatInCategory(entry.statType, 'PERFORMANCE')) {
+      result.performance.push(entry)
+      seen.add(entry.statType)
+    } else if (isStatInCategory(entry.statType, 'PHYSIOLOGICAL')) {
+      result.physiological.push(entry)
+      seen.add(entry.statType)
+    }
+  }
+
+  return result
+}

@@ -6,18 +6,16 @@
 
   import { push } from 'svelte-spa-router'
   import { getEvent } from '../lib/api'
-  import type { EventSummary } from '../lib/types'
   import type { EventDetail as EventDetailType } from '../lib/types'
   import {
     formatDate,
     getActivityIcon,
-    getStatIcon,
-    getStatIconMaterialName,
-    getStatLabel,
     getStatUnit,
     formatStatValue,
-    isStatInCategory,
+    groupStatsByCategory,
   } from '../lib/utils'
+  import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
+  import StatCard from '../lib/components/StatCard.svelte'
 
   const id = $derived(params?.id ?? '')
 
@@ -90,28 +88,7 @@
     }))
   })
 
-  const overallStats = $derived(
-    statEntries.filter(
-      (e) => getStatIcon(e.statType) && isStatInCategory(e.statType, 'OVERALL')
-    )
-  )
-  const performanceStats = $derived(
-    statEntries.filter(
-      (e) =>
-        getStatIcon(e.statType) &&
-        isStatInCategory(e.statType, 'PERFORMANCE') &&
-        !overallStats.some((o) => o.statType === e.statType)
-    )
-  )
-  const physiologicalStats = $derived(
-    statEntries.filter(
-      (e) =>
-        getStatIcon(e.statType) &&
-        isStatInCategory(e.statType, 'PHYSIOLOGICAL') &&
-        !overallStats.some((o) => o.statType === e.statType) &&
-        !performanceStats.some((p) => p.statType === e.statType)
-    )
-  )
+  const groupedStats = $derived(groupStatsByCategory(statEntries))
 
   async function loadEvent() {
     if (!id) {
@@ -147,26 +124,7 @@
 
   {#if loading}
     <div class="flex justify-center py-12">
-      <svg
-        class="h-8 w-8 animate-spin text-blue-600"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          class="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          stroke-width="4"
-        ></circle>
-        <path
-          class="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        ></path>
-      </svg>
+      <LoadingSpinner />
     </div>
   {:else if error}
     <div class="rounded-md bg-red-50 p-4 dark:bg-red-900/20">
@@ -226,65 +184,8 @@
 
       <!-- Stats grid -->
       <div class="grid grid-cols-2 gap-3 p-6 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
-        {#each overallStats as entry}
-          {@const icon = getStatIcon(entry.statType)}
-          {#if icon}
-            <div
-              class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50"
-            >
-              <span class="material-icons text-xl text-gray-500 dark:text-gray-400">
-                {getStatIconMaterialName(icon)}
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  {getStatLabel(entry.statType)}
-                </div>
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                  {entry.value} {entry.unit}
-                </div>
-              </div>
-            </div>
-          {/if}
-        {/each}
-        {#each performanceStats as entry}
-          {@const icon = getStatIcon(entry.statType)}
-          {#if icon}
-            <div
-              class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50"
-            >
-              <span class="material-icons text-xl text-gray-500 dark:text-gray-400">
-                {getStatIconMaterialName(icon)}
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  {getStatLabel(entry.statType)}
-                </div>
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                  {entry.value} {entry.unit}
-                </div>
-              </div>
-            </div>
-          {/if}
-        {/each}
-        {#each physiologicalStats as entry}
-          {@const icon = getStatIcon(entry.statType)}
-          {#if icon}
-            <div
-              class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50"
-            >
-              <span class="material-icons text-xl text-gray-500 dark:text-gray-400">
-                {getStatIconMaterialName(icon)}
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  {getStatLabel(entry.statType)}
-                </div>
-                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                  {entry.value} {entry.unit}
-                </div>
-              </div>
-            </div>
-          {/if}
+        {#each [...groupedStats.overall, ...groupedStats.performance, ...groupedStats.physiological] as entry (entry.statType)}
+          <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
         {/each}
       </div>
     </div>
