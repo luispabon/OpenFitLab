@@ -3,6 +3,15 @@
  */
 
 /**
+ * Check if a value is null, undefined, or NaN
+ * @param {any} value - Value to check
+ * @returns {boolean} True if value is null/undefined/NaN
+ */
+function isNullValue(value) {
+  return value === null || value === undefined || (typeof value === 'number' && isNaN(value));
+}
+
+/**
  * Extract timestamps from a Time stream or calculate from activity start date
  * @param {Object} activity - Parsed activity object from sports-lib
  * @param {number} activityStartDateMs - Activity start date in milliseconds (Unix timestamp)
@@ -69,16 +78,21 @@ function extractStreamDataPoints(activity, activityStartDateMs) {
     // Extract timestamps for this stream
     const timestamps = extractTimestamps(activity, activityStartDateMs, streamData);
     
-    // Create data points with timestamps
-    const dataPoints = streamData.map((value, index) => ({
-      time: timestamps[index] || (activityStartDateMs + (index * 1000)),
-      value: value
-    }));
+    // Create data points with timestamps, filtering out null values
+    const dataPoints = streamData
+      .map((value, index) => ({
+        time: timestamps[index] || (activityStartDateMs + (index * 1000)),
+        value: value
+      }))
+      .filter(dp => !isNullValue(dp.value));
     
-    streams.push({
-      type: streamType,
-      dataPoints: dataPoints
-    });
+    // Only include streams that have at least one valid data point
+    if (dataPoints.length > 0) {
+      streams.push({
+        type: streamType,
+        dataPoints: dataPoints
+      });
+    }
   }
   
   return streams;
@@ -184,16 +198,21 @@ function extractStreamDataPointsFromJSON(activityJson, activityStartDateMs) {
       timestamps = streamData.map((_, index) => activityStartDateMs + (index * 1000));
     }
     
-    // Create data points
-    const dataPoints = streamData.map((value, index) => ({
-      time: timestamps[index] || (activityStartDateMs + (index * 1000)),
-      value: value
-    }));
+    // Create data points, filtering out null values
+    const dataPoints = streamData
+      .map((value, index) => ({
+        time: timestamps[index] || (activityStartDateMs + (index * 1000)),
+        value: value
+      }))
+      .filter(dp => !isNullValue(dp.value));
     
-    streams.push({
-      type: stream.type,
-      dataPoints: dataPoints
-    });
+    // Only include streams that have at least one valid data point
+    if (dataPoints.length > 0) {
+      streams.push({
+        type: stream.type,
+        dataPoints: dataPoints
+      });
+    }
   }
   
   return streams;

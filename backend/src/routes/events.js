@@ -214,12 +214,15 @@ router.post(
           const activityStartDate = toTimestamp(activity.startDate, startDate);
           
           // Extract stream data points with timestamps
+          // Note: extractStreamDataPointsFromJSON filters out null/undefined/NaN values
+          // and excludes streams with no valid data points
           const streamDataPoints = extractStreamDataPointsFromJSON(
             { ...activityJson, streams },
             activityStartDate
           );
           
           for (const streamInfo of streamDataPoints) {
+            // Skip streams with no valid data points (already filtered by extractStreamDataPointsFromJSON)
             if (!streamInfo || !streamInfo.type || !streamInfo.dataPoints || streamInfo.dataPoints.length === 0) {
               continue;
             }
