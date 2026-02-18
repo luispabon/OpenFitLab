@@ -5,23 +5,31 @@
   let { params = {} }: Props = $props()
 
   import { push } from 'svelte-spa-router'
-  import { getEvent } from '../lib/api'
-  import type { EventDetail as EventDetailType } from '../lib/types'
+  import { getEvent, getStreams } from '../lib/api'
+  import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
   import {
     formatDate,
     getActivityIcon,
     getStatUnit,
     formatStatValue,
     groupStatsByCategory,
+    isChartableStream,
+    isSmoothVariantToHide,
+    getStreamConfig,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
+  import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
+  import OverlayChart from '../lib/components/OverlayChart.svelte'
 
   const id = $derived(params?.id ?? '')
 
   let eventDetail = $state<EventDetailType | null>(null)
   let loading = $state(true)
   let error = $state<string | null>(null)
+  let streams = $state<StreamData[]>([])
+  let streamsLoading = $state(false)
+  let streamsError = $state<string | null>(null)
   const event = $derived(eventDetail?.event ?? null)
 
   const mainActivityType = $derived.by(() => {
@@ -90,6 +98,77 @@
 
   const groupedStats = $derived(groupStatsByCategory(statEntries))
 
+  // Selected activity (defaults to first)
+  let selectedActivityId = $state<string | null>(null)
+
+  // Activities list
+  const activities = $derived(eventDetail?.activities ?? [])
+
+  // Selected activity (or first if none selected)
+  const selectedActivity = $derived.by(() => {
+    if (selectedActivityId) {
+      return activities.find((a) => a.id === selectedActivityId) ?? activities[0] ?? null
+    }
+    return activities[0] ?? null
+  })
+
+  // Initialize selected activity when activities load
+  $effect(() => {
+    if (activities.length > 0 && !selectedActivityId) {
+      selectedActivityId = activities[0].id
+    }
+  })
+
+  const activityStartDate = $derived(
+    selectedActivity?.startDate ?? event?.startDate ?? Date.now()
+  )
+
+  // Filter to chartable streams only; hide "X Smooth" when "X" is also present
+  const allStreamTypes = $derived(streams.map((s) => s.type))
+  const chartableStreams = $derived(
+    streams.filter(
+      (s) =>
+        isChartableStream(s.type) &&
+        s.data &&
+        s.data.length > 0 &&
+        !isSmoothVariantToHide(s.type, allStreamTypes)
+    )
+  )
+
+  // Selected streams for visibility toggle (all selected by default)
+  let selectedStreamTypes = $state<Set<string>>(new Set())
+
+  // View mode: 'stacked' or 'overlay'
+  let viewMode = $state<'stacked' | 'overlay'>('stacked')
+
+  // Initialize selected streams when chartableStreams change (all selected by default)
+  $effect(() => {
+    if (chartableStreams.length > 0 && selectedStreamTypes.size === 0) {
+      selectedStreamTypes = new Set(chartableStreams.map((s) => s.type))
+    }
+  })
+
+  // Toggle stream visibility
+  function toggleStream(type: string) {
+    const newSet = new Set(selectedStreamTypes)
+    if (newSet.has(type)) {
+      newSet.delete(type)
+    } else {
+      newSet.add(type)
+    }
+    selectedStreamTypes = newSet
+  }
+
+  // Toggle view mode
+  function toggleViewMode() {
+    viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked'
+  }
+
+  // Filter to only selected streams
+  const visibleStreams = $derived(
+    chartableStreams.filter((s) => selectedStreamTypes.has(s.type))
+  )
+
   async function loadEvent() {
     if (!id) {
       eventDetail = null
@@ -108,8 +187,35 @@
     }
   }
 
+  async function loadStreams() {
+    if (!id || !selectedActivity?.id) {
+      streams = []
+      return
+    }
+
+    streamsLoading = true
+    streamsError = null
+    try {
+      const loadedStreams = await getStreams(id, selectedActivity.id)
+      streams = loadedStreams
+    } catch (e) {
+      streamsError = e instanceof Error ? e.message : 'Failed to load streams'
+      streams = []
+    } finally {
+      streamsLoading = false
+    }
+  }
+
+  // Load event when ID changes
   $effect(() => {
     if (id) loadEvent()
+  })
+
+  // Load streams when event and selected activity are available (single effect for initial load and activity switch)
+  $effect(() => {
+    if (eventDetail && selectedActivity?.id && !loading) {
+      loadStreams()
+    }
   })
 </script>
 
@@ -189,6 +295,145 @@
         {/each}
       </div>
     </div>
+
+    <!-- Stream Charts Section -->
+    {#if streamsLoading}
+      <div class="mt-6 space-y-6">
+        <div class="flex flex-col gap-4">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+          <!-- Loading skeleton -->
+          <div class="space-y-6">
+            {#each [1, 2, 3] as _}
+              <div
+                class="animate-pulse overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div class="h-64 w-full rounded bg-gray-200 dark:bg-gray-700"></div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {:else if streamsError}
+      <div class="mt-6 rounded-md bg-yellow-50 p-4 dark:bg-yellow-900/20">
+        <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+          {streamsError}
+        </p>
+        <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-300">
+          Charts will not be available for this activity.
+        </p>
+      </div>
+    {:else if chartableStreams.length > 0}
+      <div class="mt-6 space-y-6">
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-2">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Metrics</h2>
+              
+              <!-- Activity Selector Tabs (only show if multiple activities) -->
+              {#if activities.length > 1}
+                <div class="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+                  {#each activities as activity (activity.id)}
+                    {@const isSelected = selectedActivityId === activity.id}
+                    <button
+                      type="button"
+                      class="px-3 py-2 text-sm font-medium transition-colors {isSelected
+                        ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+                      onclick={() => (selectedActivityId = activity.id)}
+                    >
+                      {activity.name || activity.type || `Activity ${activities.indexOf(activity) + 1}`}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+            
+            <!-- View Mode Toggle -->
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600 dark:text-gray-400">View:</span>
+              <button
+                type="button"
+                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'stacked'
+                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                onclick={() => (viewMode = 'stacked')}
+              >
+                Stacked
+              </button>
+              <button
+                type="button"
+                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'overlay'
+                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                onclick={() => (viewMode = 'overlay')}
+              >
+                Overlay
+              </button>
+            </div>
+          </div>
+          
+          <!-- Metric Selection Pills -->
+          <div class="flex flex-wrap gap-2">
+            {#each chartableStreams as stream (stream.type)}
+              {@const config = getStreamConfig(stream.type)}
+              {@const isSelected = selectedStreamTypes.has(stream.type)}
+              <button
+                type="button"
+                class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isSelected
+                  ? 'border-gray-300 bg-gray-100 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'}"
+                onclick={() => toggleStream(stream.type)}
+              >
+                <span
+                  class="h-2 w-2 rounded-full"
+                  style="background-color: {config.color};"
+                ></span>
+                <span>{config.label}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Charts for selected metrics -->
+        {#if visibleStreams.length > 0}
+          {#if viewMode === 'overlay'}
+            <!-- Overlay Mode: Single chart with all metrics -->
+            <div
+              class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+            >
+              <OverlayChart streams={visibleStreams} activityStartDate={activityStartDate} />
+            </div>
+          {:else}
+            <!-- Stacked Mode: One chart per metric -->
+            <div class="space-y-6">
+              {#each visibleStreams as stream (stream.type)}
+                <div
+                  class="overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <div class="flex h-32 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Select metrics above to view charts
+            </p>
+          </div>
+        {/if}
+      </div>
+    {:else if selectedActivity && !streamsLoading}
+      <!-- No streams available for this activity -->
+      <div class="mt-6 rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+        <p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+          No stream data available
+        </p>
+        <p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+          This activity does not contain time-series data (heart rate, speed, etc.).
+        </p>
+      </div>
+    {/if}
   {:else}
     <p class="text-gray-500 dark:text-gray-400">Event not found.</p>
   {/if}
