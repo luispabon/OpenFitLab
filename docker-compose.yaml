@@ -40,11 +40,13 @@ services:
     working_dir: /workspace/frontend
     ports:
       - "4200:4200"
+    environment:
+      API_PROXY_TARGET: http://api:3000
     depends_on:
       - api
     volumes:
       - .:/workspace
-    command: sh -c "npm install && npm run start:docker"
+    command: sh -c "npm install && npm run dev"
 
   adminer:
     image: ghcr.io/jeliebig/adminer-autologin:latest
