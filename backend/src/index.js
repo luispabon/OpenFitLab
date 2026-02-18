@@ -22,6 +22,17 @@ app.get('/health', (req, res) => {
 
 app.use('/api/events', eventsRouter);
 
+// Central error handler for async routes
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  const message = err && err.message ? err.message : 'Internal server error';
+  const statusCode = message && message.includes('Failed to parse') ? 400 : 500;
+  res.status(statusCode).json({ error: message });
+});
+
 async function start() {
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   await db.initializeSchema();

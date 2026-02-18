@@ -18,10 +18,15 @@ const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 // GET /api/events?startDate=&endDate=&limit=&orderBy=
-router.get('/', async (req, res) => {
-  try {
-    let sql = 'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    let sql =
+      'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
     const params = [];
     if (req.query.startDate != null) {
       sql += ' AND start_date >= ?';
@@ -47,15 +52,13 @@ router.get('/', async (req, res) => {
     const statsByEventId = aggregateStats(statsRows, 'event_id');
     const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
     res.json(events);
-  } catch (e) {
-    console.error('GET /api/events', e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  })
+);
 
 // GET /api/events/:id
-router.get('/:id', async (req, res) => {
-  try {
+router.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
     const event = await db.queryOne(
       'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE id = ?',
       [req.params.id]
@@ -81,17 +84,16 @@ router.get('/:id', async (req, res) => {
     const eventJson = mapEventRow(event, eventStats);
     const activitiesJson = activities.map((a) => mapActivityRow(a, activityStatsById[a.id]));
     res.json({ event: eventJson, activities: activitiesJson });
-  } catch (e) {
-    console.error('GET /api/events/:id', e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  })
+);
 
 // File download endpoint removed - files are no longer stored
 
 // POST /api/events (multipart: files only)
-router.post('/', upload.array('files', 10), async (req, res) => {
-  try {
+router.post(
+  '/',
+  upload.array('files', 10),
+  asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files provided' });
     }
@@ -139,107 +141,113 @@ router.post('/', upload.array('files', 10), async (req, res) => {
       'isMerge',
     ]);
 
-    // Store event
-    await db.query(
-      `INSERT INTO events (id, start_date, name, privacy, end_date, description, is_merge, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, startDate, name, privacy, eventEndDate, eventDescription, eventIsMerge, JSON.stringify(eventPayloadRest)]
-    );
-
-    // Store event stats
-    for (const [statType, value] of Object.entries(eventStats)) {
-      if (value === undefined || value === null) continue;
-      await db.query(
-        'INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)',
-        [eventId, statType, JSON.stringify(value)]
-      );
-    }
-
-    // Process activities
-    const activities = event.getActivities();
-    const generatedActivityIds = [];
-
-    for (const activity of activities) {
-      const aid = randomUUID();
-      generatedActivityIds.push(aid);
-
-      const activityJson = activity.toJSON();
-      const streams = activityJson.streams;
-      const aStats = activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
-      const aName = activityJson.name != null ? String(activityJson.name) : null;
-      const aStartDate = toTimestamp(activityJson.startDate, null);
-      const aEndDate = toTimestamp(activityJson.endDate, null);
-      const aType = activityJson.type != null ? String(activityJson.type) : null;
-
-      const aPayloadRest = extractPayloadRest(
-        {
-          ...activityJson,
-          eventID: eventId,
-          eventStartDate: startDate,
-        },
-        ['id', 'streams', 'stats', 'name', 'startDate', 'endDate', 'type', 'eventID', 'eventStartDate']
+    // Store everything in a single transaction
+    await db.transaction(async (conn) => {
+      // Store event
+      await conn.execute(
+        `INSERT INTO events (id, start_date, name, privacy, end_date, description, is_merge, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [eventId, startDate, name, privacy, eventEndDate, eventDescription, eventIsMerge, JSON.stringify(eventPayloadRest)]
       );
 
-      await db.query(
-        'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, JSON.stringify(aPayloadRest)]
-      );
-
-      for (const [statType, value] of Object.entries(aStats)) {
+      // Store event stats
+      for (const [statType, value] of Object.entries(eventStats)) {
         if (value === undefined || value === null) continue;
-        await db.query(
-          'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
-          [aid, statType, JSON.stringify(value)]
+        await conn.execute(
+          'INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)',
+          [eventId, statType, JSON.stringify(value)]
         );
       }
-      
-      // Store streams with timestamped data points
-      if (streams) {
-        // Get activity start date (use activity's own start date if available, otherwise use event start date)
-        const activityStartDate = toTimestamp(activity.startDate, startDate);
-        
-        // Extract stream data points with timestamps
-        const streamDataPoints = extractStreamDataPointsFromJSON(
-          { ...activityJson, streams },
-          activityStartDate
+
+      // Process activities
+      const activities = event.getActivities();
+      const generatedActivityIds = [];
+
+      for (const activity of activities) {
+        const aid = randomUUID();
+        generatedActivityIds.push(aid);
+
+        const activityJson = activity.toJSON();
+        const streams = activityJson.streams;
+        const aStats = activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
+        const aName = activityJson.name != null ? String(activityJson.name) : null;
+        const aStartDate = toTimestamp(activityJson.startDate, null);
+        const aEndDate = toTimestamp(activityJson.endDate, null);
+        const aType = activityJson.type != null ? String(activityJson.type) : null;
+
+        const aPayloadRest = extractPayloadRest(
+          {
+            ...activityJson,
+            eventID: eventId,
+            eventStartDate: startDate,
+          },
+          ['id', 'streams', 'stats', 'name', 'startDate', 'endDate', 'type', 'eventID', 'eventStartDate']
         );
+
+        await conn.execute(
+          'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, JSON.stringify(aPayloadRest)]
+        );
+
+        for (const [statType, value] of Object.entries(aStats)) {
+          if (value === undefined || value === null) continue;
+          await conn.execute(
+            'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
+            [aid, statType, JSON.stringify(value)]
+          );
+        }
         
-        for (const streamInfo of streamDataPoints) {
-          if (!streamInfo || !streamInfo.type || !streamInfo.dataPoints || streamInfo.dataPoints.length === 0) {
-            continue;
-          }
+        // Store streams with timestamped data points
+        if (streams) {
+          // Get activity start date (use activity's own start date if available, otherwise use event start date)
+          const activityStartDate = toTimestamp(activity.startDate, startDate);
           
-          const streamId = `${aid}_${streamInfo.type}`;
-          
-          // Insert stream metadata
-          await db.query(
-            'INSERT INTO streams (id, activity_id, event_id, type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
-            [streamId, aid, eventId, streamInfo.type]
+          // Extract stream data points with timestamps
+          const streamDataPoints = extractStreamDataPointsFromJSON(
+            { ...activityJson, streams },
+            activityStartDate
           );
           
-          // Insert data points in batches (MySQL has a limit on placeholders, typically 65535)
-          // Process in chunks of 1000 to be safe
-          const batchSize = 1000;
-          const dataPointValues = streamInfo.dataPoints.map((dp, index) => [
-            streamId,
-            dp.time,
-            JSON.stringify(dp.value),
-            index
-          ]);
-          
-          for (let i = 0; i < dataPointValues.length; i += batchSize) {
-            const batch = dataPointValues.slice(i, i + batchSize);
-            const placeholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
-            const flatValues = batch.flat();
-            await db.query(
-              `INSERT IGNORE INTO stream_data_points (stream_id, time_ms, value, sequence_index) VALUES ${placeholders}`,
-              flatValues
+          for (const streamInfo of streamDataPoints) {
+            if (!streamInfo || !streamInfo.type || !streamInfo.dataPoints || streamInfo.dataPoints.length === 0) {
+              continue;
+            }
+            
+            const streamId = `${aid}_${streamInfo.type}`;
+            
+            // Insert stream metadata
+            await conn.execute(
+              'INSERT INTO streams (id, activity_id, event_id, type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
+              [streamId, aid, eventId, streamInfo.type]
             );
+            
+            // Insert data points in batches (MySQL has a limit on placeholders, typically 65535)
+            // Process in chunks of 1000 to be safe
+            const batchSize = 1000;
+            const dataPointValues = streamInfo.dataPoints.map((dp, index) => [
+              streamId,
+              dp.time,
+              JSON.stringify(dp.value),
+              index
+            ]);
+            
+            for (let i = 0; i < dataPointValues.length; i += batchSize) {
+              const batch = dataPointValues.slice(i, i + batchSize);
+              const batchPlaceholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
+              const flatValues = batch.flat();
+              await conn.execute(
+                `INSERT IGNORE INTO stream_data_points (stream_id, time_ms, value, sequence_index) VALUES ${batchPlaceholders}`,
+                flatValues
+              );
+            }
           }
         }
       }
-    }
+    });
 
-    // Build response
+    // Build response (non-DB work can happen after transaction)
+    const activities = event.getActivities();
+    const generatedActivityIds = activities.map(() => null);
+
     const responseActivities = activities.map((activity, idx) => {
       const activityJson = activity.toJSON();
       return {
@@ -259,16 +267,13 @@ router.post('/', upload.array('files', 10), async (req, res) => {
       },
       activities: responseActivities,
     });
-  } catch (e) {
-    console.error('POST /api/events', e);
-    const statusCode = e.message && e.message.includes('Failed to parse') ? 400 : 500;
-    res.status(statusCode).json({ error: e.message || 'Internal server error' });
-  }
-});
+  })
+);
 
 // GET /api/events/:id/activities/:activityId/streams
-router.get('/:id/activities/:activityId/streams', async (req, res) => {
-  try {
+router.get(
+  '/:id/activities/:activityId/streams',
+  asyncHandler(async (req, res) => {
     const { id: eventId, activityId } = req.params;
     const streamTypes = req.query.types ? (Array.isArray(req.query.types) ? req.query.types : [req.query.types]) : null;
     
@@ -283,66 +288,79 @@ router.get('/:id/activities/:activityId/streams', async (req, res) => {
     
     sql += ' ORDER BY type';
     const streamRows = await db.query(sql, params);
-    
-    // Fetch data points for each stream
-    const streams = await Promise.all(streamRows.map(async (streamRow) => {
-      const dataPoints = await db.query(
-        'SELECT time_ms, value, sequence_index FROM stream_data_points WHERE stream_id = ? ORDER BY sequence_index ASC, time_ms ASC',
-        [streamRow.id]
-      );
-      
-      const data = dataPoints.map((dp) => ({
-        time: dp.time_ms,
-        value: parseJSONField(dp.value),
-      }));
-      
-      return {
-        type: streamRow.type,
-        data: data
-      };
+
+    if (streamRows.length === 0) {
+      return res.json([]);
+    }
+
+    const streamIds = streamRows.map((r) => r.id);
+    const dataPointRows = await db.query(
+      `SELECT stream_id, time_ms, value, sequence_index
+       FROM stream_data_points
+       WHERE stream_id IN (${placeholders(streamIds.length)})
+       ORDER BY stream_id, sequence_index ASC, time_ms ASC`,
+      streamIds
+    );
+
+    const dataByStreamId = {};
+    for (const row of dataPointRows) {
+      if (!dataByStreamId[row.stream_id]) dataByStreamId[row.stream_id] = [];
+      dataByStreamId[row.stream_id].push({
+        time: row.time_ms,
+        value: parseJSONField(row.value),
+      });
+    }
+
+    const streams = streamRows.map((streamRow) => ({
+      type: streamRow.type,
+      data: dataByStreamId[streamRow.id] || [],
     }));
     
     res.json(streams);
-  } catch (e) {
-    console.error('GET /api/events/:id/activities/:activityId/streams', e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  })
+);
 
 // DELETE /api/events/:id
-router.delete('/:id', async (req, res) => {
-  try {
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
     const eventId = req.params.id;
-    const activityRows = await db.query('SELECT id FROM activities WHERE event_id = ?', [eventId]);
-    const activityIds = activityRows.map((r) => r.id);
 
-    if (activityIds.length > 0) {
-      await db.query(
-        `DELETE FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-        activityIds
-      );
-    }
-    await db.query('DELETE FROM event_stats WHERE event_id = ?', [eventId]);
-
-    const streamRows = await db.query('SELECT id FROM streams WHERE event_id = ?', [eventId]);
-    const streamIds = streamRows.map((r) => r.id);
-    if (streamIds.length > 0) {
-      await db.query(
-        `DELETE FROM stream_data_points WHERE stream_id IN (${placeholders(streamIds.length)})`,
-        streamIds
-      );
+    // Ensure event exists before attempting delete
+    const existing = await db.queryOne('SELECT id FROM events WHERE id = ?', [eventId]);
+    if (!existing) {
+      return res.status(404).json({ error: 'Event not found' });
     }
 
-    await db.query('DELETE FROM streams WHERE event_id = ?', [eventId]);
-    await db.query('DELETE FROM activities WHERE event_id = ?', [eventId]);
-    await db.query('DELETE FROM original_files WHERE event_id = ?', [eventId]);
-    const r = await db.query('DELETE FROM events WHERE id = ?', [eventId]);
-    if (r.affectedRows === 0) return res.status(404).json({ error: 'Event not found' });
+    await db.transaction(async (conn) => {
+      const [activityRows] = await conn.execute('SELECT id FROM activities WHERE event_id = ?', [eventId]);
+      const activityIds = activityRows.map((r) => r.id);
+
+      if (activityIds.length > 0) {
+        await conn.execute(
+          `DELETE FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+          activityIds
+        );
+      }
+      await conn.execute('DELETE FROM event_stats WHERE event_id = ?', [eventId]);
+
+      const [streamRows] = await conn.execute('SELECT id FROM streams WHERE event_id = ?', [eventId]);
+      const streamIds = streamRows.map((r) => r.id);
+      if (streamIds.length > 0) {
+        await conn.execute(
+          `DELETE FROM stream_data_points WHERE stream_id IN (${placeholders(streamIds.length)})`,
+          streamIds
+        );
+      }
+
+      await conn.execute('DELETE FROM streams WHERE event_id = ?', [eventId]);
+      await conn.execute('DELETE FROM activities WHERE event_id = ?', [eventId]);
+      await conn.execute('DELETE FROM original_files WHERE event_id = ?', [eventId]);
+      await conn.execute('DELETE FROM events WHERE id = ?', [eventId]);
+    });
+
     res.status(204).send();
-  } catch (e) {
-    console.error('DELETE /api/events/:id', e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  })
+);
 
 module.exports = router;

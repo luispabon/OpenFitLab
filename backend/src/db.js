@@ -62,4 +62,20 @@ async function queryOne(sql, params = []) {
   return rows[0] ?? null;
 }
 
-module.exports = { getPool, initializeSchema, query, queryOne };
+async function transaction(fn) {
+  const p = await getPool();
+  const conn = await p.getConnection();
+  try {
+    await conn.beginTransaction();
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+module.exports = { getPool, initializeSchema, query, queryOne, transaction };
