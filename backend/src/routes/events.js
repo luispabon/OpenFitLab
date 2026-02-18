@@ -16,14 +16,25 @@ const {
 
 const router = express.Router();
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB limit
+});
 
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
+const {
+  validateGetEventsQuery,
+  validateEventId,
+  validateActivityId,
+  validateStreamTypes,
+} = require('../utils/validation');
+
 // GET /api/events?startDate=&endDate=&limit=&orderBy=
 router.get(
   '/',
+  validateGetEventsQuery,
   asyncHandler(async (req, res) => {
     let sql =
       'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
@@ -58,6 +69,7 @@ router.get(
 // GET /api/events/:id
 router.get(
   '/:id',
+  validateEventId,
   asyncHandler(async (req, res) => {
     const event = await db.queryOne(
       'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE id = ?',
@@ -273,6 +285,9 @@ router.post(
 // GET /api/events/:id/activities/:activityId/streams
 router.get(
   '/:id/activities/:activityId/streams',
+  validateEventId,
+  validateActivityId,
+  validateStreamTypes,
   asyncHandler(async (req, res) => {
     const { id: eventId, activityId } = req.params;
     const streamTypes = req.query.types ? (Array.isArray(req.query.types) ? req.query.types : [req.query.types]) : null;
@@ -323,6 +338,7 @@ router.get(
 // DELETE /api/events/:id
 router.delete(
   '/:id',
+  validateEventId,
   asyncHandler(async (req, res) => {
     const eventId = req.params.id;
 

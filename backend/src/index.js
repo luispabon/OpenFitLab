@@ -16,8 +16,13 @@ app.get('/', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
+app.get('/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: 'Database connection failed' });
+  }
 });
 
 app.use('/api/events', eventsRouter);
