@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const eventsRouter = require('./routes/events');
+const comparisonsRouter = require('./routes/comparisons');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,7 @@ app.get('/health', async (req, res) => {
 });
 
 app.use('/api/events', eventsRouter);
+app.use('/api/comparisons', comparisonsRouter);
 
 // Central error handler for async routes
 app.use((err, req, res, next) => {

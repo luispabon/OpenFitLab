@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { push } from 'svelte-spa-router'
-  import { getEvents, uploadFile, deleteEvent } from '../lib/api'
+  import { getEvents, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
   import type { EventSummary, Activity } from '../lib/types'
   import {
     formatDateShort,
@@ -32,6 +32,10 @@
   let currentDeleteIndex = $state(0)
   let totalToDelete = $state(0)
   let eventsToBulkDelete = $state<string[]>([])
+  let candidatesSourceEventId = $state<string | null>(null)
+  let candidates = $state<EventSummary[]>([])
+  let candidatesLoading = $state(false)
+  let selectedCandidateIds = $state<Set<string>>(new Set())
 
   function showToast(message: string) {
     toastMessage = message
@@ -183,6 +187,46 @@
       isDeleting = false
       eventToDelete = null
     }
+  }
+
+  async function handleFindComparisonsClick(eventId: string) {
+    candidatesSourceEventId = eventId
+    candidatesLoading = true
+    candidates = []
+    selectedCandidateIds = new Set()
+
+    try {
+      const found = await getComparisonCandidates(eventId)
+      candidates = found
+    } catch (error) {
+      console.error('Failed to load comparison candidates:', error)
+      showToast(error instanceof Error ? error.message : 'Failed to load comparison candidates')
+    } finally {
+      candidatesLoading = false
+    }
+  }
+
+  function handleCancelCandidates() {
+    candidatesSourceEventId = null
+    candidates = []
+    selectedCandidateIds = new Set()
+  }
+
+  function toggleCandidateSelection(eventId: string) {
+    const newSet = new Set(selectedCandidateIds)
+    if (newSet.has(eventId)) {
+      newSet.delete(eventId)
+    } else {
+      newSet.add(eventId)
+    }
+    selectedCandidateIds = newSet
+  }
+
+  function handleCompareSelected() {
+    if (!candidatesSourceEventId || selectedCandidateIds.size === 0) return
+
+    const eventIds = [candidatesSourceEventId, ...Array.from(selectedCandidateIds)]
+    push(`/compare/new?events=${eventIds.join(',')}`)
   }
 
   onMount(() => {
@@ -419,6 +463,19 @@
         </button>
         <button
           type="button"
+          class="flex items-center rounded border-0 bg-accent px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+          onclick={() => {
+            if (selectedEventIds.size >= 2) {
+              push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`)
+            }
+          }}
+          disabled={selectedEventIds.size < 2 || isBulkDeleting || isDeleting}
+        >
+          <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">compare_arrows</span>
+          Compare
+        </button>
+        <button
+          type="button"
           class="flex items-center rounded border-0 bg-danger px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-1 focus:ring-danger disabled:opacity-50"
           onclick={handleBulkDeleteClick}
           disabled={isBulkDeleting || isDeleting}
@@ -609,6 +666,17 @@
                   </button>
                   <button
                     type="button"
+                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-accent/30 bg-card px-3 font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                    onclick={(e) => {
+                      e.stopPropagation()
+                      handleFindComparisonsClick(row.event.id)
+                    }}
+                  >
+                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">compare_arrows</span>
+                    Find
+                  </button>
+                  <button
+                    type="button"
                     class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => handleDeleteClick(row.event.id, e)}
                   >
@@ -708,6 +776,88 @@
             {:else}
               Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length > 1 ? 's' : ''}
             {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Candidates Modal -->
+  {#if candidatesSourceEventId}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onclick={handleCancelCandidates}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        class="w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl flex flex-col"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-center justify-between border-b border-border p-6">
+          <h2 class="text-lg font-semibold text-text-primary">Find Comparison Candidates</h2>
+          <button
+            type="button"
+            class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary"
+            onclick={handleCancelCandidates}
+            aria-label="Close"
+          >
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6">
+          {#if candidatesLoading}
+            <div class="flex justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          {:else if candidates.length === 0}
+            <p class="text-sm text-text-secondary text-center py-8">
+              No overlapping events found for comparison.
+            </p>
+          {:else}
+            <p class="mb-4 text-sm text-text-secondary">
+              Select events that overlap in time with this event to compare:
+            </p>
+            <div class="space-y-2">
+              {#each candidates as candidate (candidate.id)}
+                {@const isSelected = selectedCandidateIds.has(candidate.id)}
+                <label
+                  class="flex items-center gap-3 rounded border border-border bg-card p-3 cursor-pointer hover:bg-card-hover {isSelected ? 'border-accent bg-accent/10' : ''}"
+                >
+                  <input
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent"
+                    checked={isSelected}
+                    onchange={() => toggleCandidateSelection(candidate.id)}
+                  />
+                  <div class="flex-1">
+                    <div class="font-medium text-text-primary">{candidate.name || 'Untitled Event'}</div>
+                    <div class="text-xs text-text-secondary">
+                      {formatDateShort(candidate.startDate)}
+                    </div>
+                  </div>
+                </label>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+        <div class="flex items-center justify-end gap-3 border-t border-border p-6">
+          <button
+            type="button"
+            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover"
+            onclick={handleCancelCandidates}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover disabled:opacity-50"
+            onclick={handleCompareSelected}
+            disabled={selectedCandidateIds.size === 0}
+          >
+            Compare ({selectedCandidateIds.size + 1} event{selectedCandidateIds.size + 1 > 1 ? 's' : ''})
           </button>
         </div>
       </div>

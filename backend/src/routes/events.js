@@ -363,6 +363,83 @@ router.get(
   })
 );
 
+// GET /api/events/:id/candidates
+router.get(
+  '/:id/candidates',
+  validateEventId,
+  asyncHandler(async (req, res) => {
+    const sourceEventId = req.params.id;
+    
+    // Get source event's time range
+    const sourceEvent = await db.queryOne(
+      'SELECT start_date, end_date FROM events WHERE id = ?',
+      [sourceEventId]
+    );
+    
+    if (!sourceEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    const sourceStartDate = Number(sourceEvent.start_date);
+    const sourceEndDate = sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
+    
+    // Find overlapping events
+    const sql = `
+      SELECT id, start_date, name, end_date, description, is_merge, payload_rest
+      FROM events
+      WHERE id != ?
+        AND start_date <= ?
+        AND COALESCE(end_date, start_date) >= ?
+      ORDER BY start_date DESC
+      LIMIT 50
+    `;
+    const rows = await db.query(sql, [sourceEventId, sourceEndDate, sourceStartDate]);
+    
+    if (rows.length === 0) {
+      return res.json([]);
+    }
+    
+    // Fetch stats and activities (same pattern as GET /)
+    const eventIds = rows.map((r) => r.id);
+    const [statsRows, activityRows] = await Promise.all([
+      db.query(
+        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+      db.query(
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+    ]);
+    
+    const statsByEventId = aggregateStats(statsRows, 'event_id');
+    const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
+    
+    if (activityRows.length > 0) {
+      const activityIds = activityRows.map((a) => a.id);
+      const activityStatsRows = await db.query(
+        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      );
+      const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
+      const activitiesByEventId = {};
+      for (const a of activityRows) {
+        if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
+        activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
+      }
+      for (const ev of events) {
+        ev.activities = activitiesByEventId[ev.id] || [];
+      }
+    } else {
+      for (const ev of events) {
+        ev.activities = [];
+      }
+    }
+    
+    res.json(events);
+  })
+);
+
 // DELETE /api/events/:id
 router.delete(
   '/:id',

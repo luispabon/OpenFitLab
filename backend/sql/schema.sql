@@ -77,3 +77,12 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
   INDEX idx_stream_id (stream_id),
   INDEX idx_time_range (time_ms)
 );
+
+CREATE TABLE IF NOT EXISTS comparisons (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(512) NOT NULL,
+  event_ids JSON NOT NULL,
+  settings JSON NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_created_at (created_at)
+);
