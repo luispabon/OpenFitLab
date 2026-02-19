@@ -37,7 +37,6 @@ function mapEventRow(row, statsForEvent = {}) {
     id: row.id,
     startDate: Number(row.start_date),
     name: row.name,
-    privacy: row.privacy,
     ...(row.end_date != null ? { endDate: Number(row.end_date) } : {}),
     ...(row.description != null ? { description: row.description } : {}),
     ...(row.is_merge === 1 ? { isMerge: true } : {}),

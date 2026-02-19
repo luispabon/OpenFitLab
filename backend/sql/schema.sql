@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS events (
   id VARCHAR(36) PRIMARY KEY,
   start_date BIGINT NOT NULL,
   name VARCHAR(512),
-  privacy VARCHAR(32) DEFAULT 'private',
   end_date BIGINT NULL,
   description TEXT NULL,
   is_merge TINYINT(1) DEFAULT 0,

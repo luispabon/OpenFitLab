@@ -37,7 +37,7 @@ router.get(
   validateGetEventsQuery,
   asyncHandler(async (req, res) => {
     let sql =
-      'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
+      'SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
     const params = [];
     if (req.query.startDate != null) {
       sql += ' AND start_date >= ?';
@@ -100,7 +100,7 @@ router.get(
   validateEventId,
   asyncHandler(async (req, res) => {
     const event = await db.queryOne(
-      'SELECT id, start_date, name, privacy, end_date, description, is_merge, payload_rest FROM events WHERE id = ?',
+      'SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE id = ?',
       [req.params.id]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
@@ -161,7 +161,6 @@ router.post(
     const name = (primaryFile.originalname && primaryFile.originalname.trim())
       ? primaryFile.originalname.replace(/\.[^/.]+$/, '').trim()
       : (event.name && event.name.trim() ? event.name.trim() : 'Untitled Event');
-    const privacy = (event.privacy && typeof event.privacy === 'string') ? event.privacy : 'private';
 
     // Extract event JSON and split into columns, stats, and payload_rest
     const eventJson = event.toJSON();
@@ -173,7 +172,6 @@ router.post(
       'id',
       'startDate',
       'name',
-      'privacy',
       'activities',
       'stats',
       'endDate',
@@ -185,8 +183,8 @@ router.post(
     await db.transaction(async (conn) => {
       // Store event
       await conn.execute(
-        `INSERT INTO events (id, start_date, name, privacy, end_date, description, is_merge, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [eventId, startDate, name, privacy, eventEndDate, eventDescription, eventIsMerge, JSON.stringify(eventPayloadRest)]
+        `INSERT INTO events (id, start_date, name, end_date, description, is_merge, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [eventId, startDate, name, eventEndDate, eventDescription, eventIsMerge, JSON.stringify(eventPayloadRest)]
       );
 
       // Store event stats
@@ -306,7 +304,6 @@ router.post(
         id: eventId,
         startDate,
         name,
-        privacy,
       },
       activities: responseActivities,
     });

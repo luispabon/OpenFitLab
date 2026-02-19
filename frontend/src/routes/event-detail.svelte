@@ -50,8 +50,6 @@
 
   const activityTypeIcon = $derived(getActivityIcon(mainActivityType))
 
-  const privacyIcon = $derived(event?.privacy === 'public' ? 'public' : 'lock')
-
   /** Key metrics for this activity type (4–6 stats), used in the header bar. */
   const keyMetrics = $derived.by(() => {
     const ev = event
@@ -271,19 +269,11 @@
       >
         <div class="flex flex-1 items-center gap-4 min-w-0">
           <div
-            class="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-surface"
+            class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-surface"
           >
             <span class="material-icons text-3xl text-text-primary">
               {activityTypeIcon}
             </span>
-            <div
-              class="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card shadow"
-              title={event.privacy === 'public' ? 'Public' : 'Private'}
-            >
-              <span class="material-icons text-sm text-text-muted">
-                {privacyIcon}
-              </span>
-            </div>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-col gap-0.5">

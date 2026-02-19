@@ -56,7 +56,6 @@ erDiagram
         varchar id PK
         bigint start_date
         varchar name
-        varchar privacy
         bigint end_date
         text description
         tinyint is_merge
@@ -119,7 +118,6 @@ Top-level workout sessions. Each event represents a single workout session and c
 - `id`: UUID (VARCHAR(36))
 - `start_date`: Start timestamp in milliseconds (BIGINT)
 - `name`: Event name (derived from filename)
-- `privacy`: Privacy setting (default: 'private')
 - `end_date`: End timestamp (nullable)
 - `description`: Event description (nullable)
 - `is_merge`: Boolean flag indicating merged events

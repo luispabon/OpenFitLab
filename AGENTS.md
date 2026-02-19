@@ -75,7 +75,7 @@ This file provides operational instructions for AI coding agents working in this
   - `frontend/vite.config.ts` - Vite and Tailwind configuration
 
 - **Database schema:**
-  - `events` - Event metadata (id, start_date, name, privacy, end_date, description, is_merge, payload_rest)
+  - `events` - Event metadata (id, start_date, name, end_date, description, is_merge, payload_rest)
   - `event_stats` - Event-level statistics (event_id, stat_type, value JSON)
   - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest)
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
