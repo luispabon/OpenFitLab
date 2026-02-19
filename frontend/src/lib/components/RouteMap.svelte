@@ -74,7 +74,7 @@
 </script>
 
 {#if routeData && center}
-  <div class="h-[400px] w-full overflow-hidden rounded-xl border border-border">
+  <div class="h-[600px] w-full overflow-hidden rounded-xl border border-border">
     <MapLibre
       class="h-full w-full"
       style={MAP_STYLE}
