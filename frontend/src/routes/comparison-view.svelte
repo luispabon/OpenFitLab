@@ -203,17 +203,34 @@
     }
   }
 
-  // Get all unique stream types across all events
+  // Get all unique stream types across all events, but only include streams where at least 2 devices have data
   const allStreamTypes = $derived.by(() => {
-    const types = new Set<string>()
+    const streamCounts = new Map<string, number>()
+    
+    // Count how many devices have each stream type
     for (const streamList of Object.values(streamsByEventId)) {
+      const seenTypes = new Set<string>()
       for (const stream of streamList) {
         if (isChartableStream(stream.type) && !isSmoothVariantToHide(stream.type, streamList.map((s) => s.type))) {
-          types.add(stream.type)
+          // Only count each stream type once per device
+          if (!seenTypes.has(stream.type)) {
+            seenTypes.add(stream.type)
+            // Only count if stream has data
+            if (stream.data && stream.data.length > 0) {
+              streamCounts.set(stream.type, (streamCounts.get(stream.type) || 0) + 1)
+            }
+          }
         }
       }
     }
-    return Array.from(types).sort()
+    
+    // Filter to only include stream types where at least 2 devices have data
+    const filteredTypes = Array.from(streamCounts.entries())
+      .filter(([_, count]) => count >= 2)
+      .map(([type, _]) => type)
+      .sort()
+    
+    return filteredTypes
   })
 
   // Get all unique stat types across all events, but only include stats where at least 2 devices have data
