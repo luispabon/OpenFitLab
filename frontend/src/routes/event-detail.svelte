@@ -71,6 +71,14 @@
 
   const keyMetricTypes = $derived(new Set(keyMetrics.map((e) => e.statType)))
 
+  /** Whether there are any grouped stats to show (excluding key metrics). */
+  const hasMoreStats = $derived(
+    groupedStatsSections.some((section) =>
+      section.entries.some((e) => !keyMetricTypes.has(e.statType))
+    )
+  )
+  let moreStatsOpen = $state(false)
+
   // Selected activity (defaults to first)
   let selectedActivityId = $state<string | null>(null)
 
@@ -284,28 +292,57 @@
         {/if}
       </div>
 
-      <!-- Grouped stats by category (excluding key metrics already shown above) -->
-      <div class="space-y-6 p-6 pt-0">
-        {#each groupedStatsSections as section (section.category)}
-          {@const entries = section.entries.filter((e) => !keyMetricTypes.has(e.statType))}
-          {#if entries.length > 0}
-            <section>
-              <h3
-                class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary"
+      <!-- More stats (grouped by category, collapsible) -->
+      {#if hasMoreStats}
+        <div class="border-t border-border px-6">
+          <button
+            type="button"
+            class="flex w-full items-center justify-end gap-1.5 py-4 text-right text-sm font-medium text-text-primary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+            onclick={() => (moreStatsOpen = !moreStatsOpen)}
+            aria-expanded={moreStatsOpen}
+          >
+            <span>More stats</span>
+            <span
+              class="relative inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-2xl font-medium tabular-nums text-text-primary transition-opacity duration-200"
+              aria-hidden="true"
+            >
+              <span
+                class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {moreStatsOpen ? 'opacity-0' : 'opacity-100'}"
               >
-                {section.category}
-              </h3>
-              <div
-                class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+                +
+              </span>
+              <span
+                class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {moreStatsOpen ? 'opacity-100' : 'opacity-0'}"
               >
-                {#each entries as entry (entry.statType)}
-                  <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
-                {/each}
-              </div>
-            </section>
+                −
+              </span>
+            </span>
+          </button>
+          {#if moreStatsOpen}
+            <div class="space-y-6 pb-6 pt-0">
+              {#each groupedStatsSections as section (section.category)}
+                {@const entries = section.entries.filter((e) => !keyMetricTypes.has(e.statType))}
+                {#if entries.length > 0}
+                  <section>
+                    <h3
+                      class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary"
+                    >
+                      {section.category}
+                    </h3>
+                    <div
+                      class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+                    >
+                      {#each entries as entry (entry.statType)}
+                        <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
+                      {/each}
+                    </div>
+                  </section>
+                {/if}
+              {/each}
+            </div>
           {/if}
-        {/each}
-      </div>
+        </div>
+      {/if}
     </div>
 
     <!-- Stream Charts Section -->
