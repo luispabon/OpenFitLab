@@ -8,7 +8,7 @@
   import { push, replace, location } from 'svelte-spa-router'
   import { getEvent, getStreams, getComparison, createComparison, deleteComparison } from '../lib/api'
   import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types'
-  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName } from '../lib/utils'
+  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName, parseStat, keepStatByPreferredUnit, metricAggregationKeyNormalized } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import ComparisonChart from '../lib/components/ComparisonChart.svelte'
 
@@ -286,11 +286,36 @@
     }
     
     // Filter to only include stats where at least 2 devices have data
-    const filteredTypes = Array.from(statCounts.entries())
-      .filter(([_, count]) => count >= 2)
-      .map(([type, _]) => type)
-      .sort()
+    // Also deduplicate by (metric + aggregation) key, keeping only preferred variants
+    // This filters out unit-specific Maximum/Minimum Speed variants (keeps only base versions)
     
+    // Sort entries: base versions (no unit variant) first, then preferred unit variants, then others
+    const entriesWithPreference = Array.from(statCounts.entries())
+      .map(([statType, count]) => {
+        if (count < 2) return null
+        const parsed = parseStat(statType)
+        const key = metricAggregationKeyNormalized(parsed) // case-insensitive so "Average Pace" and "Average pace in ..." collapse
+        const preferred = keepStatByPreferredUnit(parsed)
+        const isBaseVersion = parsed.unitVariant === null
+        return { statType, count, key, preferred, isBaseVersion }
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null)
+      .sort((a, b) => {
+        // Base versions (no unit variant) always come first
+        if (a.isBaseVersion && !b.isBaseVersion) return -1
+        if (!a.isBaseVersion && b.isBaseVersion) return 1
+        // Then preferred variants
+        return (b.preferred ? 1 : 0) - (a.preferred ? 1 : 0)
+      })
+    
+    const byKey = new Map<string, string>()
+    for (const entry of entriesWithPreference) {
+      if (!byKey.has(entry.key)) {
+        byKey.set(entry.key, entry.statType)
+      }
+    }
+    
+    const filteredTypes = Array.from(byKey.values()).sort()
     return filteredTypes
   })
 

@@ -97,11 +97,19 @@ function getCategoryForMetric(metric: string): string {
  * Normalized key for (metric + aggregation) for key-metric matching.
  * e.g. "Average Speed" -> "Average Speed", "Distance" -> "Distance".
  */
-function metricAggregationKey(parsed: ParsedStat): string {
+export function metricAggregationKey(parsed: ParsedStat): string {
   if (parsed.aggregation) {
     return `${parsed.aggregation} ${parsed.metric}`.trim()
   }
   return parsed.metric
+}
+
+/**
+ * Case-insensitive key for deduplication so "Average Pace" and "Average pace in minutes per mile"
+ * (metric "Pace" vs "pace") collapse to one entry.
+ */
+export function metricAggregationKeyNormalized(parsed: ParsedStat): string {
+  return metricAggregationKey(parsed).toLowerCase()
 }
 
 /**
@@ -253,6 +261,39 @@ export function roundTo2Decimals(n: number): string {
 }
 
 /**
+ * Checks if a value is a coordinate-like object (latitude/longitude) and formats it for display.
+ * Handles both { latitudeDegrees, longitudeDegrees } and { latitude, longitude }.
+ * Returns null if not a coordinate object.
+ */
+function formatCoordinateValue(
+  value: Record<string, unknown> | string
+): string | null {
+  let lat: number | undefined
+  let lon: number | undefined
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as Record<string, unknown>
+      lat = Number(parsed.latitudeDegrees ?? parsed.latitude)
+      lon = Number(parsed.longitudeDegrees ?? parsed.longitude)
+    } catch {
+      return null
+    }
+  } else if (value && typeof value === 'object') {
+    lat = Number((value as Record<string, unknown>).latitudeDegrees ?? (value as Record<string, unknown>).latitude)
+    lon = Number((value as Record<string, unknown>).longitudeDegrees ?? (value as Record<string, unknown>).longitude)
+  } else {
+    return null
+  }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
+
+  const latStr = Math.abs(lat).toFixed(6) + (lat >= 0 ? '°N' : '°S')
+  const lonStr = Math.abs(lon).toFixed(6) + (lon >= 0 ? '°E' : '°W')
+  return `${latStr}, ${lonStr}`
+}
+
+/**
  * Formats distance in meters as human-friendly metric string.
  * Examples: 654 -> "654m", 1690 -> "1.69km", 1000 -> "1.00km".
  */
@@ -307,8 +348,14 @@ export function formatStatValue(
   if (Array.isArray(value)) {
     return value.map((v) => (typeof v === 'number' && Number.isFinite(v) ? roundTo2Decimals(v) : String(v))).join(', ')
   }
-  if (typeof value === 'object') {
+  if (typeof value === 'object' && value !== null) {
+    const coord = formatCoordinateValue(value as Record<string, unknown>)
+    if (coord) return coord
     return JSON.stringify(value)
+  }
+  if (typeof value === 'string') {
+    const coord = formatCoordinateValue(value)
+    if (coord) return coord
   }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return roundTo2Decimals(value)
@@ -331,16 +378,30 @@ export interface StatsByCategory {
 /**
  * Returns whether this stat should be kept after preferred-unit deduplication.
  * Only the preferred unit variant for each (metric + aggregation) is kept.
+ * 
+ * General rule: For any metric, prefer the version without a unit variant.
+ * If a base version exists (no "in WORD per WORD"), discard all unit-specific variants.
+ * If no base version exists, use PREFERRED_UNITS to select the preferred unit variant.
  */
-function keepStatByPreferredUnit(parsed: ParsedStat): boolean {
+export function keepStatByPreferredUnit(parsed: ParsedStat): boolean {
+  // Base version (no unit variant) is always preferred
+  if (parsed.unitVariant === null) {
+    return true
+  }
+  
+  // If there's a unit variant, check if it matches the preferred unit for this metric
   const preferred = PREFERRED_UNITS[parsed.metric]
-  if (preferred === undefined) return true // unknown metric, keep
-  if (preferred === null) return parsed.unitVariant === null
-  return (
-    parsed.unitVariant != null &&
-    preferred != null &&
-    parsed.unitVariant.toLowerCase() === preferred.toLowerCase()
-  )
+  if (preferred === undefined) {
+    // Unknown metric: prefer base versions, discard unit variants
+    // (base version would have been caught above, so this is a unit variant - discard it)
+    return false
+  }
+  if (preferred === null) {
+    // Metric prefers no unit variant, but this has one - discard it
+    return false
+  }
+  // Metric has a preferred unit variant - only keep if this matches
+  return parsed.unitVariant.toLowerCase() === preferred.toLowerCase()
 }
 
 /**
@@ -363,21 +424,35 @@ export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCatego
   const byCategory = new Map<string, StatEntry[]>()
   const seenKey = new Set<string>() // (metric + aggregation) to avoid duplicates
 
-  // Prefer preferred-unit variants (e.g. km/h for speed) so we keep them when both exist
+  // Sort: base versions (no unit variant) first, then preferred unit variants, then others
   const sorted = [...entries].sort((a, b) => {
     const pa = parseStat(a.statType)
     const pb = parseStat(b.statType)
-    return (keepStatByPreferredUnit(pb) ? 1 : 0) - (keepStatByPreferredUnit(pa) ? 1 : 0)
+    const aIsBase = pa.unitVariant === null
+    const bIsBase = pb.unitVariant === null
+    
+    // Base versions always come first
+    if (aIsBase && !bIsBase) return -1
+    if (!aIsBase && bIsBase) return 1
+    
+    // Then preferred variants
+    const aPreferred = keepStatByPreferredUnit(pa)
+    const bPreferred = keepStatByPreferredUnit(pb)
+    return (bPreferred ? 1 : 0) - (aPreferred ? 1 : 0)
   })
 
   for (const entry of sorted) {
     const parsed = parseStat(entry.statType)
     if (!getStatIcon(entry.statType)) continue
-    const key = metricAggregationKey(parsed)
-    const preferred = keepStatByPreferredUnit(parsed)
-    // Keep preferred variant, or for speed keep one variant (we convert to km/h at display)
-    if (!preferred && !(isSpeedStat(entry.statType) && !seenKey.has(key))) continue
+    const key = metricAggregationKeyNormalized(parsed) // case-insensitive so base and "in X per Y" variants collapse
+    
+    // Skip if we've already seen this key (base/preferred version was processed first)
     if (seenKey.has(key)) continue
+    
+    // Only keep preferred variants (base versions are always preferred)
+    const preferred = keepStatByPreferredUnit(parsed)
+    if (!preferred) continue
+    
     seenKey.add(key)
 
     const category = getCategoryForMetric(parsed.metric)
