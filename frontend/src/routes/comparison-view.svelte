@@ -183,18 +183,33 @@
     return Array.from(types).sort()
   })
 
-  // Get all unique stat types across all events
+  // Get all unique stat types across all events, but only include stats where at least 2 devices have data
   const allStatTypes = $derived.by(() => {
-    const types = new Set<string>()
+    const statCounts = new Map<string, number>()
+    
+    // Count how many devices have each stat
     for (const eventDetail of events) {
       const activityId = selectedActivities[eventDetail.event.id]
       if (!activityId) continue
       const activity = eventDetail.activities.find((a) => a.id === activityId)
       if (activity?.stats) {
-        Object.keys(activity.stats).forEach((key) => types.add(key))
+        Object.keys(activity.stats).forEach((key) => {
+          const value = activity.stats[key]
+          // Only count if the value is not null/undefined and is meaningful
+          if (value != null && value !== '' && value !== 'N/A') {
+            statCounts.set(key, (statCounts.get(key) || 0) + 1)
+          }
+        })
       }
     }
-    return Array.from(types).sort()
+    
+    // Filter to only include stats where at least 2 devices have data
+    const filteredTypes = Array.from(statCounts.entries())
+      .filter(([_, count]) => count >= 2)
+      .map(([type, _]) => type)
+      .sort()
+    
+    return filteredTypes
   })
 
   // Toggle stream visibility
