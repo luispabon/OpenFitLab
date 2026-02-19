@@ -527,10 +527,10 @@
 
   <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
-    <table class="min-w-full divide-y divide-border text-[1.00625rem]">
+    <table class="w-full divide-y divide-border text-[1.00625rem] table-fixed">
       <thead class="bg-surface">
         <tr>
-          <th scope="col" class="relative w-12 px-6 py-3">
+          <th scope="col" class="relative w-12 px-3 py-3">
             <input
               type="checkbox"
               bind:this={selectAllCheckbox}
@@ -542,41 +542,41 @@
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-1/4"
           >
             Activity
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-20"
           >
             Duration
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-24"
           >
-            Average heart rate
+            Avg HR
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-20"
           >
             Calories
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-24"
           >
             Distance
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-32"
           >
             Date
           </th>
-          <th scope="col" class="relative px-6 py-3">
+          <th scope="col" class="relative px-3 py-3 w-48">
             <span class="sr-only">Actions</span>
           </th>
         </tr>
@@ -607,7 +607,7 @@
                 }
               }}
             >
-              <td class="px-6 py-4" onclick={(e) => e.stopPropagation()}>
+              <td class="px-3 py-4" onclick={(e) => e.stopPropagation()}>
                 <input
                   type="checkbox"
                   class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
@@ -617,70 +617,70 @@
                   onclick={(e) => e.stopPropagation()}
                 />
               </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
+              <td class="px-3 py-4">
+                <div class="flex items-center gap-2 min-w-0">
                   <span
                   class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
-                  style="font-size: 4rem; width: 4rem; height: 4rem; line-height: 1;"
+                  style="font-size: 3rem; width: 3rem; height: 3rem; line-height: 1;"
                   aria-hidden="true"
                   >{getActivityIcon(row.activity.type)}</span
                 >
-                  <div class="min-w-0 flex flex-col gap-0.5">
-                    <span class="font-medium text-text-primary">{row.activity.type || '—'}</span>
-                    <span class="text-text-secondary">
+                  <div class="min-w-0 flex flex-col gap-0.5 flex-1">
+                    <span class="font-medium text-text-primary truncate">{row.activity.type || '—'}</span>
+                    <span class="text-text-secondary text-sm truncate">
                       {getActivityDeviceName(row.activity)}
                     </span>
-                    <span class="text-text-secondary truncate" title={row.event.name || undefined}>
+                    <span class="text-text-secondary text-sm truncate" title={row.event.name || undefined}>
                       {row.event.name || '—'}
                     </span>
                   </div>
                 </div>
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
                 {formatDurationCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
                 {formatAvgHeartRateCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
                 {formatCaloriesCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
                 {formatDistanceCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+              <td class="whitespace-nowrap px-3 py-4 text-text-secondary text-sm">
                 {formatDateShort(row.activity.startDate ?? row.event.startDate)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-right font-medium">
-                <div class="flex items-center justify-end gap-2">
+              <td class="px-3 py-4 text-right font-medium">
+                <div class="flex items-center justify-end gap-1.5 flex-wrap">
                   <button
                     type="button"
-                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => {
                       e.stopPropagation()
                       push(`/event/${row.event.id}`)
                     }}
                   >
-                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">search</span>
+                    <span class="material-icons text-base leading-none" aria-hidden="true">search</span>
                     View
                   </button>
                   <button
                     type="button"
-                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-accent/30 bg-card px-3 font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => {
                       e.stopPropagation()
                       handleFindComparisonsClick(row.event.id)
                     }}
                   >
-                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">compare_arrows</span>
+                    <span class="material-icons text-base leading-none" aria-hidden="true">compare_arrows</span>
                     Find
                   </button>
                   <button
                     type="button"
-                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
+                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => handleDeleteClick(row.event.id, e)}
                   >
-                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">delete</span>
+                    <span class="material-icons text-base leading-none" aria-hidden="true">delete</span>
                     Delete
                   </button>
                 </div>
