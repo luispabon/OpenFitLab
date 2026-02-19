@@ -108,16 +108,40 @@
     )
   )
 
-  // Selected streams for visibility toggle (all selected by default)
+  // Heart Rate first, then rest in original order (for toggles and chart order)
+  const chartableStreamsOrdered = $derived.by(() => {
+    const list = [...chartableStreams]
+    const hr = list.find((s) => s.type === 'Heart Rate')
+    if (!hr) return list
+    return [hr, ...list.filter((s) => s.type !== 'Heart Rate')]
+  })
+
+  // Selected streams for visibility toggle (only Heart Rate selected by default)
   let selectedStreamTypes = $state<Set<string>>(new Set())
+  let hasInitializedSelection = $state(false)
 
   // View mode: 'stacked' or 'overlay'
   let viewMode = $state<'stacked' | 'overlay'>('stacked')
 
-  // Initialize selected streams when chartableStreams change (all selected by default)
+  const lastActivityIdRef = { current: null as string | null }
+
+  // When activity changes, allow re-initializing selection for the new activity's streams
   $effect(() => {
-    if (chartableStreams.length > 0 && selectedStreamTypes.size === 0) {
-      selectedStreamTypes = new Set(chartableStreams.map((s) => s.type))
+    const aid = selectedActivity?.id ?? null
+    if (aid !== lastActivityIdRef.current) {
+      lastActivityIdRef.current = aid
+      hasInitializedSelection = false
+    }
+  })
+
+  // Initialize selected streams when chartableStreams load: only Heart Rate by default
+  $effect(() => {
+    if (chartableStreams.length > 0 && !hasInitializedSelection) {
+      hasInitializedSelection = true
+      const hasHeartRate = chartableStreams.some((s) => s.type === 'Heart Rate')
+      selectedStreamTypes = hasHeartRate
+        ? new Set(['Heart Rate'])
+        : new Set([chartableStreams[0].type])
     }
   })
 
@@ -137,9 +161,9 @@
     viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked'
   }
 
-  // Filter to only selected streams
+  // Filter to only selected streams (order: Heart Rate first, then rest)
   const visibleStreams = $derived(
-    chartableStreams.filter((s) => selectedStreamTypes.has(s.type))
+    chartableStreamsOrdered.filter((s) => selectedStreamTypes.has(s.type))
   )
 
   async function loadEvent() {
@@ -376,7 +400,7 @@
           
           <!-- Metric Selection Pills -->
           <div class="flex flex-wrap gap-2">
-            {#each chartableStreams as stream (stream.type)}
+            {#each chartableStreamsOrdered as stream (stream.type)}
               {@const config = getStreamConfig(stream.type)}
               {@const isSelected = selectedStreamTypes.has(stream.type)}
               <button
