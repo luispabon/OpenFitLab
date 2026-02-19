@@ -160,7 +160,9 @@
       font: '13px system-ui',
       size: 36,
       gap: 5,
-      space: 62,
+      space: 80,
+      labelGap: 12,
+      labelSize: 42,
       side: 3,
     })
     if (rightConfig) {
@@ -176,7 +178,9 @@
         font: '13px system-ui',
         size: 36,
         gap: 5,
-        space: 62,
+        space: 80,
+        labelGap: 12,
+        labelSize: 42,
         side: 1,
       })
     }
