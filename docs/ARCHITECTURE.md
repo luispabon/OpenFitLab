@@ -110,6 +110,49 @@ erDiagram
     }
 ```
 
+### Event vs Activity: Core Concepts
+
+Understanding the distinction between **Events** and **Activities** is fundamental to the data model:
+
+#### Event
+An **Event** is a top-level workout session that represents a single workout file upload. Key characteristics:
+
+- **One file = One event**: When you upload a TCX, FIT, GPX, JSON, or SML file, it creates one event
+- **Container for activities**: An event can contain one or more activities
+- **Event-level stats**: Aggregated statistics across all activities in the event (e.g., total duration, total distance)
+- **Event metadata**: Name (derived from filename), start/end dates, description
+
+#### Activity
+An **Activity** is an individual sport segment within an event. Key characteristics:
+
+- **Belongs to an event**: Each activity has an `event_id` foreign key
+- **Has a sport type**: Running, Cycling, Swimming, etc.
+- **Activity-level stats**: Statistics specific to that activity (e.g., average pace, max heart rate)
+- **Owns streams**: All time-series data (heart rate, GPS, cadence, etc.) belongs to activities, not events
+- **Can have multiple per event**: Multi-sport events (like triathlons) contain multiple activities
+
+#### Examples
+
+**Single-Sport Workout** (most common):
+- **Event**: "Morning Run" (from `morning-run.tcx`)
+  - **Activity 1**: Running (type: "Running")
+    - Streams: Heart Rate, GPS Position, Cadence, Pace
+
+**Multi-Sport Workout** (triathlon):
+- **Event**: "Triathlon Race 2025" (from `triathlon-2025.fit`)
+  - **Activity 1**: Swimming (type: "Swimming")
+    - Streams: Heart Rate, GPS Position
+  - **Activity 2**: Cycling (type: "Cycling")
+    - Streams: Heart Rate, GPS Position, Cadence, Power
+  - **Activity 3**: Running (type: "Running")
+    - Streams: Heart Rate, GPS Position, Cadence, Pace
+
+**Key Relationships**:
+- Events have event-level statistics (`event_stats` table)
+- Activities have activity-level statistics (`activity_stats` table)
+- Streams belong to activities (`streams.activity_id`)
+- Stream data points belong to streams (`stream_data_points.stream_id`)
+
 ### Table Descriptions
 
 #### events

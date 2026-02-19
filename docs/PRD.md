@@ -400,11 +400,15 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 ## 10. Appendices
 
 ### 10.1 Glossary
-- **Event**: A workout session (can contain multiple activities)
-- **Activity**: A single sport activity within an event
-- **Stream**: Time-series data (heart rate, cadence, etc.)
-- **Data Point**: Single timestamped value in a stream
-- **Stat**: Aggregated metric (average heart rate, total distance, etc.)
+- **Event**: A top-level workout session created from a single file upload. An event can contain one or more activities and has event-level statistics aggregated across all its activities. The event name is typically derived from the uploaded filename.
+
+- **Activity**: An individual sport segment within an event. Each activity has a sport type (Running, Cycling, Swimming, etc.), its own statistics, and owns all time-series stream data (heart rate, GPS, cadence, etc.). Most single-sport files create one event with one activity, while multi-sport files (e.g., triathlons) create one event with multiple activities.
+
+- **Stream**: Time-series data belonging to an activity (e.g., Heart Rate, GPS Position, Cadence, Pace). Each stream contains multiple timestamped data points.
+
+- **Data Point**: A single timestamped value in a stream, stored with a `time_ms` timestamp and a value (can be a number or object).
+
+- **Stat**: An aggregated metric calculated from stream data or provided by the source file. Examples include average heart rate, total distance, duration, max pace, etc. Stats are stored separately for events (`event_stats`) and activities (`activity_stats`).
 
 ### 10.2 References
 - [sports-lib Documentation](https://github.com/SportsAlliance/sports-lib)
