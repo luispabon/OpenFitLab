@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { MapLibre, GeoJSONSource, LineLayer } from 'svelte-maplibre-gl'
+  import {
+    MapLibre,
+    GeoJSONSource,
+    LineLayer,
+    NavigationControl,
+    FullScreenControl,
+  } from 'svelte-maplibre-gl'
   import type { Map as MapLibreMap } from 'maplibre-gl'
   import 'maplibre-gl/dist/maplibre-gl.css'
   import type { StreamData } from '../types'
@@ -63,6 +69,8 @@
       onload={handleLoad}
       autoloadGlobalCss={false}
     >
+      <NavigationControl position="top-right" />
+      <FullScreenControl position="top-right" />
       <GeoJSONSource data={routeData.route}>
         <LineLayer
           paint={{ 'line-color': '#60a5fa', 'line-width': 4 }}
