@@ -114,17 +114,31 @@ router.get(
     const sourceStartDate = Number(sourceEvent.start_date);
     const sourceEndDate = sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
     
-    // Find overlapping events
+    // Find candidate events for comparison
+    // Strategy: Find events from the same calendar day OR events that overlap in time
+    // This helps find the same workout recorded by different devices
+    const sourceDate = new Date(sourceStartDate);
+    const dayStart = new Date(Date.UTC(sourceDate.getUTCFullYear(), sourceDate.getUTCMonth(), sourceDate.getUTCDate(), 0, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(sourceDate.getUTCFullYear(), sourceDate.getUTCMonth(), sourceDate.getUTCDate(), 23, 59, 59, 999));
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+    
+    // Find events from same day OR overlapping events
     const sql = `
       SELECT id, start_date, name, end_date, description, is_merge, payload_rest
       FROM events
       WHERE id != ?
-        AND start_date <= ?
-        AND COALESCE(end_date, start_date) >= ?
+        AND (
+          -- Same calendar day
+          (start_date >= ? AND start_date <= ?)
+          OR
+          -- Overlapping time ranges: candidate.start <= source.end AND candidate.end >= source.start
+          (start_date <= ? AND COALESCE(end_date, start_date) >= ?)
+        )
       ORDER BY start_date DESC
       LIMIT 50
     `;
-    const rows = await db.query(sql, [sourceEventId, sourceEndDate, sourceStartDate]);
+    const rows = await db.query(sql, [sourceEventId, dayStartMs, dayEndMs, sourceEndDate, sourceStartDate]);
     
     if (rows.length === 0) {
       return res.json([]);
