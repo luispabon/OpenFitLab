@@ -21,12 +21,16 @@ function isValidNum(n: unknown): n is number {
 const MIN_BOUNDS_SPAN = 0.0002
 
 function coordsToBounds(coords: [number, number][]): RouteBounds {
-  const lngs = coords.map((c) => c[0])
-  const lats = coords.map((c) => c[1])
-  let minLng = Math.min(...lngs)
-  let maxLng = Math.max(...lngs)
-  let minLat = Math.min(...lats)
-  let maxLat = Math.max(...lats)
+  let minLng = Infinity
+  let maxLng = -Infinity
+  let minLat = Infinity
+  let maxLat = -Infinity
+  for (const [lng, lat] of coords) {
+    if (lng < minLng) minLng = lng
+    if (lng > maxLng) maxLng = lng
+    if (lat < minLat) minLat = lat
+    if (lat > maxLat) maxLat = lat
+  }
   if (maxLng - minLng < MIN_BOUNDS_SPAN) {
     const pad = MIN_BOUNDS_SPAN / 2
     minLng -= pad

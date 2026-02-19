@@ -32,37 +32,26 @@
 
   const mapStyle = $derived(`https://tiles.openfreemap.org/styles/${selectedTheme}`)
 
-  function toggleLabels() {
-    showLabels = !showLabels
-  }
-
   $effect(() => {
-    if (!map) return
+    const m = map
+    if (!m) return
     const labelsVisible = showLabels
 
     const updateLabels = () => {
-      if (!map || !map.isStyleLoaded()) return
+      if (!m.isStyleLoaded()) return
       const visibility = labelsVisible ? 'visible' : 'none'
-      const style = map.getStyle()
-      if (!style || !style.layers) return
-
-      for (const layer of style.layers) {
-        if (layer.type === 'symbol' && layer.layout) {
-          map.setLayoutProperty(layer.id, 'visibility', visibility)
+      for (const layer of m.getStyle()?.layers ?? []) {
+        if (layer.type === 'symbol') {
+          m.setLayoutProperty(layer.id, 'visibility', visibility)
         }
       }
     }
 
-    if (map.isStyleLoaded()) {
+    if (m.isStyleLoaded()) {
       updateLabels()
     }
-
-    const handler = () => updateLabels()
-    map.on('style.load', handler)
-
-    return () => {
-      map.off('style.load', handler)
-    }
+    m.on('style.load', updateLabels)
+    return () => m.off('style.load', updateLabels)
   })
 
   const routeData = $derived(buildRouteGeoJSON(streams))
@@ -70,10 +59,7 @@
   const center = $derived.by(() => {
     if (!routeData) return undefined
     const { minLng, maxLng, minLat, maxLat } = routeData.bounds
-    return [((minLng + maxLng) / 2) as number, ((minLat + maxLat) / 2) as number] as [
-      number,
-      number,
-    ]
+    return [(minLng + maxLng) / 2, (minLat + maxLat) / 2] as [number, number]
   })
 
   const boundsForFit = $derived(
@@ -86,22 +72,11 @@
   )
 
   function handleLoad(ev: { target: MapLibreMap }) {
-    const map = ev.target
-    if (!boundsForFit || !map) return
-    const [[minLng, minLat], [maxLng, maxLat]] = boundsForFit
-    if (
-      typeof minLng !== 'number' ||
-      typeof maxLng !== 'number' ||
-      typeof minLat !== 'number' ||
-      typeof maxLat !== 'number' ||
-      !Number.isFinite(minLng + maxLng + minLat + maxLat)
-    ) {
-      return
-    }
+    if (!boundsForFit) return
     try {
-      map.fitBounds(boundsForFit, { padding: 40, maxZoom: 16 })
+      ev.target.fitBounds(boundsForFit, { padding: 40, maxZoom: 16 })
     } catch {
-      // ignore if fitBounds fails
+      // ignore
     }
   }
 </script>
@@ -121,7 +96,7 @@
       </div>
       <button
         type="button"
-        onclick={toggleLabels}
+        onclick={() => (showLabels = !showLabels)}
         class="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-text-primary shadow-sm transition-colors hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
         title={showLabels ? 'Hide labels' : 'Show labels'}
       >
@@ -138,15 +113,15 @@
         onload={handleLoad}
         autoloadGlobalCss={false}
       >
-      <NavigationControl position="top-right" />
-      <FullScreenControl position="top-right" />
-      <GeoJSONSource data={routeData.route}>
-        <LineLayer
-          paint={{ 'line-color': '#60a5fa', 'line-width': 4 }}
-          layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-        />
-      </GeoJSONSource>
-    </MapLibre>
-  </div>
+        <NavigationControl position="top-right" />
+        <FullScreenControl position="top-right" />
+        <GeoJSONSource data={routeData.route}>
+          <LineLayer
+            paint={{ 'line-color': '#60a5fa', 'line-width': 4 }}
+            layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+          />
+        </GeoJSONSource>
+      </MapLibre>
+    </div>
   </div>
 {/if}
