@@ -272,31 +272,17 @@
             {/if}
           </div>
         </div>
-        <!-- Key metrics bar -->
-        <div class="flex flex-shrink-0 flex-wrap items-center justify-end gap-6">
-          {#each keyMetrics as entry (entry.statType)}
-            <div class="flex flex-col items-center gap-0.5">
-              <span class="text-2xl font-light text-text-primary sm:text-3xl">{entry.value}</span>
-              {#if entry.unit}
-                <span class="text-xs uppercase tracking-wide text-text-secondary sm:text-sm">
-                  {entry.unit}
-                </span>
-              {/if}
-            </div>
-          {/each}
-        </div>
+        <!-- Key metrics: stat cards in header -->
+        {#if keyMetrics.length > 0}
+          <div
+            class="flex flex-shrink-0 flex-wrap items-stretch justify-end gap-3 sm:flex-nowrap"
+          >
+            {#each keyMetrics as entry (entry.statType)}
+              <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
+            {/each}
+          </div>
+        {/if}
       </div>
-
-      <!-- Key metrics bar: 4–6 prominent stat cards -->
-      {#if keyMetrics.length > 0}
-        <div
-          class="grid grid-cols-2 gap-3 border-b border-border px-6 pb-6 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))]"
-        >
-          {#each keyMetrics as entry (entry.statType)}
-            <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
-          {/each}
-        </div>
-      {/if}
 
       <!-- Grouped stats by category (excluding key metrics already shown above) -->
       <div class="space-y-6 p-6 pt-0">
