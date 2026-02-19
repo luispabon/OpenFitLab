@@ -140,9 +140,9 @@
         label: 'Elapsed Time',
         labelFont: '13px system-ui',
         font: '13px system-ui',
-        size: 28,
-        gap: 5,
-        space: 40,
+        size: 40,
+        gap: 8,
+        space: 44,
       },
     ]
 
@@ -160,7 +160,7 @@
       font: '13px system-ui',
       size: 36,
       gap: 5,
-      space: 50,
+      space: 62,
       side: 3,
     })
     if (rightConfig) {
@@ -176,14 +176,14 @@
         font: '13px system-ui',
         size: 36,
         gap: 5,
-        space: 50,
+        space: 62,
         side: 1,
       })
     }
 
     const opts: uPlot.Options = {
       width: containerEl.offsetWidth,
-      height: 256,
+      height: 384,
       series,
       scales,
       axes,
@@ -218,7 +218,7 @@
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 256 })
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 384 })
       }
     })
     ro.observe(containerEl)
@@ -237,7 +237,7 @@
 <div class="w-full animate-fade-in">
   {#if streams.length === 0 || !chartData.data}
     <div
-      class="flex h-64 items-center justify-center rounded-lg border border-border bg-card"
+      class="flex h-96 items-center justify-center rounded-lg border border-border bg-card"
     >
       <p class="text-sm text-text-secondary">No data available</p>
     </div>
@@ -251,7 +251,7 @@
       >
         Reset Zoom
       </button>
-      <div class="h-64 w-full" bind:this={containerEl}></div>
+      <div class="h-96 w-full" bind:this={containerEl}></div>
     </div>
   {/if}
 </div>
@@ -272,5 +272,9 @@
   }
   :global(.uplot .u-legend) {
     color: #9ca3af;
+  }
+  /* Hide the "Value: --" row (series 0) in live legend */
+  :global(.uplot .u-legend tbody tr:first-child) {
+    display: none;
   }
 </style>
