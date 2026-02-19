@@ -372,7 +372,7 @@
   <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
 
   <!-- Upload Section and Bulk Action Bar -->
-  <div class="mb-6 flex items-center gap-4">
+  <div class="mb-6 flex items-center justify-between gap-4">
     <label
       for="file-upload"
       class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
@@ -405,13 +405,13 @@
 
     <!-- Bulk Action Bar -->
     {#if selectedEventIds.size > 0}
-      <div class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur">
+      <div class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur shadow-sm">
         <p class="text-xs font-medium text-text-primary">
           {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''} selected
         </p>
         <button
           type="button"
-          class="rounded border border-border bg-card px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+          class="rounded border-2 border-border bg-surface px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover hover:border-text-secondary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
           onclick={clearSelection}
           disabled={isBulkDeleting || isDeleting}
         >

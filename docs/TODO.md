@@ -2,7 +2,7 @@
 
 This document lists features from the PRD that are not yet implemented. Features are organized by priority and phase as defined in the PRD.
 
-**Last Updated:** 2026-02-18
+**Last Updated:** 2026-02-19
 
 ---
 
@@ -10,7 +10,7 @@ This document lists features from the PRD that are not yet implemented. Features
 
 ### 3.3 Activity Visualization (In Progress)
 
-**Status:** Not Started  
+**Status:** Mostly Complete  
 **Priority:** High (MVP requirement)
 
 **Description:** Display interactive graphs for workout metrics.
@@ -26,31 +26,31 @@ This document lists features from the PRD that are not yet implemented. Features
 - Other available stream data
 
 **Requirements:**
-- [ ] Time-series line graphs for each metric
-- [ ] X-axis: Time (from activity start)
-- [ ] Y-axis: Metric value
-- [ ] Interactive tooltips showing exact values
-- [ ] Zoom and pan capabilities
-- [ ] Multiple metrics on same graph (overlay)
+- [x] Time-series line graphs for each metric
+- [x] X-axis: Time (from activity start)
+- [x] Y-axis: Metric value
+- [x] Interactive tooltips showing exact values
+- [x] Zoom and pan capabilities
+- [x] Multiple metrics on same graph (overlay)
 - [ ] Export graphs as images (future)
 
 **Acceptance Criteria:**
-- [ ] Graphs render correctly for all stream types
-- [ ] Time axis shows correct timestamps
-- [ ] Tooltips display accurate values
-- [ ] Graphs are responsive and performant
-- [ ] Multiple streams can be overlaid
+- [x] Graphs render correctly for all stream types
+- [x] Time axis shows correct timestamps
+- [x] Tooltips display accurate values
+- [x] Graphs are responsive and performant
+- [x] Multiple streams can be overlaid
 
 **Technical Tasks:**
-- [ ] Choose charting library (e.g., Chart.js, D3.js, Plotly, or similar)
-- [ ] Create graph component for time-series data
-- [ ] Integrate stream data API endpoint (`GET /api/events/:id/activities/:activityId/streams`)
-- [ ] Implement time normalization (relative to activity start)
-- [ ] Add metric selection UI (checkboxes/dropdowns)
-- [ ] Implement overlay functionality for multiple metrics
-- [ ] Add zoom and pan interactions
-- [ ] Optimize rendering for large datasets (10,000+ data points)
-- [ ] Add loading states and error handling
+- [x] Choose charting library (e.g., Chart.js, D3.js, Plotly, or similar) — uPlot
+- [x] Create graph component for time-series data — `TimeSeriesChart.svelte`
+- [x] Integrate stream data API endpoint (`GET /api/events/:id/activities/:activityId/streams`)
+- [x] Implement time normalization (relative to activity start)
+- [x] Add metric selection UI (checkboxes/dropdowns) — pill buttons with color indicators
+- [x] Implement overlay functionality for multiple metrics — `OverlayChart.svelte` with dual Y-axes
+- [x] Add zoom and pan interactions — X-axis drag-to-zoom with reset button
+- [x] Optimize rendering for large datasets (10,000+ data points) — uPlot + spline paths
+- [x] Add loading states and error handling — skeleton loaders, error messages, empty states
 
 **Related User Stories:**
 - US-3: Visualize Workout Metrics
@@ -216,9 +216,9 @@ This document lists features from the PRD that are not yet implemented. Features
 ### Dependencies to Consider
 
 **For Visualization (3.3):**
-- Charting library: Chart.js, D3.js, Plotly.js, or Recharts
-- Consider performance for large datasets (10,000+ points)
-- Ensure responsive design for mobile/tablet
+- ~~Charting library: Chart.js, D3.js, Plotly.js, or Recharts~~ — Resolved: uPlot v1.6.32
+- ~~Consider performance for large datasets (10,000+ points)~~ — Resolved: uPlot handles this natively
+- ~~Ensure responsive design for mobile/tablet~~ — Resolved: ResizeObserver-based responsive charts
 
 **For Comparison (3.4):**
 - May reuse visualization components from 3.3
@@ -255,7 +255,7 @@ This document lists features from the PRD that are not yet implemented. Features
 ### Database Considerations
 
 - Current schema supports all required data
-- May need indexes on `stream_data_points.time_ms` for performance
+- ~~May need indexes on `stream_data_points.time_ms` for performance~~ — Done: `idx_stream_time`, `idx_stream_id`, `idx_time_range` indexes exist
 - Consider materialized views for correlation calculations (future optimization)
 
 ---
@@ -265,7 +265,7 @@ This document lists features from the PRD that are not yet implemented. Features
 ### MVP Success Criteria
 - [x] Users can upload activity files successfully
 - [x] Users can view their activities in a dashboard
-- [ ] Users can visualize activity data in graphs
+- [x] Users can visualize activity data in graphs
 - [ ] Users can compare two activities side-by-side
 
 ### Future Success Metrics
