@@ -8,7 +8,7 @@
   import { getEvent, getStreams } from '../lib/api'
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
   import {
-    formatDate,
+    formatDateWithTime,
     getActivityIcon,
     getStatUnit,
     formatStatValue,
@@ -112,12 +112,11 @@
     return getActivityDeviceName(act)
   })
 
-  // Formatted date string: "Feb 19, 2026 at 8:39 AM"
+  // Formatted date string: "Feb 19, 2026 at 08:39" (24-hour format)
   const formattedDateString = $derived.by(() => {
     const ev = event
     if (!ev?.startDate) return ''
-    const formatted = formatDate(ev.startDate)
-    return `${formatted.date} at ${formatted.time}`
+    return formatDateWithTime(ev.startDate)
   })
 
   // Filter to chartable streams only; hide "X Smooth" when "X" is also present

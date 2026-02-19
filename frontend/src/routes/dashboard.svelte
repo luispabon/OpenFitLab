@@ -656,7 +656,7 @@
                 {formatDistanceCell(row.activity.stats)}
               </td>
               <td class="whitespace-nowrap px-3 py-4 text-text-secondary text-sm">
-                {formatDateShort(row.activity.startDate ?? row.event.startDate)}
+                {formatDateWithTime(row.activity.startDate ?? row.event.startDate)}
               </td>
               <td class="px-3 py-4 text-right font-medium">
                 <div class="flex items-center justify-end gap-1.5 flex-wrap">
