@@ -8,7 +8,7 @@
   import { push, replace, location } from 'svelte-spa-router'
   import { getEvent, getStreams, getComparison, createComparison, deleteComparison } from '../lib/api'
   import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types'
-  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig } from '../lib/utils'
+  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import ComparisonChart from '../lib/components/ComparisonChart.svelte'
 
@@ -217,7 +217,19 @@
   // Generate auto name for comparison
   function generateComparisonName(): string {
     if (events.length === 2) {
-      return `${events[0].event.name || 'Event 1'} vs ${events[1].event.name || 'Event 2'}`
+      const device1 = (() => {
+        const eventId = events[0].event.id
+        const activityId = selectedActivities[eventId]
+        const activity = events[0].activities.find((a) => a.id === activityId)
+        return activity ? getActivityDeviceName(activity) : null
+      })()
+      const device2 = (() => {
+        const eventId = events[1].event.id
+        const activityId = selectedActivities[eventId]
+        const activity = events[1].activities.find((a) => a.id === activityId)
+        return activity ? getActivityDeviceName(activity) : null
+      })()
+      return `${device1 || events[0].event.name || 'Event 1'} vs ${device2 || events[1].event.name || 'Event 2'}`
     }
     return `${events.length} Events Comparison`
   }
@@ -314,8 +326,9 @@
       // Use distinct colors from EVENT_COLORS for all events (not stream config color)
       const color = EVENT_COLORS[i % EVENT_COLORS.length]
 
+      const deviceName = getActivityDeviceName(activity)
       entries.push({
-        eventName: eventDetail.event.name || `Event ${i + 1}`,
+        eventName: deviceName || eventDetail.event.name || `Event ${i + 1}`,
         color,
         data: stream,
         activityStartDate,
@@ -406,7 +419,11 @@
             {#if eventDetail.activities.length > 1}
               <div>
                 <label class="mb-1 block text-sm font-medium text-text-secondary">
-                  {eventDetail.event.name || `Event ${i + 1}`}
+                  {(() => {
+                    const activityId = selectedActivities[eventId]
+                    const activity = eventDetail.activities.find((a) => a.id === activityId)
+                    return activity ? getActivityDeviceName(activity) : (eventDetail.event.name || `Event ${i + 1}`)
+                  })()}
                 </label>
                 <select
                   class="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-text-primary"
@@ -448,7 +465,7 @@
                   class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
                   style="border-left: 2px solid {color};"
                 >
-                  {eventDetail.event.name || `Event ${i + 1}`}
+                  {activity ? getActivityDeviceName(activity) : (eventDetail.event.name || `Event ${i + 1}`)}
                 </th>
               {/each}
               {#if events.length === 2}
