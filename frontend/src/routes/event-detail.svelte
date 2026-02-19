@@ -350,7 +350,7 @@
     </div>
 
     {#if locationAvailable && !streamsLoading}
-      <div class="mt-6 overflow-hidden rounded-xl border border-border shadow-sm">
+      <div class="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm backdrop-blur-lg">
         <RouteMap {streams} />
       </div>
     {/if}
