@@ -5,6 +5,7 @@
   import type { EventSummary, Activity } from '../lib/types'
   import {
     formatDateShort,
+    formatDateWithTime,
     getActivityIcon,
     findStatByMetric,
     formatStatValue,
@@ -261,6 +262,12 @@
       return dateB - dateA
     })
     return rows
+  })
+
+  // Find source event row for candidates modal
+  const sourceEventRow = $derived.by(() => {
+    if (!candidatesSourceEventId) return null
+    return activityRows.find(row => row.event.id === candidatesSourceEventId) || null
   })
 
   // Get unique event IDs from activity rows
@@ -795,10 +802,33 @@
         onclick={(e) => e.stopPropagation()}
       >
         <div class="flex items-center justify-between border-b border-border p-6">
-          <h2 class="text-lg font-semibold text-text-primary">Find Comparison Candidates</h2>
+          <div class="flex-1">
+            <h2 class="text-lg font-semibold text-text-primary mb-3">Find Comparison Candidates</h2>
+            {#if sourceEventRow}
+              <div class="flex items-center gap-3">
+                <span
+                  class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
+                  style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
+                  aria-hidden="true"
+                >{getActivityIcon(sourceEventRow.activity.type)}</span>
+                <div class="min-w-0 flex flex-col gap-0.5">
+                  <span class="font-medium text-text-primary">{sourceEventRow.activity.type || '—'}</span>
+                  <span class="text-text-secondary text-sm">
+                    {getActivityDeviceName(sourceEventRow.activity)}
+                  </span>
+                  <span class="text-text-secondary text-sm truncate" title={sourceEventRow.event.name || undefined}>
+                    {sourceEventRow.event.name || '—'}
+                  </span>
+                  <span class="text-text-secondary text-sm">
+                    {formatDateWithTime(sourceEventRow.activity.startDate ?? sourceEventRow.event.startDate)}
+                  </span>
+                </div>
+              </div>
+            {/if}
+          </div>
           <button
             type="button"
-            class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary"
+            class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary ml-4"
             onclick={handleCancelCandidates}
             aria-label="Close"
           >
@@ -822,6 +852,7 @@
             <div class="space-y-2">
               {#each candidates as candidate (candidate.id)}
                 {@const isSelected = selectedCandidateIds.has(candidate.id)}
+                {@const candidateActivity = candidate.activities?.[0]}
                 <label
                   class="flex items-center gap-3 rounded border border-border bg-card p-3 cursor-pointer hover:bg-card-hover {isSelected ? 'border-accent bg-accent/10' : ''}"
                 >
@@ -831,10 +862,21 @@
                     checked={isSelected}
                     onchange={() => toggleCandidateSelection(candidate.id)}
                   />
-                  <div class="flex-1">
-                    <div class="font-medium text-text-primary">{candidate.name || 'Untitled Event'}</div>
-                    <div class="text-xs text-text-secondary">
-                      {formatDateShort(candidate.startDate)}
+                  <span
+                    class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
+                    style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
+                    aria-hidden="true"
+                  >{getActivityIcon(candidateActivity?.type)}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium text-text-primary">{candidateActivity?.type || '—'}</div>
+                    <div class="text-sm text-text-secondary">
+                      {getActivityDeviceName(candidateActivity || {})}
+                    </div>
+                    <div class="text-sm text-text-secondary truncate" title={candidate.name || undefined}>
+                      {candidate.name || '—'}
+                    </div>
+                    <div class="text-sm text-text-secondary">
+                      {formatDateWithTime(candidateActivity?.startDate ?? candidate.startDate)}
                     </div>
                   </div>
                 </label>
