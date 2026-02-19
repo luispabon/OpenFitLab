@@ -11,12 +11,24 @@
   import type { StreamData } from '../types'
   import { buildRouteGeoJSON } from '../utils/geo'
 
-  const MAP_STYLE = 'https://tiles.openfreemap.org/styles/fiord'
+  type MapTheme = 'dark' | 'positron' | 'bright' | 'liberty' | 'fiord'
+
+  const THEME_OPTIONS: Array<{ value: MapTheme; label: string }> = [
+    { value: 'dark', label: 'Dark' },
+    { value: 'positron', label: 'Positron' },
+    { value: 'bright', label: 'Bright' },
+    { value: 'liberty', label: 'Liberty' },
+    { value: 'fiord', label: 'Fiord' },
+  ]
 
   interface Props {
     streams: StreamData[]
   }
   let { streams }: Props = $props()
+
+  let selectedTheme = $state<MapTheme>('fiord')
+
+  const mapStyle = $derived(`https://tiles.openfreemap.org/styles/${selectedTheme}`)
 
   const routeData = $derived(buildRouteGeoJSON(streams))
 
@@ -60,10 +72,21 @@
 </script>
 
 {#if routeData && center}
-  <div class="h-[600px] w-full overflow-hidden rounded-xl border border-border">
-    <MapLibre
-      class="h-full w-full"
-      style={MAP_STYLE}
+  <div class="relative">
+    <div class="absolute top-2 left-2 z-10 rounded-lg border border-border bg-card shadow-sm">
+      <select
+        bind:value={selectedTheme}
+        class="rounded-lg border-0 bg-transparent px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+      >
+        {#each THEME_OPTIONS as option}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </select>
+    </div>
+    <div class="h-[600px] w-full overflow-hidden rounded-xl border border-border">
+      <MapLibre
+        class="h-full w-full"
+        style={mapStyle}
       center={center}
       zoom={12}
       onload={handleLoad}
@@ -78,5 +101,6 @@
         />
       </GeoJSONSource>
     </MapLibre>
+  </div>
   </div>
 {/if}
