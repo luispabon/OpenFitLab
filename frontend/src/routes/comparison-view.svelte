@@ -8,9 +8,10 @@
   import { push, replace, location } from 'svelte-spa-router'
   import { getEvent, getStreams, getComparison, createComparison, deleteComparison } from '../lib/api'
   import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types'
-  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName, parseStat, keepStatByPreferredUnit, metricAggregationKeyNormalized } from '../lib/utils'
+  import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName, parseStat, keepStatByPreferredUnit, metricAggregationKeyNormalized, hasLocationStreams } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import ComparisonChart from '../lib/components/ComparisonChart.svelte'
+  import RouteMap from '../lib/components/RouteMap.svelte'
 
   const comparisonId = $derived(params?.id ?? '')
   
@@ -471,6 +472,28 @@
     }
   })
 
+  // Routes for the comparison map: one per event with location streams, colored by EVENT_COLORS
+  const comparisonRoutes = $derived.by(() => {
+    const result: Array<{ label: string; color: string; streams: StreamData[] }> = []
+    for (let i = 0; i < events.length; i++) {
+      const eventDetail = events[i]
+      const eventId = eventDetail.event.id
+      const streams = streamsByEventId[eventId]
+      if (!streams || !hasLocationStreams(streams)) continue
+      const activityId = selectedActivities[eventId]
+      const activity = eventDetail.activities.find((a) => a.id === activityId)
+      const deviceName = activity ? getActivityDeviceName(activity) : null
+      result.push({
+        label: deviceName || eventDetail.event.name || `Event ${i + 1}`,
+        color: EVENT_COLORS[i % EVENT_COLORS.length],
+        streams,
+      })
+    }
+    return result
+  })
+
+  const locationAvailable = $derived(comparisonRoutes.length > 0)
+
   // Get comparison entries for a stream type
   function getComparisonEntries(streamType: string) {
     const entries = []
@@ -681,6 +704,13 @@
         </table>
       </div>
     </div>
+
+    <!-- Comparison map: all devices' routes with EVENT_COLORS -->
+    {#if locationAvailable}
+      <div class="mb-6 overflow-hidden rounded-xl border border-border shadow-sm">
+        <RouteMap routes={comparisonRoutes} />
+      </div>
+    {/if}
 
     <!-- Charts Section -->
     <div class="mb-6">

@@ -45,6 +45,42 @@ function coordsToBounds(coords: [number, number][]): RouteBounds {
 }
 
 /**
+ * Merge multiple route bounds into one. Applies MIN_BOUNDS_SPAN so the result
+ * is never degenerate. Pass a non-empty array (caller should filter out routes with no bounds).
+ */
+export function mergeBounds(boundsArr: RouteBounds[]): RouteBounds {
+  if (boundsArr.length === 0) {
+    return {
+      minLng: -MIN_BOUNDS_SPAN / 2,
+      maxLng: MIN_BOUNDS_SPAN / 2,
+      minLat: -MIN_BOUNDS_SPAN / 2,
+      maxLat: MIN_BOUNDS_SPAN / 2,
+    }
+  }
+  let minLng = Infinity
+  let maxLng = -Infinity
+  let minLat = Infinity
+  let maxLat = -Infinity
+  for (const b of boundsArr) {
+    if (b.minLng < minLng) minLng = b.minLng
+    if (b.maxLng > maxLng) maxLng = b.maxLng
+    if (b.minLat < minLat) minLat = b.minLat
+    if (b.maxLat > maxLat) maxLat = b.maxLat
+  }
+  if (maxLng - minLng < MIN_BOUNDS_SPAN) {
+    const pad = MIN_BOUNDS_SPAN / 2
+    minLng -= pad
+    maxLng += pad
+  }
+  if (maxLat - minLat < MIN_BOUNDS_SPAN) {
+    const pad = MIN_BOUNDS_SPAN / 2
+    minLat -= pad
+    maxLat += pad
+  }
+  return { minLng, maxLng, minLat, maxLat }
+}
+
+/**
  * Build a GeoJSON LineString and bounds from activity stream data.
  * Handles separate Latitude/Longitude streams (zip by timestamp) or a single Position stream.
  * Returns null if no valid location data. Coordinates are [lng, lat] per GeoJSON spec.
