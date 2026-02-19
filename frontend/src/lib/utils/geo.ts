@@ -17,15 +17,27 @@ function isValidNum(n: unknown): n is number {
   return typeof n === 'number' && !Number.isNaN(n) && Number.isFinite(n)
 }
 
+/** Minimum span in degrees so bounds are never degenerate (avoids null in MapLibre camera) */
+const MIN_BOUNDS_SPAN = 0.0002
+
 function coordsToBounds(coords: [number, number][]): RouteBounds {
   const lngs = coords.map((c) => c[0])
   const lats = coords.map((c) => c[1])
-  return {
-    minLng: Math.min(...lngs),
-    maxLng: Math.max(...lngs),
-    minLat: Math.min(...lats),
-    maxLat: Math.max(...lats),
+  let minLng = Math.min(...lngs)
+  let maxLng = Math.max(...lngs)
+  let minLat = Math.min(...lats)
+  let maxLat = Math.max(...lats)
+  if (maxLng - minLng < MIN_BOUNDS_SPAN) {
+    const pad = MIN_BOUNDS_SPAN / 2
+    minLng -= pad
+    maxLng += pad
   }
+  if (maxLat - minLat < MIN_BOUNDS_SPAN) {
+    const pad = MIN_BOUNDS_SPAN / 2
+    minLat -= pad
+    maxLat += pad
+  }
+  return { minLng, maxLng, minLat, maxLat }
 }
 
 /**
