@@ -46,7 +46,7 @@ This file provides operational instructions for AI coding agents working in this
 
 - **Dependencies:**
   - Main: `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `svelte-spa-router`, `maplibre-gl`, `svelte-maplibre-gl`, `uplot`
-  - Map tiles: OpenFreeMap (https://tiles.openfreemap.org/styles/positron) — no API key required
+  - Map tiles: OpenFreeMap dark style (https://tiles.openfreemap.org/styles/dark) — no API key required
   - Install: `cd frontend && npm install`
 
 ## Project layout and architecture
@@ -68,7 +68,7 @@ This file provides operational instructions for AI coding agents working in this
 
 - **Frontend structure:**
   - `frontend/src/lib/` - API modules, types, utils, reusable components
-  - `frontend/src/lib/components/RouteMap.svelte` - GPS route map (MapLibre GL + OpenFreeMap tiles)
+  - `frontend/src/lib/components/RouteMap.svelte` - GPS route map (MapLibre GL + OpenFreeMap dark tiles)
   - `frontend/src/lib/utils/geo.ts` - GeoJSON route builder from Latitude/Longitude or Position streams
   - `frontend/src/routes/` - Page components (Dashboard, EventDetail)
   - `frontend/src/App.svelte` - Layout shell and router
