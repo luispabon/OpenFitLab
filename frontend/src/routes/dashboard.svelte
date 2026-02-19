@@ -371,8 +371,8 @@
 
   <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
 
-  <!-- Upload Section -->
-  <div class="mb-6">
+  <!-- Upload Section and Bulk Action Bar -->
+  <div class="mb-6 flex items-center gap-4">
     <label
       for="file-upload"
       class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
@@ -402,6 +402,32 @@
       onchange={handleFileSelect}
       disabled={isUploading}
     />
+
+    <!-- Bulk Action Bar -->
+    {#if selectedEventIds.size > 0}
+      <div class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur">
+        <p class="text-xs font-medium text-text-primary">
+          {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''} selected
+        </p>
+        <button
+          type="button"
+          class="rounded border border-border bg-card px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+          onclick={clearSelection}
+          disabled={isBulkDeleting || isDeleting}
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          class="flex items-center rounded border-0 bg-danger px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-1 focus:ring-danger disabled:opacity-50"
+          onclick={handleBulkDeleteClick}
+          disabled={isBulkDeleting || isDeleting}
+        >
+          <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">delete</span>
+          Delete
+        </button>
+      </div>
+    {/if}
   </div>
 
   <!-- Loading Spinner (only for loading events, not uploads) -->
@@ -439,34 +465,6 @@
       role="alert"
     >
       <p class="text-sm font-medium text-text-primary">{toastMessage}</p>
-    </div>
-  {/if}
-
-  <!-- Bulk Action Bar -->
-  {#if selectedEventIds.size > 0}
-    <div class="mb-4 flex items-center justify-between rounded-lg border border-border bg-card p-4 backdrop-blur">
-      <p class="text-sm font-medium text-text-primary">
-        {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''} selected
-      </p>
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-          onclick={clearSelection}
-          disabled={isBulkDeleting || isDeleting}
-        >
-          Clear Selection
-        </button>
-        <button
-          type="button"
-          class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-          onclick={handleBulkDeleteClick}
-          disabled={isBulkDeleting || isDeleting}
-        >
-          <span class="material-icons text-[1.15em] leading-none inline-block align-middle mr-1.5" style="vertical-align: -0.2em;" aria-hidden="true">delete</span>
-          Delete Selected
-        </button>
-      </div>
     </div>
   {/if}
 
