@@ -2,6 +2,8 @@
  * Configuration for stream types: colors, labels, units, and chartability
  */
 
+import type { StreamData } from '../types/event'
+
 export interface StreamConfig {
   color: string
   unit: string
@@ -80,6 +82,24 @@ const STREAM_CONFIG: Record<string, StreamConfig> = {
     label: 'Duration',
     chartable: false, // Used for timestamps, not charted directly
   },
+  Latitude: {
+    color: '#6b7280',
+    unit: '',
+    label: 'Latitude',
+    chartable: false,
+  },
+  Longitude: {
+    color: '#6b7280',
+    unit: '',
+    label: 'Longitude',
+    chartable: false,
+  },
+  Position: {
+    color: '#6b7280',
+    unit: '',
+    label: 'Position',
+    chartable: false,
+  },
 }
 
 /**
@@ -129,4 +149,16 @@ export function isSmoothVariantToHide(streamType: string, allStreamTypes: string
  */
 export function getKnownStreamTypes(): string[] {
   return Object.keys(STREAM_CONFIG)
+}
+
+/**
+ * Check whether an array of streams contains location data suitable for map display.
+ * Requires either separate Latitude + Longitude streams or a Position stream.
+ */
+export function hasLocationStreams(streams: StreamData[]): boolean {
+  const types = streams.map((s) => s.type)
+  return (
+    (types.includes('Latitude') && types.includes('Longitude')) ||
+    types.includes('Position')
+  )
 }
