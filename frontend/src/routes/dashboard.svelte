@@ -180,6 +180,12 @@
     return formatStatValue(found.value, found.statType)
   }
 
+  function formatDistanceCell(stats: Record<string, unknown>): string {
+    const found = findStatByMetric(stats, 'Distance')
+    if (!found) return '—'
+    return formatStatValue(found.value, found.statType)
+  }
+
   function getActivityDeviceName(activity: Activity | { creator?: { name?: string; devices?: Array<{ name?: string }> }; stats?: Record<string, unknown>; [key: string]: unknown }): string {
     const stats = activity.stats as Record<string, unknown> | undefined
     const deviceNames = stats?.['Device Names']
@@ -284,6 +290,12 @@
             scope="col"
             class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
+            Distance
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
+          >
             Date
           </th>
           <th scope="col" class="relative px-6 py-3">
@@ -294,7 +306,7 @@
       <tbody class="divide-y divide-border bg-transparent">
         {#if activityRows.length === 0 && !isLoading}
           <tr>
-            <td colspan="6" class="px-6 py-4 text-center text-text-secondary">
+            <td colspan="7" class="px-6 py-4 text-center text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
@@ -342,6 +354,9 @@
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatCaloriesCell(row.activity.stats)}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
+                {formatDistanceCell(row.activity.stats)}
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatDateShort(row.activity.startDate ?? row.event.startDate)}
