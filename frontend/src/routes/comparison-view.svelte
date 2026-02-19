@@ -25,8 +25,12 @@
     // First try the query prop (if svelte-spa-router provides it)
     if (query?.events) {
       const ids = query.events.split(',').map(id => id.trim()).filter(id => id.length > 0)
-      console.log('Parsed event IDs from query prop:', ids)
-      eventIdsFromQueryState = ids
+      const idsStr = ids.sort().join(',')
+      const currentStr = eventIdsFromQueryState.sort().join(',')
+      // Only update if changed
+      if (idsStr !== currentStr) {
+        eventIdsFromQueryState = ids
+      }
       return
     }
     
@@ -38,15 +42,23 @@
       if (hashMatch && hashMatch[1]) {
         const eventsParam = decodeURIComponent(hashMatch[1])
         const ids = eventsParam.split(',').map(id => id.trim()).filter(id => id.length > 0)
-        console.log('Parsed event IDs from hash:', ids, 'location:', loc, 'hash:', hash)
-        eventIdsFromQueryState = ids
+        const idsStr = ids.sort().join(',')
+        const currentStr = eventIdsFromQueryState.sort().join(',')
+        // Only update if changed
+        if (idsStr !== currentStr) {
+          eventIdsFromQueryState = ids
+        }
       } else {
-        console.log('No events param in hash, location:', loc, 'hash:', hash)
-        eventIdsFromQueryState = []
+        // Only update if not already empty
+        if (eventIdsFromQueryState.length > 0) {
+          eventIdsFromQueryState = []
+        }
       }
     } catch (e) {
-      console.error('Failed to parse query parameters:', e)
-      eventIdsFromQueryState = []
+      // Silently handle errors - only update if needed
+      if (eventIdsFromQueryState.length > 0) {
+        eventIdsFromQueryState = []
+      }
     }
   })
   
@@ -67,6 +79,10 @@
   let saveName = $state('')
   let isSaving = $state(false)
   let isDeleting = $state(false)
+  
+  // Track what we've loaded to prevent infinite loops
+  let loadedComparisonId = $state<string | null>(null)
+  let loadedEventIds = $state<string[]>([])
 
   // Determine event IDs: from saved comparison or query string
   const eventIds = $derived.by(() => {
@@ -80,12 +96,19 @@
   async function loadSavedComparison() {
     if (!comparisonId || comparisonId === 'new') {
       savedComparison = null
+      loadedComparisonId = null
+      return
+    }
+    
+    // Don't reload if we've already loaded this comparison
+    if (loadedComparisonId === comparisonId && savedComparison) {
       return
     }
 
     try {
       const comp = await getComparison(comparisonId)
       savedComparison = comp
+      loadedComparisonId = comparisonId
       if (comp.settings) {
         xAxisMode = comp.settings.xAxisMode ?? 'elapsed'
         selectedStreamTypes = new Set(comp.settings.selectedStreams ?? [])
@@ -94,6 +117,7 @@
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load comparison'
       savedComparison = null
+      loadedComparisonId = null
     }
   }
 
@@ -104,6 +128,13 @@
       loading = false
       return
     }
+    
+    // Don't reload if we've already loaded these exact event IDs
+    const eventIdsStr = eventIds.sort().join(',')
+    const loadedEventIdsStr = loadedEventIds.sort().join(',')
+    if (loadedEventIdsStr === eventIdsStr && events.length > 0) {
+      return
+    }
 
     loading = true
     error = null
@@ -111,6 +142,7 @@
     try {
       const loadedEvents = await Promise.all(eventIds.map((id) => getEvent(id)))
       events = loadedEvents
+      loadedEventIds = [...eventIds]
 
       // Initialize selected activities (use saved or default to first)
       for (const eventDetail of events) {
@@ -125,6 +157,7 @@
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load events'
       events = []
+      loadedEventIds = []
     } finally {
       loading = false
     }
@@ -293,17 +326,23 @@
   }
 
   // Initialize: load saved comparison first, then events
+  // Only depend on comparisonId to prevent infinite loops
   $effect(() => {
     const id = comparisonId
-    const ids = eventIds // Access eventIds to make it a dependency
     
-    // For new comparisons, skip loading saved comparison
+    // For new comparisons, check eventIdsFromQuery
     if (id === 'new') {
       savedComparison = null
-      // Use eventIdsFromQuery directly for new comparisons
-      if (ids.length >= 2) {
+      loadedComparisonId = null
+      const ids = eventIdsFromQuery
+      const idsStr = ids.sort().join(',')
+      const loadedStr = loadedEventIds.sort().join(',')
+      
+      // Only reload if event IDs changed and we have enough
+      if (idsStr !== loadedStr && ids.length >= 2) {
+        loadedEventIds = [] // Reset before loading
         loadEvents()
-      } else {
+      } else if (ids.length < 2 && events.length === 0) {
         loading = false
         error = 'At least 2 events are required for comparison'
       }
@@ -311,15 +350,23 @@
     }
     
     // For existing comparisons, load saved comparison first
-    loadSavedComparison().then(() => {
-      // After loading saved comparison, check eventIds (which may come from saved comparison)
-      if (eventIds.length >= 2) {
-        loadEvents()
-      } else {
-        loading = false
-        error = 'At least 2 events are required for comparison'
-      }
-    })
+    // Only load if comparison ID changed
+    if (loadedComparisonId !== id) {
+      loadSavedComparison().then(() => {
+        // After loading saved comparison, check eventIds (which may come from saved comparison)
+        // Use savedComparison.eventIds directly to avoid reactive dependency
+        const ids = savedComparison?.eventIds ?? []
+        const idsStr = ids.sort().join(',')
+        const loadedStr = loadedEventIds.sort().join(',')
+        
+        if (ids.length >= 2 && idsStr !== loadedStr) {
+          loadEvents()
+        } else if (ids.length < 2) {
+          loading = false
+          error = 'At least 2 events are required for comparison'
+        }
+      })
+    }
   })
 
   // Get comparison entries for a stream type
