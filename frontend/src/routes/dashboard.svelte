@@ -8,6 +8,7 @@
     getActivityIcon,
     findStatByMetric,
     formatStatValue,
+    getActivityDeviceName,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
 
@@ -186,21 +187,6 @@
     return formatStatValue(found.value, found.statType)
   }
 
-  function getActivityDeviceName(activity: Activity | { creator?: { name?: string; devices?: Array<{ name?: string }> }; stats?: Record<string, unknown>; [key: string]: unknown }): string {
-    const stats = activity.stats as Record<string, unknown> | undefined
-    const deviceNames = stats?.['Device Names']
-    if (Array.isArray(deviceNames) && deviceNames.length > 0) {
-      const first = deviceNames[0]
-      if (typeof first === 'string') return first
-      if (first && typeof first === 'object' && 'name' in first && typeof (first as { name: string }).name === 'string') {
-        return (first as { name: string }).name
-      }
-    }
-    const creator = activity.creator as { name?: string; devices?: Array<{ name?: string }> } | undefined
-    if (creator?.name && typeof creator.name === 'string') return creator.name
-    const firstDevice = Array.isArray(creator?.devices) ? creator.devices[0] : undefined
-    return firstDevice?.name ?? '—'
-  }
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">

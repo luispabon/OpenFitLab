@@ -18,6 +18,7 @@
     isSmoothVariantToHide,
     getStreamConfig,
     hasLocationStreams,
+    getActivityDeviceName,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import RouteMap from '../lib/components/RouteMap.svelte'
@@ -105,6 +106,21 @@
   const activityStartDate = $derived(
     selectedActivity?.startDate ?? event?.startDate ?? Date.now()
   )
+
+  // Device name from selected activity (or first activity)
+  const deviceName = $derived.by(() => {
+    const act = selectedActivity
+    if (!act) return '—'
+    return getActivityDeviceName(act)
+  })
+
+  // Formatted date string: "Feb 19, 2026 at 8:39 AM"
+  const formattedDateString = $derived.by(() => {
+    const ev = event
+    if (!ev?.startDate) return ''
+    const formatted = formatDate(ev.startDate)
+    return `${formatted.date} at ${formatted.time}`
+  })
 
   // Filter to chartable streams only; hide "X Smooth" when "X" is also present
   const allStreamTypes = $derived(streams.map((s) => s.type))
@@ -270,18 +286,17 @@
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-baseline gap-2 text-lg text-text-primary">
-              <span class="font-medium">{formatDate(event.startDate).date}</span>
-              <span class="text-sm text-text-secondary">at</span>
-              <span class="text-text-secondary">{formatDate(event.startDate).time}</span>
-            </div>
-            {#if mainActivityType}
-              <span
-                class="mt-1 inline-block rounded-full bg-surface px-2.5 py-0.5 text-sm font-medium uppercase text-text-secondary"
-              >
-                {mainActivityType}
+            <div class="flex flex-col gap-0.5">
+              <span class="font-medium text-text-primary">
+                {mainActivityType || '—'} - {formattedDateString}
               </span>
-            {/if}
+              <span class="text-text-secondary">
+                {deviceName}
+              </span>
+              <span class="text-text-secondary truncate" title={event.name || undefined}>
+                {event.name || '—'}
+              </span>
+            </div>
           </div>
         </div>
         <!-- Key metrics: stat cards in header -->
