@@ -311,7 +311,8 @@
       if (!stream || !stream.data || stream.data.length === 0) continue
 
       const activityStartDate = activity.startDate ?? eventDetail.event.startDate ?? Date.now()
-      const color = i === 0 ? getStreamConfig(streamType).color : EVENT_COLORS[(i - 1) % EVENT_COLORS.length]
+      // Use distinct colors from EVENT_COLORS for all events (not stream config color)
+      const color = EVENT_COLORS[i % EVENT_COLORS.length]
 
       entries.push({
         eventName: eventDetail.event.name || `Event ${i + 1}`,
@@ -441,7 +442,7 @@
                 {@const eventId = eventDetail.event.id}
                 {@const activityId = selectedActivities[eventId]}
                 {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
-                {@const color = i === 0 ? '#ef4444' : EVENT_COLORS[(i - 1) % EVENT_COLORS.length]}
+                {@const color = EVENT_COLORS[i % EVENT_COLORS.length]}
                 <th
                   scope="col"
                   class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"

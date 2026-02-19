@@ -83,16 +83,67 @@
     if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0 }
 
     // Create Y arrays: one per event, aligned to union X array
+    // For sparse data, use linear interpolation to fill gaps for better visualization
     const yArrays: (number | null)[][] = []
+    const sparseFlags: boolean[] = [] // Track which series are sparse
+    
     for (const { pts } of withPoints) {
       const byX = new Map(pts.map((p) => [p.x, p.y]))
-      yArrays.push(xSorted.map((x) => byX.get(x) ?? null))
+      const sortedPts = [...pts].sort((a, b) => a.x - b.x)
+      
+      // If data is sparse (fewer than 30% of union points), use interpolation
+      const isSparse = sortedPts.length < xSorted.length * 0.3 && sortedPts.length >= 2
+      sparseFlags.push(isSparse)
+      
+      if (isSparse) {
+        // Linear interpolation for sparse data
+        const interpolated: (number | null)[] = []
+        for (const x of xSorted) {
+          const exact = byX.get(x)
+          if (exact !== undefined) {
+            interpolated.push(exact)
+          } else {
+            // Find surrounding points for interpolation
+            let leftIdx = -1
+            let rightIdx = sortedPts.length
+            
+            for (let i = 0; i < sortedPts.length; i++) {
+              if (sortedPts[i].x < x) leftIdx = i
+              else if (sortedPts[i].x > x && rightIdx === sortedPts.length) {
+                rightIdx = i
+                break
+              }
+            }
+            
+            if (leftIdx >= 0 && rightIdx < sortedPts.length) {
+              // Linear interpolation between surrounding points
+              const left = sortedPts[leftIdx]
+              const right = sortedPts[rightIdx]
+              const t = (x - left.x) / (right.x - left.x)
+              const interpolatedValue = left.y + t * (right.y - left.y)
+              interpolated.push(interpolatedValue)
+            } else if (leftIdx >= 0) {
+              // Extrapolate from last point (use last known value)
+              interpolated.push(sortedPts[leftIdx].y)
+            } else if (rightIdx < sortedPts.length) {
+              // Extrapolate from first point (use first known value)
+              interpolated.push(sortedPts[rightIdx].y)
+            } else {
+              interpolated.push(null)
+            }
+          }
+        }
+        yArrays.push(interpolated)
+      } else {
+        // Dense data: use exact matches only
+        yArrays.push(xSorted.map((x) => byX.get(x) ?? null))
+      }
     }
     
     const data: uPlot.AlignedData = [xSorted, ...yArrays]
     const xMin = xSorted[0]
     const xMax = xSorted[xSorted.length - 1]
-    return { data, xMin, xMax }
+    return { data, xMin, xMax, sparseFlags }
   })
 
   function resetZoom() {
@@ -117,19 +168,25 @@
       chartRef.current = null
     }
 
-    const { data, xMin, xMax } = chartData
+    const { data, xMin, xMax, sparseFlags } = chartData
     const nSeries = entries.length
 
     // Series: one per event, all share same Y-axis
     const series: uPlot.Series[] = [{}]
     for (let i = 0; i < nSeries; i++) {
       const entry = entries[i]
+      const isSparse = sparseFlags[i] ?? false
+      
+      // Use linear paths for sparse data (better gap handling), spline for dense data
+      const pathRenderer = isSparse ? uPlot.paths.linear() : smoothPath
+      
       series.push({
         label: entry.eventName,
         stroke: entry.color,
         width: 2,
         scale: 'y',
-        paths: smoothPath,
+        paths: pathRenderer,
+        spanGaps: false, // Don't span gaps - show them explicitly
         fill: (u, seriesIdx) => {
           const s = u.series[seriesIdx]
           const sc = u.scales.y
