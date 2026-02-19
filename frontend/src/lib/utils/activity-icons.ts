@@ -1,87 +1,199 @@
 /**
- * Maps activity type strings to Material icon names or custom icon identifiers.
- * Based on activity type groups from sports-lib, but simplified for string matching.
+ * Maps activity type strings (sports-lib canonical + custom) to Material Icons.
+ * Exact match for 126 sports-lib types; substring fallbacks for non-canonical names.
  */
+
+const ACTIVITY_ICON_MAP: Record<string, string> = {
+  'unknown sport': 'category',
+  other: 'category',
+  generic: 'sports',
+  transition: 'sync_alt',
+  'fitness equipment': 'fitness_center',
+  multisport: 'sports',
+  'virtual running': 'run_circle',
+  running: 'directions_run',
+  'trail running': 'terrain',
+  'indoor running': 'directions_run',
+  cycling: 'directions_bike',
+  'indoor cycling': 'directions_bike',
+  'virtual cycling': 'pedal_bike',
+  'e-biking': 'electric_bike',
+  'mountain biking': 'directions_bike',
+  'downhill cycling': 'downhill_skiing',
+  motorcycling: 'sports_motorsports',
+  boating: 'directions_boat',
+  driving: 'directions_car',
+  'circuit training': 'fitness_center',
+  swimming: 'pool',
+  'open water swimming': 'pool',
+  basketball: 'sports_basketball',
+  soccer: 'sports_soccer',
+  'american football': 'sports_football',
+  skating: 'ice_skating',
+  aerobics: 'directions_run',
+  yoga: 'self_improvement',
+  pilates: 'self_improvement',
+  trekking: 'hiking',
+  walking: 'directions_walk',
+  sailing: 'sailing',
+  kayaking: 'kayaking',
+  rafting: 'kayaking',
+  rowing: 'rowing',
+  'indoor rowing': 'rowing',
+  climbing: 'terrain',
+  triathlon: 'pool',
+  duathlon: 'directions_run',
+  aquathlon: 'pool',
+  'alpine skiing': 'downhill_skiing',
+  'crosscountry skiing': 'nordic_walking',
+  'nordic skiing': 'nordic_walking',
+  'backcountry skiing': 'downhill_skiing',
+  'ski touring': 'downhill_skiing',
+  'telemark skiing': 'downhill_skiing',
+  'roller skiing': 'downhill_skiing',
+  snowboarding: 'snowboarding',
+  'weight training': 'fitness_center',
+  'ice hockey': 'sports_hockey',
+  volleyball: 'sports_volleyball',
+  football: 'sports_football',
+  softball: 'sports_baseball',
+  handball: 'sports_handball',
+  cheerleading: 'sports',
+  baseball: 'sports_baseball',
+  tennis: 'sports_tennis',
+  badminton: 'sports_tennis',
+  'table tennis': 'sports_tennis',
+  'racquet ball': 'sports_tennis',
+  squash: 'sports_tennis',
+  combat: 'sports_martial_arts',
+  boxing: 'sports_martial_arts',
+  floorball: 'sports_hockey',
+  'scuba diving': 'scuba_diving',
+  'free diving': 'scuba_diving',
+  diving: 'scuba_diving',
+  snorkeling: 'pool',
+  swimrun: 'pool',
+  'adventure racing': 'directions_run',
+  bowling: 'sports',
+  cricket: 'sports_cricket',
+  crosstrainer: 'monitor_heart',
+  dancing: 'self_improvement',
+  golf: 'sports_golf',
+  'hang gliding': 'paragliding',
+  'horseback riding': 'terrain',
+  gymnastics: 'sports_gymnastics',
+  'ice skating': 'ice_skating',
+  canoeing: 'kayaking',
+  motorsports: 'sports_motorsports',
+  mountaineering: 'terrain',
+  orienteering: 'terrain',
+  rugby: 'sports_rugby',
+  stretching: 'self_improvement',
+  'strength training': 'fitness_center',
+  'track and field': 'directions_run',
+  'nordic walking': 'nordic_walking',
+  snowshoeing: 'snowshoeing',
+  windsurfing: 'surfing',
+  kettlebell: 'fitness_center',
+  paddling: 'kayaking',
+  flying: 'flight',
+  crossfit: 'fitness_center',
+  kitesurfing: 'kitesurfing',
+  tactical: 'sports',
+  jumpmaster: 'flight',
+  'floor climbing': 'fitness_center',
+  paragliding: 'paragliding',
+  treadmill: 'directions_run',
+  frisbee: 'sports',
+  'indoor training': 'fitness_center',
+  hiking: 'hiking',
+  canyoning: 'terrain',
+  'via ferrata': 'terrain',
+  fishing: 'terrain',
+  hunting: 'terrain',
+  route: 'directions',
+  'inline skating': 'skateboarding',
+  'rock climbing': 'terrain',
+  'sky diving': 'flight',
+  snowmobiling: 'ac_unit',
+  'stand up paddling': 'surfing',
+  surfing: 'surfing',
+  wakeboarding: 'surfing',
+  'water skiing': 'surfing',
+  'flexibility training': 'self_improvement',
+  training: 'fitness_center',
+  'cardio training': 'monitor_heart',
+  'elliptical trainer': 'monitor_heart',
+  'hand cycle': 'directions_bike',
+  'stair stepper': 'stairs',
+  velomobile: 'directions_bike',
+  'wheel chair': 'directions_walk',
+  workout: 'fitness_center',
+  match: 'sports',
+}
+
+const SUBSTRING_FALLBACKS: Array<[string, string]> = [
+  ['run', 'directions_run'],
+  ['cycl', 'directions_bike'],
+  ['bike', 'directions_bike'],
+  ['ride', 'directions_bike'],
+  ['swim', 'pool'],
+  ['walk', 'directions_walk'],
+  ['hik', 'hiking'],
+  ['ski', 'downhill_skiing'],
+  ['row', 'rowing'],
+  ['weight', 'fitness_center'],
+  ['strength', 'fitness_center'],
+  ['gym', 'fitness_center'],
+  ['fitness', 'fitness_center'],
+  ['yoga', 'self_improvement'],
+  ['pilates', 'self_improvement'],
+  ['stretch', 'self_improvement'],
+  ['climb', 'terrain'],
+  ['surf', 'surfing'],
+  ['golf', 'sports_golf'],
+  ['tennis', 'sports_tennis'],
+  ['racket', 'sports_tennis'],
+  ['badminton', 'sports_tennis'],
+  ['squash', 'sports_tennis'],
+  ['soccer', 'sports_soccer'],
+  ['football', 'sports_football'],
+  ['basketball', 'sports_basketball'],
+  ['baseball', 'sports_baseball'],
+  ['softball', 'sports_baseball'],
+  ['box', 'sports_martial_arts'],
+  ['combat', 'sports_martial_arts'],
+  ['martial', 'sports_martial_arts'],
+  ['skate', 'skateboarding'],
+  ['snow', 'snowboarding'],
+  ['sail', 'sailing'],
+  ['kayak', 'kayaking'],
+  ['canoe', 'kayaking'],
+  ['paddle', 'kayaking'],
+  ['div', 'scuba_diving'],
+  ['elliptical', 'monitor_heart'],
+  ['cardio', 'monitor_heart'],
+  ['stair', 'stairs'],
+  ['step', 'stairs'],
+  ['indoor', 'fitness_center'],
+  ['train', 'fitness_center'],
+]
+
 export function getActivityIcon(activityType: string | undefined | null): string {
   if (!activityType) return 'category'
 
-  // Handle comma-separated activity types (take first)
   const activities = activityType.split(',').map((a) => a.trim())
   const activity = activities[0]
+  if (!activity) return 'category'
 
-  // Special cases first
-  if (activity === 'Virtual Cycling' || activity === 'VirtualRide') {
-    return 'computer'
-  }
-  if (activity === 'Virtual Running' || activity === 'VirtualRun') {
-    return 'computer'
-  }
-
-  // Map common activity types to icons
   const lower = activity.toLowerCase()
 
-  // Running
-  if (lower.includes('run') || lower === 'running' || lower === 'trail running') {
-    return 'directions_run'
+  const exact = ACTIVITY_ICON_MAP[lower]
+  if (exact) return exact
+
+  for (const [sub, icon] of SUBSTRING_FALLBACKS) {
+    if (lower.includes(sub)) return icon
   }
 
-  // Cycling
-  if (
-    lower.includes('cycl') ||
-    lower === 'cycling' ||
-    lower === 'bike' ||
-    lower === 'biking' ||
-    lower === 'road cycling' ||
-    lower === 'mountain biking'
-  ) {
-    return 'directions_bike'
-  }
-
-  // Swimming
-  if (lower.includes('swim') || lower === 'swimming') {
-    return 'pool'
-  }
-
-  // Indoor sports / gym
-  if (
-    lower.includes('weight') ||
-    lower.includes('strength') ||
-    lower.includes('gym') ||
-    lower.includes('indoor')
-  ) {
-    return 'fitness_center'
-  }
-
-  // Hiking / outdoor
-  if (lower.includes('hike') || lower.includes('walk') || lower.includes('outdoor')) {
-    return 'hiking'
-  }
-
-  // Winter sports
-  if (lower.includes('ski') || lower.includes('snow') || lower.includes('winter')) {
-    return 'ac_unit'
-  }
-
-  // Water sports
-  if (lower.includes('row') || lower.includes('kayak') || lower.includes('water')) {
-    return 'rowing'
-  }
-
-  // Diving
-  if (lower.includes('div')) {
-    return 'scuba_diving'
-  }
-
-  // Tennis / racket sports
-  if (lower.includes('tennis') || lower.includes('racket') || lower.includes('badminton')) {
-    return 'sports_tennis'
-  }
-
-  // Performance / competition
-  if (lower.includes('competition') || lower.includes('race') || lower.includes('performance')) {
-    return 'workspace_premium'
-  }
-
-  // Default
   return 'category'
 }

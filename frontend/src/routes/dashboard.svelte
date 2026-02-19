@@ -251,38 +251,38 @@
     </div>
   {/if}
 
-  <!-- Activity list table -->
+  <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
-    <table class="min-w-full divide-y divide-border">
+    <table class="min-w-full divide-y divide-border text-[1.00625rem]">
       <thead class="bg-surface">
         <tr>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
             Activity
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
             Duration
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
             Average heart rate
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
             Calories
           </th>
           <th
             scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
           >
             Date
           </th>
@@ -294,7 +294,7 @@
       <tbody class="divide-y divide-border bg-transparent">
         {#if activityRows.length === 0 && !isLoading}
           <tr>
-            <td colspan="6" class="px-6 py-4 text-center text-sm text-text-secondary">
+            <td colspan="6" class="px-6 py-4 text-center text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
@@ -315,7 +315,7 @@
                 }
               }}
             >
-              <td class="px-6 py-4 text-sm">
+              <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <span
                   class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
@@ -334,37 +334,37 @@
                   </div>
                 </div>
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatDurationCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatAvgHeartRateCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatCaloriesCell(row.activity.stats)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
+              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
                 {formatDateShort(row.activity.startDate ?? row.event.startDate)}
               </td>
-              <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+              <td class="whitespace-nowrap px-6 py-4 text-right font-medium">
                 <div class="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => {
                       e.stopPropagation()
                       push(`/event/${row.event.id}`)
                     }}
                   >
-                    <span class="material-icons h-4 w-4" aria-hidden="true">search</span>
+                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">search</span>
                     View
                   </button>
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 py-1.5 text-sm font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
+                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                     onclick={(e) => handleDeleteClick(row.event.id, e)}
                   >
-                    <span class="material-icons h-4 w-4" aria-hidden="true">delete</span>
+                    <span class="material-icons text-[1.15em] leading-none" style="vertical-align: -0.2em;" aria-hidden="true">delete</span>
                     Delete
                   </button>
                 </div>
