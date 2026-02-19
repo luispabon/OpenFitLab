@@ -179,6 +179,22 @@
     if (!found) return '—'
     return formatStatValue(found.value, found.statType)
   }
+
+  function getActivityDeviceName(activity: Activity | { creator?: { name?: string; devices?: Array<{ name?: string }> }; stats?: Record<string, unknown>; [key: string]: unknown }): string {
+    const stats = activity.stats as Record<string, unknown> | undefined
+    const deviceNames = stats?.['Device Names']
+    if (Array.isArray(deviceNames) && deviceNames.length > 0) {
+      const first = deviceNames[0]
+      if (typeof first === 'string') return first
+      if (first && typeof first === 'object' && 'name' in first && typeof (first as { name: string }).name === 'string') {
+        return (first as { name: string }).name
+      }
+    }
+    const creator = activity.creator as { name?: string; devices?: Array<{ name?: string }> } | undefined
+    if (creator?.name && typeof creator.name === 'string') return creator.name
+    const firstDevice = Array.isArray(creator?.devices) ? creator.devices[0] : undefined
+    return firstDevice?.name ?? '—'
+  }
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -244,13 +260,7 @@
             scope="col"
             class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
           >
-            Activity type
-          </th>
-          <th
-            scope="col"
-            class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
-          >
-            Original filename
+            Activity
           </th>
           <th
             scope="col"
@@ -284,7 +294,7 @@
       <tbody class="divide-y divide-border bg-transparent">
         {#if activityRows.length === 0 && !isLoading}
           <tr>
-            <td colspan="7" class="px-6 py-4 text-center text-sm text-text-secondary">
+            <td colspan="6" class="px-6 py-4 text-center text-sm text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
@@ -305,12 +315,24 @@
                 }
               }}
             >
-              <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-text-primary">
-                <span class="material-icons mr-1.5 align-middle text-lg" aria-hidden="true">{getActivityIcon(row.activity.type)}</span>
-                <span>{row.activity.type || '—'}</span>
-              </td>
-              <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
-                {row.event.name || '—'}
+              <td class="px-6 py-4 text-sm">
+                <div class="flex items-center gap-3">
+                  <span
+                  class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
+                  style="font-size: 4rem; width: 4rem; height: 4rem; line-height: 1;"
+                  aria-hidden="true"
+                  >{getActivityIcon(row.activity.type)}</span
+                >
+                  <div class="min-w-0 flex flex-col gap-0.5">
+                    <span class="font-medium text-text-primary">{row.activity.type || '—'}</span>
+                    <span class="text-text-secondary">
+                      {getActivityDeviceName(row.activity)}
+                    </span>
+                    <span class="text-text-secondary truncate" title={row.event.name || undefined}>
+                      {row.event.name || '—'}
+                    </span>
+                  </div>
+                </div>
               </td>
               <td class="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
                 {formatDurationCell(row.activity.stats)}
