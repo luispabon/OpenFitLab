@@ -26,6 +26,12 @@
   let toastTimeout: ReturnType<typeof setTimeout> | null = null
   let eventToDelete = $state<string | null>(null)
   let isDeleting = $state(false)
+  let selectedEventIds = $state<Set<string>>(new Set())
+  let isBulkDeleting = $state(false)
+  let bulkDeleteProgress = $state(0)
+  let currentDeleteIndex = $state(0)
+  let totalToDelete = $state(0)
+  let eventsToBulkDelete = $state<string[]>([])
 
   function showToast(message: string) {
     toastMessage = message
@@ -213,6 +219,109 @@
     return rows
   })
 
+  // Get unique event IDs from activity rows
+  const uniqueEventIds = $derived.by(() => {
+    const ids = new Set<string>()
+    for (const row of activityRows) {
+      ids.add(row.event.id)
+    }
+    return Array.from(ids)
+  })
+
+  // Selection state for select-all checkbox
+  const selectAllChecked = $derived.by(() => {
+    if (uniqueEventIds.length === 0) return false
+    return uniqueEventIds.every((id) => selectedEventIds.has(id))
+  })
+
+  const selectAllIndeterminate = $derived.by(() => {
+    if (uniqueEventIds.length === 0) return false
+    const selectedCount = uniqueEventIds.filter((id) => selectedEventIds.has(id)).length
+    return selectedCount > 0 && selectedCount < uniqueEventIds.length
+  })
+
+  function toggleSelectAll() {
+    if (selectAllChecked) {
+      selectedEventIds = new Set()
+    } else {
+      selectedEventIds = new Set(uniqueEventIds)
+    }
+  }
+
+  function toggleEventSelection(eventId: string) {
+    const newSet = new Set(selectedEventIds)
+    if (newSet.has(eventId)) {
+      newSet.delete(eventId)
+    } else {
+      newSet.add(eventId)
+    }
+    selectedEventIds = newSet
+  }
+
+  function clearSelection() {
+    selectedEventIds = new Set()
+  }
+
+  function handleBulkDeleteClick() {
+    const eventIds = Array.from(selectedEventIds)
+    if (eventIds.length === 0) return
+    eventsToBulkDelete = eventIds
+  }
+
+  function handleCancelBulkDelete() {
+    eventsToBulkDelete = []
+  }
+
+  async function handleConfirmBulkDelete() {
+    const eventIds = eventsToBulkDelete
+    if (eventIds.length === 0) return
+
+    isBulkDeleting = true
+    totalToDelete = eventIds.length
+    currentDeleteIndex = 0
+    bulkDeleteProgress = 0
+
+    let successful = 0
+    let failed = 0
+
+    try {
+      for (let i = 0; i < eventIds.length; i++) {
+        currentDeleteIndex = i
+        bulkDeleteProgress = (i / eventIds.length) * 100
+
+        try {
+          const deleted = await deleteEvent(eventIds[i])
+          if (deleted) {
+            successful++
+          } else {
+            failed++
+          }
+        } catch (error) {
+          console.error(`Failed to delete event ${eventIds[i]}:`, error)
+          failed++
+        }
+      }
+
+      bulkDeleteProgress = 100
+
+      if (successful > 0) {
+        showToast(`Deleted ${successful} event${successful > 1 ? 's' : ''} successfully`)
+        await loadEvents() // Refresh the list
+      }
+      if (failed > 0) {
+        showToast(`Failed to delete ${failed} event${failed > 1 ? 's' : ''}`)
+      }
+
+      clearSelection()
+    } finally {
+      isBulkDeleting = false
+      eventsToBulkDelete = []
+      bulkDeleteProgress = 0
+      currentDeleteIndex = 0
+      totalToDelete = 0
+    }
+  }
+
   function formatDurationCell(stats: Record<string, unknown>): string {
     const found = findStatByMetric(stats, 'Duration') ?? findStatByMetric(stats, 'Moving Time')
     if (!found) return '—'
@@ -236,6 +345,15 @@
     if (!found) return '—'
     return formatStatValue(found.value, found.statType)
   }
+
+  // Reference for select-all checkbox to set indeterminate state
+  let selectAllCheckbox: HTMLInputElement | null = null
+
+  $effect(() => {
+    if (selectAllCheckbox) {
+      selectAllCheckbox.indeterminate = selectAllIndeterminate
+    }
+  })
 
 </script>
 
@@ -303,6 +421,17 @@
     />
   {/if}
 
+  <!-- Bulk Delete Progress Bar -->
+  {#if isBulkDeleting}
+    <UploadProgressBar
+      currentFile={currentDeleteIndex + 1}
+      totalFiles={totalToDelete}
+      progress={bulkDeleteProgress}
+      label="Deleting event"
+      progressColor="bg-danger"
+    />
+  {/if}
+
   <!-- Toast Notification -->
   {#if toastMessage}
     <div
@@ -313,11 +442,49 @@
     </div>
   {/if}
 
+  <!-- Bulk Action Bar -->
+  {#if selectedEventIds.size > 0}
+    <div class="mb-4 flex items-center justify-between rounded-lg border border-border bg-card p-4 backdrop-blur">
+      <p class="text-sm font-medium text-text-primary">
+        {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''} selected
+      </p>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
+          onclick={clearSelection}
+          disabled={isBulkDeleting || isDeleting}
+        >
+          Clear Selection
+        </button>
+        <button
+          type="button"
+          class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
+          onclick={handleBulkDeleteClick}
+          disabled={isBulkDeleting || isDeleting}
+        >
+          <span class="material-icons text-[1.15em] leading-none inline-block align-middle mr-1.5" style="vertical-align: -0.2em;" aria-hidden="true">delete</span>
+          Delete Selected
+        </button>
+      </div>
+    </div>
+  {/if}
+
   <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
     <table class="min-w-full divide-y divide-border text-[1.00625rem]">
       <thead class="bg-surface">
         <tr>
+          <th scope="col" class="relative w-12 px-6 py-3">
+            <input
+              type="checkbox"
+              bind:this={selectAllCheckbox}
+              class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+              checked={selectAllChecked}
+              onchange={toggleSelectAll}
+              aria-label="Select all events"
+            />
+          </th>
           <th
             scope="col"
             class="px-6 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary"
@@ -362,17 +529,19 @@
       <tbody class="divide-y divide-border bg-transparent">
         {#if activityRows.length === 0 && !isLoading}
           <tr>
-            <td colspan="7" class="px-6 py-4 text-center text-text-secondary">
+            <td colspan="8" class="px-6 py-4 text-center text-text-secondary">
               No events found. Upload an activity file to get started.
             </td>
           </tr>
         {:else}
           {#each activityRows as row (`${row.event.id}_${row.activity.id}`)}
+            {@const isSelected = selectedEventIds.has(row.event.id)}
             <tr
               role="link"
               tabindex="0"
               class="hover:bg-card-hover"
               class:cursor-pointer={!isLoading}
+              class:bg-card-hover={isSelected}
               onclick={() => {
                 if (!isLoading) push(`/event/${row.event.id}`)
               }}
@@ -383,6 +552,16 @@
                 }
               }}
             >
+              <td class="px-6 py-4" onclick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  checked={isSelected}
+                  onchange={() => toggleEventSelection(row.event.id)}
+                  aria-label={`Select event ${row.event.name || row.event.id}`}
+                  onclick={(e) => e.stopPropagation()}
+                />
+              </td>
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <span
@@ -447,7 +626,7 @@
     </table>
   </div>
 
-  <!-- Delete Confirmation Dialog -->
+  <!-- Single Delete Confirmation Dialog -->
   {#if eventToDelete}
     <div
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -471,7 +650,7 @@
             type="button"
             class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
             onclick={handleCancelDelete}
-            disabled={isDeleting}
+            disabled={isDeleting || isBulkDeleting}
           >
             Cancel
           </button>
@@ -479,12 +658,57 @@
             type="button"
             class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
             onclick={handleConfirmDelete}
-            disabled={isDeleting}
+            disabled={isDeleting || isBulkDeleting}
           >
             {#if isDeleting}
               Deleting...
             {:else}
               Delete
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Bulk Delete Confirmation Dialog -->
+  {#if eventsToBulkDelete.length > 0}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onclick={handleCancelBulkDelete}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-dialog-title"
+    >
+      <div
+        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <h2 id="bulk-dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
+          Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length > 1 ? 's' : ''}?
+        </h2>
+        <p class="mb-6 text-sm text-text-secondary">
+          Are you sure you want to delete {eventsToBulkDelete.length} event{eventsToBulkDelete.length > 1 ? 's' : ''}? This action cannot be undone.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
+            onclick={handleCancelBulkDelete}
+            disabled={isBulkDeleting || isDeleting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
+            onclick={handleConfirmBulkDelete}
+            disabled={isBulkDeleting || isDeleting}
+          >
+            {#if isBulkDeleting}
+              Deleting...
+            {:else}
+              Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length > 1 ? 's' : ''}
             {/if}
           </button>
         </div>
