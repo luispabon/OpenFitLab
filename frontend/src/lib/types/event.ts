@@ -3,7 +3,6 @@ export interface EventSummary {
   name: string
   startDate: number
   endDate?: number
-  privacy: string
   description?: string
   isMerge?: boolean
   stats: Record<string, number | string | number[] | Record<string, unknown>>

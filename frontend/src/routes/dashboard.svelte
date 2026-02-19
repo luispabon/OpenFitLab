@@ -11,10 +11,15 @@
     getActivityDeviceName,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
+  import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
 
   let events = $state<EventSummary[]>([])
   let isLoading = $state(false)
   let isUploading = $state(false)
+  let uploadProgress = $state(0)
+  let currentFileIndex = $state(0)
+  let totalFiles = $state(0)
+  let currentFileName = $state<string | null>(null)
   let toastMessage = $state<string | null>(null)
   let toastTimeout: ReturnType<typeof setTimeout> | null = null
   let eventToDelete = $state<string | null>(null)
@@ -68,13 +73,21 @@
 
   async function handleFiles(fileList: File[]) {
     isUploading = true
+    totalFiles = fileList.length
     let successful = 0
     let failed = 0
 
     try {
-      for (const file of fileList) {
+      for (let index = 0; index < fileList.length; index++) {
+        const file = fileList[index]
+        currentFileIndex = index
+        currentFileName = file.name
+        uploadProgress = 0
+
         try {
-          await uploadFile(file)
+          await uploadFile(file, (progress) => {
+            uploadProgress = progress
+          })
           successful++
         } catch (error) {
           console.error(`Failed to upload ${file.name}:`, error)
@@ -91,6 +104,10 @@
       }
     } finally {
       isUploading = false
+      uploadProgress = 0
+      currentFileIndex = 0
+      totalFiles = 0
+      currentFileName = null
     }
   }
 
@@ -214,23 +231,34 @@
           d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
         />
       </svg>
-      Upload Activity File
+      Upload Activity Files
     </label>
     <input
       id="file-upload"
       type="file"
       accept=".json,.tcx,.fit,.gpx,.sml"
+      multiple
       class="hidden"
       onchange={handleFileSelect}
       disabled={isUploading}
     />
   </div>
 
-  <!-- Loading Spinner -->
-  {#if isLoading || isUploading}
+  <!-- Loading Spinner (only for loading events, not uploads) -->
+  {#if isLoading}
     <div class="mb-4">
       <LoadingSpinner />
     </div>
+  {/if}
+
+  <!-- Upload Progress Bar -->
+  {#if isUploading}
+    <UploadProgressBar
+      currentFile={currentFileIndex + 1}
+      totalFiles={totalFiles}
+      progress={uploadProgress}
+      fileName={currentFileName || undefined}
+    />
   {/if}
 
   <!-- Toast Notification -->

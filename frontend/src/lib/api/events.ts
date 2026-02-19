@@ -63,21 +63,60 @@ export async function getStreams(
   return response.json()
 }
 
-export async function uploadFile(file: File): Promise<UploadResponse> {
+export async function uploadFile(
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<UploadResponse> {
   const formData = new FormData()
   formData.append('files', file)
 
-  const response = await fetch(`${API_BASE}/events`, {
-    method: 'POST',
-    body: formData,
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    // Set up progress tracking
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress) {
+        const progress = (event.loaded / event.total) * 100
+        onProgress(progress)
+      }
+    })
+
+    // Handle completion
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          // Ensure progress is set to 100% on success
+          if (onProgress) {
+            onProgress(100)
+          }
+          resolve(response)
+        } catch (error) {
+          reject(new Error('Failed to parse response'))
+        }
+      } else {
+        try {
+          const error = JSON.parse(xhr.responseText)
+          reject(new Error(error.error || `Failed to upload file: ${xhr.statusText}`))
+        } catch {
+          reject(new Error(`Failed to upload file: ${xhr.statusText}`))
+        }
+      }
+    })
+
+    // Handle errors
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload'))
+    })
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload aborted'))
+    })
+
+    // Start the request
+    xhr.open('POST', `${API_BASE}/events`)
+    xhr.send(formData)
   })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(error.error || `Failed to upload file: ${response.statusText}`)
-  }
-
-  return response.json()
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
