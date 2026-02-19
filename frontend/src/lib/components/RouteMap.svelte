@@ -26,9 +26,44 @@
   }
   let { streams }: Props = $props()
 
-  let selectedTheme = $state<MapTheme>('fiord')
+  let selectedTheme = $state<MapTheme>('liberty')
+  let showLabels = $state(true)
+  let map = $state<MapLibreMap | undefined>(undefined)
 
   const mapStyle = $derived(`https://tiles.openfreemap.org/styles/${selectedTheme}`)
+
+  function toggleLabels() {
+    showLabels = !showLabels
+  }
+
+  $effect(() => {
+    if (!map) return
+    const labelsVisible = showLabels
+
+    const updateLabels = () => {
+      if (!map || !map.isStyleLoaded()) return
+      const visibility = labelsVisible ? 'visible' : 'none'
+      const style = map.getStyle()
+      if (!style || !style.layers) return
+
+      for (const layer of style.layers) {
+        if (layer.type === 'symbol' && layer.layout) {
+          map.setLayoutProperty(layer.id, 'visibility', visibility)
+        }
+      }
+    }
+
+    if (map.isStyleLoaded()) {
+      updateLabels()
+    }
+
+    const handler = () => updateLabels()
+    map.on('style.load', handler)
+
+    return () => {
+      map.off('style.load', handler)
+    }
+  })
 
   const routeData = $derived(buildRouteGeoJSON(streams))
 
@@ -73,25 +108,36 @@
 
 {#if routeData && center}
   <div class="relative">
-    <div class="absolute top-2 left-2 z-10 rounded-lg border border-border bg-card shadow-sm">
-      <select
-        bind:value={selectedTheme}
-        class="rounded-lg border-0 bg-transparent px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+    <div class="absolute top-2 left-2 z-10 flex gap-2">
+      <div class="rounded-lg border border-border bg-card shadow-sm">
+        <select
+          bind:value={selectedTheme}
+          class="rounded-lg border-0 bg-transparent px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          {#each THEME_OPTIONS as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
+      <button
+        type="button"
+        onclick={toggleLabels}
+        class="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-text-primary shadow-sm transition-colors hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
+        title={showLabels ? 'Hide labels' : 'Show labels'}
       >
-        {#each THEME_OPTIONS as option}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
+        <span class="material-icons text-base">{showLabels ? 'label' : 'label_off'}</span>
+      </button>
     </div>
     <div class="h-[600px] w-full overflow-hidden rounded-xl border border-border">
       <MapLibre
+        bind:map
         class="h-full w-full"
         style={mapStyle}
-      center={center}
-      zoom={12}
-      onload={handleLoad}
-      autoloadGlobalCss={false}
-    >
+        center={center}
+        zoom={12}
+        onload={handleLoad}
+        autoloadGlobalCss={false}
+      >
       <NavigationControl position="top-right" />
       <FullScreenControl position="top-right" />
       <GeoJSONSource data={routeData.route}>
