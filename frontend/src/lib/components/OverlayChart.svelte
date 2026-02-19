@@ -246,7 +246,7 @@
       <p class="text-sm text-text-secondary">No data available</p>
     </div>
   {:else}
-    <div class="relative">
+    <div class="relative pb-6">
       <button
         type="button"
         class="absolute right-2 top-2 z-10 rounded border border-border bg-card px-2 py-1 text-xs text-text-primary opacity-75 transition-opacity hover:opacity-100"
@@ -276,6 +276,7 @@
   }
   :global(.uplot .u-legend) {
     color: #9ca3af;
+    margin-bottom: 0.75rem;
   }
   /* Hide the "Value: --" row (series 0) in live legend */
   :global(.uplot .u-legend tbody tr:first-child) {
