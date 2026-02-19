@@ -1,31 +1,16 @@
 <script lang="ts">
-  import { MapLibre, GeoJSONSource, LineLayer } from 'svelte-maplibre-gl'
+  import { MapLibre } from 'svelte-maplibre-gl'
   import type { Map as MapLibreMap } from 'maplibre-gl'
   import 'maplibre-gl/dist/maplibre-gl.css'
   import type { StreamData } from '../types'
   import { buildRouteGeoJSON } from '../utils/geo'
 
-  /** Minimal inline style (no remote style = no "number, found null" from style expressions). */
-  const MAP_STYLE = {
-    version: 8,
-    sources: {
-      osm: {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '© OpenStreetMap contributors',
-      },
-    },
-    layers: [
-      {
-        id: 'osm',
-        type: 'raster',
-        source: 'osm',
-        minzoom: 0,
-        maxzoom: 19,
-      },
-    ],
-  } as const
+  const OSM_SOURCE = {
+    type: 'raster' as const,
+    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    attribution: '© OpenStreetMap contributors',
+  }
 
   interface Props {
     streams: StreamData[]
@@ -37,58 +22,55 @@
   const center = $derived.by(() => {
     if (!routeData) return undefined
     const { minLng, maxLng, minLat, maxLat } = routeData.bounds
-    return [((minLng + maxLng) / 2) as number, ((minLat + maxLat) / 2) as number] as [
-      number,
-      number,
-    ]
+    return [(minLng + maxLng) / 2, (minLat + maxLat) / 2] as [number, number]
   })
 
-  const boundsForFit = $derived(
-    routeData
-      ? ([[routeData.bounds.minLng, routeData.bounds.minLat], [routeData.bounds.maxLng, routeData.bounds.maxLat]] as [
-          [number, number],
-          [number, number],
-        ])
-      : null
-  )
+  const boundsForFit = $derived.by(() => {
+    if (!routeData) return null
+    const { minLng, minLat, maxLng, maxLat } = routeData.bounds
+    if (!Number.isFinite(minLng + maxLng + minLat + maxLat)) return null
+    return [[minLng, minLat], [maxLng, maxLat]] as [[number, number], [number, number]]
+  })
 
-  function handleLoad(ev: { target: MapLibreMap }) {
-    const map = ev.target
-    if (!boundsForFit || !map) return
-    const [[minLng, minLat], [maxLng, maxLat]] = boundsForFit
-    if (
-      typeof minLng !== 'number' ||
-      typeof maxLng !== 'number' ||
-      typeof minLat !== 'number' ||
-      typeof maxLat !== 'number' ||
-      !Number.isFinite(minLng + maxLng + minLat + maxLat)
-    ) {
-      return
+  const mapStyle = $derived.by(() => {
+    if (!routeData) return null
+    return {
+      version: 8 as const,
+      sources: {
+        osm: OSM_SOURCE,
+        'route-source': { type: 'geojson' as const, data: routeData.route },
+      },
+      layers: [
+        { id: 'osm', type: 'raster' as const, source: 'osm', minzoom: 0, maxzoom: 19 },
+        {
+          id: 'route-layer',
+          type: 'line' as const,
+          source: 'route-source',
+          paint: { 'line-color': '#3b82f6', 'line-width': 3 },
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+        },
+      ],
     }
-    try {
-      map.fitBounds(boundsForFit, { padding: 40, maxZoom: 16 })
-    } catch {
-      // ignore if fitBounds fails
+  })
+
+  function onMapLoad(ev: { target: MapLibreMap }) {
+    const m = ev.target
+    if (boundsForFit) {
+      m.fitBounds(boundsForFit, { padding: 40, maxZoom: 16 })
     }
   }
 </script>
 
-{#if routeData && center}
+{#if routeData && center && mapStyle}
   <div class="h-[400px] w-full overflow-hidden rounded-xl border border-border">
     <MapLibre
       class="h-full w-full"
-      style={MAP_STYLE}
+      style={mapStyle}
       center={center}
       zoom={12}
-      onload={handleLoad}
+      onload={onMapLoad}
       autoloadGlobalCss={false}
-    >
-      <GeoJSONSource data={routeData.route}>
-        <LineLayer
-          paint={{ 'line-color': '#3b82f6', 'line-width': 3 }}
-          layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-        />
-      </GeoJSONSource>
-    </MapLibre>
+      canvasContextAttributes={{ preserveDrawingBuffer: true }}
+    />
   </div>
 {/if}
