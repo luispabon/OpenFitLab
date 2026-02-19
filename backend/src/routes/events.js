@@ -94,6 +94,97 @@ router.get(
   })
 );
 
+// GET /api/events/:id/candidates (must come before /:id route)
+router.get(
+  '/:id/candidates',
+  validateEventId,
+  asyncHandler(async (req, res) => {
+    const sourceEventId = req.params.id;
+    
+    // Get source event's time range
+    const sourceEvent = await db.queryOne(
+      'SELECT start_date, end_date FROM events WHERE id = ?',
+      [sourceEventId]
+    );
+    
+    if (!sourceEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    const sourceStartDate = Number(sourceEvent.start_date);
+    const sourceEndDate = sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
+    
+    // Find candidate events for comparison
+    // Strategy: Find events from the same calendar day OR events that overlap in time
+    // This helps find the same workout recorded by different devices
+    const sourceDate = new Date(sourceStartDate);
+    const dayStart = new Date(Date.UTC(sourceDate.getUTCFullYear(), sourceDate.getUTCMonth(), sourceDate.getUTCDate(), 0, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(sourceDate.getUTCFullYear(), sourceDate.getUTCMonth(), sourceDate.getUTCDate(), 23, 59, 59, 999));
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayEnd.getTime();
+    
+    // Find events from same day OR overlapping events
+    const sql = `
+      SELECT id, start_date, name, end_date, description, is_merge, payload_rest
+      FROM events
+      WHERE id != ?
+        AND (
+          -- Same calendar day
+          (start_date >= ? AND start_date <= ?)
+          OR
+          -- Overlapping time ranges: candidate.start <= source.end AND candidate.end >= source.start
+          (start_date <= ? AND COALESCE(end_date, start_date) >= ?)
+        )
+      ORDER BY start_date DESC
+      LIMIT 50
+    `;
+    const rows = await db.query(sql, [sourceEventId, dayStartMs, dayEndMs, sourceEndDate, sourceStartDate]);
+    
+    if (rows.length === 0) {
+      return res.json([]);
+    }
+    
+    // Fetch stats and activities (same pattern as GET /)
+    const eventIds = rows.map((r) => r.id);
+    const [statsRows, activityRows] = await Promise.all([
+      db.query(
+        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+      db.query(
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+    ]);
+    
+    const statsByEventId = aggregateStats(statsRows, 'event_id');
+    const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
+    
+    if (activityRows.length > 0) {
+      const activityIds = activityRows.map((a) => a.id);
+      const activityStatsRows = await db.query(
+        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      );
+      const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
+      const activitiesByEventId = {};
+      for (const a of activityRows) {
+        if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
+        activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
+      }
+      for (const ev of events) {
+        ev.activities = activitiesByEventId[ev.id] || [];
+      }
+    } else {
+      for (const ev of events) {
+        ev.activities = [];
+      }
+    }
+    
+    res.json(events);
+  })
+);
+
 // GET /api/events/:id
 router.get(
   '/:id',

@@ -150,19 +150,19 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 **Description**: Compare two or more activities side-by-side.
 
 **Requirements**:
-- Select multiple activities for comparison
-- Display activities in synchronized time view
-- Overlay graphs for same metrics (e.g., heart rate from both activities)
-- Highlight differences between activities
-- Show statistics comparison table
-- Support merged view (combine activities into one)
+- Select multiple activities for comparison (implemented)
+- Display activities in synchronized time view (implemented)
+- Overlay graphs for same metrics (e.g., heart rate from both activities) (implemented)
+- Highlight differences between activities (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
+- Show statistics comparison table (implemented)
+- Support merged view (combine activities into one) (candidate for removal)
 
 **Acceptance Criteria**:
-- [ ] User can select 2+ activities to compare
-- [ ] Graphs are synchronized by time or distance
-- [ ] Differences are visually highlighted
-- [ ] Statistics table shows side-by-side comparison
-- [ ] Merged view combines data correctly
+- [x] User can select 2+ activities to compare
+- [x] Graphs are synchronized by time or distance (time sync implemented; distance sync candidate for removal)
+- [ ] Differences are visually highlighted (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
+- [x] Statistics table shows side-by-side comparison
+- [ ] Merged view combines data correctly (candidate for removal)
 
 ### 3.5 Stream Analysis (Planned)
 

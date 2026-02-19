@@ -67,30 +67,30 @@ This document lists features from the PRD that are not yet implemented. Features
 **Description:** Compare two or more activities side-by-side.
 
 **Requirements:**
-- [ ] Select multiple activities for comparison
-- [ ] Display activities in synchronized time view
-- [ ] Overlay graphs for same metrics (e.g., heart rate from both activities)
-- [ ] Highlight differences between activities
-- [ ] Show statistics comparison table
-- [ ] Support merged view (combine activities into one)
+- [x] Select multiple activities for comparison
+- [x] Display activities in synchronized time view
+- [x] Overlay graphs for same metrics (e.g., heart rate from both activities)
+- [ ] Highlight differences between activities (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
+- [x] Show statistics comparison table
+- [ ] Support merged view (combine activities into one) (candidate for removal)
 
 **Acceptance Criteria:**
-- [ ] User can select 2+ activities to compare
-- [ ] Graphs are synchronized by time or distance
-- [ ] Differences are visually highlighted
-- [ ] Statistics table shows side-by-side comparison
-- [ ] Merged view combines data correctly
+- [x] User can select 2+ activities to compare
+- [x] Graphs are synchronized by time or distance (time sync implemented; distance sync candidate for removal)
+- [ ] Differences are visually highlighted (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
+- [x] Statistics table shows side-by-side comparison
+- [ ] Merged view combines data correctly (candidate for removal)
 
 **Technical Tasks:**
-- [ ] Create comparison selection UI (multi-select from dashboard)
-- [ ] Create comparison view route/page (`/compare/:ids`)
-- [ ] Implement time synchronization algorithm
-- [ ] Create side-by-side graph layout
-- [ ] Implement overlay mode for same metrics
-- [ ] Calculate and display differences (delta values)
-- [ ] Create statistics comparison table component
-- [ ] Implement merged activity view (combine streams)
-- [ ] Add visual indicators for differences (color coding, annotations)
+- [x] Create comparison selection UI (multi-select from dashboard)
+- [x] Create comparison view route/page (`/compare/:ids`)
+- [x] Implement time synchronization algorithm
+- [x] Create side-by-side graph layout
+- [x] Implement overlay mode for same metrics
+- [x] Calculate and display differences (delta values)
+- [x] Create statistics comparison table component
+- [ ] Implement merged activity view (combine streams) (candidate for removal)
+- [ ] Add visual indicators for differences (color coding, annotations) (candidate for removal)
 
 **Related User Stories:**
 - US-4: Compare Activities
