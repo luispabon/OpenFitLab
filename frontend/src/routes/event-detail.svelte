@@ -17,8 +17,10 @@
     isChartableStream,
     isSmoothVariantToHide,
     getStreamConfig,
+    hasLocationStreams,
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
+  import RouteMap from '../lib/components/RouteMap.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
   import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
   import OverlayChart from '../lib/components/OverlayChart.svelte'
@@ -168,6 +170,8 @@
   function toggleViewMode() {
     viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked'
   }
+
+  const locationAvailable = $derived(hasLocationStreams(streams))
 
   // Filter to only selected streams (order: Heart Rate first, then rest)
   const visibleStreams = $derived(
@@ -344,6 +348,12 @@
         </div>
       {/if}
     </div>
+
+    {#if locationAvailable && !streamsLoading}
+      <div class="mt-6 overflow-hidden rounded-xl border border-border shadow-sm">
+        <RouteMap {streams} />
+      </div>
+    {/if}
 
     <!-- Stream Charts Section -->
     {#if streamsLoading}

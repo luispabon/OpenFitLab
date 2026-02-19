@@ -45,7 +45,8 @@ This file provides operational instructions for AI coding agents working in this
 - **Stack:** Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router
 
 - **Dependencies:**
-  - Main: `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `svelte-spa-router`
+  - Main: `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `svelte-spa-router`, `maplibre-gl`, `svelte-maplibre-gl`, `uplot`
+  - Map tiles: OpenFreeMap dark style (https://tiles.openfreemap.org/styles/dark) — no API key required
   - Install: `cd frontend && npm install`
 
 ## Project layout and architecture
@@ -67,6 +68,8 @@ This file provides operational instructions for AI coding agents working in this
 
 - **Frontend structure:**
   - `frontend/src/lib/` - API modules, types, utils, reusable components
+  - `frontend/src/lib/components/RouteMap.svelte` - GPS route map (MapLibre GL + OpenFreeMap dark tiles)
+  - `frontend/src/lib/utils/geo.ts` - GeoJSON route builder from Latitude/Longitude or Position streams
   - `frontend/src/routes/` - Page components (Dashboard, EventDetail)
   - `frontend/src/App.svelte` - Layout shell and router
   - `frontend/vite.config.ts` - Vite and Tailwind configuration
@@ -199,6 +202,7 @@ This file provides operational instructions for AI coding agents working in this
 - **Database connection:** Check `backend/src/db.js`
 - **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
 - **Frontend routes/pages:** Check `frontend/src/routes/`
+- **Route map (GPS):** Check `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts`
 - **Docker setup:** Check `docker-compose.yml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
 - **Frontend build:** Check `frontend/vite.config.ts`

@@ -20,8 +20,10 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
-    "uplot": "^1.6.32",
+    "maplibre-gl": "^5.18.0",
+    "svelte-maplibre-gl": "^1.0.3",
     "svelte-spa-router": "^4.0.1",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "uplot": "^1.6.32"
   }
 }
