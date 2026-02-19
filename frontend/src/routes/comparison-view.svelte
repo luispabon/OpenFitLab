@@ -25,8 +25,8 @@
     // First try the query prop (if svelte-spa-router provides it)
     if (query?.events) {
       const ids = query.events.split(',').map(id => id.trim()).filter(id => id.length > 0)
-      const idsStr = ids.sort().join(',')
-      const currentStr = eventIdsFromQueryState.sort().join(',')
+      const idsStr = ids.slice().sort().join(',')
+      const currentStr = eventIdsFromQueryState.slice().sort().join(',')
       // Only update if changed
       if (idsStr !== currentStr) {
         eventIdsFromQueryState = ids
@@ -42,8 +42,8 @@
       if (hashMatch && hashMatch[1]) {
         const eventsParam = decodeURIComponent(hashMatch[1])
         const ids = eventsParam.split(',').map(id => id.trim()).filter(id => id.length > 0)
-        const idsStr = ids.sort().join(',')
-        const currentStr = eventIdsFromQueryState.sort().join(',')
+        const idsStr = ids.slice().sort().join(',')
+        const currentStr = eventIdsFromQueryState.slice().sort().join(',')
         // Only update if changed
         if (idsStr !== currentStr) {
           eventIdsFromQueryState = ids
@@ -71,7 +71,7 @@
   let events = $state<EventDetail[]>([])
   let streamsByEventId = $state<Record<string, StreamData[]>>({})
   let selectedActivities = $state<Record<string, string>>({}) // eventId -> activityId
-  let loading = $state(true)
+  let loading = $state(false) // Start as false, will be set to true when loading starts
   let error = $state<string | null>(null)
   let xAxisMode = $state<'elapsed' | 'wall-clock'>('elapsed')
   let selectedStreamTypes = $state<Set<string>>(new Set())
@@ -83,6 +83,8 @@
   // Track what we've loaded to prevent infinite loops
   let loadedComparisonId = $state<string | null>(null)
   let loadedEventIds = $state<string[]>([])
+  let loadedStreamsSignature = $state<string>('') // Track which activities we've loaded streams for
+  let lastLoadAttempt = $state<string>('') // Track the last event IDs we attempted to load
 
   // Determine event IDs: from saved comparison or query string
   const eventIds = $derived.by(() => {
@@ -130,29 +132,45 @@
     }
     
     // Don't reload if we've already loaded these exact event IDs
-    const eventIdsStr = eventIds.sort().join(',')
-    const loadedEventIdsStr = loadedEventIds.sort().join(',')
+    const eventIdsStr = eventIds.slice().sort().join(',')
+    const loadedEventIdsStr = loadedEventIds.slice().sort().join(',')
     if (loadedEventIdsStr === eventIdsStr && events.length > 0) {
+      loading = false
+      return
+    }
+    
+    // Prevent concurrent loads - check this AFTER checking if already loaded
+    if (loading) {
       return
     }
 
     loading = true
     error = null
+    // Reset loaded streams signature when loading new events
+    loadedStreamsSignature = ''
 
     try {
       const loadedEvents = await Promise.all(eventIds.map((id) => getEvent(id)))
       events = loadedEvents
       loadedEventIds = [...eventIds]
+      // Update lastLoadAttempt to match what we just loaded
+      lastLoadAttempt = eventIds.slice().sort().join(',')
 
       // Initialize selected activities (use saved or default to first)
+      let activitiesChanged = false
       for (const eventDetail of events) {
         const eventId = eventDetail.event.id
         if (!selectedActivities[eventId] && eventDetail.activities.length > 0) {
           selectedActivities[eventId] = eventDetail.activities[0].id
+          activitiesChanged = true
         }
       }
 
       // Load streams for all selected activities
+      // Reset signature if activities changed to force reload
+      if (activitiesChanged) {
+        loadedStreamsSignature = ''
+      }
       await loadStreams()
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load events'
@@ -165,7 +183,19 @@
 
   // Load streams for all selected activities
   async function loadStreams() {
-    const streams: Record<string, StreamData[]> = {}
+    // Check if we already have streams for these exact activities
+    const currentActivityIds = events.map((e) => {
+      const eventId = e.event.id
+      return `${eventId}:${selectedActivities[eventId] || ''}`
+    }).sort().join('|')
+    
+    // Don't reload if we've already loaded streams for these activities
+    if (loadedStreamsSignature === currentActivityIds && Object.keys(streamsByEventId).length > 0) {
+      return
+    }
+    
+    // Create a signature of what we're about to load
+    const streamsToLoad: Record<string, StreamData[]> = {}
 
     await Promise.all(
       events.map(async (eventDetail) => {
@@ -175,20 +205,22 @@
 
         try {
           const loadedStreams = await getStreams(eventId, activityId)
-          streams[eventId] = loadedStreams
+          streamsToLoad[eventId] = loadedStreams
         } catch (e) {
           console.error(`Failed to load streams for event ${eventId}:`, e)
-          streams[eventId] = []
+          streamsToLoad[eventId] = []
         }
       })
     )
 
-    streamsByEventId = streams
+    // Update state and signature
+    streamsByEventId = streamsToLoad
+    loadedStreamsSignature = currentActivityIds
 
     // Initialize selected streams if not set (default to Heart Rate if available)
     if (selectedStreamTypes.size === 0) {
       const allStreamTypes = new Set<string>()
-      for (const streamList of Object.values(streams)) {
+      for (const streamList of Object.values(streamsToLoad)) {
         for (const stream of streamList) {
           if (isChartableStream(stream.type) && !isSmoothVariantToHide(stream.type, streamList.map((s) => s.type))) {
             allStreamTypes.add(stream.type)
@@ -343,46 +375,74 @@
   }
 
   // Initialize: load saved comparison first, then events
-  // Only depend on comparisonId to prevent infinite loops
+  // Only depend on comparisonId to prevent infinite loops - don't depend on eventIdsFromQueryState
   $effect(() => {
     const id = comparisonId
     
-    // For new comparisons, check eventIdsFromQuery
+    // For new comparisons, check eventIdsFromQueryState (but don't make it a dependency)
     if (id === 'new') {
       savedComparison = null
       loadedComparisonId = null
-      const ids = eventIdsFromQuery
-      const idsStr = ids.sort().join(',')
-      const loadedStr = loadedEventIds.sort().join(',')
       
-      // Only reload if event IDs changed and we have enough
-      if (idsStr !== loadedStr && ids.length >= 2) {
-        loadedEventIds = [] // Reset before loading
+      // Get current query IDs without making it a reactive dependency
+      const queryIds = eventIdsFromQueryState
+      const ids = queryIds.filter((id) => id.trim().length > 0)
+      
+      // Early return if no IDs
+      if (ids.length < 2) {
+        if (!loading) {
+          loading = false
+          error = 'At least 2 events are required for comparison'
+        }
+        return
+      }
+      
+      const idsStr = ids.slice().sort().join(',')
+      
+      // Only load if we haven't attempted to load these IDs yet
+      if (idsStr !== lastLoadAttempt && !loading) {
+        lastLoadAttempt = idsStr
         loadEvents()
-      } else if (ids.length < 2 && events.length === 0) {
-        loading = false
-        error = 'At least 2 events are required for comparison'
       }
       return
     }
     
     // For existing comparisons, load saved comparison first
     // Only load if comparison ID changed
-    if (loadedComparisonId !== id) {
+    if (loadedComparisonId !== id && !loading) {
       loadSavedComparison().then(() => {
         // After loading saved comparison, check eventIds (which may come from saved comparison)
-        // Use savedComparison.eventIds directly to avoid reactive dependency
         const ids = savedComparison?.eventIds ?? []
-        const idsStr = ids.sort().join(',')
-        const loadedStr = loadedEventIds.sort().join(',')
+        const idsStr = ids.slice().sort().join(',')
         
-        if (ids.length >= 2 && idsStr !== loadedStr) {
+        if (ids.length >= 2 && idsStr !== lastLoadAttempt && !loading) {
+          lastLoadAttempt = idsStr
           loadEvents()
         } else if (ids.length < 2) {
           loading = false
           error = 'At least 2 events are required for comparison'
         }
       })
+    }
+  })
+  
+  // Separate effect to handle eventIdsFromQueryState changes for new comparisons
+  $effect(() => {
+    // Only run for new comparisons
+    if (comparisonId !== 'new') return
+    
+    // Access eventIdsFromQueryState to make it a dependency
+    const queryIds = eventIdsFromQueryState
+    const ids = queryIds.filter((id) => id.trim().length > 0)
+    
+    if (ids.length < 2) return
+    
+    const idsStr = ids.slice().sort().join(',')
+    
+    // Only trigger load if IDs changed and we haven't attempted to load them
+    if (idsStr !== lastLoadAttempt && !loading) {
+      lastLoadAttempt = idsStr
+      loadEvents()
     }
   })
 
