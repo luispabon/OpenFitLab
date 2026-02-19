@@ -12,10 +12,12 @@
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
+  import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
 
   let events = $state<EventSummary[]>([])
   let isLoading = $state(false)
   let isUploading = $state(false)
+  let isDraggingOver = $state(false)
   let uploadProgress = $state(0)
   let currentFileIndex = $state(0)
   let totalFiles = $state(0)
@@ -61,9 +63,45 @@
     target.value = ''
   }
 
+  function handleDragEnter(event: DragEvent) {
+    // Only show overlay for file drags, not when uploading
+    if (isUploading) return
+    
+    const types = event.dataTransfer?.types
+    if (types && Array.from(types).includes('Files')) {
+      event.preventDefault()
+      event.stopPropagation()
+      isDraggingOver = true
+    }
+  }
+
+  function handleDragLeave(event: DragEvent) {
+    // Only hide overlay if we're actually leaving the dashboard section
+    const relatedTarget = event.relatedTarget as Node | null
+    const currentTarget = event.currentTarget as HTMLElement
+    
+    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+      isDraggingOver = false
+    }
+  }
+
+  function handleDragOver(event: DragEvent) {
+    // Only allow drop for file drags
+    const types = event.dataTransfer?.types
+    if (types && Array.from(types).includes('Files')) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (!isUploading) {
+        isDraggingOver = true
+      }
+    }
+  }
+
   async function handleDrop(event: DragEvent) {
     event.preventDefault()
     event.stopPropagation()
+    
+    isDraggingOver = false
 
     const files = event.dataTransfer?.files
     if (!files || files.length === 0) return
@@ -109,11 +147,6 @@
       totalFiles = 0
       currentFileName = null
     }
-  }
-
-  function handleDragOver(event: DragEvent) {
-    event.preventDefault()
-    event.stopPropagation()
   }
 
   function handleDeleteClick(eventId: string, event: MouseEvent) {
@@ -206,7 +239,18 @@
 
 </script>
 
-<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
+<section
+  class="mx-auto w-[85%] max-w-screen-2xl py-6 transition-opacity"
+  class:opacity-50={isDraggingOver && !isUploading}
+  ondragenter={handleDragEnter}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+>
+  {#if isDraggingOver && !isUploading}
+    <DropZoneOverlay visible={isDraggingOver && !isUploading} />
+  {/if}
+
   <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
 
   <!-- Upload Section -->
@@ -214,8 +258,6 @@
     <label
       for="file-upload"
       class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-      ondrop={handleDrop}
-      ondragover={handleDragOver}
     >
       <svg
         class="mr-2 h-5 w-5"
