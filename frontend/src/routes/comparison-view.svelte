@@ -5,7 +5,7 @@
   }
   let { params = {}, query = {} }: Props = $props()
 
-  import { push, replace } from 'svelte-spa-router'
+  import { push, replace, location } from 'svelte-spa-router'
   import { getEvent, getStreams, getComparison, createComparison, deleteComparison } from '../lib/api'
   import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types'
   import { formatStatValue, getStatUnit, isChartableStream, isSmoothVariantToHide, getStreamConfig } from '../lib/utils'
@@ -13,7 +13,44 @@
   import ComparisonChart from '../lib/components/ComparisonChart.svelte'
 
   const comparisonId = $derived(params?.id ?? '')
-  const eventIdsFromQuery = $derived(query?.events?.split(',') ?? [])
+  
+  // Parse query parameters from URL hash - use state that updates reactively
+  // svelte-spa-router uses hash-based routing, so query params are in the hash fragment
+  let eventIdsFromQueryState = $state<string[]>([])
+  
+  // Update eventIdsFromQueryState when location changes
+  $effect(() => {
+    const loc = $location // Access location to trigger reactivity
+    
+    // First try the query prop (if svelte-spa-router provides it)
+    if (query?.events) {
+      const ids = query.events.split(',').map(id => id.trim()).filter(id => id.length > 0)
+      console.log('Parsed event IDs from query prop:', ids)
+      eventIdsFromQueryState = ids
+      return
+    }
+    
+    try {
+      // Parse from window.location.hash since svelte-spa-router uses hash routing
+      // Hash format: #/compare/new?events=id1,id2
+      const hash = window.location.hash
+      const hashMatch = hash.match(/\?events=([^&]+)/)
+      if (hashMatch && hashMatch[1]) {
+        const eventsParam = decodeURIComponent(hashMatch[1])
+        const ids = eventsParam.split(',').map(id => id.trim()).filter(id => id.length > 0)
+        console.log('Parsed event IDs from hash:', ids, 'location:', loc, 'hash:', hash)
+        eventIdsFromQueryState = ids
+      } else {
+        console.log('No events param in hash, location:', loc, 'hash:', hash)
+        eventIdsFromQueryState = []
+      }
+    } catch (e) {
+      console.error('Failed to parse query parameters:', e)
+      eventIdsFromQueryState = []
+    }
+  })
+  
+  const eventIdsFromQuery = $derived(eventIdsFromQueryState)
 
   // Event color palette (distinct colors for up to 6 events)
   const EVENT_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899']
@@ -230,13 +267,32 @@
 
   // Initialize: load saved comparison first, then events
   $effect(() => {
-    loadSavedComparison()
-  })
-
-  $effect(() => {
-    if (eventIds.length >= 2) {
-      loadEvents()
+    const id = comparisonId
+    const ids = eventIds // Access eventIds to make it a dependency
+    
+    // For new comparisons, skip loading saved comparison
+    if (id === 'new') {
+      savedComparison = null
+      // Use eventIdsFromQuery directly for new comparisons
+      if (ids.length >= 2) {
+        loadEvents()
+      } else {
+        loading = false
+        error = 'At least 2 events are required for comparison'
+      }
+      return
     }
+    
+    // For existing comparisons, load saved comparison first
+    loadSavedComparison().then(() => {
+      // After loading saved comparison, check eventIds (which may come from saved comparison)
+      if (eventIds.length >= 2) {
+        loadEvents()
+      } else {
+        loading = false
+        error = 'At least 2 events are required for comparison'
+      }
+    })
   })
 
   // Get comparison entries for a stream type
