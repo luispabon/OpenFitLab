@@ -9,7 +9,13 @@
   import type { Map as MapLibreMap } from 'maplibre-gl'
   import 'maplibre-gl/dist/maplibre-gl.css'
   import type { StreamData } from '../types'
-  import { buildRouteGeoJSON } from '../utils/geo'
+  import { buildRouteGeoJSON, mergeBounds } from '../utils/geo'
+
+  export interface NamedRoute {
+    label: string
+    color: string
+    streams: StreamData[]
+  }
 
   type MapTheme = 'dark' | 'positron' | 'bright' | 'liberty' | 'fiord'
 
@@ -22,9 +28,10 @@
   ]
 
   interface Props {
-    streams: StreamData[]
+    streams?: StreamData[]
+    routes?: NamedRoute[]
   }
-  let { streams }: Props = $props()
+  let { streams = [], routes }: Props = $props()
 
   let selectedTheme = $state<MapTheme>('liberty')
   let showLabels = $state(true)
@@ -54,17 +61,37 @@
     return () => m.off('style.load', updateLabels)
   })
 
-  const routeData = $derived(buildRouteGeoJSON(streams))
+  /** Single-route: one item with route + bounds. Multi-route: one item per route with color + label, merged bounds. */
+  const routesWithData = $derived.by(() => {
+    if (routes?.length) {
+      const items: Array<{ route: ReturnType<typeof buildRouteGeoJSON>; color: string; label: string }> = []
+      for (const r of routes) {
+        const data = buildRouteGeoJSON(r.streams)
+        if (data) items.push({ route: data, color: r.color, label: r.label })
+      }
+      return items
+    }
+    const single = buildRouteGeoJSON(streams)
+    if (single) return [{ route: single, color: '#60a5fa', label: '' }]
+    return []
+  })
+
+  const showLegend = $derived(Boolean(routes?.length && routesWithData.length > 0))
+
+  const mergedBounds = $derived.by(() => {
+    if (routesWithData.length === 0) return null
+    return mergeBounds(routesWithData.map((r) => r.route.bounds))
+  })
 
   const center = $derived.by(() => {
-    if (!routeData) return undefined
-    const { minLng, maxLng, minLat, maxLat } = routeData.bounds
+    if (!mergedBounds) return undefined
+    const { minLng, maxLng, minLat, maxLat } = mergedBounds
     return [(minLng + maxLng) / 2, (minLat + maxLat) / 2] as [number, number]
   })
 
   const boundsForFit = $derived(
-    routeData
-      ? ([[routeData.bounds.minLng, routeData.bounds.minLat], [routeData.bounds.maxLng, routeData.bounds.maxLat]] as [
+    mergedBounds
+      ? ([[mergedBounds.minLng, mergedBounds.minLat], [mergedBounds.maxLng, mergedBounds.maxLat]] as [
           [number, number],
           [number, number],
         ])
@@ -81,7 +108,7 @@
   }
 </script>
 
-{#if routeData && center}
+{#if routesWithData.length > 0 && center}
   <div class="relative">
     <div class="absolute top-2 left-2 z-10 flex gap-2">
       <div class="rounded-lg border border-border bg-card shadow-sm">
@@ -115,13 +142,32 @@
       >
         <NavigationControl position="top-right" />
         <FullScreenControl position="top-right" />
-        <GeoJSONSource data={routeData.route}>
-          <LineLayer
-            paint={{ 'line-color': '#60a5fa', 'line-width': 4 }}
-            layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-          />
-        </GeoJSONSource>
+        {#each routesWithData as item, i}
+          {@const sourceId = `route-source-${i}`}
+          {@const layerId = `route-layer-${i}`}
+          <GeoJSONSource data={item.route.route} id={sourceId}>
+            <LineLayer
+              id={layerId}
+              paint={{ 'line-color': item.color, 'line-width': 4 }}
+              layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+            />
+          </GeoJSONSource>
+        {/each}
       </MapLibre>
     </div>
+    {#if showLegend}
+      <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
+        {#each routesWithData as item}
+          <div class="flex items-center gap-2">
+            <span
+              class="h-3 w-3 shrink-0 rounded-sm"
+              style="background-color: {item.color};"
+              aria-hidden="true"
+            ></span>
+            <span class="text-text-primary">{item.label}:</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 {/if}
