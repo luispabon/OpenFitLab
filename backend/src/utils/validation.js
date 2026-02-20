@@ -23,6 +23,14 @@ function isNonNegativeNumber(value) {
 }
 
 /**
+ * Validates that a value is a non-negative integer (for offset)
+ */
+function isNonNegativeInteger(value) {
+  const num = Number(value);
+  return Number.isInteger(num) && !Number.isNaN(num) && num >= 0;
+}
+
+/**
  * Validates query parameters for GET /api/events
  */
 function validateGetEventsQuery(req, res, next) {
@@ -38,6 +46,56 @@ function validateGetEventsQuery(req, res, next) {
 
   if (limit != null && !isPositiveInteger(limit)) {
     return res.status(400).json({ error: 'limit must be a positive integer' });
+  }
+
+  next();
+}
+
+/**
+ * Validates query parameters for GET /api/events/activity-rows
+ */
+function validateGetActivityRowsQuery(req, res, next) {
+  const { limit, offset, startDate, endDate, activityTypes, devices, search } = req.query;
+
+  if (limit != null) {
+    const n = Number(limit);
+    if (!Number.isInteger(n) || n < 1 || n > 50) {
+      return res.status(400).json({ error: 'limit must be an integer between 1 and 50' });
+    }
+  }
+
+  if (offset != null && !isNonNegativeInteger(offset)) {
+    return res.status(400).json({ error: 'offset must be a non-negative integer' });
+  }
+
+  if (startDate != null && !isNonNegativeNumber(startDate)) {
+    return res.status(400).json({ error: 'startDate must be a non-negative number' });
+  }
+
+  if (endDate != null && !isNonNegativeNumber(endDate)) {
+    return res.status(400).json({ error: 'endDate must be a non-negative number' });
+  }
+
+  if (activityTypes != null) {
+    const arr = Array.isArray(activityTypes) ? activityTypes : [activityTypes];
+    for (const t of arr) {
+      if (typeof t !== 'string' || t.trim().length === 0) {
+        return res.status(400).json({ error: 'activityTypes must be non-empty strings' });
+      }
+    }
+  }
+
+  if (devices != null) {
+    const arr = Array.isArray(devices) ? devices : [devices];
+    for (const d of arr) {
+      if (typeof d !== 'string' || d.trim().length === 0) {
+        return res.status(400).json({ error: 'devices must be non-empty strings' });
+      }
+    }
+  }
+
+  if (search != null && typeof search !== 'string') {
+    return res.status(400).json({ error: 'search must be a string' });
   }
 
   next();
@@ -119,7 +177,9 @@ module.exports = {
   isValidUUID,
   isPositiveInteger,
   isNonNegativeNumber,
+  isNonNegativeInteger,
   validateGetEventsQuery,
+  validateGetActivityRowsQuery,
   validateEventId,
   validateActivityId,
   validateStreamTypes,

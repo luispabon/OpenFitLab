@@ -27,6 +27,11 @@ export interface Activity {
   [key: string]: unknown // For payload_rest fields
 }
 
+export interface ActivityRow {
+  event: EventSummary
+  activity: Activity
+}
+
 export interface StreamData {
   type: string
   data: Array<{

@@ -1,4 +1,4 @@
-import type { EventSummary, EventDetail, StreamData, UploadResponse, Activity } from '../types/event'
+import type { EventSummary, EventDetail, StreamData, UploadResponse, Activity, ActivityRow } from '../types/event'
 
 const API_BASE = '/api'
 
@@ -23,6 +23,42 @@ export async function getEvents(params?: GetEventsParams): Promise<EventSummary[
 
   if (!response.ok) {
     throw new Error(`Failed to fetch events: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+export interface GetActivityRowsParams {
+  limit?: number
+  offset?: number
+  startDate?: number
+  endDate?: number
+  activityTypes?: string[]
+  devices?: string[]
+  search?: string
+}
+
+export async function getActivityRows(params: GetActivityRowsParams = {}): Promise<{ rows: ActivityRow[]; total: number }> {
+  const searchParams = new URLSearchParams()
+  if (params.limit != null) searchParams.set('limit', String(params.limit))
+  if (params.offset != null) searchParams.set('offset', String(params.offset))
+  if (params.startDate != null) searchParams.set('startDate', String(params.startDate))
+  if (params.endDate != null) searchParams.set('endDate', String(params.endDate))
+  if (params.search != null && params.search.trim() !== '') {
+    searchParams.set('search', params.search.trim())
+  }
+  if (params.activityTypes?.length) {
+    params.activityTypes.forEach((t) => searchParams.append('activityTypes', t))
+  }
+  if (params.devices?.length) {
+    params.devices.forEach((d) => searchParams.append('devices', d))
+  }
+
+  const url = `${API_BASE}/events/activity-rows?${searchParams.toString()}`
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch activity rows: ${response.statusText}`)
   }
 
   return response.json()
