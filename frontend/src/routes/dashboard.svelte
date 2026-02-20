@@ -325,6 +325,12 @@
   })
 
   $effect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      page = totalPages
+    }
+  })
+
+  $effect(() => {
     if (!activityTypeDropdownOpen && !deviceDropdownOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -358,6 +364,38 @@
     }
     return Array.from(ids)
   })
+
+  const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const
+  const totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)))
+
+  const visiblePageNumbers = $derived.by(() => {
+    const total = totalPages
+    if (total <= 1) return []
+    const current = Math.min(page, total)
+    const delta = 2
+    const range: number[] = []
+    const add = (n: number) => {
+      if (n >= 1 && n <= total && !range.includes(n)) range.push(n)
+    }
+    add(1)
+    for (let i = current - delta; i <= current + delta; i++) add(i)
+    add(total)
+    range.sort((a, b) => a - b)
+    return range
+  })
+
+  function goToPage(p: number) {
+    if (p >= 1 && p <= totalPages) page = p
+  }
+
+  function onPageSizeChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value
+    const n = Number(val)
+    if (PAGE_SIZE_OPTIONS.includes(n)) {
+      pageSize = n
+      page = 1
+    }
+  }
 
   // Selection state for select-all checkbox
   const selectAllChecked = $derived.by(() => {
@@ -739,6 +777,73 @@
     </div>
   </div>
 
+  <!-- Pagination (above table) -->
+  {#if totalRows > 0}
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <label for="page-size-select" class="text-sm text-text-secondary">Per page</label>
+        <select
+          id="page-size-select"
+          value={pageSize}
+          onchange={onPageSizeChange}
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        >
+          {#each PAGE_SIZE_OPTIONS as size}
+            <option value={size}>{size}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onclick={() => goToPage(page - 1)}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
+          aria-label="Previous page"
+        >
+          <span class="material-icons text-lg">chevron_left</span>
+        </button>
+        {#each visiblePageNumbers as p, i}
+          {#if i > 0 && p - (visiblePageNumbers[i - 1] ?? 0) > 1}
+            <span class="px-1 text-text-secondary">…</span>
+          {/if}
+          <button
+            type="button"
+            onclick={() => goToPage(p)}
+            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === page
+              ? 'border-0 bg-accent text-white'
+              : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
+            aria-label="Page {p}"
+            aria-current={p === page ? 'page' : undefined}
+          >
+            {p}
+          </button>
+        {/each}
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onclick={() => goToPage(page + 1)}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
+          aria-label="Next page"
+        >
+          <span class="material-icons text-lg">chevron_right</span>
+        </button>
+        <label for="jump-to-page" class="sr-only">Jump to page</label>
+        <select
+          id="jump-to-page"
+          value={page}
+          onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          aria-label="Page {page} of {totalPages}"
+        >
+          {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
+            <option value={p}>Page {p} of {totalPages}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+  {/if}
+
   <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
     <table class="w-full divide-y divide-border text-[1.00625rem] table-fixed">
@@ -905,6 +1010,73 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Pagination (below table) -->
+  {#if totalRows > 0}
+    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <label for="page-size-select-bottom" class="text-sm text-text-secondary">Per page</label>
+        <select
+          id="page-size-select-bottom"
+          value={pageSize}
+          onchange={onPageSizeChange}
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        >
+          {#each PAGE_SIZE_OPTIONS as size}
+            <option value={size}>{size}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onclick={() => goToPage(page - 1)}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
+          aria-label="Previous page"
+        >
+          <span class="material-icons text-lg">chevron_left</span>
+        </button>
+        {#each visiblePageNumbers as p, i}
+          {#if i > 0 && p - (visiblePageNumbers[i - 1] ?? 0) > 1}
+            <span class="px-1 text-text-secondary">…</span>
+          {/if}
+          <button
+            type="button"
+            onclick={() => goToPage(p)}
+            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === page
+              ? 'border-0 bg-accent text-white'
+              : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
+            aria-label="Page {p}"
+            aria-current={p === page ? 'page' : undefined}
+          >
+            {p}
+          </button>
+        {/each}
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onclick={() => goToPage(page + 1)}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
+          aria-label="Next page"
+        >
+          <span class="material-icons text-lg">chevron_right</span>
+        </button>
+        <label for="jump-to-page-bottom" class="sr-only">Jump to page</label>
+        <select
+          id="jump-to-page-bottom"
+          value={page}
+          onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          aria-label="Page {page} of {totalPages}"
+        >
+          {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
+            <option value={p}>Page {p} of {totalPages}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+  {/if}
 
   <!-- Single Delete Confirmation Dialog -->
   {#if eventToDelete}
