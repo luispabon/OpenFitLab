@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS activities (
   event_start_date BIGINT NULL,
   payload_rest JSON NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_event_id (event_id)
+  INDEX idx_event_id (event_id),
+  INDEX idx_type (type)
 );
 
 CREATE TABLE IF NOT EXISTS activity_stats (

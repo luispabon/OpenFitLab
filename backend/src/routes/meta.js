@@ -4,18 +4,20 @@ const { parseJSONField } = require('../utils/transforms');
 
 const router = express.Router();
 
-let cachedActivityTypes = null;
-
 /**
  * GET /api/activity-types
- * Returns canonical activity types from sports-lib (cached at startup).
+ * Returns distinct activity types present in the activities table.
  */
-router.get('/activity-types', (req, res) => {
-  if (cachedActivityTypes === null) {
-    const { ActivityTypesHelper } = require('@sports-alliance/sports-lib');
-    cachedActivityTypes = ActivityTypesHelper.getActivityTypesAsUniqueArray();
+router.get('/activity-types', async (req, res, next) => {
+  try {
+    const rows = await db.query(
+      "SELECT DISTINCT type FROM activities WHERE type IS NOT NULL AND type != '' ORDER BY type"
+    );
+    const types = rows.map((r) => r.type.trim()).filter(Boolean);
+    res.json(types);
+  } catch (err) {
+    next(err);
   }
-  res.json(cachedActivityTypes);
 });
 
 /**
@@ -25,7 +27,7 @@ router.get('/activity-types', (req, res) => {
 router.get('/devices', async (req, res, next) => {
   try {
     const rows = await db.query(
-      "SELECT value FROM activity_stats WHERE stat_type = 'Device Names'"
+      "SELECT DISTINCT value FROM activity_stats WHERE stat_type = 'Device Names' ORDER BY value ASC"
     );
     const names = new Set();
     for (const row of rows) {
