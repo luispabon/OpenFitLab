@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { push } from 'svelte-spa-router'
-  import { getEvents, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
-  import type { EventSummary, Activity } from '../lib/types'
+  import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
+  import type { EventSummary, Activity, ActivityRow } from '../lib/types'
   import {
     formatDateShort,
     formatDateWithTime,
@@ -15,8 +15,70 @@
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
   import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
 
-  let events = $state<EventSummary[]>([])
+  let activityRowsFromApi = $state<ActivityRow[]>([])
+  let totalRows = $state(0)
   let isLoading = $state(false)
+  let search = $state('')
+  let selectedActivityTypes = $state<string[]>([])
+  let selectedDevices = $state<string[]>([])
+  let dateStartStr = $state('')
+  let dateEndStr = $state('')
+  let page = $state(1)
+  let pageSize = $state(20)
+  let activityTypesOptions = $state<string[]>([])
+  let devicesOptions = $state<string[]>([])
+  let activityTypeDropdownOpen = $state(false)
+  let deviceDropdownOpen = $state(false)
+  let activityTypeFilter = $state('')
+  let activityTypeFilterInputEl = $state<HTMLInputElement | null>(null)
+  let searchInputValue = $state('')
+  let searchDebounceId: ReturnType<typeof setTimeout> | null = null
+
+  function commitSearch() {
+    if (searchDebounceId) {
+      clearTimeout(searchDebounceId)
+      searchDebounceId = null
+    }
+    search = searchInputValue
+    page = 1
+  }
+
+  function onSearchInput() {
+    if (searchDebounceId) clearTimeout(searchDebounceId)
+    searchDebounceId = setTimeout(commitSearch, 300)
+  }
+
+  const filteredActivityTypes = $derived.by(() => {
+    const q = activityTypeFilter.trim().toLowerCase()
+    if (!q) return activityTypesOptions
+    return activityTypesOptions.filter((t) => t.toLowerCase().includes(q))
+  })
+
+  function toggleActivityType(type: string) {
+    const next = selectedActivityTypes.includes(type)
+      ? selectedActivityTypes.filter((t) => t !== type)
+      : [...selectedActivityTypes, type]
+    selectedActivityTypes = next
+    page = 1
+  }
+
+  function toggleDevice(device: string) {
+    const next = selectedDevices.includes(device)
+      ? selectedDevices.filter((d) => d !== device)
+      : [...selectedDevices, device]
+    selectedDevices = next
+    page = 1
+  }
+
+  function setDateStart(value: string) {
+    dateStartStr = value
+    page = 1
+  }
+
+  function setDateEnd(value: string) {
+    dateEndStr = value
+    page = 1
+  }
   let isUploading = $state(false)
   let isDraggingOver = $state(false)
   let uploadProgress = $state(0)
@@ -53,16 +115,39 @@
     }
   })
 
-  async function loadEvents() {
+  async function loadActivityRows() {
     isLoading = true
     try {
-      events = await getEvents({ limit: 200 })
+      const offset = (page - 1) * pageSize
+      const startDate = dateStartStr
+        ? new Date(dateStartStr + 'T00:00:00').getTime()
+        : undefined
+      const endDate = dateEndStr
+        ? new Date(dateEndStr + 'T23:59:59.999').getTime()
+        : undefined
+      const params: Parameters<typeof getActivityRows>[0] = {
+        limit: pageSize,
+        offset,
+        startDate,
+        endDate,
+        activityTypes: selectedActivityTypes.length ? selectedActivityTypes : undefined,
+        devices: selectedDevices.length ? selectedDevices : undefined,
+        search: search.trim() || undefined,
+      }
+      const result = await getActivityRows(params)
+      activityRowsFromApi = result.rows
+      totalRows = result.total
     } catch (error) {
-      console.error('Failed to load events:', error)
-      showToast(error instanceof Error ? error.message : 'Failed to load events')
+      console.error('Failed to load activity rows:', error)
+      showToast(error instanceof Error ? error.message : 'Failed to load activity rows')
     } finally {
       isLoading = false
     }
+  }
+
+  function resetPageAndLoad() {
+    page = 1
+    loadActivityRows()
   }
 
   async function handleFileSelect(event: Event) {
@@ -146,7 +231,7 @@
 
       if (successful > 0) {
         showToast(`Uploaded ${successful} file${successful > 1 ? 's' : ''} successfully`)
-        await loadEvents() // Refresh the list
+        await loadActivityRows()
       }
       if (failed > 0) {
         showToast(`Failed to upload ${failed} file${failed > 1 ? 's' : ''}`)
@@ -177,7 +262,7 @@
       const deleted = await deleteEvent(eventToDelete)
       if (deleted) {
         showToast('Event deleted successfully')
-        await loadEvents() // Refresh the list
+        await loadActivityRows()
       } else {
         showToast('Event not found')
       }
@@ -231,49 +316,44 @@
   }
 
   onMount(() => {
-    loadEvents()
+    getActivityTypes().then((r) => { activityTypesOptions = r })
+    getDevices().then((r) => { devicesOptions = r })
   })
 
-  type ActivityRow = { activity: Activity | { id: string; eventID: string; startDate?: number; type?: string; stats: Record<string, unknown> }; event: EventSummary }
+  $effect(() => {
+    void loadActivityRows()
+  })
 
-  const activityRows = $derived.by((): ActivityRow[] => {
-    const rows: ActivityRow[] = []
-    for (const ev of events) {
-      const activities = ev.activities ?? []
-      if (activities.length > 0) {
-        for (const a of activities) {
-          rows.push({ activity: a, event: ev })
-        }
-      } else {
-        rows.push({
-          activity: {
-            id: ev.id,
-            eventID: ev.id,
-            startDate: ev.startDate,
-            stats: {},
-          },
-          event: ev,
-        })
+  $effect(() => {
+    if (!activityTypeDropdownOpen && !deviceDropdownOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        activityTypeFilter = ''
+        activityTypeDropdownOpen = false
+        deviceDropdownOpen = false
       }
     }
-    rows.sort((a, b) => {
-      const dateA = a.activity.startDate ?? a.event.startDate ?? 0
-      const dateB = b.activity.startDate ?? b.event.startDate ?? 0
-      return dateB - dateA
-    })
-    return rows
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   })
 
-  // Find source event row for candidates modal
+  $effect(() => {
+    if (activityTypeDropdownOpen && activityTypeFilterInputEl) {
+      const t = setTimeout(() => activityTypeFilterInputEl?.focus(), 0)
+      return () => clearTimeout(t)
+    }
+  })
+
+  // Find source event row for candidates modal (may not be on current page)
   const sourceEventRow = $derived.by(() => {
     if (!candidatesSourceEventId) return null
-    return activityRows.find(row => row.event.id === candidatesSourceEventId) || null
+    return activityRowsFromApi.find((row) => row.event.id === candidatesSourceEventId) ?? null
   })
 
-  // Get unique event IDs from activity rows
+  // Unique event IDs on current page (for select-all)
   const uniqueEventIds = $derived.by(() => {
     const ids = new Set<string>()
-    for (const row of activityRows) {
+    for (const row of activityRowsFromApi) {
       ids.add(row.event.id)
     }
     return Array.from(ids)
@@ -357,7 +437,7 @@
 
       if (successful > 0) {
         showToast(`Deleted ${successful} event${successful > 1 ? 's' : ''} successfully`)
-        await loadEvents() // Refresh the list
+        await loadActivityRows()
       }
       if (failed > 0) {
         showToast(`Failed to delete ${failed} event${failed > 1 ? 's' : ''}`)
@@ -532,6 +612,133 @@
     </div>
   {/if}
 
+  <!-- Filter bar (elevated when dropdowns open so they appear above the table) -->
+  <div
+    class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 backdrop-blur"
+    class:relative={activityTypeDropdownOpen || deviceDropdownOpen}
+    class:z-30={activityTypeDropdownOpen || deviceDropdownOpen}
+  >
+    <label class="sr-only" for="filter-search">Search</label>
+    <input
+      id="filter-search"
+      type="text"
+      bind:value={searchInputValue}
+      oninput={onSearchInput}
+      placeholder="Search…"
+      class="min-w-[12rem] rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+    />
+    <div class="relative">
+      <button
+        type="button"
+        onclick={() => {
+          deviceDropdownOpen = false
+          if (!activityTypeDropdownOpen) activityTypeFilter = ''
+          activityTypeDropdownOpen = !activityTypeDropdownOpen
+        }}
+        class="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent"
+        aria-expanded={activityTypeDropdownOpen}
+        aria-haspopup="listbox"
+      >
+        Activity type {selectedActivityTypes.length ? `(${selectedActivityTypes.length})` : ''}
+        <span class="material-icons ml-1 text-sm">arrow_drop_down</span>
+      </button>
+      {#if activityTypeDropdownOpen}
+        <div
+          class="absolute left-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-card-solid shadow-lg"
+          role="listbox"
+        >
+          <div class="sticky top-0 z-10 border-b border-border bg-card-solid p-2">
+            <label for="activity-type-filter" class="sr-only">Filter activity types</label>
+            <input
+              id="activity-type-filter"
+              type="text"
+              bind:value={activityTypeFilter}
+              placeholder="Search…"
+              class="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              onkeydown={(e) => e.stopPropagation()}
+              bind:this={activityTypeFilterInputEl}
+            />
+          </div>
+          <div class="max-h-60 overflow-auto py-1">
+            {#each filteredActivityTypes as type}
+              <label class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-card-hover">
+                <input
+                  type="checkbox"
+                  checked={selectedActivityTypes.includes(type)}
+                  onchange={() => toggleActivityType(type)}
+                  class="h-4 w-4 rounded border-border text-accent"
+                />
+                <span class="text-sm text-text-primary">{type}</span>
+              </label>
+            {/each}
+            {#if filteredActivityTypes.length === 0}
+              <p class="px-3 py-2 text-sm text-text-secondary">No matching types</p>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </div>
+    <div class="relative">
+      <button
+        type="button"
+        onclick={() => { deviceDropdownOpen = !deviceDropdownOpen; activityTypeDropdownOpen = false }}
+        class="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent"
+        aria-expanded={deviceDropdownOpen}
+        aria-haspopup="listbox"
+      >
+        Device {selectedDevices.length ? `(${selectedDevices.length})` : ''}
+        <span class="material-icons ml-1 text-sm">arrow_drop_down</span>
+      </button>
+      {#if deviceDropdownOpen}
+        <div
+          class="absolute left-0 top-full z-20 mt-1 max-h-60 w-56 overflow-auto rounded-md border border-border bg-card-solid py-1 shadow-lg"
+          role="listbox"
+        >
+          {#each devicesOptions as device}
+            <label class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-card-hover">
+              <input
+                type="checkbox"
+                checked={selectedDevices.includes(device)}
+                onchange={() => toggleDevice(device)}
+                class="h-4 w-4 rounded border-border text-accent"
+              />
+              <span class="text-sm text-text-primary">{device}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+    </div>
+    {#if activityTypeDropdownOpen || deviceDropdownOpen}
+      <div
+        class="fixed inset-0 z-10"
+        role="presentation"
+        onclick={() => {
+          activityTypeFilter = ''
+          activityTypeDropdownOpen = false
+          deviceDropdownOpen = false
+        }}
+      ></div>
+    {/if}
+    <div class="flex items-center gap-2">
+      <label for="filter-date-start" class="text-sm text-text-secondary">From</label>
+      <input
+        id="filter-date-start"
+        type="date"
+        value={dateStartStr}
+        onchange={(e) => setDateStart((e.target as HTMLInputElement).value)}
+        class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+      <label for="filter-date-end" class="text-sm text-text-secondary">To</label>
+      <input
+        id="filter-date-end"
+        type="date"
+        value={dateEndStr}
+        onchange={(e) => setDateEnd((e.target as HTMLInputElement).value)}
+        class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+    </div>
+  </div>
+
   <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
   <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
     <table class="w-full divide-y divide-border text-[1.00625rem] table-fixed">
@@ -589,14 +796,14 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-border bg-transparent">
-        {#if activityRows.length === 0 && !isLoading}
+        {#if activityRowsFromApi.length === 0 && !isLoading}
           <tr>
             <td colspan="8" class="px-6 py-4 text-center text-text-secondary">
-              No events found. Upload an activity file to get started.
+              No activities found. Upload an activity file or adjust filters.
             </td>
           </tr>
         {:else}
-          {#each activityRows as row (`${row.event.id}_${row.activity.id}`)}
+          {#each activityRowsFromApi as row (`${row.event.id}_${row.activity.id}`)}
             {@const isSelected = selectedEventIds.has(row.event.id)}
             <tr
               role="link"
