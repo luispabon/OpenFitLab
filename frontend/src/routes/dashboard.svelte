@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { push } from 'svelte-spa-router'
+  import { push, querystring } from 'svelte-spa-router'
   import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
   import type { EventSummary, Activity, ActivityRow } from '../lib/types'
   import {
@@ -23,8 +23,22 @@
   let selectedDevices = $state<string[]>([])
   let dateStartStr = $state('')
   let dateEndStr = $state('')
-  let page = $state(1)
-  let pageSize = $state(20)
+  const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const
+  function parsePageFromQueryString(qs: string): { page: number; pageSize: number } {
+    const params = new URLSearchParams(qs)
+    const p = Math.max(1, parseInt(params.get('page') ?? '1', 10) || 1)
+    const ps = parseInt(params.get('pageSize') ?? '20', 10)
+    const valid = PAGE_SIZE_OPTIONS.includes(ps as (typeof PAGE_SIZE_OPTIONS)[number])
+    return { page: p, pageSize: valid ? ps : 20 }
+  }
+  function getInitialQueryString(): string {
+    const hash = typeof window !== 'undefined' ? window.location.hash : ''
+    const qi = hash.indexOf('?')
+    return qi === -1 ? '' : hash.slice(qi + 1)
+  }
+  const initial = parsePageFromQueryString(getInitialQueryString())
+  let page = $state(initial.page)
+  let pageSize = $state(initial.pageSize)
   let activityTypesOptions = $state<string[]>([])
   let devicesOptions = $state<string[]>([])
   let activityTypeDropdownOpen = $state(false)
@@ -318,6 +332,7 @@
   onMount(() => {
     getActivityTypes().then((r) => { activityTypesOptions = r })
     getDevices().then((r) => { devicesOptions = r })
+    lastQuerystringSynced = undefined
   })
 
   $effect(() => {
@@ -365,8 +380,40 @@
     return Array.from(ids)
   })
 
-  const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const
   const totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)))
+
+  function buildDashboardPath(p: number, ps: number): string {
+    const parts: string[] = []
+    parts.push(`page=${p}`)
+    if (ps !== 20) parts.push(`pageSize=${ps}`)
+    return `/?${parts.join('&')}`
+  }
+
+  let suppressUrlSync = false
+  let lastQuerystringSynced = $state<string | undefined>(undefined)
+
+  $effect(() => {
+    const qs = $querystring ?? ''
+    if (lastQuerystringSynced !== undefined && qs === lastQuerystringSynced) return
+    lastQuerystringSynced = qs
+    const parsed = parsePageFromQueryString(qs)
+    suppressUrlSync = true
+    page = parsed.page
+    pageSize = parsed.pageSize
+    queueMicrotask(() => { suppressUrlSync = false })
+  })
+
+  $effect(() => {
+    const p = page
+    const ps = pageSize
+    if (suppressUrlSync) return
+    const target = buildDashboardPath(p, ps)
+    const currentQs = $querystring ?? ''
+    const current = parsePageFromQueryString(currentQs)
+    if (current.page !== p || current.pageSize !== ps) {
+      push(target)
+    }
+  })
 
   const pageRangeStart = $derived(totalRows === 0 ? 0 : (page - 1) * pageSize + 1)
   const pageRangeEnd = $derived(totalRows === 0 ? 0 : Math.min(page * pageSize, totalRows))
@@ -374,10 +421,17 @@
     totalRows === 0 ? '0 of 0' : pageRangeStart === pageRangeEnd ? `${pageRangeStart} of ${totalRows}` : `${pageRangeStart}-${pageRangeEnd} of ${totalRows}`
   )
 
+  /** Paginator uses URL as source of truth so Back/Forward and return-from-route always show correct page */
+  const currentPageFromUrl = $derived.by(() => {
+    const parsed = parsePageFromQueryString($querystring ?? '')
+    const total = totalPages
+    return Math.min(Math.max(1, parsed.page), total)
+  })
+
   const visiblePageNumbers = $derived.by(() => {
     const total = totalPages
     if (total <= 1) return []
-    const current = Math.min(page, total)
+    const current = Math.min(currentPageFromUrl, total)
     const delta = 2
     const range: number[] = []
     const add = (n: number) => {
@@ -391,7 +445,12 @@
   })
 
   function goToPage(p: number) {
-    if (p >= 1 && p <= totalPages) page = p
+    if (p < 1 || p > totalPages) return
+    const target = buildDashboardPath(p, pageSize)
+    const newQs = target.slice(target.indexOf('?') + 1)
+    lastQuerystringSynced = newQs
+    push(target)
+    page = p
   }
 
   function onPageSizeChange(e: Event) {
@@ -802,8 +861,8 @@
       <div class="flex items-center gap-2">
         <button
           type="button"
-          disabled={page <= 1}
-          onclick={() => goToPage(page - 1)}
+          disabled={currentPageFromUrl <= 1}
+          onclick={() => goToPage(currentPageFromUrl - 1)}
           class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Previous page"
         >
@@ -816,19 +875,19 @@
           <button
             type="button"
             onclick={() => goToPage(p)}
-            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === page
+            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === currentPageFromUrl
               ? 'border-0 bg-accent text-white'
               : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
             aria-label="Page {p}"
-            aria-current={p === page ? 'page' : undefined}
+            aria-current={p === currentPageFromUrl ? 'page' : undefined}
           >
             {p}
           </button>
         {/each}
         <button
           type="button"
-          disabled={page >= totalPages}
-          onclick={() => goToPage(page + 1)}
+          disabled={currentPageFromUrl >= totalPages}
+          onclick={() => goToPage(currentPageFromUrl + 1)}
           class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Next page"
         >
@@ -838,10 +897,10 @@
         <label for="jump-to-page" class="sr-only">Jump to page</label>
         <select
           id="jump-to-page"
-          value={page}
+          value={currentPageFromUrl}
           onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
           class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          aria-label="Page {page} of {totalPages}"
+          aria-label="Page {currentPageFromUrl} of {totalPages}"
         >
           {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
             <option value={p}>Page {p} of {totalPages}</option>
@@ -1037,8 +1096,8 @@
       <div class="flex items-center gap-2">
         <button
           type="button"
-          disabled={page <= 1}
-          onclick={() => goToPage(page - 1)}
+          disabled={currentPageFromUrl <= 1}
+          onclick={() => goToPage(currentPageFromUrl - 1)}
           class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Previous page"
         >
@@ -1051,19 +1110,19 @@
           <button
             type="button"
             onclick={() => goToPage(p)}
-            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === page
+            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === currentPageFromUrl
               ? 'border-0 bg-accent text-white'
               : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
             aria-label="Page {p}"
-            aria-current={p === page ? 'page' : undefined}
+            aria-current={p === currentPageFromUrl ? 'page' : undefined}
           >
             {p}
           </button>
         {/each}
         <button
           type="button"
-          disabled={page >= totalPages}
-          onclick={() => goToPage(page + 1)}
+          disabled={currentPageFromUrl >= totalPages}
+          onclick={() => goToPage(currentPageFromUrl + 1)}
           class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Next page"
         >
@@ -1073,10 +1132,10 @@
         <label for="jump-to-page-bottom" class="sr-only">Jump to page</label>
         <select
           id="jump-to-page-bottom"
-          value={page}
+          value={currentPageFromUrl}
           onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
           class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          aria-label="Page {page} of {totalPages}"
+          aria-label="Page {currentPageFromUrl} of {totalPages}"
         >
           {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
             <option value={p}>Page {p} of {totalPages}</option>
