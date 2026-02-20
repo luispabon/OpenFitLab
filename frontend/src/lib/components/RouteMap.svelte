@@ -61,20 +61,22 @@
     return () => m.off('style.load', updateLabels)
   })
 
-  /** Single-route: one item with route + bounds. Multi-route: one item per route with color, merged bounds. */
+  /** Single-route: one item with route + bounds. Multi-route: one item per route with color + label, merged bounds. */
   const routesWithData = $derived.by(() => {
     if (routes?.length) {
-      const items: Array<{ route: ReturnType<typeof buildRouteGeoJSON>; color: string }> = []
+      const items: Array<{ route: ReturnType<typeof buildRouteGeoJSON>; color: string; label: string }> = []
       for (const r of routes) {
         const data = buildRouteGeoJSON(r.streams)
-        if (data) items.push({ route: data, color: r.color })
+        if (data) items.push({ route: data, color: r.color, label: r.label })
       }
       return items
     }
     const single = buildRouteGeoJSON(streams)
-    if (single) return [{ route: single, color: '#60a5fa' }]
+    if (single) return [{ route: single, color: '#60a5fa', label: '' }]
     return []
   })
+
+  const showLegend = $derived(Boolean(routes?.length && routesWithData.length > 0))
 
   const mergedBounds = $derived.by(() => {
     if (routesWithData.length === 0) return null
@@ -153,5 +155,19 @@
         {/each}
       </MapLibre>
     </div>
+    {#if showLegend}
+      <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
+        {#each routesWithData as item}
+          <div class="flex items-center gap-2">
+            <span
+              class="h-3 w-3 shrink-0 rounded-sm"
+              style="background-color: {item.color};"
+              aria-hidden="true"
+            ></span>
+            <span class="text-text-primary">{item.label}:</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 {/if}
