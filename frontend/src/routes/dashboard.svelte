@@ -368,6 +368,12 @@
   const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const
   const totalPages = $derived(Math.max(1, Math.ceil(totalRows / pageSize)))
 
+  const pageRangeStart = $derived(totalRows === 0 ? 0 : (page - 1) * pageSize + 1)
+  const pageRangeEnd = $derived(totalRows === 0 ? 0 : Math.min(page * pageSize, totalRows))
+  const pageRangeText = $derived(
+    totalRows === 0 ? '0 of 0' : pageRangeStart === pageRangeEnd ? `${pageRangeStart} of ${totalRows}` : `${pageRangeStart}-${pageRangeEnd} of ${totalRows}`
+  )
+
   const visiblePageNumbers = $derived.by(() => {
     const total = totalPages
     if (total <= 1) return []
@@ -828,6 +834,7 @@
         >
           <span class="material-icons text-lg">chevron_right</span>
         </button>
+        <span class="text-sm text-text-secondary">{pageRangeText}</span>
         <label for="jump-to-page" class="sr-only">Jump to page</label>
         <select
           id="jump-to-page"
@@ -1062,6 +1069,7 @@
         >
           <span class="material-icons text-lg">chevron_right</span>
         </button>
+        <span class="text-sm text-text-secondary">{pageRangeText}</span>
         <label for="jump-to-page-bottom" class="sr-only">Jump to page</label>
         <select
           id="jump-to-page-bottom"
