@@ -454,6 +454,80 @@ router.get(
   })
 );
 
+// PATCH /api/events/:id/activities/:activityId
+router.patch(
+  '/:id/activities/:activityId',
+  validateEventId,
+  validateActivityId,
+  asyncHandler(async (req, res) => {
+    const { id: eventId, activityId } = req.params;
+    const { type: typeUpdate, deviceName } = req.body || {};
+
+    if ((typeUpdate === undefined || typeUpdate === null) && (deviceName === undefined || deviceName === null)) {
+      return res.status(400).json({ error: 'Provide at least one of type or deviceName' });
+    }
+
+    const activity = await db.queryOne(
+      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id = ? AND event_id = ?',
+      [activityId, eventId]
+    );
+    if (!activity) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+
+    await db.transaction(async (conn) => {
+      if (typeUpdate !== undefined && typeUpdate !== null) {
+        const typeValue = String(typeUpdate).trim() || null;
+        await conn.execute(
+          'UPDATE activities SET type = ? WHERE id = ? AND event_id = ?',
+          [typeValue, activityId, eventId]
+        );
+        const activityRows = await conn.execute(
+          'SELECT type FROM activities WHERE event_id = ?',
+          [eventId]
+        );
+        const types = [...new Set((activityRows[0] || []).map((r) => r.type).filter(Boolean))].sort();
+        await conn.execute(
+          'INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+          [eventId, 'Activity Types', JSON.stringify(types)]
+        );
+      }
+
+      if (deviceName !== undefined && deviceName !== null) {
+        const deviceValue = String(deviceName).trim();
+        await conn.execute(
+          `INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, 'Device Names', ?)
+           ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [activityId, JSON.stringify([deviceValue])]
+        );
+        const payloadRest = parseJSONField(activity.payload_rest, {});
+        const updatedPayload = {
+          ...payloadRest,
+          creator: {
+            ...(typeof payloadRest.creator === 'object' && payloadRest.creator !== null ? payloadRest.creator : {}),
+            name: deviceValue,
+          },
+        };
+        await conn.execute(
+          'UPDATE activities SET payload_rest = ? WHERE id = ? AND event_id = ?',
+          [JSON.stringify(updatedPayload), activityId, eventId]
+        );
+      }
+    });
+
+    const [updatedRow] = await db.query(
+      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id = ? AND event_id = ?',
+      [activityId, eventId]
+    );
+    const statsRows = await db.query(
+      'SELECT stat_type, value FROM activity_stats WHERE activity_id = ?',
+      [activityId]
+    );
+    const activityStats = aggregateStats(statsRows);
+    res.json(mapActivityRow(updatedRow, activityStats));
+  })
+);
+
 // DELETE /api/events/:id
 router.delete(
   '/:id',

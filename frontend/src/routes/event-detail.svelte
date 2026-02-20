@@ -5,7 +5,7 @@
   let { params = {} }: Props = $props()
 
   import { push } from 'svelte-spa-router'
-  import { getEvent, getStreams } from '../lib/api'
+  import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api'
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
   import {
     formatDateWithTime,
@@ -22,6 +22,7 @@
   } from '../lib/utils'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import RouteMap from '../lib/components/RouteMap.svelte'
+  import SearchableSelect from '../lib/components/SearchableSelect.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
   import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
   import OverlayChart from '../lib/components/OverlayChart.svelte'
@@ -80,6 +81,15 @@
   )
   let moreStatsOpen = $state(false)
 
+  // Inline edit: activity type and device
+  type EditField = 'activityType' | 'device' | null
+  let editField = $state<EditField>(null)
+  let activityTypesCache = $state<string[]>([])
+  let devicesCache = $state<string[]>([])
+  let optionsLoading = $state(false)
+  let saving = $state(false)
+  let saveError = $state<string | null>(null)
+
   // Selected activity (defaults to first)
   let selectedActivityId = $state<string | null>(null)
 
@@ -118,6 +128,87 @@
     if (!ev?.startDate) return ''
     return formatDateWithTime(ev.startDate)
   })
+
+  async function openActivityTypeEditor() {
+    saveError = null
+    if (activityTypesCache.length === 0) {
+      optionsLoading = true
+      try {
+        activityTypesCache = await getActivityTypes()
+      } finally {
+        optionsLoading = false
+      }
+    }
+    editField = 'activityType'
+  }
+
+  async function openDeviceEditor() {
+    saveError = null
+    if (devicesCache.length === 0) {
+      optionsLoading = true
+      try {
+        devicesCache = await getDevices()
+      } finally {
+        optionsLoading = false
+      }
+    }
+    editField = 'device'
+  }
+
+  function closeEditor() {
+    editField = null
+    saveError = null
+  }
+
+  async function commitActivityType(newType: string) {
+    const ev = event
+    const firstActivity = activities[0]
+    if (!id || !ev || !firstActivity) return
+    saving = true
+    saveError = null
+    try {
+      const updated = await updateActivity(id, firstActivity.id, { type: newType })
+      if (eventDetail) {
+        eventDetail.activities = eventDetail.activities.map((a) =>
+          a.id === updated.id ? updated : a
+        )
+        const types = [
+          ...new Set(
+            eventDetail.activities.map((a) => a.type).filter((t): t is string => Boolean(t))
+          ),
+        ].sort()
+        eventDetail.event = {
+          ...eventDetail.event,
+          stats: { ...eventDetail.event.stats, 'Activity Types': types },
+        }
+      }
+      editField = null
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'Failed to update activity type'
+    } finally {
+      saving = false
+    }
+  }
+
+  async function commitDevice(newDevice: string) {
+    const act = selectedActivity
+    if (!id || !act) return
+    saving = true
+    saveError = null
+    try {
+      const updated = await updateActivity(id, act.id, { deviceName: newDevice })
+      if (eventDetail) {
+        eventDetail.activities = eventDetail.activities.map((a) =>
+          a.id === updated.id ? updated : a
+        )
+      }
+      editField = null
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'Failed to update device'
+    } finally {
+      saving = false
+    }
+  }
 
   // Filter to chartable streams only; hide "X Smooth" when "X" is also present
   const allStreamTypes = $derived(streams.map((s) => s.type))
@@ -276,12 +367,69 @@
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-col gap-0.5">
-              <span class="font-medium text-text-primary">
-                {mainActivityType || '—'} - {formattedDateString}
-              </span>
-              <span class="text-text-secondary">
-                {deviceName}
-              </span>
+              <div class="flex items-center gap-1.5">
+                {#if editField === 'activityType'}
+                  <div class="min-w-[12rem]">
+                    <SearchableSelect
+                      options={activityTypesCache}
+                      value={mainActivityType}
+                      allowCustom={false}
+                      placeholder="Activity type…"
+                      oncommit={commitActivityType}
+                      oncancel={closeEditor}
+                    />
+                  </div>
+                {:else if activities.length > 0}
+                  <button
+                    type="button"
+                    class="group inline-flex items-center gap-1 rounded px-0.5 py-0.5 text-left font-medium text-text-primary hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                    onclick={openActivityTypeEditor}
+                    disabled={optionsLoading || saving}
+                  >
+                    <span>{mainActivityType || '—'}</span>
+                    <span
+                      class="material-icons text-base text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden="true"
+                    >
+                      edit
+                    </span>
+                  </button>
+                {:else}
+                  <span class="font-medium text-text-primary">{mainActivityType || '—'}</span>
+                {/if}
+                <span class="font-medium text-text-primary"> - {formattedDateString}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                {#if editField === 'device'}
+                  <div class="min-w-[12rem]">
+                    <SearchableSelect
+                      options={devicesCache}
+                      value={deviceName === '—' ? '' : deviceName}
+                      allowCustom={true}
+                      placeholder="Device…"
+                      oncommit={commitDevice}
+                      oncancel={closeEditor}
+                    />
+                  </div>
+                {:else if selectedActivity}
+                  <button
+                    type="button"
+                    class="group inline-flex items-center gap-1 rounded px-0.5 py-0.5 text-left text-text-secondary hover:bg-surface hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent disabled:opacity-60"
+                    onclick={openDeviceEditor}
+                    disabled={optionsLoading || saving}
+                  >
+                    <span>{deviceName}</span>
+                    <span
+                      class="material-icons text-base text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden="true"
+                    >
+                      edit
+                    </span>
+                  </button>
+                {:else}
+                  <span class="text-text-secondary">{deviceName}</span>
+                {/if}
+              </div>
               <span class="text-text-secondary truncate" title={event.name || undefined}>
                 {event.name || '—'}
               </span>
@@ -299,6 +447,15 @@
           </div>
         {/if}
       </div>
+
+      {#if saveError}
+        <div
+          class="border-t border-border px-6 py-2 text-sm text-danger"
+          role="alert"
+        >
+          {saveError}
+        </div>
+      {/if}
 
       <!-- More stats (grouped by category, collapsible) -->
       {#if hasMoreStats}

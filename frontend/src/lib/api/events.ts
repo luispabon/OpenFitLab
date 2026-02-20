@@ -1,4 +1,4 @@
-import type { EventSummary, EventDetail, StreamData, UploadResponse } from '../types/event'
+import type { EventSummary, EventDetail, StreamData, UploadResponse, Activity } from '../types/event'
 
 const API_BASE = '/api'
 
@@ -38,6 +38,45 @@ export async function getEvent(id: string): Promise<EventDetail> {
     throw new Error(`Failed to fetch event: ${response.statusText}`)
   }
 
+  return response.json()
+}
+
+export async function getActivityTypes(): Promise<string[]> {
+  const response = await fetch(`${API_BASE}/activity-types`)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch activity types: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function getDevices(): Promise<string[]> {
+  const response = await fetch(`${API_BASE}/devices`)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch devices: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+export async function updateActivity(
+  eventId: string,
+  activityId: string,
+  updates: { type?: string; deviceName?: string }
+): Promise<Activity> {
+  const response = await fetch(
+    `${API_BASE}/events/${eventId}/activities/${activityId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    }
+  )
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Activity not found')
+    }
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.error || `Failed to update activity: ${response.statusText}`)
+  }
   return response.json()
 }
 
