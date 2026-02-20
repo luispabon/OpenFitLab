@@ -26,6 +26,7 @@ const asyncHandler = (fn) => (req, res, next) =>
 
 const {
   validateGetEventsQuery,
+  validateGetActivityRowsQuery,
   validateEventId,
   validateActivityId,
   validateStreamTypes,
@@ -91,6 +92,135 @@ router.get(
     }
 
     res.json(events);
+  })
+);
+
+// GET /api/events/activity-rows?limit=&offset=&startDate=&endDate=&activityTypes=&devices=&search=
+// Returns { rows: Array<{ event, activity }>, total } with pagination and filters applied.
+router.get(
+  '/activity-rows',
+  validateGetActivityRowsQuery,
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Math.max(1, Number(req.query.limit) || 20), 50);
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    const startDate = req.query.startDate != null ? Number(req.query.startDate) : null;
+    const endDate = req.query.endDate != null ? Number(req.query.endDate) : null;
+    const activityTypes = req.query.activityTypes != null
+      ? (Array.isArray(req.query.activityTypes) ? req.query.activityTypes : [req.query.activityTypes]).map((t) => String(t).trim()).filter(Boolean)
+      : [];
+    const devices = req.query.devices != null
+      ? (Array.isArray(req.query.devices) ? req.query.devices : [req.query.devices]).map((d) => String(d).trim()).filter(Boolean)
+      : [];
+    const searchRaw = req.query.search != null ? String(req.query.search).trim() : '';
+
+    // Build base FROM and param list
+    let sql = 'FROM events e INNER JOIN activities a ON e.id = a.event_id WHERE 1=1';
+    const params = [];
+
+    // Date range on activity start (fallback to event start)
+    if (startDate != null) {
+      sql += ' AND COALESCE(a.start_date, e.start_date) >= ?';
+      params.push(startDate);
+    }
+    if (endDate != null) {
+      sql += ' AND COALESCE(a.start_date, e.start_date) <= ?';
+      params.push(endDate);
+    }
+
+    // Activity types (OR within filter)
+    if (activityTypes.length > 0) {
+      sql += ` AND a.type IN (${placeholders(activityTypes.length)})`;
+      params.push(...activityTypes);
+    }
+
+    // Device filter: restrict to activity_ids that have at least one selected device in Device Names stat
+    if (devices.length > 0) {
+      const deviceRows = await db.query(
+        "SELECT activity_id, value FROM activity_stats WHERE stat_type = 'Device Names'"
+      );
+      const activityIdsWithDevice = new Set();
+      for (const row of deviceRows) {
+        const value = parseJSONField(row.value);
+        if (!Array.isArray(value)) continue;
+        const namesInValue = new Set();
+        for (const item of value) {
+          if (typeof item === 'string' && item.trim()) namesInValue.add(item.trim());
+          if (item && typeof item === 'object' && item.name != null) namesInValue.add(String(item.name).trim());
+        }
+        for (const dev of devices) {
+          if (namesInValue.has(dev)) {
+            activityIdsWithDevice.add(row.activity_id);
+            break;
+          }
+        }
+      }
+      if (activityIdsWithDevice.size === 0) {
+        return res.json({ rows: [], total: 0 });
+      }
+      sql += ` AND a.id IN (${placeholders(activityIdsWithDevice.size)})`;
+      params.push(...activityIdsWithDevice);
+    }
+
+    // Search: event name, activity name, activity type (LIKE %term%)
+    if (searchRaw.length > 0) {
+      const escapeLike = (s) => String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const searchTerm = `%${escapeLike(searchRaw)}%`;
+      sql += ' AND (e.name LIKE ? OR a.name LIKE ? OR a.type LIKE ?)';
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    const countParams = [...params];
+    const countSql = `SELECT COUNT(*) AS total ${sql}`;
+    const countResult = await db.query(countSql, countParams);
+    const total = Number(countResult[0]?.total ?? 0);
+
+    if (total === 0) {
+      return res.json({ rows: [], total: 0 });
+    }
+
+    const orderAndPage = ' ORDER BY COALESCE(a.start_date, e.start_date) DESC LIMIT ? OFFSET ?';
+    const mainParams = [...params, limit, offset];
+    const mainSql = `SELECT e.id AS event_id, a.id AS activity_id ${sql}${orderAndPage}`;
+    const pairRows = await db.query(mainSql, mainParams);
+
+    const eventIds = [...new Set(pairRows.map((r) => r.event_id))];
+    const activityIds = pairRows.map((r) => r.activity_id);
+
+    const [eventRows, activityRows, eventStatsRows, activityStatsRows] = await Promise.all([
+      db.query(
+        `SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+      db.query(
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      ),
+      db.query(
+        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
+        eventIds
+      ),
+      db.query(
+        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
+        activityIds
+      ),
+    ]);
+
+    const eventsById = Object.fromEntries(eventRows.map((r) => [r.id, r]));
+    const activitiesById = Object.fromEntries(activityRows.map((r) => [r.id, r]));
+    const statsByEventId = aggregateStats(eventStatsRows, 'event_id');
+    const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
+
+    const rows = pairRows.map(({ event_id, activity_id }) => {
+      const eventRow = eventsById[event_id];
+      const activityRow = activitiesById[activity_id];
+      if (!eventRow || !activityRow) return null;
+      return {
+        event: mapEventRow(eventRow, statsByEventId[event_id]),
+        activity: mapActivityRow(activityRow, statsByActivityId[activity_id]),
+      };
+    }).filter(Boolean);
+
+    res.json({ rows, total });
   })
 );
 
