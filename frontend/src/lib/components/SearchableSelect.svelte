@@ -112,7 +112,7 @@
   <div
     id="searchable-select-listbox"
     role="listbox"
-    class="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-card shadow-lg"
+    class="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-border bg-surface-solid shadow-lg"
   >
     {#if displayList.length === 0 && !canCommitCustom}
       <div class="px-3 py-2 text-sm text-text-muted">No matches</div>
@@ -123,8 +123,8 @@
           role="option"
           aria-selected={i === highlightedIndex}
           class="w-full px-3 py-2 text-left text-sm transition-colors {i === highlightedIndex
-            ? 'bg-accent/20 text-text-primary'
-            : 'text-text-primary hover:bg-surface'}"
+            ? 'bg-card-hover-solid text-text-primary'
+            : 'text-text-primary hover:bg-card-solid'}"
           onmouseenter={() => (highlightedIndex = i)}
           onmousedown={(e) => e.preventDefault()}
           onclick={() => commit(opt)}

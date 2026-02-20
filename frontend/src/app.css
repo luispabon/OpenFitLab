@@ -2,8 +2,11 @@
 
 @theme {
   --color-surface: rgba(15, 15, 30, 0.7);
+  --color-surface-solid: rgb(18, 18, 35);
   --color-card: rgba(25, 25, 50, 0.5);
+  --color-card-solid: rgb(28, 28, 52);
   --color-card-hover: rgba(35, 35, 60, 0.6);
+  --color-card-hover-solid: rgb(38, 38, 62);
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-hover: rgba(255, 255, 255, 0.15);
   --color-text-primary: #f0f0f5;
