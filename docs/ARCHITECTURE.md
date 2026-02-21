@@ -213,16 +213,6 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - `sequence_index`: Ordering index for data points
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
-#### original_files
-Metadata about uploaded files (currently not used, files are parsed and discarded).
-
-- `id`: UUID
-- `event_id`: Foreign key to events
-- `extension`: File extension
-- `file_path`: File path (if stored)
-- `start_date`: File start date
-- `original_filename`: Original filename
-
 ## API Design
 
 ### REST Endpoints
@@ -346,8 +336,7 @@ Delete an event and all related data.
 3. Delete `stream_data_points` for all streams
 4. Delete `streams` for event
 5. Delete `activities` for event
-6. Delete `original_files` for event
-7. Delete `events` record
+6. Delete `events` record
 
 ## Data Flow
 

@@ -632,7 +632,6 @@ router.delete(
 
       await conn.execute('DELETE FROM streams WHERE event_id = ?', [eventId]);
       await conn.execute('DELETE FROM activities WHERE event_id = ?', [eventId]);
-      await conn.execute('DELETE FROM original_files WHERE event_id = ?', [eventId]);
       await conn.execute('DELETE FROM events WHERE id = ?', [eventId]);
     });
 

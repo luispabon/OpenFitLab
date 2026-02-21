@@ -1,4 +1,4 @@
--- Wave 2: events, activities, original_files for single-user fitness data
+-- Wave 2: events, activities for single-user fitness data
 -- Run once on fresh DB (e.g. on API startup if tables missing).
 -- No foreign keys to avoid charset/collation issues across environments.
 
@@ -43,17 +43,6 @@ CREATE TABLE IF NOT EXISTS activity_stats (
   value JSON NOT NULL,
   PRIMARY KEY (activity_id, stat_type),
   INDEX idx_activity_id (activity_id)
-);
-
-CREATE TABLE IF NOT EXISTS original_files (
-  id VARCHAR(36) PRIMARY KEY,
-  event_id VARCHAR(36) NOT NULL,
-  extension VARCHAR(16) NOT NULL,
-  file_path VARCHAR(512) NOT NULL,
-  start_date BIGINT,
-  original_filename VARCHAR(512),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_event_id (event_id)
 );
 
 CREATE TABLE IF NOT EXISTS streams (
