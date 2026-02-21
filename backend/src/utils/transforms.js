@@ -31,8 +31,6 @@ function aggregateStats(rows, keyField) {
 }
 
 function mapEventRow(row, statsForEvent = {}) {
-  const payloadRest = parseJSONField(row.payload_rest, {});
-
   return {
     id: row.id,
     startDate: Number(row.start_date),
@@ -41,13 +39,11 @@ function mapEventRow(row, statsForEvent = {}) {
     ...(row.description != null ? { description: row.description } : {}),
     ...(row.is_merge === 1 ? { isMerge: true } : {}),
     stats: statsForEvent || {},
-    ...payloadRest,
+    ...(row.src_file_type != null ? { srcFileType: row.src_file_type } : {}),
   };
 }
 
 function mapActivityRow(row, statsForActivity = {}) {
-  const payloadRest = parseJSONField(row.payload_rest, {});
-
   return {
     id: row.id,
     eventID: row.event_id,
@@ -57,16 +53,8 @@ function mapActivityRow(row, statsForActivity = {}) {
     ...(row.end_date != null ? { endDate: Number(row.end_date) } : {}),
     ...(row.type != null ? { type: row.type } : {}),
     stats: statsForActivity || {},
-    ...payloadRest,
+    ...(row.device_name != null ? { deviceName: row.device_name } : {}),
   };
-}
-
-function extractPayloadRest(obj, keysToOmit) {
-  const payload = { ...obj };
-  for (const key of keysToOmit) {
-    delete payload[key];
-  }
-  return payload;
 }
 
 function placeholders(count) {
@@ -79,7 +67,6 @@ module.exports = {
   aggregateStats,
   mapEventRow,
   mapActivityRow,
-  extractPayloadRest,
   placeholders,
 };
 

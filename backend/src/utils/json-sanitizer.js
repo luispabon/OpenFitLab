@@ -18,13 +18,6 @@ class JSONSanitizer {
         if (!Array.isArray(a.laps)) a.laps = [];
         if (!Array.isArray(a.events)) a.events = [];
         if (!Array.isArray(a.intensityZones)) a.intensityZones = [];
-        if (!a.creator || typeof a.creator !== 'object' || a.creator === null) {
-          a.creator = { name: '', isRecognized: false, devices: [] };
-        }
-        // Sanitize creator object
-        if (a.creator) {
-          a.creator = this.sanitizeCreator(a.creator);
-        }
         if (a.stats) a.stats = this.sanitizeStats(a.stats, unknownTypes);
         // Sanitize laps stats
         if (Array.isArray(a.laps)) {
@@ -63,20 +56,6 @@ class JSONSanitizer {
       }
     }
     return out;
-  }
-
-  static sanitizeCreator(creator) {
-    const sanitized = { ...creator };
-    if (sanitized.name === undefined || sanitized.name === null) sanitized.name = '';
-    if (sanitized.isRecognized === undefined || sanitized.isRecognized === null) sanitized.isRecognized = false;
-    if (!Array.isArray(sanitized.devices)) sanitized.devices = [];
-    // Remove undefined properties
-    Object.keys(sanitized).forEach((key) => {
-      if (sanitized[key] === undefined) {
-        delete sanitized[key];
-      }
-    });
-    return sanitized;
   }
 
   static sanitizeStreams(streams, unknownTypes) {

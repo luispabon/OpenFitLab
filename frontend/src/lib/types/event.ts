@@ -7,7 +7,7 @@ export interface EventSummary {
   isMerge?: boolean
   stats: Record<string, number | string | number[] | Record<string, unknown>>
   activities?: Activity[]
-  [key: string]: unknown // For payload_rest fields
+  srcFileType?: string
 }
 
 export interface EventDetail {
@@ -24,7 +24,7 @@ export interface Activity {
   endDate?: number
   type?: string
   stats: Record<string, number | string | number[] | Record<string, unknown>>
-  [key: string]: unknown // For payload_rest fields
+  deviceName?: string
 }
 
 export interface ActivityRow {
