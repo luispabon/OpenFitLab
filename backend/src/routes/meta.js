@@ -1,37 +1,21 @@
 const express = require('express');
-const db = require('../db');
+const { getActivityTypes, getDevices } = require('../services/meta-service');
 
 const router = express.Router();
 
-/**
- * GET /api/activity-types
- * Returns distinct activity types present in the activities table.
- */
-router.get('/activity-types', async (req, res, next) => {
-  try {
-    const rows = await db.query(
-      "SELECT DISTINCT type FROM activities WHERE type IS NOT NULL AND type != '' ORDER BY type"
-    );
-    const types = rows.map((r) => r.type.trim()).filter(Boolean);
-    res.json(types);
-  } catch (err) {
-    next(err);
-  }
-});
+const asyncHandler = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
-/**
- * GET /api/devices
- * Returns distinct device names from the activities table.
- */
-router.get('/devices', async (req, res, next) => {
-  try {
-    const rows = await db.query(
-      "SELECT DISTINCT device_name FROM activities WHERE device_name IS NOT NULL AND device_name != '' ORDER BY device_name ASC"
-    );
-    res.json(rows.map((r) => r.device_name));
-  } catch (err) {
-    next(err);
-  }
-});
+/** GET /api/activity-types - distinct activity types from activities table */
+router.get('/activity-types', asyncHandler(async (req, res) => {
+  const types = await getActivityTypes();
+  res.json(types);
+}));
+
+/** GET /api/devices - distinct device names from activities table */
+router.get('/devices', asyncHandler(async (req, res) => {
+  const devices = await getDevices();
+  res.json(devices);
+}));
 
 module.exports = router;
