@@ -174,10 +174,6 @@ function validateComparisonBody(req, res, next) {
 }
 
 module.exports = {
-  isValidUUID,
-  isPositiveInteger,
-  isNonNegativeNumber,
-  isNonNegativeInteger,
   validateGetEventsQuery,
   validateGetActivityRowsQuery,
   validateEventId,

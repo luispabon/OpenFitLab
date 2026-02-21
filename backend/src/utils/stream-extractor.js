@@ -219,7 +219,5 @@ function extractStreamDataPointsFromJSON(activityJson, activityStartDateMs) {
 }
 
 module.exports = {
-  extractStreamDataPoints,
   extractStreamDataPointsFromJSON,
-  extractTimestamps
 };

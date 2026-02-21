@@ -88,22 +88,6 @@ class JSONSanitizer {
     }
     return streams;
   }
-
-  static cleanObject(obj) {
-    if (obj === null || typeof obj !== 'object') {
-      return obj;
-    }
-    if (Array.isArray(obj)) {
-      return obj.map((item) => this.cleanObject(item)).filter((item) => item !== undefined);
-    }
-    const cleaned = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined) {
-        cleaned[key] = this.cleanObject(value);
-      }
-    }
-    return cleaned;
-  }
 }
 
 module.exports = JSONSanitizer;
