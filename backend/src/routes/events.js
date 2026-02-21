@@ -1,17 +1,17 @@
 const express = require('express');
 const multer = require('multer');
-const { randomUUID } = require('crypto');
 const db = require('../db');
 const FileParser = require('../parsers/file-parser');
-const { extractStreamDataPointsFromJSON } = require('../utils/stream-extractor');
 const {
   parseJSONField,
-  toTimestamp,
   aggregateStats,
   mapEventRow,
   mapActivityRow,
   placeholders,
 } = require('../utils/transforms');
+const { enrichEventsWithStatsAndActivities, getEventById } = require('../services/event-query-service');
+const { processUpload } = require('../services/event-upload-service');
+const { deleteEventById } = require('../services/event-delete-service');
 
 const router = express.Router();
 
@@ -55,41 +55,7 @@ router.get(
     if (rows.length === 0) {
       return res.json([]);
     }
-    const eventIds = rows.map((r) => r.id);
-    const [statsRows, activityRows] = await Promise.all([
-      db.query(
-        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-        eventIds
-      ),
-      db.query(
-        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
-        eventIds
-      ),
-    ]);
-    const statsByEventId = aggregateStats(statsRows, 'event_id');
-    const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
-
-    if (activityRows.length > 0) {
-      const activityIds = activityRows.map((a) => a.id);
-      const activityStatsRows = await db.query(
-        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-        activityIds
-      );
-      const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
-      const activitiesByEventId = {};
-      for (const a of activityRows) {
-        if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
-        activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
-      }
-      for (const ev of events) {
-        ev.activities = activitiesByEventId[ev.id] || [];
-      }
-    } else {
-      for (const ev of events) {
-        ev.activities = [];
-      }
-    }
-
+    const events = await enrichEventsWithStatsAndActivities(rows);
     res.json(events);
   })
 );
@@ -237,44 +203,7 @@ router.get(
     if (rows.length === 0) {
       return res.json([]);
     }
-    
-    // Fetch stats and activities (same pattern as GET /)
-    const eventIds = rows.map((r) => r.id);
-    const [statsRows, activityRows] = await Promise.all([
-      db.query(
-        `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-        eventIds
-      ),
-      db.query(
-        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
-        eventIds
-      ),
-    ]);
-    
-    const statsByEventId = aggregateStats(statsRows, 'event_id');
-    const events = rows.map((r) => mapEventRow(r, statsByEventId[r.id]));
-    
-    if (activityRows.length > 0) {
-      const activityIds = activityRows.map((a) => a.id);
-      const activityStatsRows = await db.query(
-        `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-        activityIds
-      );
-      const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
-      const activitiesByEventId = {};
-      for (const a of activityRows) {
-        if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
-        activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
-      }
-      for (const ev of events) {
-        ev.activities = activitiesByEventId[ev.id] || [];
-      }
-    } else {
-      for (const ev of events) {
-        ev.activities = [];
-      }
-    }
-    
+    const events = await enrichEventsWithStatsAndActivities(rows);
     res.json(events);
   })
 );
@@ -284,31 +213,9 @@ router.get(
   '/:id',
   validateEventId,
   asyncHandler(async (req, res) => {
-    const event = await db.queryOne(
-      'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id = ?',
-      [req.params.id]
-    );
-    if (!event) return res.status(404).json({ error: 'Event not found' });
-    const activities = await db.query(
-      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id = ?',
-      [req.params.id]
-    );
-    const [eventStatsRows, activityStatsRows] = await Promise.all([
-      db.query('SELECT stat_type, value FROM event_stats WHERE event_id = ?', [req.params.id]),
-      activities.length > 0
-        ? db.query(
-            `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(
-              activities.length
-            )})`,
-            activities.map((a) => a.id)
-          )
-        : [],
-    ]);
-    const eventStats = aggregateStats(eventStatsRows);
-    const activityStatsById = aggregateStats(activityStatsRows, 'activity_id');
-    const eventJson = mapEventRow(event, eventStats);
-    const activitiesJson = activities.map((a) => mapActivityRow(a, activityStatsById[a.id]));
-    res.json({ event: eventJson, activities: activitiesJson });
+    const result = await getEventById(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Event not found' });
+    res.json(result);
   })
 );
 
@@ -322,163 +229,17 @@ router.post(
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files provided' });
     }
-
-    // Parse the first file (we'll use it as the primary event)
-    // In the future, we could support multiple files for multi-activity events
     const primaryFile = req.files[0];
     const extension = FileParser.getExtension(primaryFile.originalname || 'file');
-    
     if (!extension) {
       return res.status(400).json({ error: 'Unable to determine file extension' });
     }
-
-    // Parse the file
-    const event = await FileParser.parseFile(
+    const { eventId, eventJson, activities } = await processUpload(
       primaryFile.buffer,
       extension,
       primaryFile.originalname || 'file'
     );
-
-    // Generate new UUID for event - each upload is a new event
-    const eventId = randomUUID();
-    const startDate = toTimestamp(event.startDate, Date.now());
-    // Always use filename as event name (remove extension and trim)
-    const name = (primaryFile.originalname && primaryFile.originalname.trim())
-      ? primaryFile.originalname.replace(/\.[^/.]+$/, '').trim()
-      : (event.name && event.name.trim() ? event.name.trim() : 'Untitled Event');
-
-    // Extract event JSON and split into columns and stats
-    const eventJson = event.toJSON();
-    const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
-    const eventEndDate = toTimestamp(eventJson.endDate, null);
-    const eventDescription = eventJson.description != null ? String(eventJson.description) : null;
-    const eventIsMerge = eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0;
-    const srcFileType = extension || null;
-
-    // Store everything in a single transaction
-    await db.transaction(async (conn) => {
-      // Store event
-      await conn.execute(
-        `INSERT INTO events (id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [eventId, startDate, name, eventEndDate, eventDescription, eventIsMerge, srcFileType]
-      );
-
-      // Store event stats
-      for (const [statType, value] of Object.entries(eventStats)) {
-        if (value === undefined || value === null) continue;
-        await conn.execute(
-          'INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)',
-          [eventId, statType, JSON.stringify(value)]
-        );
-      }
-
-      // Process activities
-      const activities = event.getActivities();
-      const generatedActivityIds = [];
-
-      for (const activity of activities) {
-        const aid = randomUUID();
-        generatedActivityIds.push(aid);
-
-        const activityJson = activity.toJSON();
-        const streams = activityJson.streams;
-        const aStats = activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
-        const aName = activityJson.name != null ? String(activityJson.name) : null;
-        const aStartDate = toTimestamp(activityJson.startDate, null);
-        const aEndDate = toTimestamp(activityJson.endDate, null);
-        const aType = activityJson.type != null ? String(activityJson.type) : null;
-
-        const deviceName = (activityJson.creator && typeof activityJson.creator === 'object' && activityJson.creator.name != null)
-          ? String(activityJson.creator.name).trim()
-          : null;
-
-        await conn.execute(
-          'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, deviceName || null]
-        );
-
-        for (const [statType, value] of Object.entries(aStats)) {
-          if (value === undefined || value === null) continue;
-          if (statType === 'Device Names') continue;
-          await conn.execute(
-            'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
-            [aid, statType, JSON.stringify(value)]
-          );
-        }
-        
-        // Store streams with timestamped data points
-        if (streams) {
-          // Get activity start date (use activity's own start date if available, otherwise use event start date)
-          const activityStartDate = toTimestamp(activity.startDate, startDate);
-          
-          // Extract stream data points with timestamps
-          // Note: extractStreamDataPointsFromJSON filters out null/undefined/NaN values
-          // and excludes streams with no valid data points
-          const streamDataPoints = extractStreamDataPointsFromJSON(
-            { ...activityJson, streams },
-            activityStartDate
-          );
-          
-          for (const streamInfo of streamDataPoints) {
-            // Skip streams with no valid data points (already filtered by extractStreamDataPointsFromJSON)
-            if (!streamInfo || !streamInfo.type || !streamInfo.dataPoints || streamInfo.dataPoints.length === 0) {
-              continue;
-            }
-            
-            const streamId = `${aid}_${streamInfo.type}`;
-            
-            // Insert stream metadata
-            await conn.execute(
-              'INSERT INTO streams (id, activity_id, event_id, type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
-              [streamId, aid, eventId, streamInfo.type]
-            );
-            
-            // Insert data points in batches (MySQL has a limit on placeholders, typically 65535)
-            // Process in chunks of 1000 to be safe
-            const batchSize = 1000;
-            const dataPointValues = streamInfo.dataPoints.map((dp, index) => [
-              streamId,
-              dp.time,
-              JSON.stringify(dp.value),
-              index
-            ]);
-            
-            for (let i = 0; i < dataPointValues.length; i += batchSize) {
-              const batch = dataPointValues.slice(i, i + batchSize);
-              const batchPlaceholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
-              const flatValues = batch.flat();
-              await conn.execute(
-                `INSERT IGNORE INTO stream_data_points (stream_id, time_ms, value, sequence_index) VALUES ${batchPlaceholders}`,
-                flatValues
-              );
-            }
-          }
-        }
-      }
-    });
-
-    // Build response (non-DB work can happen after transaction)
-    const activities = event.getActivities();
-    const generatedActivityIds = activities.map(() => null);
-
-    const responseActivities = activities.map((activity, idx) => {
-      const activityJson = activity.toJSON();
-      return {
-        ...activityJson,
-        id: generatedActivityIds[idx] || null,
-      };
-    });
-
-    res.status(201).json({
-      id: eventId,
-      event: {
-        ...eventJson,
-        id: eventId,
-        startDate,
-        name,
-      },
-      activities: responseActivities,
-    });
+    res.status(201).json({ id: eventId, event: eventJson, activities });
   })
 );
 
@@ -601,40 +362,8 @@ router.delete(
   '/:id',
   validateEventId,
   asyncHandler(async (req, res) => {
-    const eventId = req.params.id;
-
-    // Ensure event exists before attempting delete
-    const existing = await db.queryOne('SELECT id FROM events WHERE id = ?', [eventId]);
-    if (!existing) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-
-    await db.transaction(async (conn) => {
-      const [activityRows] = await conn.execute('SELECT id FROM activities WHERE event_id = ?', [eventId]);
-      const activityIds = activityRows.map((r) => r.id);
-
-      if (activityIds.length > 0) {
-        await conn.execute(
-          `DELETE FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-          activityIds
-        );
-      }
-      await conn.execute('DELETE FROM event_stats WHERE event_id = ?', [eventId]);
-
-      const [streamRows] = await conn.execute('SELECT id FROM streams WHERE event_id = ?', [eventId]);
-      const streamIds = streamRows.map((r) => r.id);
-      if (streamIds.length > 0) {
-        await conn.execute(
-          `DELETE FROM stream_data_points WHERE stream_id IN (${placeholders(streamIds.length)})`,
-          streamIds
-        );
-      }
-
-      await conn.execute('DELETE FROM streams WHERE event_id = ?', [eventId]);
-      await conn.execute('DELETE FROM activities WHERE event_id = ?', [eventId]);
-      await conn.execute('DELETE FROM events WHERE id = ?', [eventId]);
-    });
-
+    const deleted = await deleteEventById(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Event not found' });
     res.status(204).send();
   })
 );

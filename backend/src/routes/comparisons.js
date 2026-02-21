@@ -1,7 +1,10 @@
 const express = require('express');
-const { randomUUID } = require('crypto');
-const db = require('../db');
-const { parseJSONField } = require('../utils/transforms');
+const {
+  createComparison,
+  getComparisons,
+  getComparisonById,
+  deleteComparisonById,
+} = require('../services/comparison-service');
 const {
   validateComparisonId,
   validateComparisonBody,
@@ -18,20 +21,8 @@ router.post(
   validateComparisonBody,
   asyncHandler(async (req, res) => {
     const { name, eventIds, settings } = req.body;
-    const id = randomUUID();
-    
-    await db.query(
-      'INSERT INTO comparisons (id, name, event_ids, settings) VALUES (?, ?, ?, ?)',
-      [id, name.trim(), JSON.stringify(eventIds), settings ? JSON.stringify(settings) : null]
-    );
-    
-    res.status(201).json({
-      id,
-      name: name.trim(),
-      eventIds,
-      settings: settings || null,
-      createdAt: Date.now(),
-    });
+    const comparison = await createComparison(name, eventIds, settings);
+    res.status(201).json(comparison);
   })
 );
 
@@ -39,18 +30,7 @@ router.post(
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const rows = await db.query(
-      'SELECT id, name, event_ids, settings, created_at FROM comparisons ORDER BY created_at DESC LIMIT 100'
-    );
-    
-    const comparisons = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      eventIds: parseJSONField(row.event_ids, []),
-      settings: parseJSONField(row.settings, null),
-      createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-    }));
-    
+    const comparisons = await getComparisons(100);
     res.json(comparisons);
   })
 );
@@ -60,22 +40,9 @@ router.get(
   '/:id',
   validateComparisonId,
   asyncHandler(async (req, res) => {
-    const row = await db.queryOne(
-      'SELECT id, name, event_ids, settings, created_at FROM comparisons WHERE id = ?',
-      [req.params.id]
-    );
-    
-    if (!row) {
-      return res.status(404).json({ error: 'Comparison not found' });
-    }
-    
-    res.json({
-      id: row.id,
-      name: row.name,
-      eventIds: parseJSONField(row.event_ids, []),
-      settings: parseJSONField(row.settings, null),
-      createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-    });
+    const comparison = await getComparisonById(req.params.id);
+    if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
+    res.json(comparison);
   })
 );
 
@@ -84,14 +51,8 @@ router.delete(
   '/:id',
   validateComparisonId,
   asyncHandler(async (req, res) => {
-    const existing = await db.queryOne('SELECT id FROM comparisons WHERE id = ?', [req.params.id]);
-    
-    if (!existing) {
-      return res.status(404).json({ error: 'Comparison not found' });
-    }
-    
-    await db.query('DELETE FROM comparisons WHERE id = ?', [req.params.id]);
-    
+    const deleted = await deleteComparisonById(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Comparison not found' });
     res.status(204).send();
   })
 );
