@@ -81,7 +81,6 @@ This file provides operational instructions for AI coding agents working in this
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
   - `streams` - Stream metadata (id, activity_id, event_id, type)
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)
-  - `original_files` - File metadata (id, event_id, extension, file_path, start_date, original_filename)
   - No foreign keys (to avoid charset/collation issues)
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
@@ -110,7 +109,7 @@ This file provides operational instructions for AI coding agents working in this
   - Files are parsed and discarded (not stored)
 
 - **DELETE /api/events/:id** - Delete event
-  - Cascades: deletes `activity_stats`, `event_stats`, `stream_data_points`, `streams`, `activities`, `original_files`, then `events`
+  - Cascades: deletes `activity_stats`, `event_stats`, `stream_data_points`, `streams`, `activities`, then `events`
   - Returns: 204 No Content or 404 Not Found
 
 ## Key architectural decisions
