@@ -15,9 +15,9 @@
   const ROUTE_ARROW_IMAGE_ID = 'route-direction-arrow'
   const ROUTE_ARROW_LAYER_PREFIX = 'route-arrow-'
 
-  /** Right-pointing arrow SVG (24×24), works on light and dark basemaps */
+  /** Right-pointing solid triangle (24×24), white so SDF tint (icon-color) applies */
   const ARROW_SVG =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#ffffff" d="M6 6L6 18L20 12Z"/></svg>'
 
   export interface NamedRoute {
     label: string
@@ -65,7 +65,7 @@
     if (!m || !img) return
     const addArrowImage = () => {
       try {
-        m.addImage(ROUTE_ARROW_IMAGE_ID, img, { pixelRatio: 2 })
+        m.addImage(ROUTE_ARROW_IMAGE_ID, img, { pixelRatio: 2, sdf: true })
       } catch {
         // ignore if style not ready or image already exists
       }
@@ -194,11 +194,12 @@
               layout={{
                 'symbol-placement': 'line',
                 'icon-image': ROUTE_ARROW_IMAGE_ID,
-                'icon-size': 2,
+                'icon-size': 3,
                 'symbol-spacing': 100,
                 'icon-rotation-alignment': 'map',
                 'icon-allow-overlap': true,
               }}
+              paint={{ 'icon-color': item.color }}
             />
           </GeoJSONSource>
         {/each}
