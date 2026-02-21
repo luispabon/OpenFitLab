@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS events (
   end_date BIGINT NULL,
   description TEXT NULL,
   is_merge TINYINT(1) DEFAULT 0,
-  payload_rest JSON NULL,
+  src_file_type VARCHAR(16) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_start_date (start_date)
 );
@@ -30,10 +30,11 @@ CREATE TABLE IF NOT EXISTS activities (
   end_date BIGINT NULL,
   type VARCHAR(128) NULL,
   event_start_date BIGINT NULL,
-  payload_rest JSON NULL,
+  device_name VARCHAR(255) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_event_id (event_id),
-  INDEX idx_type (type)
+  INDEX idx_type (type),
+  INDEX idx_device_name (device_name)
 );
 
 CREATE TABLE IF NOT EXISTS activity_stats (

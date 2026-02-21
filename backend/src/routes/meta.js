@@ -1,6 +1,5 @@
 const express = require('express');
 const db = require('../db');
-const { parseJSONField } = require('../utils/transforms');
 
 const router = express.Router();
 
@@ -22,28 +21,14 @@ router.get('/activity-types', async (req, res, next) => {
 
 /**
  * GET /api/devices
- * Returns distinct device names previously recorded in activity_stats.
+ * Returns distinct device names from the activities table.
  */
 router.get('/devices', async (req, res, next) => {
   try {
     const rows = await db.query(
-      "SELECT DISTINCT value FROM activity_stats WHERE stat_type = 'Device Names' ORDER BY value ASC"
+      "SELECT DISTINCT device_name FROM activities WHERE device_name IS NOT NULL AND device_name != '' ORDER BY device_name ASC"
     );
-    const names = new Set();
-    for (const row of rows) {
-      const value = parseJSONField(row.value);
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          if (typeof item === 'string' && item.trim()) names.add(item.trim());
-          if (item && typeof item === 'object' && 'name' in item && typeof item.name === 'string') {
-            const n = item.name.trim();
-            if (n) names.add(n);
-          }
-        }
-      }
-    }
-    const sorted = Array.from(names).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-    res.json(sorted);
+    res.json(rows.map((r) => r.device_name));
   } catch (err) {
     next(err);
   }

@@ -10,7 +10,6 @@ const {
   aggregateStats,
   mapEventRow,
   mapActivityRow,
-  extractPayloadRest,
   placeholders,
 } = require('../utils/transforms');
 
@@ -38,7 +37,7 @@ router.get(
   validateGetEventsQuery,
   asyncHandler(async (req, res) => {
     let sql =
-      'SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE 1=1';
+      'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE 1=1';
     const params = [];
     if (req.query.startDate != null) {
       sql += ' AND start_date >= ?';
@@ -63,7 +62,7 @@ router.get(
         eventIds
       ),
       db.query(
-        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
         eventIds
       ),
     ]);
@@ -133,32 +132,10 @@ router.get(
       params.push(...activityTypes);
     }
 
-    // Device filter: restrict to activity_ids that have at least one selected device in Device Names stat
+    // Device filter: by activity device_name column
     if (devices.length > 0) {
-      const deviceRows = await db.query(
-        "SELECT activity_id, value FROM activity_stats WHERE stat_type = 'Device Names'"
-      );
-      const activityIdsWithDevice = new Set();
-      for (const row of deviceRows) {
-        const value = parseJSONField(row.value);
-        if (!Array.isArray(value)) continue;
-        const namesInValue = new Set();
-        for (const item of value) {
-          if (typeof item === 'string' && item.trim()) namesInValue.add(item.trim());
-          if (item && typeof item === 'object' && item.name != null) namesInValue.add(String(item.name).trim());
-        }
-        for (const dev of devices) {
-          if (namesInValue.has(dev)) {
-            activityIdsWithDevice.add(row.activity_id);
-            break;
-          }
-        }
-      }
-      if (activityIdsWithDevice.size === 0) {
-        return res.json({ rows: [], total: 0 });
-      }
-      sql += ` AND a.id IN (${placeholders(activityIdsWithDevice.size)})`;
-      params.push(...activityIdsWithDevice);
+      sql += ` AND a.device_name IN (${placeholders(devices.length)})`;
+      params.push(...devices);
     }
 
     // Search: event name, activity name, activity type (LIKE %term%)
@@ -188,11 +165,11 @@ router.get(
 
     const [eventRows, activityRows, eventStatsRows, activityStatsRows] = await Promise.all([
       db.query(
-        `SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE id IN (${placeholders(eventIds.length)})`,
+        `SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id IN (${placeholders(eventIds.length)})`,
         eventIds
       ),
       db.query(
-        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
         activityIds
       ),
       db.query(
@@ -247,7 +224,7 @@ router.get(
     // Find candidate events that actually overlap in time with the source event
     // Overlap: candidate.start <= source.end AND candidate.end >= source.start
     const sql = `
-      SELECT id, start_date, name, end_date, description, is_merge, payload_rest
+      SELECT id, start_date, name, end_date, description, is_merge, src_file_type
       FROM events
       WHERE id != ?
         AND start_date <= ?
@@ -269,7 +246,7 @@ router.get(
         eventIds
       ),
       db.query(
-        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
+        `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
         eventIds
       ),
     ]);
@@ -308,12 +285,12 @@ router.get(
   validateEventId,
   asyncHandler(async (req, res) => {
     const event = await db.queryOne(
-      'SELECT id, start_date, name, end_date, description, is_merge, payload_rest FROM events WHERE id = ?',
+      'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id = ?',
       [req.params.id]
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
     const activities = await db.query(
-      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE event_id = ?',
+      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id = ?',
       [req.params.id]
     );
     const [eventStatsRows, activityStatsRows] = await Promise.all([
@@ -370,29 +347,20 @@ router.post(
       ? primaryFile.originalname.replace(/\.[^/.]+$/, '').trim()
       : (event.name && event.name.trim() ? event.name.trim() : 'Untitled Event');
 
-    // Extract event JSON and split into columns, stats, and payload_rest
+    // Extract event JSON and split into columns and stats
     const eventJson = event.toJSON();
     const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
     const eventEndDate = toTimestamp(eventJson.endDate, null);
     const eventDescription = eventJson.description != null ? String(eventJson.description) : null;
     const eventIsMerge = eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0;
-    const eventPayloadRest = extractPayloadRest(eventJson, [
-      'id',
-      'startDate',
-      'name',
-      'activities',
-      'stats',
-      'endDate',
-      'description',
-      'isMerge',
-    ]);
+    const srcFileType = extension || null;
 
     // Store everything in a single transaction
     await db.transaction(async (conn) => {
       // Store event
       await conn.execute(
-        `INSERT INTO events (id, start_date, name, end_date, description, is_merge, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [eventId, startDate, name, eventEndDate, eventDescription, eventIsMerge, JSON.stringify(eventPayloadRest)]
+        `INSERT INTO events (id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [eventId, startDate, name, eventEndDate, eventDescription, eventIsMerge, srcFileType]
       );
 
       // Store event stats
@@ -420,22 +388,18 @@ router.post(
         const aEndDate = toTimestamp(activityJson.endDate, null);
         const aType = activityJson.type != null ? String(activityJson.type) : null;
 
-        const aPayloadRest = extractPayloadRest(
-          {
-            ...activityJson,
-            eventID: eventId,
-            eventStartDate: startDate,
-          },
-          ['id', 'streams', 'stats', 'name', 'startDate', 'endDate', 'type', 'eventID', 'eventStartDate']
-        );
+        const deviceName = (activityJson.creator && typeof activityJson.creator === 'object' && activityJson.creator.name != null)
+          ? String(activityJson.creator.name).trim()
+          : null;
 
         await conn.execute(
-          'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, JSON.stringify(aPayloadRest)]
+          'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, deviceName || null]
         );
 
         for (const [statType, value] of Object.entries(aStats)) {
           if (value === undefined || value === null) continue;
+          if (statType === 'Device Names') continue;
           await conn.execute(
             'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
             [aid, statType, JSON.stringify(value)]
@@ -585,7 +549,7 @@ router.patch(
     }
 
     const activity = await db.queryOne(
-      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id = ? AND event_id = ?',
+      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id = ? AND event_id = ?',
       [activityId, eventId]
     );
     if (!activity) {
@@ -611,29 +575,16 @@ router.patch(
       }
 
       if (deviceName !== undefined && deviceName !== null) {
-        const deviceValue = String(deviceName).trim();
+        const deviceValue = String(deviceName).trim() || null;
         await conn.execute(
-          `INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, 'Device Names', ?)
-           ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [activityId, JSON.stringify([deviceValue])]
-        );
-        const payloadRest = parseJSONField(activity.payload_rest, {});
-        const updatedPayload = {
-          ...payloadRest,
-          creator: {
-            ...(typeof payloadRest.creator === 'object' && payloadRest.creator !== null ? payloadRest.creator : {}),
-            name: deviceValue,
-          },
-        };
-        await conn.execute(
-          'UPDATE activities SET payload_rest = ? WHERE id = ? AND event_id = ?',
-          [JSON.stringify(updatedPayload), activityId, eventId]
+          'UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?',
+          [deviceValue, activityId, eventId]
         );
       }
     });
 
     const [updatedRow] = await db.query(
-      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, payload_rest FROM activities WHERE id = ? AND event_id = ?',
+      'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id = ? AND event_id = ?',
       [activityId, eventId]
     );
     const statsRows = await db.query(
