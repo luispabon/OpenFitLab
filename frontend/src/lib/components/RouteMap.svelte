@@ -3,6 +3,7 @@
     MapLibre,
     GeoJSONSource,
     LineLayer,
+    SymbolLayer,
     NavigationControl,
     FullScreenControl,
   } from 'svelte-maplibre-gl'
@@ -10,6 +11,13 @@
   import 'maplibre-gl/dist/maplibre-gl.css'
   import type { StreamData } from '../types'
   import { buildRouteGeoJSON, mergeBounds } from '../utils/geo'
+
+  const ROUTE_ARROW_IMAGE_ID = 'route-direction-arrow'
+  const ROUTE_ARROW_LAYER_PREFIX = 'route-arrow-'
+
+  /** Right-pointing solid triangle (24×24), white so SDF tint (icon-color) applies */
+  const ARROW_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#ffffff" d="M6 6L6 18L20 12Z"/></svg>'
 
   export interface NamedRoute {
     label: string
@@ -36,8 +44,36 @@
   let selectedTheme = $state<MapTheme>('liberty')
   let showLabels = $state(true)
   let map = $state<MapLibreMap | undefined>(undefined)
+  let arrowImageLoaded = $state<HTMLImageElement | null>(null)
 
   const mapStyle = $derived(`https://tiles.openfreemap.org/styles/${selectedTheme}`)
+
+  /** Preload arrow image when map is available (used when adding to style on style.load). */
+  $effect(() => {
+    if (!map) return
+    const img = new Image()
+    img.onload = () => {
+      arrowImageLoaded = img
+    }
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(ARROW_SVG)
+  })
+
+  /** Add arrow image to map style on every style load (required after theme change). */
+  $effect(() => {
+    const m = map
+    const img = arrowImageLoaded
+    if (!m || !img) return
+    const addArrowImage = () => {
+      try {
+        m.addImage(ROUTE_ARROW_IMAGE_ID, img, { pixelRatio: 2, sdf: true })
+      } catch {
+        // ignore if style not ready or image already exists
+      }
+    }
+    if (m.isStyleLoaded()) addArrowImage()
+    m.on('style.load', addArrowImage)
+    return () => m.off('style.load', addArrowImage)
+  })
 
   $effect(() => {
     const m = map
@@ -48,7 +84,7 @@
       if (!m.isStyleLoaded()) return
       const visibility = labelsVisible ? 'visible' : 'none'
       for (const layer of m.getStyle()?.layers ?? []) {
-        if (layer.type === 'symbol') {
+        if (layer.type === 'symbol' && !layer.id.startsWith(ROUTE_ARROW_LAYER_PREFIX)) {
           m.setLayoutProperty(layer.id, 'visibility', visibility)
         }
       }
@@ -145,11 +181,25 @@
         {#each routesWithData as item, i}
           {@const sourceId = `route-source-${i}`}
           {@const layerId = `route-layer-${i}`}
+          {@const arrowLayerId = `${ROUTE_ARROW_LAYER_PREFIX}${i}`}
           <GeoJSONSource data={item.route.route} id={sourceId}>
             <LineLayer
               id={layerId}
               paint={{ 'line-color': item.color, 'line-width': 4 }}
               layout={{ 'line-join': 'round', 'line-cap': 'round' }}
+            />
+            <SymbolLayer
+              id={arrowLayerId}
+              source={sourceId}
+              layout={{
+                'symbol-placement': 'line',
+                'icon-image': ROUTE_ARROW_IMAGE_ID,
+                'icon-size': 3,
+                'symbol-spacing': 100,
+                'icon-rotation-alignment': 'map',
+                'icon-allow-overlap': true,
+              }}
+              paint={{ 'icon-color': item.color }}
             />
           </GeoJSONSource>
         {/each}
