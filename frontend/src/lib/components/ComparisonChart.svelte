@@ -151,7 +151,7 @@
     isZoomed = false
   }
 
-  const smoothPath = uPlot.paths.spline()
+  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
 
   $effect(() => {
     if (!containerEl || !chartData.data || entries.length === 0) return

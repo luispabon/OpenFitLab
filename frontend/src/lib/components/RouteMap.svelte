@@ -116,7 +116,7 @@
 
   const mergedBounds = $derived.by(() => {
     if (routesWithData.length === 0) return null
-    return mergeBounds(routesWithData.map((r) => r.route.bounds))
+    return mergeBounds(routesWithData.map((r) => r.route!.bounds))
   })
 
   const center = $derived.by(() => {
@@ -182,7 +182,7 @@
           {@const sourceId = `route-source-${i}`}
           {@const layerId = `route-layer-${i}`}
           {@const arrowLayerId = `${ROUTE_ARROW_LAYER_PREFIX}${i}`}
-          <GeoJSONSource data={item.route.route} id={sourceId}>
+          <GeoJSONSource data={item.route!.route} id={sourceId}>
             <LineLayer
               id={layerId}
               paint={{ 'line-color': item.color, 'line-width': 4 }}

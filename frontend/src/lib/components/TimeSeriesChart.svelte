@@ -21,7 +21,7 @@
 
   const streamConfig = $derived(config ?? getStreamConfig(streamData.type))
 
-  const smoothPath = uPlot.paths.spline()
+  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
 
   function formatElapsedTime(ms: number): string {
     const totalSeconds = Math.floor(Math.max(0, ms) / 1000)

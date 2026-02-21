@@ -530,7 +530,7 @@ export function selectKeyMetrics(
       if (preferred) found = preferred
     }
     if (found) {
-      const raw = stats[found]
+      const raw = stats[found] as number | string | number[] | Record<string, unknown> | null | undefined
       entries.push({
         statType: found,
         value: formatStatValue(raw, found),
