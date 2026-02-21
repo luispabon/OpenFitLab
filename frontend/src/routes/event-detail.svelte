@@ -179,7 +179,7 @@
         ].sort()
         eventDetail.event = {
           ...eventDetail.event,
-          stats: { ...eventDetail.event.stats, 'Activity Types': types },
+          stats: { ...eventDetail.event.stats, 'Activity Types': types as unknown as string | number | number[] | Record<string, unknown> },
         }
       }
       editField = null

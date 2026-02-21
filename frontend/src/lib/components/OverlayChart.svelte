@@ -80,7 +80,7 @@
     return index % 2 === 0 ? 'y' : 'y1'
   }
 
-  const smoothPath = uPlot.paths.spline()
+  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
 
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.configs.length === 0) return

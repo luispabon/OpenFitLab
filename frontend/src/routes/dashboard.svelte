@@ -455,7 +455,7 @@
 
   function onPageSizeChange(e: Event) {
     const val = (e.target as HTMLSelectElement).value
-    const n = Number(val)
+    const n = Number(val) as (typeof PAGE_SIZE_OPTIONS)[number]
     if (PAGE_SIZE_OPTIONS.includes(n)) {
       pageSize = n
       page = 1
@@ -559,25 +559,25 @@
   function formatDurationCell(stats: Record<string, unknown>): string {
     const found = findStatByMetric(stats, 'Duration') ?? findStatByMetric(stats, 'Moving Time')
     if (!found) return '—'
-    return formatStatValue(found.value, found.statType)
+    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
   }
 
   function formatAvgHeartRateCell(stats: Record<string, unknown>): string {
     const found = findStatByMetric(stats, 'Heart Rate', 'Average')
     if (!found) return '—'
-    return formatStatValue(found.value, found.statType)
+    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
   }
 
   function formatCaloriesCell(stats: Record<string, unknown>): string {
     const found = findStatByMetric(stats, 'Energy') ?? findStatByMetric(stats, 'Calories')
     if (!found) return '—'
-    return formatStatValue(found.value, found.statType)
+    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
   }
 
   function formatDistanceCell(stats: Record<string, unknown>): string {
     const found = findStatByMetric(stats, 'Distance')
     if (!found) return '—'
-    return formatStatValue(found.value, found.statType)
+    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
   }
 
   // Reference for select-all checkbox to set indeterminate state
