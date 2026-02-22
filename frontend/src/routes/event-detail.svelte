@@ -7,19 +7,10 @@
   import { push } from 'svelte-spa-router'
   import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api'
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
-  import {
-    formatDateWithTime,
-    getActivityIcon,
-    getStatUnit,
-    formatStatValue,
-    selectKeyMetrics,
-    getGroupedDeduplicatedStats,
-    isChartableStream,
-    isSmoothVariantToHide,
-    getStreamConfig,
-    hasLocationStreams,
-    getActivityDeviceName,
-  } from '../lib/utils'
+  import { formatDateWithTime, getActivityIcon, isChartableStream, isSmoothVariantToHide, getStreamConfig, hasLocationStreams, getActivityDeviceName } from '../lib/utils'
+  import { getStatUnit } from '../lib/utils/stat-icons'
+  import { formatStatValue } from '../lib/utils/stat-formatting'
+  import { selectKeyMetrics, getGroupedDeduplicatedStats } from '../lib/utils/stat-categories'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import RouteMap from '../lib/components/RouteMap.svelte'
   import SearchableSelect from '../lib/components/SearchableSelect.svelte'

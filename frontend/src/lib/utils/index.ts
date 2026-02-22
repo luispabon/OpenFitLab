@@ -1,6 +1,5 @@
 export * from './format-date'
 export * from './activity-icons'
-export * from './stats'
 export * from './stream-config'
 export * from './geo'
 export * from './activity-device'

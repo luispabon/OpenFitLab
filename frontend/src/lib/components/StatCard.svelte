@@ -6,7 +6,7 @@
   }
   let { statType, value, unit }: Props = $props()
 
-  import { getStatIcon, getStatIconMaterialName, getStatLabel } from '../utils/stats'
+  import { getStatIcon, getStatIconMaterialName, getStatLabel } from '../utils/stat-icons'
 
   const icon = $derived(getStatIcon(statType))
 </script>

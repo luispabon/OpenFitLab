@@ -4,6 +4,14 @@
   import type { StreamData } from '../types'
   import type { StreamConfig } from '../utils/stream-config'
   import { getStreamConfig } from '../utils/stream-config'
+  import {
+    formatElapsedTime,
+    formatYValue,
+    getSmoothPath,
+    CHART_HEIGHT,
+    CHART_TEXT_COLOR,
+    CHART_GRID_COLOR,
+  } from '../utils/chart-utils'
 
   interface Props {
     streamData: StreamData
@@ -21,23 +29,7 @@
 
   const streamConfig = $derived(config ?? getStreamConfig(streamData.type))
 
-  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
-
-  function formatElapsedTime(ms: number): string {
-    const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  function formatYValue(value: number): string {
-    if (streamConfig.label === 'Heart Rate') return Math.round(value).toString()
-    return value.toFixed(1)
-  }
+  const smoothPath = getSmoothPath()
 
   // Build uPlot data [x[], y[]] and full x range for reset zoom
   const chartData = $derived.by(() => {
@@ -69,8 +61,8 @@
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.pointCount === 0) return
 
-    const textColor = '#d1d5db'
-    const gridColor = 'rgba(255,255,255,0.12)'
+    const textColor = CHART_TEXT_COLOR
+    const gridColor = CHART_GRID_COLOR
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -80,7 +72,7 @@
     const { data, xMin, xMax } = chartData
     const opts: uPlot.Options = {
       width: containerEl.offsetWidth,
-      height: 384,
+      height: CHART_HEIGHT,
       series: [
         {},
         {
@@ -102,7 +94,8 @@
             grd.addColorStop(1, streamConfig.color + '00')
             return grd
           },
-          value: (_u, raw) => (raw == null ? '' : `${formatYValue(raw)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`),
+          value: (_u, raw) =>
+            raw == null ? '' : `${formatYValue(raw, streamConfig.label)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
         },
       ],
       scales: {
@@ -126,7 +119,8 @@
           stroke: textColor,
           grid: { stroke: gridColor, width: 1 },
           ticks: { stroke: textColor },
-          values: (_u, ticks) => ticks.map((t) => (typeof t === 'number' ? formatYValue(t) : '')),
+          values: (_u, ticks) =>
+            ticks.map((t) => (typeof t === 'number' ? formatYValue(t, streamConfig.label) : '')),
           label: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
           labelFont: '13px system-ui',
           font: '13px system-ui',
@@ -167,7 +161,7 @@
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 384 })
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT })
       }
     })
     ro.observe(containerEl)

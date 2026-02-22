@@ -2,18 +2,19 @@
   import { onMount } from 'svelte'
   import { push, querystring } from 'svelte-spa-router'
   import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
-  import type { EventSummary, Activity, ActivityRow } from '../lib/types'
-  import {
-    formatDateShort,
-    formatDateWithTime,
-    getActivityIcon,
-    findStatByMetric,
-    formatStatValue,
-    getActivityDeviceName,
-  } from '../lib/utils'
+  import type { EventSummary, ActivityRow } from '../lib/types'
+  import { findStatByMetric } from '../lib/utils/stat-categories'
+  import { formatStatValue } from '../lib/utils/stat-formatting'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
   import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
+  import DashboardToast from '../lib/components/dashboard/DashboardToast.svelte'
+  import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte'
+  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
+  import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte'
+  import DashboardPaginator from '../lib/components/dashboard/DashboardPaginator.svelte'
+  import CompareCandidatesModal from '../lib/components/dashboard/CompareCandidatesModal.svelte'
+  import DashboardActivityTable from '../lib/components/dashboard/DashboardActivityTable.svelte'
 
   let activityRowsFromApi = $state<ActivityRow[]>([])
   let totalRows = $state(0)
@@ -41,10 +42,6 @@
   let pageSize = $state(initial.pageSize)
   let activityTypesOptions = $state<string[]>([])
   let devicesOptions = $state<string[]>([])
-  let activityTypeDropdownOpen = $state(false)
-  let deviceDropdownOpen = $state(false)
-  let activityTypeFilter = $state('')
-  let activityTypeFilterInputEl = $state<HTMLInputElement | null>(null)
   let searchInputValue = $state('')
   let searchDebounceId: ReturnType<typeof setTimeout> | null = null
 
@@ -61,12 +58,6 @@
     if (searchDebounceId) clearTimeout(searchDebounceId)
     searchDebounceId = setTimeout(commitSearch, 300)
   }
-
-  const filteredActivityTypes = $derived.by(() => {
-    const q = activityTypeFilter.trim().toLowerCase()
-    if (!q) return activityTypesOptions
-    return activityTypesOptions.filter((t) => t.toLowerCase().includes(q))
-  })
 
   function toggleActivityType(type: string) {
     const next = selectedActivityTypes.includes(type)
@@ -345,26 +336,6 @@
     }
   })
 
-  $effect(() => {
-    if (!activityTypeDropdownOpen && !deviceDropdownOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        activityTypeFilter = ''
-        activityTypeDropdownOpen = false
-        deviceDropdownOpen = false
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  })
-
-  $effect(() => {
-    if (activityTypeDropdownOpen && activityTypeFilterInputEl) {
-      const t = setTimeout(() => activityTypeFilterInputEl?.focus(), 0)
-      return () => clearTimeout(t)
-    }
-  })
-
   // Find source event row for candidates modal (may not be on current page)
   const sourceEventRow = $derived.by(() => {
     if (!candidatesSourceEventId) return null
@@ -637,44 +608,17 @@
       disabled={isUploading}
     />
 
-    <!-- Bulk Action Bar -->
-    {#if selectedEventIds.size > 0}
-      <div class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur shadow-sm">
-        <p class="text-xs font-medium text-text-primary">
-          {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''} selected
-        </p>
-        <button
-          type="button"
-          class="rounded border-2 border-border bg-surface px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover hover:border-text-secondary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
-          onclick={clearSelection}
-          disabled={isBulkDeleting || isDeleting}
-        >
-          Clear
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded border-0 bg-accent px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
-          onclick={() => {
-            if (selectedEventIds.size >= 2) {
-              push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`)
-            }
-          }}
-          disabled={selectedEventIds.size < 2 || isBulkDeleting || isDeleting}
-        >
-          <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">compare_arrows</span>
-          Compare
-        </button>
-        <button
-          type="button"
-          class="flex items-center rounded border-0 bg-danger px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-1 focus:ring-danger disabled:opacity-50"
-          onclick={handleBulkDeleteClick}
-          disabled={isBulkDeleting || isDeleting}
-        >
-          <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">delete</span>
-          Delete
-        </button>
-      </div>
-    {/if}
+    <DashboardBulkActionBar
+      selectedCount={selectedEventIds.size}
+      disabled={isBulkDeleting || isDeleting}
+      onClear={clearSelection}
+      onCompare={() => {
+        if (selectedEventIds.size >= 2) {
+          push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`)
+        }
+      }}
+      onDelete={handleBulkDeleteClick}
+    />
   </div>
 
   <!-- Loading Spinner (only for loading events, not uploads) -->
@@ -705,650 +649,109 @@
     />
   {/if}
 
-  <!-- Toast Notification -->
-  {#if toastMessage}
-    <div
-      class="mb-4 rounded-md border border-border bg-card p-4 backdrop-blur"
-      role="alert"
-    >
-      <p class="text-sm font-medium text-text-primary">{toastMessage}</p>
-    </div>
-  {/if}
+  <DashboardToast message={toastMessage} />
 
-  <!-- Filter bar (elevated when dropdowns open so they appear above the table) -->
-  <div
-    class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 backdrop-blur"
-    class:relative={activityTypeDropdownOpen || deviceDropdownOpen}
-    class:z-30={activityTypeDropdownOpen || deviceDropdownOpen}
-  >
-    <label class="sr-only" for="filter-search">Search</label>
-    <input
-      id="filter-search"
-      type="text"
-      bind:value={searchInputValue}
-      oninput={onSearchInput}
-      placeholder="Search…"
-      class="min-w-[12rem] rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-    />
-    <div class="relative">
-      <button
-        type="button"
-        onclick={() => {
-          deviceDropdownOpen = false
-          if (!activityTypeDropdownOpen) activityTypeFilter = ''
-          activityTypeDropdownOpen = !activityTypeDropdownOpen
-        }}
-        class="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent"
-        aria-expanded={activityTypeDropdownOpen}
-        aria-haspopup="listbox"
-      >
-        Activity type {selectedActivityTypes.length ? `(${selectedActivityTypes.length})` : ''}
-        <span class="material-icons ml-1 text-sm">arrow_drop_down</span>
-      </button>
-      {#if activityTypeDropdownOpen}
-        <div
-          class="absolute left-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-card-solid shadow-lg"
-          role="listbox"
-        >
-          <div class="sticky top-0 z-10 border-b border-border bg-card-solid p-2">
-            <label for="activity-type-filter" class="sr-only">Filter activity types</label>
-            <input
-              id="activity-type-filter"
-              type="text"
-              bind:value={activityTypeFilter}
-              placeholder="Search…"
-              class="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              onkeydown={(e) => e.stopPropagation()}
-              bind:this={activityTypeFilterInputEl}
-            />
-          </div>
-          <div class="max-h-60 overflow-auto py-1">
-            {#each filteredActivityTypes as type}
-              <label class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-card-hover">
-                <input
-                  type="checkbox"
-                  checked={selectedActivityTypes.includes(type)}
-                  onchange={() => toggleActivityType(type)}
-                  class="h-4 w-4 rounded border-border text-accent"
-                />
-                <span class="text-sm text-text-primary">{type}</span>
-              </label>
-            {/each}
-            {#if filteredActivityTypes.length === 0}
-              <p class="px-3 py-2 text-sm text-text-secondary">No matching types</p>
-            {/if}
-          </div>
-        </div>
-      {/if}
-    </div>
-    <div class="relative">
-      <button
-        type="button"
-        onclick={() => { deviceDropdownOpen = !deviceDropdownOpen; activityTypeDropdownOpen = false }}
-        class="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-primary hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent"
-        aria-expanded={deviceDropdownOpen}
-        aria-haspopup="listbox"
-      >
-        Device {selectedDevices.length ? `(${selectedDevices.length})` : ''}
-        <span class="material-icons ml-1 text-sm">arrow_drop_down</span>
-      </button>
-      {#if deviceDropdownOpen}
-        <div
-          class="absolute left-0 top-full z-20 mt-1 max-h-60 w-56 overflow-auto rounded-md border border-border bg-card-solid py-1 shadow-lg"
-          role="listbox"
-        >
-          {#each devicesOptions as device}
-            <label class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-card-hover">
-              <input
-                type="checkbox"
-                checked={selectedDevices.includes(device)}
-                onchange={() => toggleDevice(device)}
-                class="h-4 w-4 rounded border-border text-accent"
-              />
-              <span class="text-sm text-text-primary">{device}</span>
-            </label>
-          {/each}
-        </div>
-      {/if}
-    </div>
-    {#if activityTypeDropdownOpen || deviceDropdownOpen}
-      <div
-        class="fixed inset-0 z-10"
-        role="presentation"
-        onclick={() => {
-          activityTypeFilter = ''
-          activityTypeDropdownOpen = false
-          deviceDropdownOpen = false
-        }}
-      ></div>
-    {/if}
-    <div class="flex items-center gap-2">
-      <label for="filter-date-start" class="text-sm text-text-secondary">From</label>
-      <input
-        id="filter-date-start"
-        type="date"
-        value={dateStartStr}
-        onchange={(e) => setDateStart((e.target as HTMLInputElement).value)}
-        class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-      />
-      <label for="filter-date-end" class="text-sm text-text-secondary">To</label>
-      <input
-        id="filter-date-end"
-        type="date"
-        value={dateEndStr}
-        onchange={(e) => setDateEnd((e.target as HTMLInputElement).value)}
-        class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-      />
-    </div>
-  </div>
+  <DashboardFilters
+    bind:searchInputValue
+    onSearchInput={onSearchInput}
+    activityTypesOptions={activityTypesOptions}
+    selectedActivityTypes={selectedActivityTypes}
+    onToggleActivityType={toggleActivityType}
+    devicesOptions={devicesOptions}
+    selectedDevices={selectedDevices}
+    onToggleDevice={toggleDevice}
+    dateStartStr={dateStartStr}
+    dateEndStr={dateEndStr}
+    onDateStartChange={setDateStart}
+    onDateEndChange={setDateEnd}
+  />
 
   <!-- Pagination (above table) -->
-  {#if totalRows > 0}
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <label for="page-size-select" class="text-sm text-text-secondary">Per page</label>
-        <select
-          id="page-size-select"
-          value={pageSize}
-          onchange={onPageSizeChange}
-          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        >
-          {#each PAGE_SIZE_OPTIONS as size}
-            <option value={size}>{size}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={currentPageFromUrl <= 1}
-          onclick={() => goToPage(currentPageFromUrl - 1)}
-          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
-          aria-label="Previous page"
-        >
-          <span class="material-icons text-lg">chevron_left</span>
-        </button>
-        {#each visiblePageNumbers as p, i}
-          {#if i > 0 && p - (visiblePageNumbers[i - 1] ?? 0) > 1}
-            <span class="px-1 text-text-secondary">…</span>
-          {/if}
-          <button
-            type="button"
-            onclick={() => goToPage(p)}
-            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === currentPageFromUrl
-              ? 'border-0 bg-accent text-white'
-              : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
-            aria-label="Page {p}"
-            aria-current={p === currentPageFromUrl ? 'page' : undefined}
-          >
-            {p}
-          </button>
-        {/each}
-        <button
-          type="button"
-          disabled={currentPageFromUrl >= totalPages}
-          onclick={() => goToPage(currentPageFromUrl + 1)}
-          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
-          aria-label="Next page"
-        >
-          <span class="material-icons text-lg">chevron_right</span>
-        </button>
-        <span class="text-sm text-text-secondary">{pageRangeText}</span>
-        <label for="jump-to-page" class="sr-only">Jump to page</label>
-        <select
-          id="jump-to-page"
-          value={currentPageFromUrl}
-          onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
-          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          aria-label="Page {currentPageFromUrl} of {totalPages}"
-        >
-          {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
-            <option value={p}>Page {p} of {totalPages}</option>
-          {/each}
-        </select>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Activity list table (text 15% larger: 0.75rem→0.8625rem, 0.875rem→1.00625rem) -->
-  <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
-    <table class="w-full divide-y divide-border text-[1.00625rem] table-fixed">
-      <thead class="bg-surface">
-        <tr>
-          <th scope="col" class="relative w-12 px-3 py-3">
-            <input
-              type="checkbox"
-              bind:this={selectAllCheckbox}
-              class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-              checked={selectAllChecked}
-              onchange={toggleSelectAll}
-              aria-label="Select all events"
-            />
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-1/4"
-          >
-            Activity
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-20"
-          >
-            Duration
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-24"
-          >
-            Avg HR
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-20"
-          >
-            Calories
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-24"
-          >
-            Distance
-          </th>
-          <th
-            scope="col"
-            class="px-3 py-3 text-left text-[0.8625rem] font-medium uppercase tracking-wider text-text-secondary w-32"
-          >
-            Date
-          </th>
-          <th scope="col" class="relative px-3 py-3 w-48">
-            <span class="sr-only">Actions</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-border bg-transparent">
-        {#if activityRowsFromApi.length === 0 && !isLoading}
-          <tr>
-            <td colspan="8" class="px-6 py-4 text-center text-text-secondary">
-              No activities found. Upload an activity file or adjust filters.
-            </td>
-          </tr>
-        {:else}
-          {#each activityRowsFromApi as row (`${row.event.id}_${row.activity.id}`)}
-            {@const isSelected = selectedEventIds.has(row.event.id)}
-            <tr
-              role="link"
-              tabindex="0"
-              class="hover:bg-card-hover"
-              class:cursor-pointer={!isLoading}
-              class:bg-card-hover={isSelected}
-              onclick={() => {
-                if (!isLoading) push(`/event/${row.event.id}`)
-              }}
-              onkeydown={(e) => {
-                if (!isLoading && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault()
-                  push(`/event/${row.event.id}`)
-                }
-              }}
-            >
-              <td class="px-3 py-4" onclick={(e) => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-                  checked={isSelected}
-                  onchange={() => toggleEventSelection(row.event.id)}
-                  aria-label={`Select event ${row.event.name || row.event.id}`}
-                  onclick={(e) => e.stopPropagation()}
-                />
-              </td>
-              <td class="px-3 py-4">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span
-                  class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
-                  style="font-size: 3rem; width: 3rem; height: 3rem; line-height: 1;"
-                  aria-hidden="true"
-                  >{getActivityIcon(row.activity.type)}</span
-                >
-                  <div class="min-w-0 flex flex-col gap-0.5 flex-1">
-                    <span class="font-medium text-text-primary truncate">{row.activity.type || '—'}</span>
-                    <span class="text-text-secondary text-sm truncate">
-                      {getActivityDeviceName(row.activity)}
-                    </span>
-                    <span class="text-text-secondary text-sm truncate" title={row.event.name || undefined}>
-                      {row.event.name || '—'}
-                    </span>
-                  </div>
-                </div>
-              </td>
-              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
-                {formatDurationCell(row.activity.stats)}
-              </td>
-              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
-                {formatAvgHeartRateCell(row.activity.stats)}
-              </td>
-              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
-                {formatCaloriesCell(row.activity.stats)}
-              </td>
-              <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
-                {formatDistanceCell(row.activity.stats)}
-              </td>
-              <td class="whitespace-nowrap px-3 py-4 text-text-secondary text-sm">
-                {formatDateWithTime(row.activity.startDate ?? row.event.startDate)}
-              </td>
-              <td class="px-3 py-4 text-right font-medium">
-                <div class="flex items-center justify-end gap-1.5 flex-wrap">
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      push(`/event/${row.event.id}`)
-                    }}
-                  >
-                    <span class="material-icons text-base leading-none" aria-hidden="true">search</span>
-                    View
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-                    onclick={(e) => {
-                      e.stopPropagation()
-                      handleFindComparisonsClick(row.event.id)
-                    }}
-                  >
-                    <span class="material-icons text-base leading-none" aria-hidden="true">compare_arrows</span>
-                    Find
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
-                    onclick={(e) => handleDeleteClick(row.event.id, e)}
-                  >
-                    <span class="material-icons text-base leading-none" aria-hidden="true">delete</span>
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          {/each}
-        {/if}
-      </tbody>
-    </table>
+  <div class="mb-3">
+    <DashboardPaginator
+      totalRows={totalRows}
+      pageSize={pageSize}
+      totalPages={totalPages}
+      currentPageFromUrl={currentPageFromUrl}
+      visiblePageNumbers={visiblePageNumbers}
+      pageRangeText={pageRangeText}
+      onPageSizeChange={onPageSizeChange}
+      goToPage={goToPage}
+    />
   </div>
 
+  <DashboardActivityTable
+    rows={activityRowsFromApi}
+    isLoading={isLoading}
+    selectedEventIds={selectedEventIds}
+    uniqueEventIds={uniqueEventIds}
+    selectAllChecked={selectAllChecked}
+    selectAllIndeterminate={selectAllIndeterminate}
+    bind:selectAllCheckbox
+    formatDurationCell={formatDurationCell}
+    formatAvgHeartRateCell={formatAvgHeartRateCell}
+    formatCaloriesCell={formatCaloriesCell}
+    formatDistanceCell={formatDistanceCell}
+    onSelectAllChange={toggleSelectAll}
+    onRowClick={(id) => push(`/event/${id}`)}
+    onToggleEventSelection={toggleEventSelection}
+    onViewClick={(id, e) => {
+      e.stopPropagation()
+      push(`/event/${id}`)
+    }}
+    onFindComparisonsClick={handleFindComparisonsClick}
+    onDeleteClick={handleDeleteClick}
+  />
+
   <!-- Pagination (below table) -->
-  {#if totalRows > 0}
-    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <label for="page-size-select-bottom" class="text-sm text-text-secondary">Per page</label>
-        <select
-          id="page-size-select-bottom"
-          value={pageSize}
-          onchange={onPageSizeChange}
-          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        >
-          {#each PAGE_SIZE_OPTIONS as size}
-            <option value={size}>{size}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={currentPageFromUrl <= 1}
-          onclick={() => goToPage(currentPageFromUrl - 1)}
-          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
-          aria-label="Previous page"
-        >
-          <span class="material-icons text-lg">chevron_left</span>
-        </button>
-        {#each visiblePageNumbers as p, i}
-          {#if i > 0 && p - (visiblePageNumbers[i - 1] ?? 0) > 1}
-            <span class="px-1 text-text-secondary">…</span>
-          {/if}
-          <button
-            type="button"
-            onclick={() => goToPage(p)}
-            class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === currentPageFromUrl
-              ? 'border-0 bg-accent text-white'
-              : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
-            aria-label="Page {p}"
-            aria-current={p === currentPageFromUrl ? 'page' : undefined}
-          >
-            {p}
-          </button>
-        {/each}
-        <button
-          type="button"
-          disabled={currentPageFromUrl >= totalPages}
-          onclick={() => goToPage(currentPageFromUrl + 1)}
-          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] border border-border bg-surface text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:pointer-events-none"
-          aria-label="Next page"
-        >
-          <span class="material-icons text-lg">chevron_right</span>
-        </button>
-        <span class="text-sm text-text-secondary">{pageRangeText}</span>
-        <label for="jump-to-page-bottom" class="sr-only">Jump to page</label>
-        <select
-          id="jump-to-page-bottom"
-          value={currentPageFromUrl}
-          onchange={(e) => goToPage(Number((e.target as HTMLSelectElement).value))}
-          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          aria-label="Page {currentPageFromUrl} of {totalPages}"
-        >
-          {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p}
-            <option value={p}>Page {p} of {totalPages}</option>
-          {/each}
-        </select>
-      </div>
-    </div>
-  {/if}
+  <div class="mt-3">
+    <DashboardPaginator
+      totalRows={totalRows}
+      pageSize={pageSize}
+      totalPages={totalPages}
+      currentPageFromUrl={currentPageFromUrl}
+      visiblePageNumbers={visiblePageNumbers}
+      pageRangeText={pageRangeText}
+      idSuffix="-bottom"
+      onPageSizeChange={onPageSizeChange}
+      goToPage={goToPage}
+    />
+  </div>
 
-  <!-- Single Delete Confirmation Dialog -->
   {#if eventToDelete}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onclick={handleCancelDelete}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dialog-title"
-    >
-      <div
-        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
-        onclick={(e) => e.stopPropagation()}
-      >
-        <h2 id="dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
-          Delete Event?
-        </h2>
-        <p class="mb-6 text-sm text-text-secondary">
-          Are you sure you want to delete this event? This action cannot be undone.
-        </p>
-        <div class="flex justify-end gap-3">
-          <button
-            type="button"
-            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-            onclick={handleCancelDelete}
-            disabled={isDeleting || isBulkDeleting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-            onclick={handleConfirmDelete}
-            disabled={isDeleting || isBulkDeleting}
-          >
-            {#if isDeleting}
-              Deleting...
-            {:else}
-              Delete
-            {/if}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title="Delete Event?"
+      message="Are you sure you want to delete this event? This action cannot be undone."
+      confirmLabel="Delete"
+      loading={isDeleting}
+      danger={true}
+      confirmDisabled={isDeleting || isBulkDeleting}
+      onConfirm={handleConfirmDelete}
+      onCancel={handleCancelDelete}
+    />
   {/if}
 
-  <!-- Bulk Delete Confirmation Dialog -->
   {#if eventsToBulkDelete.length > 0}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onclick={handleCancelBulkDelete}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bulk-dialog-title"
-    >
-      <div
-        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
-        onclick={(e) => e.stopPropagation()}
-      >
-        <h2 id="bulk-dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
-          Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length > 1 ? 's' : ''}?
-        </h2>
-        <p class="mb-6 text-sm text-text-secondary">
-          Are you sure you want to delete {eventsToBulkDelete.length} event{eventsToBulkDelete.length > 1 ? 's' : ''}? This action cannot be undone.
-        </p>
-        <div class="flex justify-end gap-3">
-          <button
-            type="button"
-            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-            onclick={handleCancelBulkDelete}
-            disabled={isBulkDeleting || isDeleting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50"
-            onclick={handleConfirmBulkDelete}
-            disabled={isBulkDeleting || isDeleting}
-          >
-            {#if isBulkDeleting}
-              Deleting...
-            {:else}
-              Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length > 1 ? 's' : ''}
-            {/if}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title="Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length !== 1 ? 's' : ''}?"
+      message="Are you sure you want to delete {eventsToBulkDelete.length} event{eventsToBulkDelete.length !== 1 ? 's' : ''}? This action cannot be undone."
+      confirmLabel="Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length !== 1 ? 's' : ''}"
+      loading={isBulkDeleting}
+      danger={true}
+      confirmDisabled={isBulkDeleting || isDeleting}
+      onConfirm={handleConfirmBulkDelete}
+      onCancel={handleCancelBulkDelete}
+    />
   {/if}
 
-  <!-- Candidates Modal -->
-  {#if candidatesSourceEventId}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onclick={handleCancelCandidates}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        class="w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl flex flex-col"
-        onclick={(e) => e.stopPropagation()}
-      >
-        <div class="flex items-center justify-between border-b border-border p-6">
-          <div class="flex-1">
-            <h2 class="text-lg font-semibold text-text-primary mb-3">Find Comparison Candidates</h2>
-            {#if sourceEventRow}
-              <div class="flex items-center gap-3">
-                <span
-                  class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
-                  style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
-                  aria-hidden="true"
-                >{getActivityIcon(sourceEventRow.activity.type)}</span>
-                <div class="min-w-0 flex flex-col gap-0.5">
-                  <span class="font-medium text-text-primary">{sourceEventRow.activity.type || '—'}</span>
-                  <span class="text-text-secondary text-sm">
-                    {getActivityDeviceName(sourceEventRow.activity)}
-                  </span>
-                  <span class="text-text-secondary text-sm truncate" title={sourceEventRow.event.name || undefined}>
-                    {sourceEventRow.event.name || '—'}
-                  </span>
-                  <span class="text-text-secondary text-sm">
-                    {formatDateWithTime(sourceEventRow.activity.startDate ?? sourceEventRow.event.startDate)}
-                  </span>
-                </div>
-              </div>
-            {/if}
-          </div>
-          <button
-            type="button"
-            class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary ml-4"
-            onclick={handleCancelCandidates}
-            aria-label="Close"
-          >
-            <span class="material-icons">close</span>
-          </button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-6">
-          {#if candidatesLoading}
-            <div class="flex justify-center py-8">
-              <LoadingSpinner />
-            </div>
-          {:else if candidates.length === 0}
-            <p class="text-sm text-text-secondary text-center py-8">
-              No overlapping events found for comparison.
-            </p>
-          {:else}
-            <p class="mb-4 text-sm text-text-secondary">
-              Select events that overlap in time with this event to compare:
-            </p>
-            <div class="space-y-2">
-              {#each candidates as candidate (candidate.id)}
-                {@const isSelected = selectedCandidateIds.has(candidate.id)}
-                {@const candidateActivity = candidate.activities?.[0]}
-                <label
-                  class="flex items-center gap-3 rounded border border-border bg-card p-3 cursor-pointer hover:bg-card-hover {isSelected ? 'border-accent bg-accent/10' : ''}"
-                >
-                  <input
-                    type="checkbox"
-                    class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent"
-                    checked={isSelected}
-                    onchange={() => toggleCandidateSelection(candidate.id)}
-                  />
-                  <span
-                    class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
-                    style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
-                    aria-hidden="true"
-                  >{getActivityIcon(candidateActivity?.type)}</span>
-                  <div class="flex-1 min-w-0">
-                    <div class="font-medium text-text-primary">{candidateActivity?.type || '—'}</div>
-                    <div class="text-sm text-text-secondary">
-                      {getActivityDeviceName(candidateActivity || {})}
-                    </div>
-                    <div class="text-sm text-text-secondary truncate" title={candidate.name || undefined}>
-                      {candidate.name || '—'}
-                    </div>
-                    <div class="text-sm text-text-secondary">
-                      {formatDateWithTime(candidateActivity?.startDate ?? candidate.startDate)}
-                    </div>
-                  </div>
-                </label>
-              {/each}
-            </div>
-          {/if}
-        </div>
-
-        <div class="flex items-center justify-end gap-3 border-t border-border p-6">
-          <button
-            type="button"
-            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover"
-            onclick={handleCancelCandidates}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover disabled:opacity-50"
-            onclick={handleCompareSelected}
-            disabled={selectedCandidateIds.size === 0}
-          >
-            Compare ({selectedCandidateIds.size + 1} event{selectedCandidateIds.size + 1 > 1 ? 's' : ''})
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <CompareCandidatesModal
+    open={!!candidatesSourceEventId}
+    sourceEventRow={sourceEventRow}
+    candidates={candidates}
+    candidatesLoading={candidatesLoading}
+    selectedCandidateIds={selectedCandidateIds}
+    onToggleCandidate={toggleCandidateSelection}
+    onCompare={handleCompareSelected}
+    onCancel={handleCancelCandidates}
+  />
 </section>

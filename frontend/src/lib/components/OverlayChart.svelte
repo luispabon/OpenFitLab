@@ -3,6 +3,14 @@
   import 'uplot/dist/uPlot.min.css'
   import type { StreamData } from '../types'
   import { getStreamConfig } from '../utils/stream-config'
+  import {
+    formatElapsedTime,
+    formatYValue,
+    getSmoothPath,
+    CHART_HEIGHT,
+    CHART_TEXT_COLOR,
+    CHART_GRID_COLOR,
+  } from '../utils/chart-utils'
 
   interface Props {
     streams: StreamData[]
@@ -16,21 +24,7 @@
   let isZoomed = $state(false)
   const chartRef = { current: null as uPlot | null }
 
-  function formatElapsedTime(ms: number): string {
-    const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  function formatYValue(value: number, label: string): string {
-    if (label === 'Heart Rate') return Math.round(value).toString()
-    return value.toFixed(1)
-  }
+  const smoothPath = getSmoothPath()
 
   // Build aligned data: one x array (sorted union of all x) and one y array per stream (value or null)
   const chartData = $derived.by(() => {
@@ -80,13 +74,11 @@
     return index % 2 === 0 ? 'y' : 'y1'
   }
 
-  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
-
   $effect(() => {
     if (!containerEl || !chartData.data || chartData.configs.length === 0) return
 
-    const textColor = '#d1d5db'
-    const gridColor = 'rgba(255,255,255,0.12)'
+    const textColor = CHART_TEXT_COLOR
+    const gridColor = CHART_GRID_COLOR
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -187,7 +179,7 @@
 
     const opts: uPlot.Options = {
       width: containerEl.offsetWidth,
-      height: 384,
+      height: CHART_HEIGHT,
       series,
       scales,
       axes,
@@ -222,7 +214,7 @@
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 384 })
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT })
       }
     })
     ro.observe(containerEl)
