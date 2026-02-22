@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { push, querystring } from 'svelte-spa-router'
-  import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
-  import type { EventSummary, ActivityRow } from '../lib/types'
+  import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent } from '../lib/api'
+  import type { ActivityRow } from '../lib/types'
   import {
     formatDurationCell,
     formatAvgHeartRateCell,
@@ -15,6 +15,7 @@
   import DashboardToast from '../lib/components/dashboard/DashboardToast.svelte'
   import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte'
   import DashboardBulkDeleteFlow from '../lib/components/dashboard/DashboardBulkDeleteFlow.svelte'
+  import CompareCandidatesFlow from '../lib/components/dashboard/CompareCandidatesFlow.svelte'
   import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
   import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte'
   import DashboardPaginator from '../lib/components/dashboard/DashboardPaginator.svelte'
@@ -101,10 +102,7 @@
   let isDeleting = $state(false)
   let selectedEventIds = $state<Set<string>>(new Set())
   let eventsToBulkDelete = $state<string[]>([])
-  let candidatesSourceEventId = $state<string | null>(null)
-  let candidates = $state<EventSummary[]>([])
-  let candidatesLoading = $state(false)
-  let selectedCandidateIds = $state<Set<string>>(new Set())
+  let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined)
 
   function showToast(message: string) {
     toastMessage = message
@@ -226,46 +224,6 @@
     }
   }
 
-  async function handleFindComparisonsClick(eventId: string) {
-    candidatesSourceEventId = eventId
-    candidatesLoading = true
-    candidates = []
-    selectedCandidateIds = new Set()
-
-    try {
-      const found = await getComparisonCandidates(eventId)
-      candidates = found
-    } catch (error) {
-      console.error('Failed to load comparison candidates:', error)
-      showToast(error instanceof Error ? error.message : 'Failed to load comparison candidates')
-    } finally {
-      candidatesLoading = false
-    }
-  }
-
-  function handleCancelCandidates() {
-    candidatesSourceEventId = null
-    candidates = []
-    selectedCandidateIds = new Set()
-  }
-
-  function toggleCandidateSelection(eventId: string) {
-    const newSet = new Set(selectedCandidateIds)
-    if (newSet.has(eventId)) {
-      newSet.delete(eventId)
-    } else {
-      newSet.add(eventId)
-    }
-    selectedCandidateIds = newSet
-  }
-
-  function handleCompareSelected() {
-    if (!candidatesSourceEventId || selectedCandidateIds.size === 0) return
-
-    const eventIds = [candidatesSourceEventId, ...Array.from(selectedCandidateIds)]
-    push(`/compare/new?events=${eventIds.join(',')}`)
-  }
-
   onMount(() => {
     getActivityTypes().then((r) => { activityTypesOptions = r })
     getDevices().then((r) => { devicesOptions = r })
@@ -280,12 +238,6 @@
     if (totalPages > 0 && page > totalPages) {
       page = totalPages
     }
-  })
-
-  // Find source event row for candidates modal (may not be on current page)
-  const sourceEventRow = $derived.by(() => {
-    if (!candidatesSourceEventId) return null
-    return activityRowsFromApi.find((row) => row.event.id === candidatesSourceEventId) ?? null
   })
 
   // Unique event IDs on current page (for select-all)
@@ -541,7 +493,7 @@
       e.stopPropagation()
       push(`/event/${id}`)
     }}
-    onFindComparisonsClick={handleFindComparisonsClick}
+    onFindComparisonsClick={(id) => compareCandidatesFlow?.openForEvent(id)}
     onDeleteClick={handleDeleteClick}
   />
 
@@ -573,15 +525,11 @@
     />
   {/if}
 
-  <CompareCandidatesModal
-    open={!!candidatesSourceEventId}
-    sourceEventRow={sourceEventRow}
-    candidates={candidates}
-    candidatesLoading={candidatesLoading}
-    selectedCandidateIds={selectedCandidateIds}
-    onToggleCandidate={toggleCandidateSelection}
-    onCompare={handleCompareSelected}
-    onCancel={handleCancelCandidates}
+  <CompareCandidatesFlow
+    bind:this={compareCandidatesFlow}
+    activityRows={activityRowsFromApi}
+    onCompare={(eventIds) => push(`/compare/new?events=${eventIds.join(',')}`)}
+    onError={showToast}
   />
   </DashboardUploadSection>
 </section>
