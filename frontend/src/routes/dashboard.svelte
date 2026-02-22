@@ -3,8 +3,12 @@
   import { push, querystring } from 'svelte-spa-router'
   import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
   import type { EventSummary, ActivityRow } from '../lib/types'
-  import { findStatByMetric } from '../lib/utils/stat-categories'
-  import { formatStatValue } from '../lib/utils/stat-formatting'
+  import {
+    formatDurationCell,
+    formatAvgHeartRateCell,
+    formatCaloriesCell,
+    formatDistanceCell,
+  } from '../lib/utils/dashboard-table-formatters'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
   import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
@@ -525,30 +529,6 @@
       currentDeleteIndex = 0
       totalToDelete = 0
     }
-  }
-
-  function formatDurationCell(stats: Record<string, unknown>): string {
-    const found = findStatByMetric(stats, 'Duration') ?? findStatByMetric(stats, 'Moving Time')
-    if (!found) return '—'
-    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
-  }
-
-  function formatAvgHeartRateCell(stats: Record<string, unknown>): string {
-    const found = findStatByMetric(stats, 'Heart Rate', 'Average')
-    if (!found) return '—'
-    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
-  }
-
-  function formatCaloriesCell(stats: Record<string, unknown>): string {
-    const found = findStatByMetric(stats, 'Energy') ?? findStatByMetric(stats, 'Calories')
-    if (!found) return '—'
-    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
-  }
-
-  function formatDistanceCell(stats: Record<string, unknown>): string {
-    const found = findStatByMetric(stats, 'Distance')
-    if (!found) return '—'
-    return formatStatValue(found.value as number | string | number[] | Record<string, unknown> | null | undefined, found.statType)
   }
 
   // Reference for select-all checkbox to set indeterminate state
