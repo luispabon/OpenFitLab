@@ -11,7 +11,7 @@
   } from '../lib/utils/dashboard-table-formatters'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
-  import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
+  import DashboardUploadSection from '../lib/components/dashboard/DashboardUploadSection.svelte'
   import DashboardToast from '../lib/components/dashboard/DashboardToast.svelte'
   import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte'
   import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
@@ -157,61 +157,6 @@
   function resetPageAndLoad() {
     page = 1
     loadActivityRows()
-  }
-
-  async function handleFileSelect(event: Event) {
-    const target = event.target as HTMLInputElement
-    const files = target.files
-    if (!files || files.length === 0) return
-
-    await handleFiles(Array.from(files))
-    target.value = ''
-  }
-
-  function handleDragEnter(event: DragEvent) {
-    // Only show overlay for file drags, not when uploading
-    if (isUploading) return
-    
-    const types = event.dataTransfer?.types
-    if (types && Array.from(types).includes('Files')) {
-      event.preventDefault()
-      event.stopPropagation()
-      isDraggingOver = true
-    }
-  }
-
-  function handleDragLeave(event: DragEvent) {
-    // Only hide overlay if we're actually leaving the dashboard section
-    const relatedTarget = event.relatedTarget as Node | null
-    const currentTarget = event.currentTarget as HTMLElement
-    
-    if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
-      isDraggingOver = false
-    }
-  }
-
-  function handleDragOver(event: DragEvent) {
-    // Only allow drop for file drags
-    const types = event.dataTransfer?.types
-    if (types && Array.from(types).includes('Files')) {
-      event.preventDefault()
-      event.stopPropagation()
-      if (!isUploading) {
-        isDraggingOver = true
-      }
-    }
-  }
-
-  async function handleDrop(event: DragEvent) {
-    event.preventDefault()
-    event.stopPropagation()
-    
-    isDraggingOver = false
-
-    const files = event.dataTransfer?.files
-    if (!files || files.length === 0) return
-
-    await handleFiles(Array.from(files))
   }
 
   async function handleFiles(fileList: File[]) {
@@ -545,61 +490,25 @@
 <section
   class="mx-auto w-[85%] max-w-screen-2xl py-6 transition-opacity"
   class:opacity-50={isDraggingOver && !isUploading}
-  ondragenter={handleDragEnter}
-  ondragover={handleDragOver}
-  ondragleave={handleDragLeave}
-  ondrop={handleDrop}
 >
-  {#if isDraggingOver && !isUploading}
-    <DropZoneOverlay visible={isDraggingOver && !isUploading} />
-  {/if}
-
-  <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
-
-  <!-- Upload Section and Bulk Action Bar -->
-  <div class="mb-6 flex items-center justify-between gap-4">
-    <label
-      for="file-upload"
-      class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-    >
-      <svg
-        class="mr-2 h-5 w-5"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-        />
-      </svg>
-      Upload Activity Files
-    </label>
-    <input
-      id="file-upload"
-      type="file"
-      accept=".json,.tcx,.fit,.gpx,.sml"
-      multiple
-      class="hidden"
-      onchange={handleFileSelect}
-      disabled={isUploading}
-    />
-
-    <DashboardBulkActionBar
-      selectedCount={selectedEventIds.size}
-      disabled={isBulkDeleting || isDeleting}
-      onClear={clearSelection}
-      onCompare={() => {
-        if (selectedEventIds.size >= 2) {
-          push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`)
-        }
-      }}
-      onDelete={handleBulkDeleteClick}
-    />
-  </div>
+  <DashboardUploadSection
+    isUploading={isUploading}
+    onFilesSelected={handleFiles}
+    bind:isDraggingOver
+  >
+    <svelte:fragment slot="bulkBar">
+      <DashboardBulkActionBar
+        selectedCount={selectedEventIds.size}
+        disabled={isBulkDeleting || isDeleting}
+        onClear={clearSelection}
+        onCompare={() => {
+          if (selectedEventIds.size >= 2) {
+            push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`)
+          }
+        }}
+        onDelete={handleBulkDeleteClick}
+      />
+    </svelte:fragment>
 
   <!-- Loading Spinner (only for loading events, not uploads) -->
   {#if isLoading}
@@ -734,4 +643,5 @@
     onCompare={handleCompareSelected}
     onCancel={handleCancelCandidates}
   />
+  </DashboardUploadSection>
 </section>
