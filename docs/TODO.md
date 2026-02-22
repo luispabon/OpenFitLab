@@ -258,6 +258,14 @@ This document lists features from the PRD that are not yet implemented. Features
 - ~~May need indexes on `stream_data_points.time_ms` for performance~~ — Done: `idx_stream_time`, `idx_stream_id`, `idx_time_range` indexes exist
 - Consider materialized views for correlation calculations (future optimization)
 
+### Comparisons CASCADE (schema cleanup)
+
+- [ ] **Comparisons–event relationship and ON DELETE CASCADE:** When an event is deleted, comparisons that reference it currently keep stale IDs in `event_ids` JSON. Normalize and add CASCADE so comparison–event links are removed automatically.
+  - Add table e.g. `comparison_events` (`comparison_id`, `event_id`) with FKs to `comparisons(id)` and `events(id)`; use `ON DELETE CASCADE` from `events` so rows are removed when an event is deleted.
+  - Migrate existing `comparisons.event_ids` JSON into `comparison_events` rows (one-time or on startup).
+  - Update comparison API/service to read/write via `comparison_events` (and optionally keep or drop `event_ids` on `comparisons`).
+  - Decide behaviour when a comparison’s events are partially deleted (e.g. filter out missing event IDs in API responses, or treat comparison as invalid).
+
 ---
 
 ## Success Metrics (from PRD Section 6)
