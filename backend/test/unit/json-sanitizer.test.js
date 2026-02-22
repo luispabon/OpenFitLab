@@ -6,9 +6,6 @@ const knownTypes = new Set(['Distance', 'Duration', 'Heart Rate', 'Speed', 'Time
 function mockGetDataClass(type) {
   return knownTypes.has(type) ? {} : null;
 }
-function mockGetDataClass(type) {
-  return knownTypes.has(type) ? {} : null;
-}
 
 describe('JSONSanitizer.sanitize', () => {
   it('returns input and empty unknownTypes for null', () => {
@@ -113,5 +110,35 @@ describe('JSONSanitizer.sanitize', () => {
     const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: mockGetDataClass });
     deepStrictEqual(result.sanitizedJson.activities[0].streams, { 'Heart Rate': [100] });
     deepStrictEqual(result.unknownTypes, ['UnknownStream']);
+  });
+
+  it('uses real sports-lib when no getDataClassFromDataType option (integration)', () => {
+    // No options: production path using DynamicDataLoader.getDataClassFromDataType
+    const input = {
+      stats: { Distance: 5000, Duration: 1800, 'Heart Rate': 140 },
+      activities: [
+        {
+          id: 'a1',
+          stats: { Speed: 2.5, Altitude: 100 },
+          streams: [
+            { type: 'Heart Rate', data: [120, 125] },
+            { type: 'Speed', data: [2.0, 2.5] },
+          ],
+        },
+      ],
+    };
+    const result = JSONSanitizer.sanitize(input);
+    deepStrictEqual(result.unknownTypes, []);
+    deepStrictEqual(result.sanitizedJson.stats, {
+      Distance: 5000,
+      Duration: 1800,
+      'Heart Rate': 140,
+    });
+    deepStrictEqual(result.sanitizedJson.activities.length, 1);
+    deepStrictEqual(result.sanitizedJson.activities[0].stats, { Speed: 2.5, Altitude: 100 });
+    deepStrictEqual(result.sanitizedJson.activities[0].streams, [
+      { type: 'Heart Rate', data: [120, 125] },
+      { type: 'Speed', data: [2.0, 2.5] },
+    ]);
   });
 });

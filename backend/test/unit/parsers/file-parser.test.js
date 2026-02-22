@@ -67,9 +67,7 @@ describe('FileParser.parseFile', () => {
     strictEqual(event.name, 'My Morning Run');
   });
 
-  it('parses minimal.gpx and returns event', { skip: true }, async () => {
-    // Skipped: sports-lib GPX path can throw "domParser is not a constructor" in Node.
-    // Fixture minimal.gpx exists; re-enable when library or env supports GPX in Node.
+  it('parses minimal.gpx and returns event', async () => {
     const gpxPath = path.join(FIXTURES_DIR, 'minimal.gpx');
     const buffer = fs.readFileSync(gpxPath);
     const event = await FileParser.parseFile(buffer, 'gpx', 'minimal.gpx');

@@ -53,7 +53,8 @@ class FileParser {
           const xmlDoc = domParser.parseFromString(text, 'application/xml');
           event = await EventImporterTCX.getFromXML(xmlDoc, options);
         } else if (ext === 'gpx') {
-          event = await EventImporterGPX.getFromString(text, options);
+          // GXParser expects the DOMParser constructor (it does new domParser() internally)
+          event = await EventImporterGPX.getFromString(text, DOMParser, options);
         } else if (ext === 'json') {
           let json;
           try {
