@@ -3,14 +3,9 @@
   import { push, querystring } from 'svelte-spa-router'
   import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent, getComparisonCandidates } from '../lib/api'
   import type { EventSummary, Activity, ActivityRow } from '../lib/types'
-  import {
-    formatDateShort,
-    formatDateWithTime,
-    getActivityIcon,
-    findStatByMetric,
-    formatStatValue,
-    getActivityDeviceName,
-  } from '../lib/utils'
+  import { formatDateShort, formatDateWithTime, getActivityIcon, getActivityDeviceName } from '../lib/utils'
+  import { findStatByMetric } from '../lib/utils/stat-categories'
+  import { formatStatValue } from '../lib/utils/stat-formatting'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte'
   import DropZoneOverlay from '../lib/components/DropZoneOverlay.svelte'
