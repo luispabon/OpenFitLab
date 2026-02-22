@@ -14,6 +14,7 @@
   import DashboardUploadSection from '../lib/components/dashboard/DashboardUploadSection.svelte'
   import DashboardToast from '../lib/components/dashboard/DashboardToast.svelte'
   import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte'
+  import DashboardBulkDeleteFlow from '../lib/components/dashboard/DashboardBulkDeleteFlow.svelte'
   import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
   import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte'
   import DashboardPaginator from '../lib/components/dashboard/DashboardPaginator.svelte'
@@ -99,10 +100,6 @@
   let eventToDelete = $state<string | null>(null)
   let isDeleting = $state(false)
   let selectedEventIds = $state<Set<string>>(new Set())
-  let isBulkDeleting = $state(false)
-  let bulkDeleteProgress = $state(0)
-  let currentDeleteIndex = $state(0)
-  let totalToDelete = $state(0)
   let eventsToBulkDelete = $state<string[]>([])
   let candidatesSourceEventId = $state<string | null>(null)
   let candidates = $state<EventSummary[]>([])
@@ -422,58 +419,15 @@
     eventsToBulkDelete = eventIds
   }
 
-  function handleCancelBulkDelete() {
-    eventsToBulkDelete = []
-  }
-
-  async function handleConfirmBulkDelete() {
-    const eventIds = eventsToBulkDelete
-    if (eventIds.length === 0) return
-
-    isBulkDeleting = true
-    totalToDelete = eventIds.length
-    currentDeleteIndex = 0
-    bulkDeleteProgress = 0
-
-    let successful = 0
-    let failed = 0
-
-    try {
-      for (let i = 0; i < eventIds.length; i++) {
-        currentDeleteIndex = i
-        bulkDeleteProgress = (i / eventIds.length) * 100
-
-        try {
-          const deleted = await deleteEvent(eventIds[i])
-          if (deleted) {
-            successful++
-          } else {
-            failed++
-          }
-        } catch (error) {
-          console.error(`Failed to delete event ${eventIds[i]}:`, error)
-          failed++
-        }
-      }
-
-      bulkDeleteProgress = 100
-
-      if (successful > 0) {
-        showToast(`Deleted ${successful} event${successful > 1 ? 's' : ''} successfully`)
-        await loadActivityRows()
-      }
-      if (failed > 0) {
-        showToast(`Failed to delete ${failed} event${failed > 1 ? 's' : ''}`)
-      }
-
-      clearSelection()
-    } finally {
-      isBulkDeleting = false
-      eventsToBulkDelete = []
-      bulkDeleteProgress = 0
-      currentDeleteIndex = 0
-      totalToDelete = 0
+  function handleBulkDeleteDone(successful: number, failed: number) {
+    if (successful > 0) {
+      showToast(`Deleted ${successful} event${successful > 1 ? 's' : ''} successfully`)
+      loadActivityRows()
     }
+    if (failed > 0) {
+      showToast(`Failed to delete ${failed} event${failed > 1 ? 's' : ''}`)
+    }
+    clearSelection()
   }
 
   // Reference for select-all checkbox to set indeterminate state
@@ -499,7 +453,7 @@
     <svelte:fragment slot="bulkBar">
       <DashboardBulkActionBar
         selectedCount={selectedEventIds.size}
-        disabled={isBulkDeleting || isDeleting}
+        disabled={eventsToBulkDelete.length > 0 || isDeleting}
         onClear={clearSelection}
         onCompare={() => {
           if (selectedEventIds.size >= 2) {
@@ -527,16 +481,15 @@
     />
   {/if}
 
-  <!-- Bulk Delete Progress Bar -->
-  {#if isBulkDeleting}
-    <UploadProgressBar
-      currentFile={currentDeleteIndex + 1}
-      totalFiles={totalToDelete}
-      progress={bulkDeleteProgress}
-      label="Deleting event"
-      progressColor="bg-danger"
-    />
-  {/if}
+  <DashboardBulkDeleteFlow
+    eventIdsToDelete={eventsToBulkDelete}
+    deleteEvent={deleteEvent}
+    onDone={handleBulkDeleteDone}
+    onClosed={() => {
+      eventsToBulkDelete = []
+    }}
+    isDeleting={isDeleting}
+  />
 
   <DashboardToast message={toastMessage} />
 
@@ -614,22 +567,9 @@
       confirmLabel="Delete"
       loading={isDeleting}
       danger={true}
-      confirmDisabled={isDeleting || isBulkDeleting}
+      confirmDisabled={isDeleting || eventsToBulkDelete.length > 0}
       onConfirm={handleConfirmDelete}
       onCancel={handleCancelDelete}
-    />
-  {/if}
-
-  {#if eventsToBulkDelete.length > 0}
-    <ConfirmDialog
-      title="Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length !== 1 ? 's' : ''}?"
-      message="Are you sure you want to delete {eventsToBulkDelete.length} event{eventsToBulkDelete.length !== 1 ? 's' : ''}? This action cannot be undone."
-      confirmLabel="Delete {eventsToBulkDelete.length} Event{eventsToBulkDelete.length !== 1 ? 's' : ''}"
-      loading={isBulkDeleting}
-      danger={true}
-      confirmDisabled={isBulkDeleting || isDeleting}
-      onConfirm={handleConfirmBulkDelete}
-      onCancel={handleCancelBulkDelete}
     />
   {/if}
 
