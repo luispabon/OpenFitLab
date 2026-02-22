@@ -1,0 +1,29 @@
+---
+description: Backend structure, DB access, and testability conventions
+globs: backend/**
+---
+
+# Backend architecture and conventions
+
+## Data access
+
+- **Use the same DB API everywhere.** In services, use `db.query()`, `db.queryOne()`, and `db.transaction(fn)`. Inside a transaction, use `conn.execute()`. Do not use `db.getPool()` and then `pool.execute()` in services — it breaks a consistent mock contract for tests.
+- **All services that touch the DB must accept optional dependency injection** so they can be unit-tested with a fake DB: accept an `opts` (or similar) parameter and use `const db = opts?.db ?? defaultDb` (or equivalent). This applies to every new service and to any existing service that currently `require('../db')` directly.
+- **Keep all SQL in services** (or in repositories if the project introduces that layer). Routes must not import `db` or contain raw SQL.
+- **Use transactions for multi-statement writes** that must be atomic (e.g. insert event + event_stats + activities + streams in one go). Use `db.transaction(async (conn) => { ... })` and `conn.execute()` inside the callback.
+
+## Routes and middleware
+
+- **Routes are thin:** validate (via middleware), call a service, send the response. No business logic and no direct DB access in route handlers.
+- **Shared middleware lives in one place.** Use a single `asyncHandler` (or similar) from e.g. `src/middleware/async-handler.js`; do not redefine it in each route file.
+- **Input validation** for query params and body belongs in `src/utils/validation.js` as Express middleware. Enforce limits (e.g. max `limit`) in validation or document the server cap in one place so validation and service stay aligned.
+
+## Queries and performance
+
+- **Avoid N+1 patterns.** When loading related data for many parents (e.g. stats for many events), use batched `IN (...)` queries with parameterized placeholders (e.g. `placeholders(n)` from `utils/transforms.js`), not per-parent queries.
+- **When adding new queries,** consider whether existing indexes support filters and `ORDER BY`; add or adjust indexes in `sql/schema.sql` if needed, and document the change (schema has no migrations; changes require DB recreate).
+
+## Testing
+
+- **Every service that uses the DB must be unit-testable** with an injected fake `db` (provide `query`, `queryOne`, `transaction`, and where used `getPool` with the same contract as `db.js`). Add or update unit tests under `backend/test/unit/` for new or changed behavior; do not leave new services or branches untested.
+- **Do not introduce circular dependencies.** Services must not require other services; routes may require multiple services and validation.

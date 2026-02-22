@@ -1,14 +1,16 @@
 const { randomUUID } = require('crypto');
-const db = require('../db');
+const defaultDb = require('../db');
 const { parseJSONField } = require('../utils/transforms');
 
 /**
  * @param {string} name
  * @param {string[]} eventIds
  * @param {object | null} settings
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<object>} { id, name, eventIds, settings, createdAt }
  */
-async function createComparison(name, eventIds, settings) {
+async function createComparison(name, eventIds, settings, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const id = randomUUID();
   await db.query('INSERT INTO comparisons (id, name, event_ids, settings) VALUES (?, ?, ?, ?)', [
     id,
@@ -27,9 +29,11 @@ async function createComparison(name, eventIds, settings) {
 
 /**
  * @param {number} limit
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<Array<object>>}
  */
-async function getComparisons(limit = 100) {
+async function getComparisons(limit = 100, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const rows = await db.query(
     'SELECT id, name, event_ids, settings, created_at FROM comparisons ORDER BY created_at DESC LIMIT ?',
     [limit]
@@ -45,9 +49,11 @@ async function getComparisons(limit = 100) {
 
 /**
  * @param {string} id
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<object | null>}
  */
-async function getComparisonById(id) {
+async function getComparisonById(id, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const row = await db.queryOne(
     'SELECT id, name, event_ids, settings, created_at FROM comparisons WHERE id = ?',
     [id]
@@ -64,9 +70,11 @@ async function getComparisonById(id) {
 
 /**
  * @param {string} id
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<boolean>} true if deleted, false if not found
  */
-async function deleteComparisonById(id) {
+async function deleteComparisonById(id, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const existing = await db.queryOne('SELECT id FROM comparisons WHERE id = ?', [id]);
   if (!existing) return false;
   await db.query('DELETE FROM comparisons WHERE id = ?', [id]);

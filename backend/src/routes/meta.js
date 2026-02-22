@@ -1,9 +1,8 @@
 const express = require('express');
 const { getActivityTypes, getDevices } = require('../services/meta-service');
+const { asyncHandler } = require('../middleware/async-handler');
 
 const router = express.Router();
-
-const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 /** GET /api/activity-types - distinct activity types from activities table */
 router.get(

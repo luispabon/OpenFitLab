@@ -1,5 +1,5 @@
 const { randomUUID } = require('crypto');
-const db = require('../db');
+const defaultDb = require('../db');
 const FileParser = require('../parsers/file-parser');
 const { extractStreamDataPointsFromJSON } = require('../utils/stream-extractor');
 const { toTimestamp } = require('../utils/transforms');
@@ -9,9 +9,11 @@ const { toTimestamp } = require('../utils/transforms');
  * @param {Buffer} fileBuffer - Raw file content
  * @param {string} extension - File extension (e.g. 'fit', 'tcx')
  * @param {string} originalFilename - Original filename (used for event name)
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<{ eventId: string, eventJson: object, activities: Array<object> }>}
  */
-async function processUpload(fileBuffer, extension, originalFilename) {
+async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const event = await FileParser.parseFile(fileBuffer, extension, originalFilename);
 
   const eventId = randomUUID();

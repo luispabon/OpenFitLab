@@ -12,14 +12,14 @@ const { deleteEventById } = require('../services/event-delete-service');
 const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
 
+const { asyncHandler } = require('../middleware/async-handler');
+
 const router = express.Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB limit
 });
-
-const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const {
   validateGetEventsQuery,

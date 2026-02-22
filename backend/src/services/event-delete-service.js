@@ -9,9 +9,8 @@ const defaultDb = require('../db');
  */
 async function deleteEventById(eventId, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const pool = await db.getPool();
-  const [result] = await pool.execute('DELETE FROM events WHERE id = ?', [eventId]);
-  return result.affectedRows === 1;
+  const result = await db.query('DELETE FROM events WHERE id = ?', [eventId]);
+  return result && result.affectedRows === 1;
 }
 
 module.exports = { deleteEventById };
