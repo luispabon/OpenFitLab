@@ -21,10 +21,11 @@ async function updateActivity(eventId, activityId, updates) {
   await db.transaction(async (conn) => {
     if (typeUpdate !== undefined && typeUpdate !== null) {
       const typeValue = String(typeUpdate).trim() || null;
-      await conn.execute(
-        'UPDATE activities SET type = ? WHERE id = ? AND event_id = ?',
-        [typeValue, activityId, eventId]
-      );
+      await conn.execute('UPDATE activities SET type = ? WHERE id = ? AND event_id = ?', [
+        typeValue,
+        activityId,
+        eventId,
+      ]);
       const [activityRowsResult] = await conn.execute(
         'SELECT type FROM activities WHERE event_id = ?',
         [eventId]
@@ -39,10 +40,11 @@ async function updateActivity(eventId, activityId, updates) {
 
     if (deviceName !== undefined && deviceName !== null) {
       const deviceValue = String(deviceName).trim() || null;
-      await conn.execute(
-        'UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?',
-        [deviceValue, activityId, eventId]
-      );
+      await conn.execute('UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?', [
+        deviceValue,
+        activityId,
+        eventId,
+      ]);
     }
   });
 

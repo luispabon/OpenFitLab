@@ -22,7 +22,7 @@ app.get('/health', async (req, res) => {
   try {
     await db.query('SELECT 1');
     res.json({ ok: true });
-  } catch (err) {
+  } catch {
     res.status(503).json({ ok: false, error: 'Database connection failed' });
   }
 });
@@ -52,5 +52,5 @@ async function start() {
 
 start().catch((err) => {
   console.error('Failed to start:', err);
-  process.exit(1);
+  throw err;
 });

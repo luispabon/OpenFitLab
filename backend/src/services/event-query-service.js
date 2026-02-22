@@ -157,7 +157,8 @@ async function getActivityRows(params = {}) {
     queryParams.push(...devices);
   }
   if (searchRaw.length > 0) {
-    const escapeLike = (s) => String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const escapeLike = (s) =>
+      String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
     const searchTerm = `%${escapeLike(searchRaw)}%`;
     sql += ' AND (e.name LIKE ? OR a.name LIKE ? OR a.type LIKE ?)';
     queryParams.push(searchTerm, searchTerm, searchTerm);
@@ -221,14 +222,14 @@ async function getActivityRows(params = {}) {
  * @returns {Promise<Array<object> | null>} Array of events with stats/activities, or null if source event not found
  */
 async function getComparisonCandidates(sourceEventId) {
-  const sourceEvent = await db.queryOne(
-    'SELECT start_date, end_date FROM events WHERE id = ?',
-    [sourceEventId]
-  );
+  const sourceEvent = await db.queryOne('SELECT start_date, end_date FROM events WHERE id = ?', [
+    sourceEventId,
+  ]);
   if (!sourceEvent) return null;
 
   const sourceStartDate = Number(sourceEvent.start_date);
-  const sourceEndDate = sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
+  const sourceEndDate =
+    sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
 
   const sql = `
     SELECT id, start_date, name, end_date, description, is_merge, src_file_type
