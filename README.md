@@ -61,7 +61,7 @@ docker compose up -d
 ```
 
 This starts:
-- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yml`)
+- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yaml`)
 - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
 - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
 - **Adminer:** http://localhost:8080 (database admin UI)

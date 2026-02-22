@@ -61,6 +61,9 @@ This file provides operational instructions for AI coding agents working in this
   - `backend/src/index.js` - Express app entry point
   - `backend/src/db.js` - Database connection and query helpers
   - `backend/src/routes/events.js` - Events API routes
+  - `backend/src/routes/comparisons.js` - Comparisons API routes
+  - `backend/src/routes/meta.js` - Activity types and devices meta routes
+  - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service)
   - `backend/src/parsers/file-parser.js` - File parsing (TCX, FIT, GPX, JSON, SML)
   - `backend/src/utils/stream-extractor.js` - Extract timestamped stream data points
   - `backend/src/utils/json-sanitizer.js` - Sanitize sports-lib JSON
@@ -204,7 +207,7 @@ This file provides operational instructions for AI coding agents working in this
 - **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
 - **Frontend routes/pages:** Check `frontend/src/routes/`
 - **Route map (GPS):** Check `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts`
-- **Docker setup:** Check `docker-compose.yml`
+- **Docker setup:** Check `docker-compose.yaml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
 - **Frontend build:** Check `frontend/vite.config.ts`
 - **Cloud hosting (AWS/GCP):** Check `docs/HOSTING.md`
