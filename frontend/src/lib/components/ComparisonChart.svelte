@@ -3,6 +3,15 @@
   import 'uplot/dist/uPlot.min.css'
   import type { StreamData } from '../types'
   import { getStreamConfig } from '../utils/stream-config'
+  import {
+    formatElapsedTime,
+    formatWallClockTime,
+    formatYValue,
+    getSmoothPath,
+    CHART_HEIGHT,
+    CHART_TEXT_COLOR,
+    CHART_GRID_COLOR,
+  } from '../utils/chart-utils'
 
   interface ComparisonEntry {
     eventName: string
@@ -26,28 +35,7 @@
 
   const streamConfig = $derived(getStreamConfig(streamType))
 
-  function formatElapsedTime(ms: number): string {
-    const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  function formatWallClockTime(ms: number): string {
-    const date = new Date(ms)
-    const hours = date.getHours()
-    const minutes = date.getMinutes()
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-  }
-
-  function formatYValue(value: number): string {
-    if (streamType === 'Heart Rate') return Math.round(value).toString()
-    return value.toFixed(1)
-  }
+  const smoothPath = getSmoothPath()
 
   // Build aligned data: merge X values from all events, create Y arrays per event
   const chartData = $derived.by(() => {
@@ -151,13 +139,11 @@
     isZoomed = false
   }
 
-  const smoothPath = uPlot.paths.spline?.() ?? uPlot.paths.linear?.()
-
   $effect(() => {
     if (!containerEl || !chartData.data || entries.length === 0) return
 
-    const textColor = '#d1d5db'
-    const gridColor = 'rgba(255,255,255,0.12)'
+    const textColor = CHART_TEXT_COLOR
+    const gridColor = CHART_GRID_COLOR
 
     if (chartRef.current) {
       chartRef.current.destroy()
@@ -196,7 +182,9 @@
           return grd
         },
         value: (_u, raw) =>
-          raw == null ? '' : `${formatYValue(raw)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
+          raw == null
+            ? ''
+            : `${formatYValue(raw, streamConfig.label)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
       })
     }
 
@@ -227,7 +215,7 @@
         grid: { stroke: gridColor, width: 1 },
         ticks: { stroke: textColor },
         values: (_u, ticks) =>
-          ticks.map((t) => (typeof t === 'number' ? formatYValue(t) : '')),
+          ticks.map((t) => (typeof t === 'number' ? formatYValue(t, streamConfig.label) : '')),
         label: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
         labelFont: '13px system-ui',
         font: '13px system-ui',
@@ -242,7 +230,7 @@
 
     const opts: uPlot.Options = {
       width: containerEl.offsetWidth,
-      height: 384,
+      height: CHART_HEIGHT,
       series,
       scales,
       axes,
@@ -276,7 +264,7 @@
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: 384 })
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT })
       }
     })
     ro.observe(containerEl)
