@@ -179,7 +179,7 @@ This document lists features from the PRD that are not yet implemented. Features
 - [ ] Results help users evaluate tracker quality
 
 **Technical Tasks:**
-- [ ] Extract device/tracker information from file metadata (`payload_rest`)
+- [ ] Extract device/tracker information from file metadata (device name already stored on activities)
 - [ ] Create device identification logic
 - [ ] Create tracker comparison view/page (`/tracker-compare/:activityId`)
 - [ ] Implement time alignment for different trackers
@@ -231,7 +231,7 @@ This document lists features from the PRD that are not yet implemented. Features
 - Consider caching correlation results
 
 **For Tracker Comparison (3.6):**
-- Device metadata extraction from `payload_rest`
+- Device metadata extraction from file metadata (device_name column used when available)
 - May need fuzzy matching for similar activities
 - Consider time window matching for same activity from different devices
 

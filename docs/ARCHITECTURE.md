@@ -47,11 +47,10 @@ graph TB
 erDiagram
     EVENTS ||--o{ ACTIVITIES : contains
     EVENTS ||--o{ EVENT_STATS : has
-    EVENTS ||--o{ ORIGINAL_FILES : references
     ACTIVITIES ||--o{ ACTIVITY_STATS : has
     ACTIVITIES ||--o{ STREAMS : has
     STREAMS ||--o{ STREAM_DATA_POINTS : contains
-    
+
     EVENTS {
         varchar id PK
         bigint start_date
@@ -59,15 +58,16 @@ erDiagram
         bigint end_date
         text description
         tinyint is_merge
-        json payload_rest
+        varchar src_file_type
+        timestamp created_at
     }
-    
+
     EVENT_STATS {
         varchar event_id PK,FK
         varchar stat_type PK
         json value
     }
-    
+
     ACTIVITIES {
         varchar id PK
         varchar event_id FK
@@ -76,39 +76,35 @@ erDiagram
         bigint end_date
         varchar type
         bigint event_start_date
-        json payload_rest
+        varchar device_name
+        timestamp created_at
     }
-    
+
     ACTIVITY_STATS {
         varchar activity_id PK,FK
         varchar stat_type PK
         json value
     }
-    
+
     STREAMS {
         varchar id PK
         varchar activity_id FK
         varchar event_id FK
         varchar type
+        timestamp created_at
     }
-    
+
     STREAM_DATA_POINTS {
         bigint id PK
         varchar stream_id FK
         bigint time_ms
         json value
         int sequence_index
-    }
-    
-    ORIGINAL_FILES {
-        varchar id PK
-        varchar event_id FK
-        varchar extension
-        varchar file_path
-        bigint start_date
-        varchar original_filename
+        timestamp created_at
     }
 ```
+
+All relationships use foreign keys with **ON DELETE CASCADE**: deleting an event removes its event_stats and activities; deleting an activity removes its activity_stats and streams; deleting a stream removes its stream_data_points. Event delete is implemented as a single `DELETE FROM events WHERE id = ?`.
 
 ### Event vs Activity: Core Concepts
 
@@ -164,7 +160,8 @@ Top-level workout sessions. Each event represents a single workout session and c
 - `end_date`: End timestamp (nullable)
 - `description`: Event description (nullable)
 - `is_merge`: Boolean flag indicating merged events
-- `payload_rest`: JSON blob for additional metadata
+- `src_file_type`: Source file extension (e.g. "tcx", "fit") (VARCHAR(16), nullable)
+- `created_at`: Row creation timestamp
 
 #### event_stats
 Relational storage for event-level statistics. One row per stat type.
@@ -184,7 +181,8 @@ Individual activities within an event. An event can contain multiple activities 
 - `end_date`: Activity end timestamp
 - `type`: Activity type (e.g., "Running", "Cycling", "Swimming")
 - `event_start_date`: Denormalized event start date for convenience
-- `payload_rest`: JSON blob for additional metadata (creator, laps, intensity zones, etc.)
+- `device_name`: Device or tracker name (e.g. "Garmin Forerunner 945") (VARCHAR(255), nullable)
+- `created_at`: Row creation timestamp
 
 #### activity_stats
 Relational storage for activity-level statistics. One row per stat type.
@@ -213,6 +211,15 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - `sequence_index`: Ordering index for data points
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
+#### comparisons
+Saved comparison definitions (optional feature). Not linked by foreign key to events.
+
+- `id`: UUID primary key
+- `name`: User-defined name
+- `event_ids`: JSON array of event UUIDs
+- `settings`: JSON (e.g. selectedStreams, xAxisMode, selectedActivities)
+- `created_at`: Row creation timestamp
+
 ## API Design
 
 ### REST Endpoints
@@ -232,14 +239,13 @@ List events with optional filtering.
     "id": "uuid",
     "startDate": 1771317117000,
     "name": "Morning Run",
-    "privacy": "private",
     "endDate": 1771318965000,
     "stats": {
       "Duration": 1848,
       "Distance": 1594,
       "Average Heart Rate": 85
     },
-    "payload_rest": { ... }
+    "srcFileType": "tcx"
   }
 ]
 ```
@@ -255,7 +261,7 @@ Get a single event with all activities.
     "startDate": 1771317117000,
     "name": "Morning Run",
     "stats": { ... },
-    "payload_rest": { ... }
+    "srcFileType": "tcx"
   },
   "activities": [
     {
@@ -266,7 +272,7 @@ Get a single event with all activities.
       "startDate": 1771317117000,
       "type": "Running",
       "stats": { ... },
-      "payload_rest": { ... }
+      "deviceName": "Garmin Forerunner 945"
     }
   ]
 }
