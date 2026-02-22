@@ -1,4 +1,4 @@
-const db = require('../db');
+const defaultDb = require('../db');
 const { aggregateStats, mapActivityRow } = require('../utils/transforms');
 
 /**
@@ -7,9 +7,11 @@ const { aggregateStats, mapActivityRow } = require('../utils/transforms');
  * @param {string} eventId - Event UUID
  * @param {string} activityId - Activity UUID
  * @param {{ type?: string, deviceName?: string }} updates
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<object | null>} Updated activity JSON or null if not found
  */
-async function updateActivity(eventId, activityId, updates) {
+async function updateActivity(eventId, activityId, updates, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const activity = await db.queryOne(
     'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id = ? AND event_id = ?',
     [activityId, eventId]
