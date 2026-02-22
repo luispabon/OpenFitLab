@@ -54,8 +54,8 @@ This file provides operational instructions for AI coding agents working in this
 - **Root structure:**
   - `backend/` - Node.js Express API (from backend/package.json)
   - `frontend/` - Svelte 5 + Vite + Tailwind SPA
-  - `docs/` - Documentation files
-  - `docker-compose.yml` - Docker Compose configuration
+  - `docs/` - Documentation files (including `docs/HOSTING.md` for AWS/GCP cloud hosting)
+  - `docker-compose.yaml` - Docker Compose configuration
 
 - **Backend structure:**
   - `backend/src/index.js` - Express app entry point
@@ -205,4 +205,5 @@ This file provides operational instructions for AI coding agents working in this
 - **Docker setup:** Check `docker-compose.yml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
 - **Frontend build:** Check `frontend/vite.config.ts`
+- **Cloud hosting (AWS/GCP):** Check `docs/HOSTING.md`
 - **Unknown:** Read relevant source files before making assumptions

@@ -110,7 +110,7 @@ Build the frontend for production:
 cd frontend && npm run build
 ```
 
-Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxied in dev, same-origin in production). Deploy the `dist/` folder to any static host and ensure `/api` routes to the Node API.
+Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxied in dev, same-origin in production). Deploy the `dist/` folder to any static host and ensure `/api` routes to the Node API. For cloud deployment (managed database, static frontend, serverless/small compute) on AWS or GCP, see the [hosting guide](docs/HOSTING.md).
 
 ## Environment
 
@@ -132,6 +132,7 @@ Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to
 
 - **[AGENTS.md](AGENTS.md)** - AI coding agent context and instructions
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed system architecture
+- **[docs/HOSTING.md](docs/HOSTING.md)** - Cloud hosting guide (AWS and GCP, cost-effective options)
 - **[docs/PRD.md](docs/PRD.md)** - Product Requirements Document
 
 ## Key Architectural Decisions

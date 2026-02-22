@@ -476,6 +476,13 @@ frontend/src/
 - Simple deployment (one command)
 - Can run on any host with Docker
 
+## Deployment options
+
+- **Self-hosted**: Docker Compose (default). One command; no cloud account required.
+- **Cloud**: Frontend on object storage (S3 or Firebase Hosting), API on small or serverless compute (App Runner, Cloud Run), database as a managed service (RDS, Cloud SQL). Single domain with path-based routing so the app keeps calling `/api` (same-origin). No load balancer required when using CloudFront (AWS) or Firebase Hosting / single Cloud Run (GCP).
+
+See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates, and a production checklist.
+
 ## Security Considerations
 
 - **CORS**: Enabled for all origins in dev (should be restricted in production)
