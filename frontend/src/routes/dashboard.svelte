@@ -16,7 +16,7 @@
   import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte'
   import DashboardBulkDeleteFlow from '../lib/components/dashboard/DashboardBulkDeleteFlow.svelte'
   import CompareCandidatesFlow from '../lib/components/dashboard/CompareCandidatesFlow.svelte'
-  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
+  import DashboardSingleDeleteFlow from '../lib/components/dashboard/DashboardSingleDeleteFlow.svelte'
   import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte'
   import DashboardPaginator from '../lib/components/dashboard/DashboardPaginator.svelte'
   import CompareCandidatesModal from '../lib/components/dashboard/CompareCandidatesModal.svelte'
@@ -99,7 +99,6 @@
   let toastMessage = $state<string | null>(null)
   let toastTimeout: ReturnType<typeof setTimeout> | null = null
   let eventToDelete = $state<string | null>(null)
-  let isDeleting = $state(false)
   let selectedEventIds = $state<Set<string>>(new Set())
   let eventsToBulkDelete = $state<string[]>([])
   let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined)
@@ -197,31 +196,6 @@
   function handleDeleteClick(eventId: string, event: MouseEvent) {
     event.stopPropagation()
     eventToDelete = eventId
-  }
-
-  function handleCancelDelete() {
-    eventToDelete = null
-  }
-
-  async function handleConfirmDelete() {
-    if (!eventToDelete) return
-
-    isDeleting = true
-    try {
-      const deleted = await deleteEvent(eventToDelete)
-      if (deleted) {
-        showToast('Event deleted successfully')
-        await loadActivityRows()
-      } else {
-        showToast('Event not found')
-      }
-    } catch (error) {
-      console.error('Failed to delete event:', error)
-      showToast(error instanceof Error ? error.message : 'Failed to delete event')
-    } finally {
-      isDeleting = false
-      eventToDelete = null
-    }
   }
 
   onMount(() => {
@@ -405,7 +379,7 @@
     <svelte:fragment slot="bulkBar">
       <DashboardBulkActionBar
         selectedCount={selectedEventIds.size}
-        disabled={eventsToBulkDelete.length > 0 || isDeleting}
+        disabled={eventsToBulkDelete.length > 0 || eventToDelete !== null}
         onClear={clearSelection}
         onCompare={() => {
           if (selectedEventIds.size >= 2) {
@@ -440,7 +414,7 @@
     onClosed={() => {
       eventsToBulkDelete = []
     }}
-    isDeleting={isDeleting}
+    isDeleting={eventToDelete !== null}
   />
 
   <DashboardToast message={toastMessage} />
@@ -512,18 +486,19 @@
     />
   </div>
 
-  {#if eventToDelete}
-    <ConfirmDialog
-      title="Delete Event?"
-      message="Are you sure you want to delete this event? This action cannot be undone."
-      confirmLabel="Delete"
-      loading={isDeleting}
-      danger={true}
-      confirmDisabled={isDeleting || eventsToBulkDelete.length > 0}
-      onConfirm={handleConfirmDelete}
-      onCancel={handleCancelDelete}
-    />
-  {/if}
+  <DashboardSingleDeleteFlow
+    eventIdToDelete={eventToDelete}
+    deleteEvent={deleteEvent}
+    onDone={() => {
+      showToast('Event deleted successfully')
+      loadActivityRows()
+    }}
+    onClosed={() => {
+      eventToDelete = null
+    }}
+    onError={showToast}
+    confirmDisabledWhen={eventsToBulkDelete.length > 0}
+  />
 
   <CompareCandidatesFlow
     bind:this={compareCandidatesFlow}
