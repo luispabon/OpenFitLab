@@ -1,0 +1,12 @@
+---
+description: Backend lint and format checks must pass without error or warning
+globs: backend/**
+---
+
+# Backend lint and format
+
+- **Lint and format are mandatory.** Before considering backend work done, run from `backend/`:
+  - `npm run lint` — must exit with zero and report no errors or warnings.
+  - `npm run format` — must pass (all files match Prettier style).
+- **Fix before committing.** If either check fails, fix the issues (e.g. `npm run lint:fix`, `npm run format:fix`) so that `lint` and `format` both pass with no errors and no warnings.
+- Do not introduce or leave ESLint errors/warnings or Prettier formatting violations in `backend/src/**/*.js`.

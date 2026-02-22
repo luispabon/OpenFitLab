@@ -7,7 +7,11 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --check \"src/**/*.js\"",
+    "format:fix": "prettier --write \"src/**/*.js\""
   },
   "dependencies": {
     "@sports-alliance/sports-lib": "^6.1.14",
@@ -16,5 +20,13 @@
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.0",
     "xmldom": "^0.6.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^17.24.0",
+    "globals": "^17.3.0",
+    "prettier": "^3.8.1"
   }
 }
