@@ -9,12 +9,11 @@
   import { getEvent, getStreams, getComparison, createComparison, deleteComparison } from '../lib/api'
   import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types'
   import { isChartableStream, isSmoothVariantToHide, getStreamConfig, getActivityDeviceName, hasLocationStreams } from '../lib/utils'
-  import { getStatUnit } from '../lib/utils/stat-icons'
-  import { formatStatValue } from '../lib/utils/stat-formatting'
   import { parseStat } from '../lib/utils/stat-parsing'
   import { keepStatByPreferredUnit, metricAggregationKeyNormalized } from '../lib/utils/stat-categories'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
   import ComparisonChart from '../lib/components/ComparisonChart.svelte'
+  import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte'
   import RouteMap from '../lib/components/RouteMap.svelte'
 
   const comparisonId = $derived(params?.id ?? '')
@@ -634,80 +633,14 @@
       </div>
     {/if}
 
-    <!-- Stats Comparison Table -->
-    <div class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-border">
-          <thead class="bg-surface">
-            <tr>
-              <th
-                scope="col"
-                class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
-              >
-                Stat
-              </th>
-              {#each events as eventDetail, i (eventDetail.event.id)}
-                {@const eventId = eventDetail.event.id}
-                {@const activityId = selectedActivities[eventId]}
-                {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
-                {@const color = EVENT_COLORS[i % EVENT_COLORS.length]}
-                <th
-                  scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
-                  style="border-left: 2px solid {color};"
-                >
-                  {activity ? getActivityDeviceName(activity) : (eventDetail.event.name || `Event ${i + 1}`)}
-                </th>
-              {/each}
-              {#if events.length === 2}
-                <th
-                  scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
-                >
-                  Delta
-                </th>
-              {/if}
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border bg-transparent">
-            {#each allStatTypes as statType (statType)}
-              {@const values = events.map((eventDetail) => {
-                const eventId = eventDetail.event.id
-                const activityId = selectedActivities[eventId]
-                const activity = eventDetail.activities.find((a) => a.id === activityId)
-                return activity?.stats?.[statType]
-              })}
-              <tr>
-                <td class="whitespace-nowrap px-6 py-4 font-medium text-text-primary">{statType}</td>
-                {#each events as eventDetail (eventDetail.event.id)}
-                  {@const eventId = eventDetail.event.id}
-                  {@const activityId = selectedActivities[eventId]}
-                  {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
-                  {@const value = activity?.stats?.[statType]}
-                  {@const formatted = value != null ? formatStatValue(value, statType) : '---'}
-                  {@const unit = getStatUnit(statType)}
-                  {@const displayValue = unit ? `${formatted} ${unit}` : formatted}
-                  <td class="whitespace-nowrap px-6 py-4 text-text-secondary">{displayValue}</td>
-                {/each}
-                {#if events.length === 2}
-                  {@const delta = calculateDelta(values[0], values[1])}
-                  <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
-                    {#if delta}
-                      <span class={delta.absolute >= 0 ? 'text-green-500' : 'text-red-500'}>
-                        {delta.absolute >= 0 ? '+' : ''}{formatStatValue(delta.absolute, statType)}
-                        {delta.percent !== 0 ? ` (${delta.percent >= 0 ? '+' : ''}${delta.percent.toFixed(1)}%)` : ''}
-                      </span>
-                    {:else}
-                      —
-                    {/if}
-                  </td>
-                {/if}
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <ComparisonStatsTable
+      events={events}
+      selectedActivities={selectedActivities}
+      allStatTypes={allStatTypes}
+      eventColors={EVENT_COLORS}
+      getActivityDeviceName={getActivityDeviceName}
+      calculateDelta={calculateDelta}
+    />
 
     <!-- Comparison map: all devices' routes with EVENT_COLORS -->
     {#if locationAvailable}
