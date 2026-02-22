@@ -2,99 +2,39 @@
 
 This document lists features from the PRD that are not yet implemented. Features are organized by priority and phase as defined in the PRD.
 
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-22
 
 ---
 
-## Phase 1: MVP (Current) - In Progress
+## Phase 1: MVP (Current)
 
-### 3.3 Activity Visualization (In Progress)
+### 3.3 Activity Visualization
 
-**Status:** Mostly Complete  
+**Status:** Complete (one optional enhancement open)  
 **Priority:** High (MVP requirement)
 
-**Description:** Display interactive graphs for workout metrics.
+**Remaining (future):**
+- [ ] Export graphs as images
 
-**Supported Metrics:**
-- Heart Rate (BPM)
-- Cadence (steps/min or RPM)
-- Pace (min/km or min/mile)
-- Elevation (meters/feet)
-- Speed (km/h or mph)
-- Power (watts)
-- Temperature
-- Other available stream data
-
-**Requirements:**
-- [x] Time-series line graphs for each metric
-- [x] X-axis: Time (from activity start)
-- [x] Y-axis: Metric value
-- [x] Interactive tooltips showing exact values
-- [x] Zoom and pan capabilities
-- [x] Multiple metrics on same graph (overlay)
-- [ ] Export graphs as images (future)
-
-**Acceptance Criteria:**
-- [x] Graphs render correctly for all stream types
-- [x] Time axis shows correct timestamps
-- [x] Tooltips display accurate values
-- [x] Graphs are responsive and performant
-- [x] Multiple streams can be overlaid
-
-**Technical Tasks:**
-- [x] Choose charting library (e.g., Chart.js, D3.js, Plotly, or similar) — uPlot
-- [x] Create graph component for time-series data — `TimeSeriesChart.svelte`
-- [x] Integrate stream data API endpoint (`GET /api/events/:id/activities/:activityId/streams`)
-- [x] Implement time normalization (relative to activity start)
-- [x] Add metric selection UI (checkboxes/dropdowns) — pill buttons with color indicators
-- [x] Implement overlay functionality for multiple metrics — `OverlayChart.svelte` with dual Y-axes
-- [x] Add zoom and pan interactions — X-axis drag-to-zoom with reset button
-- [x] Optimize rendering for large datasets (10,000+ data points) — uPlot + spline paths
-- [x] Add loading states and error handling — skeleton loaders, error messages, empty states
-
-**Related User Stories:**
-- US-3: Visualize Workout Metrics
+**Related User Stories:** US-3: Visualize Workout Metrics
 
 ---
 
 ## Phase 2: Visualization & Comparison
 
-### 3.4 Activity Comparison (Planned)
+### 3.4 Activity Comparison
 
-**Status:** Not Started  
+**Status:** Complete (optional enhancements deferred)  
 **Priority:** High
 
-**Description:** Compare two or more activities side-by-side.
+**Description:** Compare two or more activities side-by-side. Implemented: multi-select from dashboard, comparison view `/compare/:id`, time-synchronized overlay charts, statistics comparison table with delta column.
 
-**Requirements:**
-- [x] Select multiple activities for comparison
-- [x] Display activities in synchronized time view
-- [x] Overlay graphs for same metrics (e.g., heart rate from both activities)
-- [ ] Highlight differences between activities (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
-- [x] Show statistics comparison table
-- [ ] Support merged view (combine activities into one) (candidate for removal)
+**Remaining (candidates for removal / low priority):**
+- [ ] Highlight differences on charts (delta is already shown in stats table)
+- [ ] Merged view (combine activities into one)
+- [ ] Visual indicators for differences (color coding, annotations on charts)
 
-**Acceptance Criteria:**
-- [x] User can select 2+ activities to compare
-- [x] Graphs are synchronized by time or distance (time sync implemented; distance sync candidate for removal)
-- [ ] Differences are visually highlighted (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
-- [x] Statistics table shows side-by-side comparison
-- [ ] Merged view combines data correctly (candidate for removal)
-
-**Technical Tasks:**
-- [x] Create comparison selection UI (multi-select from dashboard)
-- [x] Create comparison view route/page (`/compare/:ids`)
-- [x] Implement time synchronization algorithm
-- [x] Create side-by-side graph layout
-- [x] Implement overlay mode for same metrics
-- [x] Calculate and display differences (delta values)
-- [x] Create statistics comparison table component
-- [ ] Implement merged activity view (combine streams) (candidate for removal)
-- [ ] Add visual indicators for differences (color coding, annotations) (candidate for removal)
-
-**Related User Stories:**
-- US-4: Compare Activities
-- US-5: Merge Activities
+**Related User Stories:** US-4: Compare Activities, US-5: Merge Activities
 
 ---
 
@@ -215,11 +155,6 @@ This document lists features from the PRD that are not yet implemented. Features
 
 ### Dependencies to Consider
 
-**For Visualization (3.3):**
-- ~~Charting library: Chart.js, D3.js, Plotly.js, or Recharts~~ — Resolved: uPlot v1.6.32
-- ~~Consider performance for large datasets (10,000+ points)~~ — Resolved: uPlot handles this natively
-- ~~Ensure responsive design for mobile/tablet~~ — Resolved: ResizeObserver-based responsive charts
-
 **For Comparison (3.4):**
 - May reuse visualization components from 3.3
 - Need efficient data loading for multiple activities
@@ -237,12 +172,8 @@ This document lists features from the PRD that are not yet implemented. Features
 
 ### API Endpoints Needed
 
-**For Visualization:**
-- ✅ `GET /api/events/:id/activities/:activityId/streams` (already exists)
-
-**For Comparison:**
-- [ ] Consider batch endpoint for multiple activities: `GET /api/events/batch?ids=...`
-- [ ] Or use existing endpoints multiple times
+**For Comparison (optional):**
+- [ ] Consider batch endpoint for multiple activities: `GET /api/events/batch?ids=...` (or keep using existing endpoints)
 
 **For Analysis:**
 - [ ] `POST /api/activities/:activityId/analyze` - Calculate correlations
@@ -255,7 +186,6 @@ This document lists features from the PRD that are not yet implemented. Features
 ### Database Considerations
 
 - Current schema supports all required data
-- ~~May need indexes on `stream_data_points.time_ms` for performance~~ — Done: `idx_stream_time`, `idx_stream_id`, `idx_time_range` indexes exist
 - Consider materialized views for correlation calculations (future optimization)
 
 ### Comparisons CASCADE (schema cleanup)
@@ -274,7 +204,7 @@ This document lists features from the PRD that are not yet implemented. Features
 - [x] Users can upload activity files successfully
 - [x] Users can view their activities in a dashboard
 - [x] Users can visualize activity data in graphs
-- [ ] Users can compare two activities side-by-side
+- [x] Users can compare two activities side-by-side
 
 ### Future Success Metrics
 - [ ] User can analyze correlations between streams
