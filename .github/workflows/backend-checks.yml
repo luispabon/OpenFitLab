@@ -37,3 +37,6 @@ jobs:
 
       - name: Format check
         run: npm run format
+
+      - name: Unit tests
+        run: npm run test:unit
