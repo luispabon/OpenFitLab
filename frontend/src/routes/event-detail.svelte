@@ -7,7 +7,7 @@
   import { push } from 'svelte-spa-router'
   import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api'
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
-  import { formatDateWithTime, getActivityIcon, isChartableStream, isSmoothVariantToHide, getStreamConfig, hasLocationStreams, getActivityDeviceName } from '../lib/utils'
+  import { formatDateWithTime, getActivityIcon, isChartableStream, isSmoothVariantToHide, hasLocationStreams, getActivityDeviceName } from '../lib/utils'
   import { getStatUnit } from '../lib/utils/stat-icons'
   import { formatStatValue } from '../lib/utils/stat-formatting'
   import { selectKeyMetrics, getGroupedDeduplicatedStats } from '../lib/utils/stat-categories'
@@ -15,8 +15,8 @@
   import RouteMap from '../lib/components/RouteMap.svelte'
   import SearchableSelect from '../lib/components/SearchableSelect.svelte'
   import StatCard from '../lib/components/StatCard.svelte'
-  import TimeSeriesChart from '../lib/components/TimeSeriesChart.svelte'
-  import OverlayChart from '../lib/components/OverlayChart.svelte'
+  import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte'
+  import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte'
 
   const id = $derived(params?.id ?? '')
 
@@ -448,57 +448,13 @@
         </div>
       {/if}
 
-      <!-- More stats (grouped by category, collapsible) -->
-      {#if hasMoreStats}
-        <div class="border-t border-border px-6">
-          <button
-            type="button"
-            class="flex w-full items-center justify-end gap-1.5 py-4 text-right text-sm font-medium text-text-primary hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-            onclick={() => (moreStatsOpen = !moreStatsOpen)}
-            aria-expanded={moreStatsOpen}
-          >
-            <span>More stats</span>
-            <span
-              class="relative inline-flex h-8 w-8 flex-shrink-0 items-center justify-center text-2xl font-medium tabular-nums text-text-primary transition-opacity duration-200"
-              aria-hidden="true"
-            >
-              <span
-                class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {moreStatsOpen ? 'opacity-0' : 'opacity-100'}"
-              >
-                +
-              </span>
-              <span
-                class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {moreStatsOpen ? 'opacity-100' : 'opacity-0'}"
-              >
-                −
-              </span>
-            </span>
-          </button>
-          {#if moreStatsOpen}
-            <div class="space-y-6 pb-6 pt-0">
-              {#each groupedStatsSections as section (section.category)}
-                {@const entries = section.entries.filter((e) => !keyMetricTypes.has(e.statType))}
-                {#if entries.length > 0}
-                  <section>
-                    <h3
-                      class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary"
-                    >
-                      {section.category}
-                    </h3>
-                    <div
-                      class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
-                    >
-                      {#each entries as entry (entry.statType)}
-                        <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
-                      {/each}
-                    </div>
-                  </section>
-                {/if}
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
+      <EventDetailMoreStats
+        hasMoreStats={hasMoreStats}
+        open={moreStatsOpen}
+        groupedSections={groupedStatsSections}
+        keyMetricTypes={keyMetricTypes}
+        onToggle={() => (moreStatsOpen = !moreStatsOpen)}
+      />
     </div>
 
     {#if locationAvailable && !streamsLoading}
@@ -507,145 +463,23 @@
       </div>
     {/if}
 
-    <!-- Stream Charts Section -->
-    {#if streamsLoading}
-      <div class="mt-6 space-y-6">
-        <div class="flex flex-col gap-4">
-          <h2 class="text-xl font-semibold text-text-primary">Activity Metrics</h2>
-          <!-- Loading skeleton -->
-          <div class="space-y-6">
-            {#each [1, 2, 3] as _}
-              <div
-                class="animate-pulse overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur"
-              >
-                <div class="h-64 w-full rounded bg-surface"></div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {:else if streamsError}
-      <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
-        <p class="text-sm font-medium text-text-primary">
-          {streamsError}
-        </p>
-        <p class="mt-1 text-xs text-text-secondary">
-          Charts will not be available for this activity.
-        </p>
-      </div>
-    {:else if chartableStreams.length > 0}
-      <div class="mt-6 space-y-6">
-        <div class="flex flex-col gap-4">
-          <div class="flex items-center justify-between">
-            <div class="flex flex-col gap-2">
-              <h2 class="text-xl font-semibold text-text-primary">Activity Metrics</h2>
-              
-              <!-- Activity Selector Tabs (only show if multiple activities) -->
-              {#if activities.length > 1}
-                <div class="flex gap-1 border-b border-border">
-                  {#each activities as activity (activity.id)}
-                    {@const isSelected = selectedActivityId === activity.id}
-                    <button
-                      type="button"
-                      class="px-3 py-2 text-sm font-medium transition-colors {isSelected
-                        ? 'border-b-2 border-accent text-accent'
-                        : 'text-text-secondary hover:text-text-primary'}"
-                      onclick={() => (selectedActivityId = activity.id)}
-                    >
-                      {activity.name || activity.type || `Activity ${activities.indexOf(activity) + 1}`}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-            </div>
-            
-            <!-- View Mode Toggle -->
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-text-secondary">View:</span>
-              <button
-                type="button"
-                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'stacked'
-                  ? 'border-border bg-card text-text-primary'
-                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
-                onclick={() => (viewMode = 'stacked')}
-              >
-                Stacked
-              </button>
-              <button
-                type="button"
-                class="rounded border px-3 py-1 text-sm transition-colors {viewMode === 'overlay'
-                  ? 'border-border bg-card text-text-primary'
-                  : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
-                onclick={() => (viewMode = 'overlay')}
-              >
-                Overlay
-              </button>
-            </div>
-          </div>
-          
-          <!-- Metric Selection Pills -->
-          <div class="flex flex-wrap gap-2">
-            {#each chartableStreamsOrdered as stream (stream.type)}
-              {@const config = getStreamConfig(stream.type)}
-              {@const isSelected = selectedStreamTypes.has(stream.type)}
-              <button
-                type="button"
-                class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isSelected
-                  ? 'text-text-primary'
-                  : 'border-border bg-transparent text-text-muted hover:bg-card-hover'}"
-                style={isSelected ? `background-color: ${config.color}26; border-color: ${config.color}66` : ''}
-                onclick={() => toggleStream(stream.type)}
-              >
-                <span
-                  class="h-2 w-2 rounded-full {isSelected ? '' : 'opacity-40'}"
-                  style="background-color: {config.color};"
-                ></span>
-                <span>{config.label}</span>
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Charts for selected metrics -->
-        {#if visibleStreams.length > 0}
-          {#if viewMode === 'overlay'}
-            <!-- Overlay Mode: Single chart with all metrics -->
-            <div
-              class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
-            >
-              <OverlayChart streams={visibleStreams} activityStartDate={activityStartDate} />
-            </div>
-          {:else}
-            <!-- Stacked Mode: One chart per metric -->
-            <div class="space-y-6">
-              {#each visibleStreams as stream (stream.type)}
-                <div
-                  class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
-                >
-                  <TimeSeriesChart streamData={stream} activityStartDate={activityStartDate} />
-                </div>
-              {/each}
-            </div>
-          {/if}
-        {:else}
-          <div class="flex h-32 items-center justify-center rounded-lg border border-border bg-card">
-            <p class="text-sm text-text-secondary">
-              Select metrics above to view charts
-            </p>
-          </div>
-        {/if}
-      </div>
-    {:else if selectedActivity && !streamsLoading}
-      <!-- No streams available for this activity -->
-      <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
-        <p class="text-sm font-medium text-text-primary">
-          No stream data available
-        </p>
-        <p class="mt-1 text-xs text-text-secondary">
-          This activity does not contain time-series data (heart rate, speed, etc.).
-        </p>
-      </div>
-    {/if}
+    <EventDetailStreamCharts
+      streamsLoading={streamsLoading}
+      streamsError={streamsError}
+      chartableStreams={chartableStreams}
+      chartableStreamsOrdered={chartableStreamsOrdered}
+      selectedStreamTypes={selectedStreamTypes}
+      viewMode={viewMode}
+      visibleStreams={visibleStreams}
+      activityStartDate={activityStartDate}
+      activities={activities}
+      selectedActivityId={selectedActivityId}
+      hasSelectedActivity={!!selectedActivity}
+      onToggleStream={toggleStream}
+      onViewModeStacked={() => (viewMode = 'stacked')}
+      onViewModeOverlay={() => (viewMode = 'overlay')}
+      onSelectActivity={(activityId) => (selectedActivityId = activityId)}
+    />
   {:else}
     <p class="text-text-secondary">Event not found.</p>
   {/if}

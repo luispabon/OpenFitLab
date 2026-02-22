@@ -1,6 +1,8 @@
--- Wave 2: events, activities for single-user fitness data
--- Run once on fresh DB (e.g. on API startup if tables missing).
--- No foreign keys to avoid charset/collation issues across environments.
+-- OpenFitLab database schema
+--
+-- Tables: events, event_stats, activities, activity_stats, streams, stream_data_points, comparisons
+-- Applied on API startup via db.initializeSchema(). No migrations; schema changes require DB recreate.
+-- Foreign keys with ON DELETE CASCADE so deleting an event removes all related rows.
 
 CREATE TABLE IF NOT EXISTS events (
   id VARCHAR(36) PRIMARY KEY,
@@ -19,7 +21,8 @@ CREATE TABLE IF NOT EXISTS event_stats (
   stat_type VARCHAR(128) NOT NULL,
   value JSON NOT NULL,
   PRIMARY KEY (event_id, stat_type),
-  INDEX idx_event_id (event_id)
+  INDEX idx_event_id (event_id),
+  CONSTRAINT fk_event_stats_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS activities (
@@ -34,7 +37,8 @@ CREATE TABLE IF NOT EXISTS activities (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_event_id (event_id),
   INDEX idx_type (type),
-  INDEX idx_device_name (device_name)
+  INDEX idx_device_name (device_name),
+  CONSTRAINT fk_activities_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS activity_stats (
@@ -42,7 +46,8 @@ CREATE TABLE IF NOT EXISTS activity_stats (
   stat_type VARCHAR(128) NOT NULL,
   value JSON NOT NULL,
   PRIMARY KEY (activity_id, stat_type),
-  INDEX idx_activity_id (activity_id)
+  INDEX idx_activity_id (activity_id),
+  CONSTRAINT fk_activity_stats_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS streams (
@@ -54,7 +59,9 @@ CREATE TABLE IF NOT EXISTS streams (
   INDEX idx_activity_id (activity_id),
   INDEX idx_event_id (event_id),
   INDEX idx_type (type),
-  UNIQUE KEY unique_activity_stream_type (activity_id, type)
+  UNIQUE KEY unique_activity_stream_type (activity_id, type),
+  CONSTRAINT fk_streams_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE,
+  CONSTRAINT fk_streams_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS stream_data_points (
@@ -66,7 +73,8 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stream_time (stream_id, time_ms),
   INDEX idx_stream_id (stream_id),
-  INDEX idx_time_range (time_ms)
+  INDEX idx_time_range (time_ms),
+  CONSTRAINT fk_stream_data_points_stream FOREIGN KEY (stream_id) REFERENCES streams (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS comparisons (

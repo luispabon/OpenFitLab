@@ -4,6 +4,7 @@
   import { getComparisons, deleteComparison } from '../lib/api'
   import type { Comparison } from '../lib/types'
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
+  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
 
   let comparisons = $state<Comparison[]>([])
   let isLoading = $state(true)
@@ -163,41 +164,16 @@
     </div>
   {/if}
 
-  <!-- Delete Confirmation Dialog -->
   {#if comparisonToDelete}
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onclick={handleCancelDelete}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
-        onclick={(e) => e.stopPropagation()}
-      >
-        <h2 class="mb-4 text-lg font-semibold text-text-primary">Delete Comparison?</h2>
-        <p class="mb-6 text-sm text-text-secondary">
-          Are you sure you want to delete this comparison? This action cannot be undone.
-        </p>
-        <div class="flex justify-end gap-3">
-          <button
-            type="button"
-            class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
-            onclick={handleCancelDelete}
-            disabled={isDeleting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-md border-0 bg-danger px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-danger disabled:opacity-50"
-            onclick={handleConfirmDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      title="Delete Comparison?"
+      message="Are you sure you want to delete this comparison? This action cannot be undone."
+      confirmLabel="Delete"
+      loading={isDeleting}
+      danger={true}
+      confirmDisabled={isDeleting}
+      onConfirm={handleConfirmDelete}
+      onCancel={handleCancelDelete}
+    />
   {/if}
 </section>

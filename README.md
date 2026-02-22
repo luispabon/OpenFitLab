@@ -61,7 +61,7 @@ docker compose up -d
 ```
 
 This starts:
-- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yml`)
+- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yaml`)
 - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
 - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
 - **Adminer:** http://localhost:8080 (database admin UI)
@@ -81,7 +81,7 @@ Edit files under `backend/` or `frontend/` on your host and changes are reflecte
 
 - **GET /api/events** – List events
   - Query params: `startDate`, `endDate` (timestamps), `limit` (default 50, max 200)
-  - Returns: Array of event objects with `stats` and `payload_rest` merged
+  - Returns: Array of event objects with `stats` (and optional `srcFileType`)
 
 - **GET /api/events/:id** – Get single event with activities
   - Returns: `{ event: {...}, activities: [...] }`

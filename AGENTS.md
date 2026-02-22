@@ -61,6 +61,9 @@ This file provides operational instructions for AI coding agents working in this
   - `backend/src/index.js` - Express app entry point
   - `backend/src/db.js` - Database connection and query helpers
   - `backend/src/routes/events.js` - Events API routes
+  - `backend/src/routes/comparisons.js` - Comparisons API routes
+  - `backend/src/routes/meta.js` - Activity types and devices meta routes
+  - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service)
   - `backend/src/parsers/file-parser.js` - File parsing (TCX, FIT, GPX, JSON, SML)
   - `backend/src/utils/stream-extractor.js` - Extract timestamped stream data points
   - `backend/src/utils/json-sanitizer.js` - Sanitize sports-lib JSON
@@ -75,20 +78,21 @@ This file provides operational instructions for AI coding agents working in this
   - `frontend/vite.config.ts` - Vite and Tailwind configuration
 
 - **Database schema:**
-  - `events` - Event metadata (id, start_date, name, end_date, description, is_merge, payload_rest)
+  - `events` - Event metadata (id, start_date, name, end_date, description, is_merge, src_file_type, created_at)
   - `event_stats` - Event-level statistics (event_id, stat_type, value JSON)
-  - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, event_start_date, payload_rest)
+  - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, event_start_date, device_name, created_at)
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
   - `streams` - Stream metadata (id, activity_id, event_id, type)
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)
-  - No foreign keys (to avoid charset/collation issues)
+  - `comparisons` - Saved comparison definitions (id, name, event_ids JSON, settings JSON, created_at)
+  - Foreign keys with ON DELETE CASCADE: event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams. Deleting an event removes all related rows.
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
 ## API endpoints
 
 - **GET /api/events** - List events
   - Query params: `startDate` (timestamp), `endDate` (timestamp), `limit` (default 50, max 200)
-  - Returns: Array of event objects with `stats` object and `payload_rest` merged
+  - Returns: Array of event objects with `stats` object; optional `srcFileType` when present
   - Example: `GET /api/events?startDate=1771317000000&limit=10`
 
 - **GET /api/events/:id** - Get single event with activities
@@ -109,7 +113,7 @@ This file provides operational instructions for AI coding agents working in this
   - Files are parsed and discarded (not stored)
 
 - **DELETE /api/events/:id** - Delete event
-  - Cascades: deletes `activity_stats`, `event_stats`, `stream_data_points`, `streams`, `activities`, then `events`
+  - Database ON DELETE CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points
   - Returns: 204 No Content or 404 Not Found
 
 ## Key architectural decisions
@@ -137,7 +141,8 @@ This file provides operational instructions for AI coding agents working in this
   - MariaDB/MySQL compatible
   - UUIDs stored as VARCHAR(36)
   - Timestamps stored as BIGINT (milliseconds since epoch)
-  - JSON columns for flexible data (`payload_rest`, `value` in stats tables)
+  - JSON columns for flexible data (`value` in event_stats/activity_stats; comparisons.event_ids, comparisons.settings)
+  - Foreign keys with ON DELETE CASCADE for event→event_stats, event→activities, activity→activity_stats, activity→streams, event→streams, stream→stream_data_points
   - Indexes on foreign key columns and time ranges
 
 - **API responses:**
@@ -157,7 +162,6 @@ This file provides operational instructions for AI coding agents working in this
 - **Do NOT:**
   - Modify `backend/sql/schema.sql` without understanding it will require recreating the database
   - Store original files after parsing (they should be discarded)
-  - Add foreign key constraints (avoid charset/collation issues)
   - Change API response format without updating frontend
   - Break the relational stats structure (use `event_stats`/`activity_stats` tables, not JSON blobs)
   - Modify stream data structure without updating `stream-extractor.js` and API endpoints
@@ -170,6 +174,7 @@ This file provides operational instructions for AI coding agents working in this
   - Use UUIDs for event/activity IDs (generated via `randomUUID()`)
   - Return stats nested under `stats` key in API responses
   - Handle JSON parsing for database JSON columns (may be objects or strings)
+  - Rely on ON DELETE CASCADE when deleting events (single DELETE FROM events; cascade removes related rows)
 
 - **Database changes:**
   - Schema runs on startup, so changes require recreating database
@@ -202,7 +207,7 @@ This file provides operational instructions for AI coding agents working in this
 - **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
 - **Frontend routes/pages:** Check `frontend/src/routes/`
 - **Route map (GPS):** Check `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts`
-- **Docker setup:** Check `docker-compose.yml`
+- **Docker setup:** Check `docker-compose.yaml`
 - **Package scripts:** Check `backend/package.json` and `frontend/package.json`
 - **Frontend build:** Check `frontend/vite.config.ts`
 - **Cloud hosting (AWS/GCP):** Check `docs/HOSTING.md`
