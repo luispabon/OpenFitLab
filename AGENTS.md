@@ -34,6 +34,14 @@ This file provides operational instructions for AI coding agents working in this
   - Main: `@sports-alliance/sports-lib`, `express`, `mysql2`, `multer`, `cors`, `xmldom`
   - Install: `cd backend && npm install`
 
+- **Lint and test:**
+  - `npm run lint` - Lint src/
+  - `npm run lint:fix` - Fix lint issues
+  - `npm run format` - Check formatting (Prettier)
+  - `npm run format:fix` - Fix formatting
+  - `npm run test` - Run all tests (Node test runner)
+  - `npm run test:unit` - Run unit tests only (`test/unit/**/*.test.js`)
+
 ### Frontend (`frontend/`)
 
 - **Run:**

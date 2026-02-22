@@ -20,14 +20,14 @@ class FileParser {
    */
   static async parseFile(fileBuffer, extension, originalFilename = '') {
     const ext = extension.toLowerCase();
-    
+
     // Handle gzip decompression
     let buffer = fileBuffer;
     if (ext !== 'fit' && this.isGzipped(buffer)) {
       try {
         buffer = zlib.gunzipSync(buffer);
       } catch (e) {
-        throw new Error(`Failed to decompress gzipped file: ${e.message}`);
+        throw new Error(`Failed to decompress gzipped file: ${e.message}`, { cause: e });
       }
     }
 
@@ -39,9 +39,10 @@ class FileParser {
       if (ext === 'fit') {
         // FIT files are binary
         // Convert Buffer to ArrayBuffer if needed
-        const arrayBuffer = buffer instanceof Buffer 
-          ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
-          : (buffer.buffer || buffer);
+        const arrayBuffer =
+          buffer instanceof Buffer
+            ? buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+            : buffer.buffer || buffer;
         event = await EventImporterFIT.getFromArrayBuffer(arrayBuffer, options);
       } else {
         // Text-based formats
@@ -52,7 +53,8 @@ class FileParser {
           const xmlDoc = domParser.parseFromString(text, 'application/xml');
           event = await EventImporterTCX.getFromXML(xmlDoc, options);
         } else if (ext === 'gpx') {
-          event = await EventImporterGPX.getFromString(text, options);
+          // GXParser expects the DOMParser constructor (it does new domParser() internally)
+          event = await EventImporterGPX.getFromString(text, DOMParser, options);
         } else if (ext === 'json') {
           let json;
           try {
@@ -101,7 +103,7 @@ class FileParser {
       const errorMsg = originalFilename
         ? `Failed to parse ${originalFilename}: ${e.message}`
         : `Failed to parse file: ${e.message}`;
-      throw new Error(errorMsg);
+      throw new Error(errorMsg, { cause: e });
     }
   }
 

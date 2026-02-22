@@ -19,7 +19,9 @@ async function processUpload(fileBuffer, extension, originalFilename) {
   const name =
     originalFilename && originalFilename.trim()
       ? originalFilename.replace(/\.[^/.]+$/, '').trim()
-      : (event.name && event.name.trim() ? event.name.trim() : 'Untitled Event');
+      : event.name && event.name.trim()
+        ? event.name.trim()
+        : 'Untitled Event';
 
   const eventJson = event.toJSON();
   const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
@@ -36,10 +38,11 @@ async function processUpload(fileBuffer, extension, originalFilename) {
 
     for (const [statType, value] of Object.entries(eventStats)) {
       if (value === undefined || value === null) continue;
-      await conn.execute(
-        'INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)',
-        [eventId, statType, JSON.stringify(value)]
-      );
+      await conn.execute('INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)', [
+        eventId,
+        statType,
+        JSON.stringify(value),
+      ]);
     }
 
     const activities = event.getActivities();
@@ -47,13 +50,16 @@ async function processUpload(fileBuffer, extension, originalFilename) {
       const aid = randomUUID();
       const activityJson = activity.toJSON();
       const streams = activityJson.streams;
-      const aStats = activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
+      const aStats =
+        activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
       const aName = activityJson.name != null ? String(activityJson.name) : null;
       const aStartDate = toTimestamp(activityJson.startDate, null);
       const aEndDate = toTimestamp(activityJson.endDate, null);
       const aType = activityJson.type != null ? String(activityJson.type) : null;
       const deviceName =
-        activityJson.creator && typeof activityJson.creator === 'object' && activityJson.creator.name != null
+        activityJson.creator &&
+        typeof activityJson.creator === 'object' &&
+        activityJson.creator.name != null
           ? String(activityJson.creator.name).trim()
           : null;
 
@@ -79,7 +85,12 @@ async function processUpload(fileBuffer, extension, originalFilename) {
         );
 
         for (const streamInfo of streamDataPoints) {
-          if (!streamInfo || !streamInfo.type || !streamInfo.dataPoints || streamInfo.dataPoints.length === 0) {
+          if (
+            !streamInfo ||
+            !streamInfo.type ||
+            !streamInfo.dataPoints ||
+            streamInfo.dataPoints.length === 0
+          ) {
             continue;
           }
           const streamId = `${aid}_${streamInfo.type}`;

@@ -10,10 +10,12 @@ const { parseJSONField } = require('../utils/transforms');
  */
 async function createComparison(name, eventIds, settings) {
   const id = randomUUID();
-  await db.query(
-    'INSERT INTO comparisons (id, name, event_ids, settings) VALUES (?, ?, ?, ?)',
-    [id, name.trim(), JSON.stringify(eventIds), settings ? JSON.stringify(settings) : null]
-  );
+  await db.query('INSERT INTO comparisons (id, name, event_ids, settings) VALUES (?, ?, ?, ?)', [
+    id,
+    name.trim(),
+    JSON.stringify(eventIds),
+    settings ? JSON.stringify(settings) : null,
+  ]);
   return {
     id,
     name: name.trim(),

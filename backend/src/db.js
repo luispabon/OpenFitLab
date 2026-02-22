@@ -26,11 +26,11 @@ async function getPool() {
 async function ensureDatabaseExists() {
   const config = getConfig();
   const dbName = config.database;
-  
+
   // Connect without specifying database to create it if needed
   const adminConfig = { ...config };
   delete adminConfig.database;
-  
+
   const adminPool = mysql.createPool(adminConfig);
   try {
     await adminPool.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
@@ -43,7 +43,7 @@ async function ensureDatabaseExists() {
 async function initializeSchema() {
   // Ensure database exists before connecting to it
   await ensureDatabaseExists();
-  
+
   const p = await getPool();
   const schemaPath = path.join(__dirname, '..', 'sql', 'schema.sql');
   const sql = fs.readFileSync(schemaPath, 'utf8');

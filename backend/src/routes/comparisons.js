@@ -5,15 +5,11 @@ const {
   getComparisonById,
   deleteComparisonById,
 } = require('../services/comparison-service');
-const {
-  validateComparisonId,
-  validateComparisonBody,
-} = require('../utils/validation');
+const { validateComparisonId, validateComparisonBody } = require('../utils/validation');
 
 const router = express.Router();
 
-const asyncHandler = (fn) => (req, res, next) =>
-  Promise.resolve(fn(req, res, next)).catch(next);
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // POST /api/comparisons
 router.post(

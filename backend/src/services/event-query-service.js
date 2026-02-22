@@ -1,4 +1,4 @@
-const db = require('../db');
+const defaultDb = require('../db');
 const {
   aggregateStats,
   mapEventRow,
@@ -10,10 +10,12 @@ const {
  * Takes raw event DB rows and returns fully mapped event objects with nested
  * activities and stats.
  * @param {Array<object>} eventRows - Raw rows from events table (id, start_date, name, etc.)
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<Array<object>>} Event objects with .activities and .stats
  */
-async function enrichEventsWithStatsAndActivities(eventRows) {
+async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
   if (!eventRows || eventRows.length === 0) return [];
+  const db = opts.db ?? defaultDb;
 
   const eventIds = eventRows.map((r) => r.id);
   const [statsRows, activityRows] = await Promise.all([
@@ -57,9 +59,11 @@ async function enrichEventsWithStatsAndActivities(eventRows) {
 /**
  * Fetches a single event by id with activities and stats.
  * @param {string} eventId - Event UUID
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<{ event: object, activities: Array<object> } | null>}
  */
-async function getEventById(eventId) {
+async function getEventById(eventId, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const event = await db.queryOne(
     'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id = ?',
     [eventId]
@@ -92,9 +96,11 @@ async function getEventById(eventId) {
 /**
  * List events with optional date filter and limit.
  * @param {{ startDate?: number, endDate?: number, limit?: number }} filters
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<Array<object>>}
  */
-async function listEvents(filters = {}) {
+async function listEvents(filters = {}, opts = {}) {
+  const db = opts.db ?? defaultDb;
   let sql =
     'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE 1=1';
   const params = [];
@@ -112,15 +118,17 @@ async function listEvents(filters = {}) {
   params.push(limit);
   const rows = await db.query(sql, params);
   if (rows.length === 0) return [];
-  return enrichEventsWithStatsAndActivities(rows);
+  return enrichEventsWithStatsAndActivities(rows, opts);
 }
 
 /**
  * Paginated activity rows with filters. Returns { rows: Array<{ event, activity }>, total }.
  * @param {{ limit?: number, offset?: number, startDate?: number, endDate?: number, activityTypes?: string[], devices?: string[], search?: string }} params
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<{ rows: Array<{ event: object, activity: object }>, total: number }>}
  */
-async function getActivityRows(params = {}) {
+async function getActivityRows(params = {}, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const limit = Math.min(Math.max(1, Number(params.limit) || 20), 50);
   const offset = Math.max(0, Number(params.offset) || 0);
   const startDate = params.startDate != null ? Number(params.startDate) : null;
@@ -157,7 +165,8 @@ async function getActivityRows(params = {}) {
     queryParams.push(...devices);
   }
   if (searchRaw.length > 0) {
-    const escapeLike = (s) => String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const escapeLike = (s) =>
+      String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
     const searchTerm = `%${escapeLike(searchRaw)}%`;
     sql += ' AND (e.name LIKE ? OR a.name LIKE ? OR a.type LIKE ?)';
     queryParams.push(searchTerm, searchTerm, searchTerm);
@@ -218,17 +227,19 @@ async function getActivityRows(params = {}) {
 /**
  * Returns events that overlap in time with the given source event (for comparison candidates).
  * @param {string} sourceEventId - Event UUID
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<Array<object> | null>} Array of events with stats/activities, or null if source event not found
  */
-async function getComparisonCandidates(sourceEventId) {
-  const sourceEvent = await db.queryOne(
-    'SELECT start_date, end_date FROM events WHERE id = ?',
-    [sourceEventId]
-  );
+async function getComparisonCandidates(sourceEventId, opts = {}) {
+  const db = opts.db ?? defaultDb;
+  const sourceEvent = await db.queryOne('SELECT start_date, end_date FROM events WHERE id = ?', [
+    sourceEventId,
+  ]);
   if (!sourceEvent) return null;
 
   const sourceStartDate = Number(sourceEvent.start_date);
-  const sourceEndDate = sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
+  const sourceEndDate =
+    sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
 
   const sql = `
     SELECT id, start_date, name, end_date, description, is_merge, src_file_type
@@ -241,7 +252,7 @@ async function getComparisonCandidates(sourceEventId) {
   `;
   const rows = await db.query(sql, [sourceEventId, sourceEndDate, sourceStartDate]);
   if (rows.length === 0) return [];
-  return enrichEventsWithStatsAndActivities(rows);
+  return enrichEventsWithStatsAndActivities(rows, opts);
 }
 
 module.exports = {

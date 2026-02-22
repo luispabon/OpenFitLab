@@ -1,4 +1,4 @@
-const db = require('../db');
+const defaultDb = require('../db');
 const { aggregateStats, mapActivityRow } = require('../utils/transforms');
 
 /**
@@ -7,9 +7,11 @@ const { aggregateStats, mapActivityRow } = require('../utils/transforms');
  * @param {string} eventId - Event UUID
  * @param {string} activityId - Activity UUID
  * @param {{ type?: string, deviceName?: string }} updates
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<object | null>} Updated activity JSON or null if not found
  */
-async function updateActivity(eventId, activityId, updates) {
+async function updateActivity(eventId, activityId, updates, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const activity = await db.queryOne(
     'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id = ? AND event_id = ?',
     [activityId, eventId]
@@ -21,10 +23,11 @@ async function updateActivity(eventId, activityId, updates) {
   await db.transaction(async (conn) => {
     if (typeUpdate !== undefined && typeUpdate !== null) {
       const typeValue = String(typeUpdate).trim() || null;
-      await conn.execute(
-        'UPDATE activities SET type = ? WHERE id = ? AND event_id = ?',
-        [typeValue, activityId, eventId]
-      );
+      await conn.execute('UPDATE activities SET type = ? WHERE id = ? AND event_id = ?', [
+        typeValue,
+        activityId,
+        eventId,
+      ]);
       const [activityRowsResult] = await conn.execute(
         'SELECT type FROM activities WHERE event_id = ?',
         [eventId]
@@ -39,10 +42,11 @@ async function updateActivity(eventId, activityId, updates) {
 
     if (deviceName !== undefined && deviceName !== null) {
       const deviceValue = String(deviceName).trim() || null;
-      await conn.execute(
-        'UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?',
-        [deviceValue, activityId, eventId]
-      );
+      await conn.execute('UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?', [
+        deviceValue,
+        activityId,
+        eventId,
+      ]);
     }
   });
 

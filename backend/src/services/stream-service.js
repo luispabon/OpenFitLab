@@ -1,4 +1,4 @@
-const db = require('../db');
+const defaultDb = require('../db');
 const { parseJSONField, placeholders } = require('../utils/transforms');
 
 /**
@@ -6,9 +6,11 @@ const { parseJSONField, placeholders } = require('../utils/transforms');
  * @param {string} eventId - Event UUID
  * @param {string} activityId - Activity UUID
  * @param {{ types?: string[] }} [options] - Optional filter by stream types
+ * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
  * @returns {Promise<Array<{ type: string, data: Array<{ time: number, value: unknown }> }>>}
  */
-async function getStreamsForActivity(eventId, activityId, options = {}) {
+async function getStreamsForActivity(eventId, activityId, options = {}, opts = {}) {
+  const db = opts.db ?? defaultDb;
   let sql = 'SELECT id, type FROM streams WHERE activity_id = ? AND event_id = ?';
   const params = [activityId, eventId];
 

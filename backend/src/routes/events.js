@@ -19,8 +19,7 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB limit
 });
 
-const asyncHandler = (fn) => (req, res, next) =>
-  Promise.resolve(fn(req, res, next)).catch(next);
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const {
   validateGetEventsQuery,
@@ -115,7 +114,9 @@ router.get(
   asyncHandler(async (req, res) => {
     const { id: eventId, activityId } = req.params;
     const types = req.query.types
-      ? (Array.isArray(req.query.types) ? req.query.types : [req.query.types])
+      ? Array.isArray(req.query.types)
+        ? req.query.types
+        : [req.query.types]
       : undefined;
     const streams = await getStreamsForActivity(eventId, activityId, types ? { types } : {});
     res.json(streams);
@@ -131,7 +132,10 @@ router.patch(
     const { id: eventId, activityId } = req.params;
     const { type: typeUpdate, deviceName } = req.body || {};
 
-    if ((typeUpdate === undefined || typeUpdate === null) && (deviceName === undefined || deviceName === null)) {
+    if (
+      (typeUpdate === undefined || typeUpdate === null) &&
+      (deviceName === undefined || deviceName === null)
+    ) {
       return res.status(400).json({ error: 'Provide at least one of type or deviceName' });
     }
 

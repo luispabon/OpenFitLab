@@ -1,0 +1,14 @@
+---
+description: Backend lint, format, and tests must pass; new code must be covered by tests
+globs: backend/**
+---
+
+# Backend lint, format, and tests
+
+- **All checks are mandatory.** Before considering backend work done, run from `backend/`:
+  - `npm run lint` — must exit with zero and report no errors or warnings.
+  - `npm run format` — must pass (all files match Prettier style).
+  - `npm run test` (or `npm run test:unit`) — must pass with no failures.
+- **Fix before committing.** If any check fails, fix the issues (e.g. `npm run lint:fix`, `npm run format:fix`, add or fix tests) so that lint, format, and tests all pass.
+- **New code must be covered by tests.** When adding or changing code under `backend/src/`, add or update tests so that the new or changed behavior is covered. Place unit tests in `backend/test/unit/` (and `test/unit/services/`, `test/unit/parsers/`, etc. as per the plan). Do not leave new logic untested.
+- Do not introduce or leave ESLint errors/warnings, Prettier violations, or failing tests in the backend.
