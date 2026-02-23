@@ -41,6 +41,7 @@ This file provides operational instructions for AI coding agents working in this
   - `npm run format:fix` - Fix formatting
   - `npm run test` - Run all tests (Node test runner)
   - `npm run test:unit` - Run unit tests only (`test/unit/**/*.test.js`)
+  - To verify Node 24 compatibility, run tests with `NODE_OPTIONS='--throw-deprecation' npm run test:unit` so deprecations fail the build.
 
 ### Frontend (`frontend/`)
 
