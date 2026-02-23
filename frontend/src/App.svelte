@@ -1,6 +1,5 @@
 <script lang="ts">
   import Router, { location } from 'svelte-spa-router'
-  import { get } from 'svelte/store'
   import Dashboard from './routes/dashboard.svelte'
   import EventDetail from './routes/event-detail.svelte'
   import Comparisons from './routes/comparisons.svelte'
