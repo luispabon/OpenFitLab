@@ -5,6 +5,10 @@ import viteConfig from './vite.config'
 export default mergeConfig(
   viteConfig,
   defineConfig({
+    resolve: {
+      // Prefer "browser" export so Svelte uses client build (mount) in jsdom tests
+      conditions: ['browser', 'import', 'module', 'default'],
+    },
     test: {
       include: ['src/**/*.test.ts'],
       environment: 'jsdom',
