@@ -15,8 +15,7 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 
 ## Data access
 
-- All SQL lives in **repositories**. Services call repositories and pass `opts` (with `opts.db` or, inside `db.transaction(fn)`, `opts.conn`). Repositories use `runQuery(sql, params, opts)` which uses `conn.execute` when `opts.conn` is set, else `db.query`.
-- For unit tests, inject a fake `db` with `query` (and where needed `transaction`); repositories receive `opts.db` from the service.
+SQL in repositories only; services pass `opts.db` or `opts.conn` (inside transactions). See [.cursor/rules/backend-architecture.mdc](../.cursor/rules/backend-architecture.mdc) for full conventions (transactions, routes, testing).
 
 ## Errors
 

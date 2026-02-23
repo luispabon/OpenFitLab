@@ -77,30 +77,7 @@ Edit files under `backend/` or `frontend/` on your host and changes are reflecte
 
 ## API Documentation
 
-### Events API
-
-- **GET /api/events** – List events
-  - Query params: `startDate`, `endDate` (timestamps), `limit` (default 50, max 200)
-  - Returns: Array of event objects with `stats` (and optional `srcFileType`)
-
-- **GET /api/events/:id** – Get single event with activities
-  - Returns: `{ event: {...}, activities: [...] }`
-  - Event and activities include `stats` objects
-
-- **GET /api/events/:id/activities/:activityId/streams** – Get stream data
-  - Query params: `types` (optional, filter by stream types)
-  - Returns: Array of `{ type: string, data: [{ time: number, value: any }, ...] }`
-
-- **POST /api/events** – Upload and parse file
-  - Content-Type: `multipart/form-data`
-  - Body: `files` (one or more files: TCX, FIT, GPX, JSON, SML)
-  - Backend parses file, extracts event/activities/streams, stores in database
-  - Files are parsed and discarded (not stored)
-  - Returns: `{ id: string, event: {...}, activities: [...] }`
-
-- **DELETE /api/events/:id** – Delete event
-  - Cascades to delete all related data (stats, streams, activities)
-  - Returns: 204 No Content or 404 Not Found
+Events API: **GET** `/api/events` (list), **GET** `/api/events/:id` (single + activities), **GET** `/api/events/:id/activities/:activityId/streams` (streams), **POST** `/api/events` (upload), **DELETE** `/api/events/:id` (delete). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for parameters and response shapes.
 
 ## Production Build
 
@@ -137,8 +114,4 @@ Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to
 
 ## Key Architectural Decisions
 
-- **File parsing on backend**: Files are uploaded raw, parsed server-side, then discarded. No file storage.
-- **Relational stats storage**: Statistics stored in separate tables (`event_stats`, `activity_stats`) with one row per stat type.
-- **Timestamped stream data**: Stream data stored relationally in `stream_data_points` with `time_ms` (UTC milliseconds).
-- **No migrations**: Schema runs on startup. Schema changes require recreating database.
-- **Self-hosted deployment**: Docker Compose is the deployment artifact.
+Key decisions (file parsing on backend, relational stats storage, timestamped stream data, no migrations, self-hosted deployment) are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

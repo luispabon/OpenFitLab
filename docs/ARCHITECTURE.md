@@ -108,6 +108,8 @@ All relationships use foreign keys with **ON DELETE CASCADE**: deleting an event
 
 ### Event vs Activity: Core Concepts
 
+Product definitions: [docs/PRD.md](docs/PRD.md) §10.1 Glossary. Below: technical implementation (tables, relationships).
+
 Understanding the distinction between **Events** and **Activities** is fundamental to the data model:
 
 #### Event
@@ -431,56 +433,32 @@ frontend/src/
 ### 1. File Parsing on Backend
 **Decision**: Parse files server-side, not client-side.
 
-**Rationale**:
-- Consistent parsing logic across clients
-- Better error handling and validation
-- Can handle large files without browser memory issues
-- Files are parsed and discarded (no storage needed)
+**Rationale**: Consistent parsing and validation; handles large files without browser limits. Files are parsed and discarded (no storage).
 
 ### 2. Relational Stats Storage
 **Decision**: Store statistics in separate tables (`event_stats`, `activity_stats`) with one row per stat type.
 
-**Rationale**:
-- Enables efficient querying by stat type
-- Allows indexing on stat types
-- Easier to add new stat types without schema changes
-- Better than JSON blobs for querying
+**Rationale**: Enables efficient querying and indexing by stat type; easier to extend than JSON blobs.
 
 ### 3. Timestamped Stream Data Points
 **Decision**: Store stream data points relationally with `time_ms` (BIGINT) timestamps.
 
-**Rationale**:
-- Efficient time-range queries
-- Can index on time for fast filtering
-- Enables time-based comparisons between streams
-- Better than storing entire arrays as JSON
+**Rationale**: Efficient time-range queries and indexing; enables time-based comparisons; better than JSON arrays.
 
 ### 4. No File Storage
 **Decision**: Parse files and discard them, don't store originals.
 
-**Rationale**:
-- Reduces storage requirements
-- All data is in database (can regenerate visualizations)
-- Simpler architecture (no file management)
-- Users can re-upload if needed
+**Rationale**: Reduces storage; all data in DB for regeneration; simpler architecture; users can re-upload.
 
 ### 5. No Database Migrations
 **Decision**: Schema runs on startup via `initializeSchema()`, no migration system.
 
-**Rationale**:
-- Simpler for self-hosted deployment
-- Schema changes require recreating database (acceptable for self-hosted)
-- Avoids migration complexity
-- Clear schema versioning via `schema.sql`
+**Rationale**: Simpler for self-hosted; schema changes require DB recreate (acceptable); clear versioning via `schema.sql`.
 
 ### 6. Self-Hosted Deployment
 **Decision**: Docker Compose is the deployment artifact.
 
-**Rationale**:
-- User owns their data
-- No cloud dependencies
-- Simple deployment (one command)
-- Can run on any host with Docker
+**Rationale**: User owns data; no cloud lock-in; one-command deployment on any host with Docker.
 
 ## Deployment options
 
