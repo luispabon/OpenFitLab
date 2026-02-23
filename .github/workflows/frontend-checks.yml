@@ -32,5 +32,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Format, lint, check, test and build
-        run: npm run ci
+      - name: Format, lint, check, test with coverage, and build
+        run: npm run format && npm run lint && npm run check && npm run test:coverage && npm run build
