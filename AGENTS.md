@@ -94,6 +94,7 @@ This file provides operational instructions for AI coding agents working in this
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)
   - `comparisons` - Saved comparison definitions (id, name, event_ids JSON, settings JSON, created_at)
   - Foreign keys with ON DELETE CASCADE: event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams. Deleting an event removes all related rows.
+  - Indexes: foreign keys, events.start_date, activities (event_id, type, device_name, start_date), stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms for stream fetch order), comparisons.created_at.
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
 ## API endpoints
@@ -144,6 +145,8 @@ This file provides operational instructions for AI coding agents working in this
   - Express.js for HTTP server
   - MySQL2 with connection pooling
   - No TypeScript in backend (plain JavaScript)
+  - **Repositories own SQL**: `backend/src/repositories/` (event-repository, activity-repository, stream-repository, comparison-repository) contain all SQL. Services call repositories and pass `opts.db` or `opts.conn` (inside transactions). Use `runQuery(sql, params, opts)` in repositories; do not use `db.getPool().execute()` in services.
+  - All services that touch the DB accept optional `opts.db` for test injection. See `backend/README.md` for module map and conventions.
 
 - **Database:**
   - MariaDB/MySQL compatible
@@ -207,6 +210,7 @@ This file provides operational instructions for AI coding agents working in this
 
 ## When unsure (how to confirm unknowns; which files to read)
 
+- **Backend structure and conventions:** Check `backend/README.md`
 - **API endpoints:** Check `backend/src/routes/events.js`
 - **Database schema:** Check `backend/sql/schema.sql`
 - **File parsing:** Check `backend/src/parsers/file-parser.js`

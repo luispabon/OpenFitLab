@@ -124,7 +124,7 @@ describe('Events route → service parameter mapping', () => {
   describe('DELETE /:id (deleteEventById)', () => {
     it('passes req.params.id to deleteEventById', async () => {
       const db = {
-        getPool: async () => ({ execute: async () => [{ affectedRows: 0 }] }),
+        query: async () => ({ affectedRows: 0 }),
       };
       const result = await deleteEventById('event-uuid', { db });
       strictEqual(result, false);

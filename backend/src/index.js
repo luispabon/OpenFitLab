@@ -38,7 +38,10 @@ app.use((err, req, res, next) => {
     return next(err);
   }
   const message = err && err.message ? err.message : 'Internal server error';
-  const statusCode = message && message.includes('Failed to parse') ? 400 : 500;
+  const statusCode =
+    typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600
+      ? err.statusCode
+      : 500;
   res.status(statusCode).json({ error: message });
 });
 

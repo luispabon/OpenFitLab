@@ -6,10 +6,9 @@ const {
   deleteComparisonById,
 } = require('../services/comparison-service');
 const { validateComparisonId, validateComparisonBody } = require('../utils/validation');
+const { asyncHandler } = require('../middleware/async-handler');
 
 const router = express.Router();
-
-const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 // POST /api/comparisons
 router.post(

@@ -1,0 +1,38 @@
+# OpenFitLab API (Backend)
+
+Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project root for quickstart and full stack layout.
+
+## Structure
+
+- **Entry**: `src/index.js` — Express app, CORS, JSON body, mounts routes, central error handler.
+- **Routes**: `src/routes/events.js`, `comparisons.js`, `meta.js` — validation + service calls only; no direct DB access.
+- **Services**: `src/services/*` — business logic; they call **repositories** and orchestrate transactions. Each service accepts optional `opts.db` for test injection.
+- **Repositories**: `src/repositories/*` — all SQL lives here. `event-repository`, `activity-repository`, `stream-repository`, `comparison-repository`; each uses `query-helper.runQuery(sql, params, opts)` so that `opts.conn` (inside a transaction) or `opts.db` is used.
+- **DB layer**: `src/db.js` — `query`, `queryOne`, `transaction`; schema in `sql/schema.sql` (run on startup, no migrations).
+- **Parsers**: `src/parsers/file-parser.js` — file parsing (TCX, FIT, GPX, JSON, SML) via sports-lib.
+- **Utils**: `src/utils/` — validation (Express middleware), transforms (row → API shape), stream-extractor, json-sanitizer.
+- **Middleware**: `src/middleware/async-handler.js` — shared wrapper for async route handlers.
+
+## Data access
+
+- All SQL lives in **repositories**. Services call repositories and pass `opts` (with `opts.db` or, inside `db.transaction(fn)`, `opts.conn`). Repositories use `runQuery(sql, params, opts)` which uses `conn.execute` when `opts.conn` is set, else `db.query`.
+- For unit tests, inject a fake `db` with `query` (and where needed `transaction`); repositories receive `opts.db` from the service.
+
+## Errors
+
+- **ParseError** (`src/errors.js`): thrown for file parse failures. Central handler maps `err.statusCode` (400) to HTTP 400; otherwise 500.
+
+## Run locally
+
+```bash
+cd backend
+npm install
+# Set DB_* env if not using defaults (see AGENTS.md)
+npm run dev
+```
+
+API: http://localhost:3000. Health: GET `/health`.
+
+## Indexes (schema)
+
+See `sql/schema.sql`. Key indexes: `events.start_date`; `activities` (event_id, type, device_name, start_date); `stream_data_points` (stream_id, time_ms) and (stream_id, sequence_index, time_ms) for stream fetch order; `comparisons.created_at`.

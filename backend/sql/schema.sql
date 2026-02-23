@@ -38,8 +38,10 @@ CREATE TABLE IF NOT EXISTS activities (
   INDEX idx_event_id (event_id),
   INDEX idx_type (type),
   INDEX idx_device_name (device_name),
+  INDEX idx_start_date (start_date),
   CONSTRAINT fk_activities_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 );
+-- idx_start_date: supports getActivityRows ORDER BY COALESCE(a.start_date, e.start_date) and date filters
 
 CREATE TABLE IF NOT EXISTS activity_stats (
   activity_id VARCHAR(36) NOT NULL,
@@ -72,10 +74,12 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
   sequence_index INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stream_time (stream_id, time_ms),
+  INDEX idx_stream_sequence (stream_id, sequence_index, time_ms),
   INDEX idx_stream_id (stream_id),
   INDEX idx_time_range (time_ms),
   CONSTRAINT fk_stream_data_points_stream FOREIGN KEY (stream_id) REFERENCES streams (id) ON DELETE CASCADE
 );
+-- idx_stream_sequence: supports getStreamsForActivity ORDER BY stream_id, sequence_index ASC, time_ms ASC
 
 CREATE TABLE IF NOT EXISTS comparisons (
   id VARCHAR(36) PRIMARY KEY,

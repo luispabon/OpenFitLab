@@ -1,4 +1,5 @@
 const defaultDb = require('../db');
+const eventRepository = require('../repositories/event-repository');
 
 /**
  * Deletes an event. The database cascades to event_stats, activities, activity_stats,
@@ -9,9 +10,8 @@ const defaultDb = require('../db');
  */
 async function deleteEventById(eventId, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const pool = await db.getPool();
-  const [result] = await pool.execute('DELETE FROM events WHERE id = ?', [eventId]);
-  return result.affectedRows === 1;
+  const repoOpts = { ...opts, db };
+  return eventRepository.deleteById(eventId, repoOpts);
 }
 
 module.exports = { deleteEventById };

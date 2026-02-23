@@ -9,6 +9,7 @@ const {
   ActivityParsingOptions,
 } = require('@sports-alliance/sports-lib');
 const JSONSanitizer = require('../utils/json-sanitizer');
+const { ParseError } = require('../errors');
 
 class FileParser {
   /**
@@ -27,7 +28,7 @@ class FileParser {
       try {
         buffer = zlib.gunzipSync(buffer);
       } catch (e) {
-        throw new Error(`Failed to decompress gzipped file: ${e.message}`, { cause: e });
+        throw new ParseError(`Failed to decompress gzipped file: ${e.message}`, { cause: e });
       }
     }
 
@@ -64,7 +65,7 @@ class FileParser {
             try {
               event = await EventImporterSuuntoSML.getFromJSONString(text, options);
             } catch {
-              throw new Error('Invalid JSON format');
+              throw new ParseError('Invalid JSON format');
             }
           }
           if (json && !event) {
@@ -78,12 +79,12 @@ class FileParser {
         } else if (ext === 'sml') {
           event = await EventImporterSuuntoSML.getFromXML(text, options);
         } else {
-          throw new Error(`Unsupported file format: ${ext}`);
+          throw new ParseError(`Unsupported file format: ${ext}`);
         }
       }
 
       if (!event) {
-        throw new Error('Failed to parse file - no event data extracted');
+        throw new ParseError('Failed to parse file - no event data extracted');
       }
 
       // Always set filename as event name (prioritize filename over parsed name)
@@ -103,7 +104,7 @@ class FileParser {
       const errorMsg = originalFilename
         ? `Failed to parse ${originalFilename}: ${e.message}`
         : `Failed to parse file: ${e.message}`;
-      throw new Error(errorMsg, { cause: e });
+      throw new ParseError(errorMsg, { cause: e });
     }
   }
 

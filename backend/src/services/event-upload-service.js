@@ -1,17 +1,17 @@
 const { randomUUID } = require('crypto');
-const db = require('../db');
+const defaultDb = require('../db');
 const FileParser = require('../parsers/file-parser');
 const { extractStreamDataPointsFromJSON } = require('../utils/stream-extractor');
 const { toTimestamp } = require('../utils/transforms');
+const eventRepository = require('../repositories/event-repository');
+const activityRepository = require('../repositories/activity-repository');
+const streamRepository = require('../repositories/stream-repository');
 
 /**
  * Parses an uploaded file and persists event, activities, stats, and streams to the DB.
- * @param {Buffer} fileBuffer - Raw file content
- * @param {string} extension - File extension (e.g. 'fit', 'tcx')
- * @param {string} originalFilename - Original filename (used for event name)
- * @returns {Promise<{ eventId: string, eventJson: object, activities: Array<object> }>}
  */
-async function processUpload(fileBuffer, extension, originalFilename) {
+async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
+  const db = opts.db ?? defaultDb;
   const event = await FileParser.parseFile(fileBuffer, extension, originalFilename);
 
   const eventId = randomUUID();
@@ -31,19 +31,20 @@ async function processUpload(fileBuffer, extension, originalFilename) {
   const srcFileType = extension || null;
 
   await db.transaction(async (conn) => {
-    await conn.execute(
-      `INSERT INTO events (id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, startDate, name, eventEndDate, eventDescription, eventIsMerge, srcFileType]
+    const tOpts = { ...opts, db, conn };
+    await eventRepository.insertEvent(
+      {
+        id: eventId,
+        start_date: startDate,
+        name,
+        end_date: eventEndDate,
+        description: eventDescription,
+        is_merge: eventIsMerge,
+        src_file_type: srcFileType,
+      },
+      tOpts
     );
-
-    for (const [statType, value] of Object.entries(eventStats)) {
-      if (value === undefined || value === null) continue;
-      await conn.execute('INSERT INTO event_stats (event_id, stat_type, value) VALUES (?, ?, ?)', [
-        eventId,
-        statType,
-        JSON.stringify(value),
-      ]);
-    }
+    await eventRepository.insertEventStats(eventId, eventStats, tOpts);
 
     const activities = event.getActivities();
     for (const activity of activities) {
@@ -63,19 +64,20 @@ async function processUpload(fileBuffer, extension, originalFilename) {
           ? String(activityJson.creator.name).trim()
           : null;
 
-      await conn.execute(
-        'INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [aid, eventId, aName, aStartDate, aEndDate, aType, startDate, deviceName || null]
+      await activityRepository.insertActivity(
+        {
+          id: aid,
+          event_id: eventId,
+          name: aName,
+          start_date: aStartDate,
+          end_date: aEndDate,
+          type: aType,
+          event_start_date: startDate,
+          device_name: deviceName || null,
+        },
+        tOpts
       );
-
-      for (const [statType, value] of Object.entries(aStats)) {
-        if (value === undefined || value === null) continue;
-        if (statType === 'Device Names') continue;
-        await conn.execute(
-          'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
-          [aid, statType, JSON.stringify(value)]
-        );
-      }
+      await activityRepository.insertActivityStats(aid, aStats, tOpts);
 
       if (streams) {
         const activityStartDate = toTimestamp(activity.startDate, startDate);
@@ -94,27 +96,15 @@ async function processUpload(fileBuffer, extension, originalFilename) {
             continue;
           }
           const streamId = `${aid}_${streamInfo.type}`;
-          await conn.execute(
-            'INSERT INTO streams (id, activity_id, event_id, type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id',
-            [streamId, aid, eventId, streamInfo.type]
-          );
+          await streamRepository.insertStream(streamId, aid, eventId, streamInfo.type, tOpts);
 
-          const batchSize = 1000;
           const dataPointValues = streamInfo.dataPoints.map((dp, index) => [
             streamId,
             dp.time,
             JSON.stringify(dp.value),
             index,
           ]);
-          for (let i = 0; i < dataPointValues.length; i += batchSize) {
-            const batch = dataPointValues.slice(i, i + batchSize);
-            const batchPlaceholders = batch.map(() => '(?, ?, ?, ?)').join(', ');
-            const flatValues = batch.flat();
-            await conn.execute(
-              `INSERT IGNORE INTO stream_data_points (stream_id, time_ms, value, sequence_index) VALUES ${batchPlaceholders}`,
-              flatValues
-            );
-          }
+          await streamRepository.insertStreamDataPointsBatch(streamId, dataPointValues, tOpts);
         }
       }
     }

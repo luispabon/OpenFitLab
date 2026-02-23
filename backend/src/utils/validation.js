@@ -44,8 +44,14 @@ function validateGetEventsQuery(req, res, next) {
     return res.status(400).json({ error: 'endDate must be a non-negative number' });
   }
 
-  if (limit != null && !isPositiveInteger(limit)) {
-    return res.status(400).json({ error: 'limit must be a positive integer' });
+  if (limit != null) {
+    if (!isPositiveInteger(limit)) {
+      return res.status(400).json({ error: 'limit must be a positive integer' });
+    }
+    const limitNum = Number(limit);
+    if (limitNum > 200) {
+      return res.status(400).json({ error: 'limit must not exceed 200' });
+    }
   }
 
   next();

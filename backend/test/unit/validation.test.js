@@ -75,8 +75,27 @@ describe('validateGetEventsQuery', () => {
     strictEqual(next.called(), false);
   });
 
+  it('returns 400 when limit exceeds 200', () => {
+    const req = { query: { limit: 201 } };
+    const res = mockRes();
+    const next = mockNext();
+    validateGetEventsQuery(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'limit must not exceed 200' });
+    strictEqual(next.called(), false);
+  });
+
   it('calls next when startDate, endDate, limit are valid', () => {
     const req = { query: { startDate: 0, endDate: 9999999999999, limit: 10 } };
+    const res = mockRes();
+    const next = mockNext();
+    validateGetEventsQuery(req, res, next);
+    strictEqual(res.statusCode, null);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next when limit is 200 (max allowed)', () => {
+    const req = { query: { limit: 200 } };
     const res = mockRes();
     const next = mockNext();
     validateGetEventsQuery(req, res, next);
