@@ -294,7 +294,6 @@
       />
     {/snippet}
 
-    {#snippet children()}
     <!-- Loading Spinner (only for loading events, not uploads) -->
     {#if isLoading}
       <div class="mb-4">
@@ -340,7 +339,6 @@
     />
 
     <DashboardPaginationWithUrl {totalRows} bind:page bind:pageSize>
-      {#snippet children()}
       <DashboardActivityTable
         rows={activityRowsFromApi}
         {isLoading}
@@ -363,7 +361,6 @@
         onFindComparisonsClick={(id) => compareCandidatesFlow?.openForEvent(id)}
         onDeleteClick={handleDeleteClick}
       />
-      {/snippet}
     </DashboardPaginationWithUrl>
 
     <DashboardSingleDeleteFlow
@@ -386,6 +383,5 @@
       onCompare={(eventIds) => push(`/compare/new?events=${eventIds.join(',')}`)}
       onError={showToast}
     />
-    {/snippet}
   </DashboardUploadSection>
 </section>
