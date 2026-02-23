@@ -252,6 +252,28 @@ List events with optional filtering.
 ]
 ```
 
+#### GET /api/events/activity-rows
+Paginated activity-centric list. Primary endpoint for the dashboard (table with filters and pagination).
+
+**Query Parameters:**
+- `limit` (number, optional): Page size
+- `offset` (number, optional): Offset for pagination
+- `startDate` (number, optional): Filter activities with start_date >= this (ms)
+- `endDate` (number, optional): Filter activities with end_date <= this (ms)
+- `activityTypes` (string or string[], optional): Filter by activity type
+- `devices` (string or string[], optional): Filter by device name
+- `search` (string, optional): Search in event/activity names
+
+**Response:**
+```json
+{
+  "rows": [
+    { "event": { "id": "uuid", "startDate": 1771317117000, "name": "...", "stats": { ... }, "srcFileType": "tcx" }, "activity": { "id": "uuid", "eventID": "uuid", "type": "Running", "stats": { ... }, "deviceName": "..." } }
+  ],
+  "total": 42
+}
+```
+
 #### GET /api/events/:id
 Get a single event with all activities.
 
@@ -280,6 +302,11 @@ Get a single event with all activities.
 }
 ```
 
+#### GET /api/events/:id/candidates
+Get events that overlap in time with the given event (for comparison candidate picker).
+
+**Response:** Array of event objects with `stats` (same shape as list). 404 if the event `:id` is not found.
+
 #### GET /api/events/:id/activities/:activityId/streams
 Get stream data for a specific activity.
 
@@ -306,6 +333,15 @@ Get stream data for a specific activity.
   }
 ]
 ```
+
+#### PATCH /api/events/:id/activities/:activityId
+Update an activity's type or device name.
+
+**Request:** JSON body with at least one of:
+- `type` (string): Activity type (e.g. "Running", "Cycling")
+- `deviceName` (string): Device name
+
+**Response:** Updated activity object (same shape as in GET event). 400 if body is empty; 404 if event or activity not found.
 
 #### POST /api/events
 Upload and parse a file.
@@ -345,6 +381,19 @@ Delete an event and all related data.
 4. Delete `streams` for event
 5. Delete `activities` for event
 6. Delete `events` record
+
+#### GET /api/activity-types
+Returns distinct activity types from the activities table. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).
+
+#### GET /api/devices
+Returns distinct device names from the activities table. **Response:** JSON array of strings.
+
+#### Comparisons API
+
+- **GET /api/comparisons** – List saved comparisons. **Response:** Array of `{ id, name, eventIds, settings?, createdAt? }`. `createdAt` is milliseconds.
+- **GET /api/comparisons/:id** – Get one comparison. **Response:** Same shape. 404 if not found.
+- **POST /api/comparisons** – Create comparison. **Body:** `{ name: string, eventIds: string[], settings?: { selectedStreams?, xAxisMode?, selectedActivities? } }`. **Response:** 201 with created comparison.
+- **DELETE /api/comparisons/:id** – Delete comparison. **Response:** 204 No Content or 404 Not Found.
 
 ## Data Flow
 
@@ -397,36 +446,48 @@ sequenceDiagram
 
 ## Frontend Architecture
 
+### Route → API usage (data flow)
+
+- **Dashboard** (`routes/dashboard.svelte`): Uses `getActivityRows` (GET /api/events/activity-rows) for the table; `getActivityTypes`, `getDevices` for filters (once on mount); `uploadFile` (POST /api/events); `deleteEvent` (DELETE). List loads when page/filters change (effect); stale responses are ignored via a load generation counter.
+- **Event detail** (`routes/event-detail.svelte`): Gets `id` from route params. First `getEvent` (GET /api/events/:id), then when event and selected activity exist, `getStreams` (GET .../streams). Waterfall: event then streams. Uses `getActivityTypes`, `getDevices`, `updateActivity` (PATCH) for inline edit of activity type and device.
+- **Comparisons list** (`routes/comparisons.svelte`): `getComparisons` (GET /api/comparisons) on mount; `deleteComparison` (DELETE) for removal.
+- **Comparison view** (`routes/comparison-view.svelte`): For `/compare/new?events=id1,id2` uses query event IDs; for `/compare/:id` uses `getComparison` then that comparison’s eventIds. Then `getEvent` per event and `getStreams` per selected activity. Uses `createComparison`, `deleteComparison` for save/delete.
+
 ### Component Structure
 
 ```
 frontend/src/
 ├── lib/
 │   ├── api/
-│   │   └── events.ts          # API client (fetch-based)
+│   │   ├── events.ts          # getEvents, getActivityRows, getEvent, getStreams, uploadFile, deleteEvent, getActivityTypes, getDevices, updateActivity
+│   │   ├── comparisons.ts    # getComparisonCandidates, getComparisons, getComparison, createComparison, deleteComparison
+│   │   └── index.ts          # Re-exports
 │   ├── types/
-│   │   └── event.ts           # TypeScript interfaces
-│   ├── utils/
-│   │   ├── format-date.ts     # Date formatting
-│   │   ├── activity-icons.ts  # Activity type icon mapping
-│   │   └── stats.ts           # Stat icon/label/unit helpers
-│   └── components/            # Reusable UI components
+│   │   ├── event.ts          # EventSummary, EventDetail, Activity, ActivityRow, StreamData, UploadResponse, Comparison, ComparisonSettings
+│   │   └── index.ts
+│   ├── utils/                # format-date, activity-icons, stream-config, geo, activity-device, stat-*, chart-utils, dashboard-table-formatters
+│   └── components/           # RouteMap, StatCard, TimeSeriesChart, OverlayChart, ComparisonChart, SearchableSelect, Dashboard*, event-detail/*, comparison/*
 ├── routes/
-│   ├── dashboard.svelte       # Event list view with upload
-│   └── event-detail.svelte    # Event detail with stats
-├── App.svelte                 # Layout shell and router
-└── main.ts                    # Application entry point
+│   ├── dashboard.svelte      # List + upload + bulk actions
+│   ├── event-detail.svelte   # Event header, stats, map, stream charts
+│   ├── comparisons.svelte   # Saved comparisons list
+│   └── comparison-view.svelte # Compare N events (charts, map, stats)
+├── App.svelte                # Layout, sidebar, router
+└── main.ts                   # Entry point
 ```
 
-### Key Components
+### Key components and props
 
-- **Dashboard**: Lists all events in a table, handles file uploads
-- **EventDetail**: Displays event details, hero metrics, and stats grid
+- **RouteMap** (`lib/components/RouteMap.svelte`): Either `streams` (single route) or `routes` (array of `{ label, color, streams }` for multi-route). Uses MapLibre + OpenFreeMap; builds GeoJSON via `buildRouteGeoJSON` / `mergeBounds` from `lib/utils/geo.ts`.
+- **TimeSeriesChart** / **OverlayChart** / **ComparisonChart**: Take stream data and activity start date (and for ComparisonChart: entries with eventName, color, data, activityStartDate; xAxisMode). Use uPlot; single stream, overlay of multiple streams, or comparison of multiple events.
+- **EventDetailStreamCharts**: Receives streams, loading/error state, chartable stream lists, view mode (stacked/overlay), activity selector callbacks.
+- **Dashboard**: Table (DashboardActivityTable), filters (DashboardFilters), pagination (DashboardPaginationWithUrl), upload (DashboardUploadSection), toasts, delete flows, compare-candidates flow.
 
-### API Layer
+### API layer
 
-- **events.ts**: Fetch-based API client with functions for all endpoints
-- Works directly with API JSON responses (no client-side sports-lib dependency)
+- **events.ts**: Fetch-based; all event/activity/stream/meta endpoints. No AbortController in API layer; dashboard uses load generation to ignore stale responses.
+- **comparisons.ts**: Fetch-based; comparison CRUD and candidates.
+- Types in `lib/types/event.ts`; frontend uses API JSON as-is (no client-side sports-lib).
 
 ## Key Architectural Decisions
 

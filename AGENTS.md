@@ -102,20 +102,32 @@ This file provides operational instructions for AI coding agents working in this
 
 Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-- **GET /api/events** - List events
+- **GET /api/events** - List events (simple list)
   - Query params: `startDate` (timestamp), `endDate` (timestamp), `limit` (default 50, max 200)
   - Returns: Array of event objects with `stats` object; optional `srcFileType` when present
   - Example: `GET /api/events?startDate=1771317000000&limit=10`
+
+- **GET /api/events/activity-rows** - Paginated activity-centric list (primary for dashboard)
+  - Query params: `limit`, `offset`, `startDate`, `endDate` (timestamps), `activityTypes` (repeatable), `devices` (repeatable), `search` (string)
+  - Returns: `{ rows: Array<{ event, activity }>, total: number }`; each event/activity includes `stats`
+  - Used by dashboard for table with filters and pagination
 
 - **GET /api/events/:id** - Get single event with activities
   - Returns: `{ event: {...}, activities: [...] }`
   - Event includes `stats` object (from `event_stats` table)
   - Activities include `stats` object (from `activity_stats` table)
 
+- **GET /api/events/:id/candidates** - Events overlapping in time (for comparison picker)
+  - Returns: Array of event objects with `stats` (same shape as list); 404 if event not found
+
 - **GET /api/events/:id/activities/:activityId/streams** - Get stream data for activity
   - Query params: `types` (optional, filter by stream types)
   - Returns: Array of `{ type: string, data: [{ time: number, value: any }, ...] }`
   - Data points ordered by `sequence_index` and `time_ms`
+
+- **PATCH /api/events/:id/activities/:activityId** - Update activity
+  - Body: `{ type?: string, deviceName?: string }` (at least one required)
+  - Returns: Updated activity object; 404 if not found
 
 - **POST /api/events** - Upload and parse file
   - Content-Type: `multipart/form-data`
@@ -126,6 +138,25 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 - **DELETE /api/events/:id** - Delete event
   - Database ON DELETE CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points
+  - Returns: 204 No Content or 404 Not Found
+
+- **GET /api/activity-types** - Distinct activity types (for filters/editors)
+  - Returns: Array of strings
+
+- **GET /api/devices** - Distinct device names (for filters/editors)
+  - Returns: Array of strings
+
+- **GET /api/comparisons** - List saved comparisons
+  - Returns: Array of `{ id, name, eventIds, settings?, createdAt? }` (createdAt in ms)
+
+- **GET /api/comparisons/:id** - Get one comparison
+  - Returns: `{ id, name, eventIds, settings?, createdAt? }`; 404 if not found
+
+- **POST /api/comparisons** - Create comparison
+  - Body: `{ name: string, eventIds: string[], settings?: object }`
+  - Returns: 201 with created comparison (same shape)
+
+- **DELETE /api/comparisons/:id** - Delete comparison
   - Returns: 204 No Content or 404 Not Found
 
 ## Key architectural decisions
@@ -212,16 +243,24 @@ Run this checklist after each refactoring stage to confirm the app still works.
 4. **DELETE an event** → Verify removal (event disappears from list).
 5. **Filter by activity type on dashboard** → Verify filtering works.
 
+## Frontend API surface
+
+- **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams).
+- **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates in CompareCandidatesFlow), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison).
+- Types: `frontend/src/lib/types/event.ts` (and re-exported from `lib/types/index.ts`).
+
 ## When unsure (how to confirm unknowns; which files to read)
 
 | Topic | File(s) |
 |-------|---------|
-| API endpoints | `backend/src/routes/events.js`; full details [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| API endpoints | `backend/src/routes/events.js`, `backend/src/routes/comparisons.js`, `backend/src/routes/meta.js`; full details [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Database schema | `backend/sql/schema.sql` |
 | Backend conventions | `backend/README.md`, `.cursor/rules/backend-architecture.mdc` |
 | Frontend conventions | `.cursor/rules/svelte-frontend.mdc` |
 | Frontend API and types | `frontend/src/lib/api/`, `frontend/src/lib/types/` |
 | Frontend routes/pages | `frontend/src/routes/` |
+| Frontend list data (dashboard) | `frontend/src/lib/api/events.ts` (getActivityRows), `frontend/src/routes/dashboard.svelte` |
+| Frontend comparison flow | `frontend/src/routes/comparison-view.svelte`, `frontend/src/lib/api/comparisons.ts` |
 | Route map (GPS) | `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts` |
 | File parsing | `backend/src/parsers/file-parser.js` |
 | Stream extraction | `backend/src/utils/stream-extractor.js` |
