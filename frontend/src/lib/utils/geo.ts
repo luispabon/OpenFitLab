@@ -1,47 +1,47 @@
-import type { StreamData } from '../types'
+import type { StreamData } from '../types';
 
 export interface RouteGeoJSON {
-  type: 'Feature'
-  geometry: { type: 'LineString'; coordinates: [number, number][] }
-  properties: Record<string, never>
+  type: 'Feature';
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
+  properties: Record<string, never>;
 }
 
 export interface RouteBounds {
-  minLng: number
-  maxLng: number
-  minLat: number
-  maxLat: number
+  minLng: number;
+  maxLng: number;
+  minLat: number;
+  maxLat: number;
 }
 
 function isValidNum(n: unknown): n is number {
-  return typeof n === 'number' && !Number.isNaN(n) && Number.isFinite(n)
+  return typeof n === 'number' && !Number.isNaN(n) && Number.isFinite(n);
 }
 
 /** Minimum span in degrees so bounds are never degenerate (avoids null in MapLibre camera) */
-const MIN_BOUNDS_SPAN = 0.0002
+const MIN_BOUNDS_SPAN = 0.0002;
 
 function coordsToBounds(coords: [number, number][]): RouteBounds {
-  let minLng = Infinity
-  let maxLng = -Infinity
-  let minLat = Infinity
-  let maxLat = -Infinity
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
   for (const [lng, lat] of coords) {
-    if (lng < minLng) minLng = lng
-    if (lng > maxLng) maxLng = lng
-    if (lat < minLat) minLat = lat
-    if (lat > maxLat) maxLat = lat
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
   }
   if (maxLng - minLng < MIN_BOUNDS_SPAN) {
-    const pad = MIN_BOUNDS_SPAN / 2
-    minLng -= pad
-    maxLng += pad
+    const pad = MIN_BOUNDS_SPAN / 2;
+    minLng -= pad;
+    maxLng += pad;
   }
   if (maxLat - minLat < MIN_BOUNDS_SPAN) {
-    const pad = MIN_BOUNDS_SPAN / 2
-    minLat -= pad
-    maxLat += pad
+    const pad = MIN_BOUNDS_SPAN / 2;
+    minLat -= pad;
+    maxLat += pad;
   }
-  return { minLng, maxLng, minLat, maxLat }
+  return { minLng, maxLng, minLat, maxLat };
 }
 
 /**
@@ -55,29 +55,29 @@ export function mergeBounds(boundsArr: RouteBounds[]): RouteBounds {
       maxLng: MIN_BOUNDS_SPAN / 2,
       minLat: -MIN_BOUNDS_SPAN / 2,
       maxLat: MIN_BOUNDS_SPAN / 2,
-    }
+    };
   }
-  let minLng = Infinity
-  let maxLng = -Infinity
-  let minLat = Infinity
-  let maxLat = -Infinity
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
   for (const b of boundsArr) {
-    if (b.minLng < minLng) minLng = b.minLng
-    if (b.maxLng > maxLng) maxLng = b.maxLng
-    if (b.minLat < minLat) minLat = b.minLat
-    if (b.maxLat > maxLat) maxLat = b.maxLat
+    if (b.minLng < minLng) minLng = b.minLng;
+    if (b.maxLng > maxLng) maxLng = b.maxLng;
+    if (b.minLat < minLat) minLat = b.minLat;
+    if (b.maxLat > maxLat) maxLat = b.maxLat;
   }
   if (maxLng - minLng < MIN_BOUNDS_SPAN) {
-    const pad = MIN_BOUNDS_SPAN / 2
-    minLng -= pad
-    maxLng += pad
+    const pad = MIN_BOUNDS_SPAN / 2;
+    minLng -= pad;
+    maxLng += pad;
   }
   if (maxLat - minLat < MIN_BOUNDS_SPAN) {
-    const pad = MIN_BOUNDS_SPAN / 2
-    minLat -= pad
-    maxLat += pad
+    const pad = MIN_BOUNDS_SPAN / 2;
+    minLat -= pad;
+    maxLat += pad;
   }
-  return { minLng, maxLng, minLat, maxLat }
+  return { minLng, maxLng, minLat, maxLat };
 }
 
 /**
@@ -88,16 +88,16 @@ export function mergeBounds(boundsArr: RouteBounds[]): RouteBounds {
 export function buildRouteGeoJSON(
   streams: StreamData[]
 ): { route: RouteGeoJSON; bounds: RouteBounds } | null {
-  const positionStream = streams.find((s) => s.type === 'Position')
+  const positionStream = streams.find((s) => s.type === 'Position');
   if (positionStream?.data?.length) {
-    const coords: [number, number][] = []
+    const coords: [number, number][] = [];
     for (const p of positionStream.data) {
-      const v = p.value
+      const v = p.value;
       if (v && typeof v === 'object' && 'latitude' in v && 'longitude' in v) {
-        const lat = (v as { latitude: unknown }).latitude
-        const lng = (v as { longitude: unknown }).longitude
+        const lat = (v as { latitude: unknown }).latitude;
+        const lng = (v as { longitude: unknown }).longitude;
         if (isValidNum(lat) && isValidNum(lng)) {
-          coords.push([lng, lat])
+          coords.push([lng, lat]);
         }
       }
     }
@@ -109,41 +109,38 @@ export function buildRouteGeoJSON(
           properties: {},
         },
         bounds: coordsToBounds(coords),
-      }
+      };
     }
   }
 
-  const latStream = streams.find((s) => s.type === 'Latitude')
-  const lngStream = streams.find((s) => s.type === 'Longitude')
+  const latStream = streams.find((s) => s.type === 'Latitude');
+  const lngStream = streams.find((s) => s.type === 'Longitude');
   if (!latStream?.data?.length || !lngStream?.data?.length) {
-    return null
+    return null;
   }
 
-  const timeToLat = new Map<number, number>()
+  const timeToLat = new Map<number, number>();
   for (const p of latStream.data) {
     if (isValidNum(p.value)) {
-      timeToLat.set(p.time, p.value)
+      timeToLat.set(p.time, p.value);
     }
   }
-  const timeToLng = new Map<number, number>()
+  const timeToLng = new Map<number, number>();
   for (const p of lngStream.data) {
     if (isValidNum(p.value)) {
-      timeToLng.set(p.time, p.value)
+      timeToLng.set(p.time, p.value);
     }
   }
 
   const times = [...new Set([...timeToLat.keys(), ...timeToLng.keys()])].filter(
     (t) => timeToLat.has(t) && timeToLng.has(t)
-  )
+  );
   if (times.length < 2) {
-    return null
+    return null;
   }
-  times.sort((a, b) => a - b)
+  times.sort((a, b) => a - b);
 
-  const coords: [number, number][] = times.map((t) => [
-    timeToLng.get(t)!,
-    timeToLat.get(t)!,
-  ])
+  const coords: [number, number][] = times.map((t) => [timeToLng.get(t)!, timeToLat.get(t)!]);
   return {
     route: {
       type: 'Feature',
@@ -151,5 +148,5 @@ export function buildRouteGeoJSON(
       properties: {},
     },
     bounds: coordsToBounds(coords),
-  }
+  };
 }

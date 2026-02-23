@@ -1,8 +1,8 @@
 <script lang="ts">
-  import uPlot from 'uplot'
-  import 'uplot/dist/uPlot.min.css'
-  import type { StreamData } from '../types'
-  import { getStreamConfig } from '../utils/stream-config'
+  import uPlot from 'uplot';
+  import 'uplot/dist/uPlot.min.css';
+  import type { StreamData } from '../types';
+  import { getStreamConfig } from '../utils/stream-config';
   import {
     formatElapsedTime,
     formatWallClockTime,
@@ -11,156 +11,154 @@
     CHART_HEIGHT,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
-  } from '../utils/chart-utils'
+  } from '../utils/chart-utils';
 
   interface ComparisonEntry {
-    eventName: string
-    color: string
-    data: StreamData
-    activityStartDate: number
+    eventName: string;
+    color: string;
+    data: StreamData;
+    activityStartDate: number;
   }
 
   interface Props {
-    streamType: string
-    entries: ComparisonEntry[]
-    xAxisMode: 'elapsed' | 'wall-clock'
+    streamType: string;
+    entries: ComparisonEntry[];
+    xAxisMode: 'elapsed' | 'wall-clock';
   }
 
-  let { streamType, entries, xAxisMode }: Props = $props()
+  let { streamType, entries, xAxisMode }: Props = $props();
 
-  let containerEl: HTMLDivElement | null = $state(null)
-  let chartInstance: uPlot | null = $state(null)
-  let isZoomed = $state(false)
-  const chartRef = { current: null as uPlot | null }
+  let containerEl: HTMLDivElement | null = $state(null);
+  let chartInstance: uPlot | null = $state(null);
+  let isZoomed = $state(false);
+  const chartRef = { current: null as uPlot | null };
 
-  const streamConfig = $derived(getStreamConfig(streamType))
+  const streamConfig = $derived(getStreamConfig(streamType));
 
-  const smoothPath = getSmoothPath()
+  const smoothPath = getSmoothPath();
 
   // Build aligned data: merge X values from all events, create Y arrays per event
   const chartData = $derived.by(() => {
-    const withPoints: { entry: ComparisonEntry; pts: { x: number; y: number }[] }[] = []
-    
+    const withPoints: { entry: ComparisonEntry; pts: { x: number; y: number }[] }[] = [];
+
     for (const entry of entries) {
-      if (!entry.data?.data?.length) continue
-      const pts: { x: number; y: number }[] = []
+      if (!entry.data?.data?.length) continue;
+      const pts: { x: number; y: number }[] = [];
       for (const p of entry.data.data) {
-        const v = p.value
-        if (typeof v !== 'number' || isNaN(v)) continue
-        
+        const v = p.value;
+        if (typeof v !== 'number' || isNaN(v)) continue;
+
         // X-axis: elapsed (relative) or wall-clock (absolute)
-        const x = xAxisMode === 'elapsed' 
-          ? Math.max(0, p.time - entry.activityStartDate)
-          : p.time
-        
-        pts.push({ x, y: v })
+        const x = xAxisMode === 'elapsed' ? Math.max(0, p.time - entry.activityStartDate) : p.time;
+
+        pts.push({ x, y: v });
       }
-      if (pts.length > 0) withPoints.push({ entry, pts })
+      if (pts.length > 0) withPoints.push({ entry, pts });
     }
-    
+
     if (withPoints.length === 0) {
-      return { data: null as uPlot.AlignedData | null, xMin: 0, xMax: 0 }
+      return { data: null as uPlot.AlignedData | null, xMin: 0, xMax: 0 };
     }
 
     // Merge all X values into sorted union
-    const xSet = new Set<number>()
+    const xSet = new Set<number>();
     for (const { pts } of withPoints) {
-      for (const p of pts) xSet.add(p.x)
+      for (const p of pts) xSet.add(p.x);
     }
-    const xSorted = Array.from(xSet).sort((a, b) => a - b)
-    if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0 }
+    const xSorted = Array.from(xSet).sort((a, b) => a - b);
+    if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0 };
 
     // Create Y arrays: one per event, aligned to union X array
     // Always use linear interpolation to fill gaps for smooth visualization
-    const yArrays: (number | null)[][] = []
-    
+    const yArrays: (number | null)[][] = [];
+
     for (const { pts } of withPoints) {
       if (pts.length === 0) {
-        yArrays.push(xSorted.map(() => null))
-        continue
+        yArrays.push(xSorted.map(() => null));
+        continue;
       }
-      
-      const byX = new Map(pts.map((p) => [p.x, p.y]))
-      const sortedPts = [...pts].sort((a, b) => a.x - b.x)
-      
+
+      const byX = new Map(pts.map((p) => [p.x, p.y]));
+      const sortedPts = [...pts].sort((a, b) => a.x - b.x);
+
       // Always interpolate to fill gaps - this ensures smooth curves even with sparse data
-      const interpolated: (number | null)[] = []
+      const interpolated: (number | null)[] = [];
       for (const x of xSorted) {
-        const exact = byX.get(x)
+        const exact = byX.get(x);
         if (exact !== undefined) {
-          interpolated.push(exact)
+          interpolated.push(exact);
         } else {
           // Find surrounding points for interpolation
-          let leftIdx = -1
-          let rightIdx = sortedPts.length
-          
+          let leftIdx = -1;
+          let rightIdx = sortedPts.length;
+
           for (let i = 0; i < sortedPts.length; i++) {
             if (sortedPts[i].x < x) {
-              leftIdx = i
+              leftIdx = i;
             } else if (sortedPts[i].x > x && rightIdx === sortedPts.length) {
-              rightIdx = i
-              break
+              rightIdx = i;
+              break;
             }
           }
-          
+
           if (leftIdx >= 0 && rightIdx < sortedPts.length) {
             // Linear interpolation between surrounding points
-            const left = sortedPts[leftIdx]
-            const right = sortedPts[rightIdx]
-            const t = (x - left.x) / (right.x - left.x)
-            const interpolatedValue = left.y + t * (right.y - left.y)
-            interpolated.push(interpolatedValue)
+            const left = sortedPts[leftIdx];
+            const right = sortedPts[rightIdx];
+            const t = (x - left.x) / (right.x - left.x);
+            const interpolatedValue = left.y + t * (right.y - left.y);
+            interpolated.push(interpolatedValue);
           } else if (leftIdx >= 0) {
             // Extrapolate from last point (use last known value)
-            interpolated.push(sortedPts[leftIdx].y)
+            interpolated.push(sortedPts[leftIdx].y);
           } else if (rightIdx < sortedPts.length) {
             // Extrapolate from first point (use first known value)
-            interpolated.push(sortedPts[rightIdx].y)
+            interpolated.push(sortedPts[rightIdx].y);
           } else {
-            interpolated.push(null)
+            interpolated.push(null);
           }
         }
       }
-      yArrays.push(interpolated)
+      yArrays.push(interpolated);
     }
-    
-    const data: uPlot.AlignedData = [xSorted, ...yArrays]
-    const xMin = xSorted[0]
-    const xMax = xSorted[xSorted.length - 1]
-    return { data, xMin, xMax }
-  })
+
+    const data: uPlot.AlignedData = [xSorted, ...yArrays];
+    const xMin = xSorted[0];
+    const xMax = xSorted[xSorted.length - 1];
+    return { data, xMin, xMax };
+  });
 
   function resetZoom() {
-    if (!chartInstance || !chartData.data) return
-    const { xMin, xMax } = chartData
+    if (!chartInstance || !chartData.data) return;
+    const { xMin, xMax } = chartData;
     chartInstance.batch(() => {
-      chartInstance!.setScale('x', { min: xMin, max: xMax })
-    })
-    isZoomed = false
+      chartInstance!.setScale('x', { min: xMin, max: xMax });
+    });
+    isZoomed = false;
   }
 
   $effect(() => {
-    if (!containerEl || !chartData.data || entries.length === 0) return
+    if (!containerEl || !chartData.data || entries.length === 0) return;
 
-    const textColor = CHART_TEXT_COLOR
-    const gridColor = CHART_GRID_COLOR
+    const textColor = CHART_TEXT_COLOR;
+    const gridColor = CHART_GRID_COLOR;
 
     if (chartRef.current) {
-      chartRef.current.destroy()
-      chartRef.current = null
+      chartRef.current.destroy();
+      chartRef.current = null;
     }
 
-    const { data, xMin, xMax } = chartData
-    const nSeries = entries.length
+    const { data, xMin, xMax } = chartData;
+    const nSeries = entries.length;
 
     // Series: one per event, all share same Y-axis
-    const series: uPlot.Series[] = [{}]
+    const series: uPlot.Series[] = [{}];
     for (let i = 0; i < nSeries; i++) {
-      const entry = entries[i]
-      
+      const entry = entries[i];
+
       // Always use spline paths for smooth curves (data is already interpolated)
-      const pathRenderer = smoothPath
-      
+      const pathRenderer = smoothPath;
+
       series.push({
         label: entry.eventName,
         stroke: entry.color,
@@ -169,29 +167,29 @@
         paths: pathRenderer,
         spanGaps: false, // Don't span gaps - show them explicitly
         fill: (u, seriesIdx) => {
-          const s = u.series[seriesIdx]
-          const sc = u.scales.y
-          if (!sc || sc.min == null || sc.max == null) return entry.color + '30'
-          const top = u.valToPos(sc.max, 'y', true)
-          const bottom = u.valToPos(sc.min, 'y', true)
-          const ctx = u.ctx
-          if (!ctx) return entry.color + '30'
-          const grd = ctx.createLinearGradient(0, top, 0, bottom)
-          grd.addColorStop(0, entry.color + '30')
-          grd.addColorStop(1, entry.color + '00')
-          return grd
+          const _s = u.series[seriesIdx];
+          const sc = u.scales.y;
+          if (!sc || sc.min == null || sc.max == null) return entry.color + '30';
+          const top = u.valToPos(sc.max, 'y', true);
+          const bottom = u.valToPos(sc.min, 'y', true);
+          const ctx = u.ctx;
+          if (!ctx) return entry.color + '30';
+          const grd = ctx.createLinearGradient(0, top, 0, bottom);
+          grd.addColorStop(0, entry.color + '30');
+          grd.addColorStop(1, entry.color + '00');
+          return grd;
         },
         value: (_u, raw) =>
           raw == null
             ? ''
             : `${formatYValue(raw, streamConfig.label)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
-      })
+      });
     }
 
     const scales: uPlot.Scales = {
       x: { time: false, min: xMin, max: xMax },
       y: { auto: true },
-    }
+    };
 
     const axes: uPlot.Axis[] = [
       {
@@ -226,7 +224,7 @@
         labelSize: 42,
         side: 3,
       },
-    ]
+    ];
 
     const opts: uPlot.Options = {
       width: containerEl.offsetWidth,
@@ -247,44 +245,43 @@
         setSelect: [
           (u) => {
             setTimeout(() => {
-              const xScale = u.scales.x
-              if (!xScale || xScale.min == null || xScale.max == null) return
-              const tol = (chartData.xMax - chartData.xMin) * 0.01
+              const xScale = u.scales.x;
+              if (!xScale || xScale.min == null || xScale.max == null) return;
+              const tol = (chartData.xMax - chartData.xMin) * 0.01;
               isZoomed =
-                Math.abs(xScale.min - chartData.xMin) > tol || Math.abs(xScale.max - chartData.xMax) > tol
-            }, 0)
+                Math.abs(xScale.min - chartData.xMin) > tol ||
+                Math.abs(xScale.max - chartData.xMax) > tol;
+            }, 0);
           },
         ],
       },
-    }
+    };
 
-    const u = new uPlot(opts, data, containerEl)
-    chartRef.current = u
-    chartInstance = u
+    const u = new uPlot(opts, data, containerEl);
+    chartRef.current = u;
+    chartInstance = u;
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT })
+        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT });
       }
-    })
-    ro.observe(containerEl)
+    });
+    ro.observe(containerEl);
 
     return () => {
-      ro.disconnect()
+      ro.disconnect();
       if (chartRef.current) {
-        chartRef.current.destroy()
-        chartRef.current = null
+        chartRef.current.destroy();
+        chartRef.current = null;
       }
-      chartInstance = null
-    }
-  })
+      chartInstance = null;
+    };
+  });
 </script>
 
 <div class="w-full animate-fade-in">
   {#if entries.length === 0 || !chartData.data}
-    <div
-      class="flex h-96 items-center justify-center rounded-lg border border-border bg-card"
-    >
+    <div class="flex h-96 items-center justify-center rounded-lg border border-border bg-card">
       <p class="text-sm text-text-secondary">No data available</p>
     </div>
   {:else}

@@ -1,63 +1,63 @@
 <script lang="ts">
-  import DropZoneOverlay from '../DropZoneOverlay.svelte'
+  import DropZoneOverlay from '../DropZoneOverlay.svelte';
 
   interface Props {
-    isUploading: boolean
-    onFilesSelected: (files: File[]) => void
-    accept?: string
-    isDraggingOver?: boolean
+    isUploading: boolean;
+    onFilesSelected: (files: File[]) => void;
+    accept?: string;
+    isDraggingOver?: boolean;
   }
   let {
     isUploading,
     onFilesSelected,
     accept = '.json,.tcx,.fit,.gpx,.sml',
     isDraggingOver = $bindable(false),
-  }: Props = $props()
+  }: Props = $props();
 
   function handleFileSelect(event: Event) {
-    const target = event.target as HTMLInputElement
-    const files = target.files
-    if (!files || files.length === 0) return
-    onFilesSelected(Array.from(files))
-    target.value = ''
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+    if (!files || files.length === 0) return;
+    onFilesSelected(Array.from(files));
+    target.value = '';
   }
 
   function handleDragEnter(event: DragEvent) {
-    if (isUploading) return
-    const types = event.dataTransfer?.types
+    if (isUploading) return;
+    const types = event.dataTransfer?.types;
     if (types && Array.from(types).includes('Files')) {
-      event.preventDefault()
-      event.stopPropagation()
-      isDraggingOver = true
+      event.preventDefault();
+      event.stopPropagation();
+      isDraggingOver = true;
     }
   }
 
   function handleDragLeave(event: DragEvent) {
-    const relatedTarget = event.relatedTarget as Node | null
-    const currentTarget = event.currentTarget as HTMLElement
+    const relatedTarget = event.relatedTarget as Node | null;
+    const currentTarget = event.currentTarget as HTMLElement;
     if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
-      isDraggingOver = false
+      isDraggingOver = false;
     }
   }
 
   function handleDragOver(event: DragEvent) {
-    const types = event.dataTransfer?.types
+    const types = event.dataTransfer?.types;
     if (types && Array.from(types).includes('Files')) {
-      event.preventDefault()
-      event.stopPropagation()
+      event.preventDefault();
+      event.stopPropagation();
       if (!isUploading) {
-        isDraggingOver = true
+        isDraggingOver = true;
       }
     }
   }
 
   function handleDrop(event: DragEvent) {
-    event.preventDefault()
-    event.stopPropagation()
-    isDraggingOver = false
-    const files = event.dataTransfer?.files
-    if (!files || files.length === 0) return
-    onFilesSelected(Array.from(files))
+    event.preventDefault();
+    event.stopPropagation();
+    isDraggingOver = false;
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    onFilesSelected(Array.from(files));
   }
 </script>
 

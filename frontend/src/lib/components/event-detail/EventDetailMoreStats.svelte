@@ -1,25 +1,25 @@
 <script lang="ts">
-  import StatCard from '../StatCard.svelte'
+  import StatCard from '../StatCard.svelte';
 
   interface StatEntry {
-    statType: string
-    value: string
-    unit: string
+    statType: string;
+    value: string;
+    unit: string;
   }
 
   interface GroupedSection {
-    category: string
-    entries: StatEntry[]
+    category: string;
+    entries: StatEntry[];
   }
 
   interface Props {
-    hasMoreStats: boolean
-    open?: boolean
-    groupedSections: GroupedSection[]
-    keyMetricTypes: Set<string>
-    onToggle: () => void
+    hasMoreStats: boolean;
+    open?: boolean;
+    groupedSections: GroupedSection[];
+    keyMetricTypes: Set<string>;
+    onToggle: () => void;
   }
-  let { hasMoreStats, open = false, groupedSections, keyMetricTypes, onToggle }: Props = $props()
+  let { hasMoreStats, open = false, groupedSections, keyMetricTypes, onToggle }: Props = $props();
 </script>
 
 {#if hasMoreStats}
@@ -36,12 +36,16 @@
         aria-hidden="true"
       >
         <span
-          class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {open ? 'opacity-0' : 'opacity-100'}"
+          class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {open
+            ? 'opacity-0'
+            : 'opacity-100'}"
         >
           +
         </span>
         <span
-          class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {open ? 'opacity-100' : 'opacity-0'}"
+          class="absolute inset-0 flex items-center justify-center transition-opacity duration-200 {open
+            ? 'opacity-100'
+            : 'opacity-0'}"
         >
           −
         </span>
@@ -53,9 +57,7 @@
           {@const entries = section.entries.filter((e) => !keyMetricTypes.has(e.statType))}
           {#if entries.length > 0}
             <section>
-              <h3
-                class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary"
-              >
+              <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-text-secondary">
                 {section.category}
               </h3>
               <div

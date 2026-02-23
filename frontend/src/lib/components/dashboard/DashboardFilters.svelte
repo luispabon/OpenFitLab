@@ -1,17 +1,17 @@
 <script lang="ts">
   interface Props {
-    searchInputValue?: string
-    onSearchInput: () => void
-    activityTypesOptions: string[]
-    selectedActivityTypes: string[]
-    onToggleActivityType: (type: string) => void
-    devicesOptions: string[]
-    selectedDevices: string[]
-    onToggleDevice: (device: string) => void
-    dateStartStr: string
-    dateEndStr: string
-    onDateStartChange: (value: string) => void
-    onDateEndChange: (value: string) => void
+    searchInputValue?: string;
+    onSearchInput: () => void;
+    activityTypesOptions: string[];
+    selectedActivityTypes: string[];
+    onToggleActivityType: (type: string) => void;
+    devicesOptions: string[];
+    selectedDevices: string[];
+    onToggleDevice: (device: string) => void;
+    dateStartStr: string;
+    dateEndStr: string;
+    onDateStartChange: (value: string) => void;
+    onDateEndChange: (value: string) => void;
   }
   let {
     searchInputValue = $bindable(''),
@@ -26,51 +26,51 @@
     dateEndStr,
     onDateStartChange,
     onDateEndChange,
-  }: Props = $props()
+  }: Props = $props();
 
-  let activityTypeDropdownOpen = $state(false)
-  let deviceDropdownOpen = $state(false)
-  let activityTypeFilter = $state('')
-  let activityTypeFilterInputEl = $state<HTMLInputElement | null>(null)
+  let activityTypeDropdownOpen = $state(false);
+  let deviceDropdownOpen = $state(false);
+  let activityTypeFilter = $state('');
+  let activityTypeFilterInputEl = $state<HTMLInputElement | null>(null);
 
   const filteredActivityTypes = $derived.by(() => {
-    const q = activityTypeFilter.trim().toLowerCase()
-    if (!q) return activityTypesOptions
-    return activityTypesOptions.filter((t) => t.toLowerCase().includes(q))
-  })
+    const q = activityTypeFilter.trim().toLowerCase();
+    if (!q) return activityTypesOptions;
+    return activityTypesOptions.filter((t) => t.toLowerCase().includes(q));
+  });
 
   function openActivityTypeDropdown() {
-    deviceDropdownOpen = false
-    if (!activityTypeDropdownOpen) activityTypeFilter = ''
-    activityTypeDropdownOpen = !activityTypeDropdownOpen
+    deviceDropdownOpen = false;
+    if (!activityTypeDropdownOpen) activityTypeFilter = '';
+    activityTypeDropdownOpen = !activityTypeDropdownOpen;
   }
 
   function openDeviceDropdown() {
-    deviceDropdownOpen = !deviceDropdownOpen
-    activityTypeDropdownOpen = false
+    deviceDropdownOpen = !deviceDropdownOpen;
+    activityTypeDropdownOpen = false;
   }
 
   function closeDropdowns() {
-    activityTypeFilter = ''
-    activityTypeDropdownOpen = false
-    deviceDropdownOpen = false
+    activityTypeFilter = '';
+    activityTypeDropdownOpen = false;
+    deviceDropdownOpen = false;
   }
 
   $effect(() => {
-    if (!activityTypeDropdownOpen && !deviceDropdownOpen) return
+    if (!activityTypeDropdownOpen && !deviceDropdownOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeDropdowns()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  })
+      if (e.key === 'Escape') closeDropdowns();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  });
 
   $effect(() => {
     if (activityTypeDropdownOpen && activityTypeFilterInputEl) {
-      const t = setTimeout(() => activityTypeFilterInputEl?.focus(), 0)
-      return () => clearTimeout(t)
+      const t = setTimeout(() => activityTypeFilterInputEl?.focus(), 0);
+      return () => clearTimeout(t);
     }
-  })
+  });
 </script>
 
 <div
@@ -165,11 +165,7 @@
     {/if}
   </div>
   {#if activityTypeDropdownOpen || deviceDropdownOpen}
-    <div
-      class="fixed inset-0 z-10"
-      role="presentation"
-      onclick={closeDropdowns}
-    ></div>
+    <div class="fixed inset-0 z-10" role="presentation" onclick={closeDropdowns}></div>
   {/if}
   <div class="flex items-center gap-2">
     <label for="filter-date-start" class="text-sm text-text-secondary">From</label>

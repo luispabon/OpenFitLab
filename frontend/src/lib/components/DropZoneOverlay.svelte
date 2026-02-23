@@ -1,9 +1,9 @@
 <script lang="ts">
   interface Props {
-    visible: boolean
+    visible: boolean;
   }
 
-  let { visible }: Props = $props()
+  let { visible }: Props = $props();
 </script>
 
 {#if visible}
@@ -16,15 +16,9 @@
       class="animate-[pulse-scale_2s_ease-in-out_infinite] rounded-xl border-4 border-accent bg-surface p-12 shadow-2xl"
     >
       <div class="flex flex-col items-center gap-4">
-        <span
-          class="material-icons text-6xl text-accent"
-          aria-hidden="true"
-        >cloud_upload</span
-        >
+        <span class="material-icons text-6xl text-accent" aria-hidden="true">cloud_upload</span>
         <h2 class="text-2xl font-semibold text-text-primary">Drop files here to upload</h2>
-        <p class="text-sm text-text-secondary">
-          Supported formats: TCX, FIT, GPX, JSON, SML
-        </p>
+        <p class="text-sm text-text-secondary">Supported formats: TCX, FIT, GPX, JSON, SML</p>
       </div>
     </div>
   </div>

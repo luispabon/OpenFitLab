@@ -1,65 +1,65 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import { push } from 'svelte-spa-router'
-  import { getComparisons, deleteComparison } from '../lib/api'
-  import type { Comparison } from '../lib/types'
-  import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
-  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte'
+  import { onMount } from 'svelte';
+  import { push } from 'svelte-spa-router';
+  import { getComparisons, deleteComparison } from '../lib/api';
+  import type { Comparison } from '../lib/types';
+  import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
+  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte';
 
-  let comparisons = $state<Comparison[]>([])
-  let isLoading = $state(true)
-  let error = $state<string | null>(null)
-  let comparisonToDelete = $state<string | null>(null)
-  let isDeleting = $state(false)
+  let comparisons = $state<Comparison[]>([]);
+  let isLoading = $state(true);
+  let error = $state<string | null>(null);
+  let comparisonToDelete = $state<string | null>(null);
+  let isDeleting = $state(false);
 
   async function loadComparisons() {
-    isLoading = true
-    error = null
+    isLoading = true;
+    error = null;
     try {
-      comparisons = await getComparisons()
+      comparisons = await getComparisons();
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load comparisons'
-      comparisons = []
+      error = e instanceof Error ? e.message : 'Failed to load comparisons';
+      comparisons = [];
     } finally {
-      isLoading = false
+      isLoading = false;
     }
   }
 
   function handleDeleteClick(id: string) {
-    comparisonToDelete = id
+    comparisonToDelete = id;
   }
 
   function handleCancelDelete() {
-    comparisonToDelete = null
+    comparisonToDelete = null;
   }
 
   async function handleConfirmDelete() {
-    if (!comparisonToDelete) return
+    if (!comparisonToDelete) return;
 
-    isDeleting = true
+    isDeleting = true;
     try {
-      await deleteComparison(comparisonToDelete)
-      await loadComparisons()
-      comparisonToDelete = null
+      await deleteComparison(comparisonToDelete);
+      await loadComparisons();
+      comparisonToDelete = null;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to delete comparison'
+      error = e instanceof Error ? e.message : 'Failed to delete comparison';
     } finally {
-      isDeleting = false
+      isDeleting = false;
     }
   }
 
   function formatDate(date: number | undefined): string {
-    if (!date) return ''
+    if (!date) return '';
     return new Date(date).toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-    })
+    });
   }
 
   onMount(() => {
-    loadComparisons()
-  })
+    loadComparisons();
+  });
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -119,8 +119,8 @@
               onclick={() => push(`/compare/${comparison.id}`)}
               onkeydown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  push(`/compare/${comparison.id}`)
+                  e.preventDefault();
+                  push(`/compare/${comparison.id}`);
                 }
               }}
             >
@@ -137,22 +137,26 @@
                     type="button"
                     class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
                     onclick={(e) => {
-                      e.stopPropagation()
-                      push(`/compare/${comparison.id}`)
+                      e.stopPropagation();
+                      push(`/compare/${comparison.id}`);
                     }}
                   >
-                    <span class="material-icons text-[1.15em] leading-none" aria-hidden="true">search</span>
+                    <span class="material-icons text-[1.15em] leading-none" aria-hidden="true"
+                      >search</span
+                    >
                     View
                   </button>
                   <button
                     type="button"
                     class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-danger/30 bg-card px-3 font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger"
                     onclick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteClick(comparison.id)
+                      e.stopPropagation();
+                      handleDeleteClick(comparison.id);
                     }}
                   >
-                    <span class="material-icons text-[1.15em] leading-none" aria-hidden="true">delete</span>
+                    <span class="material-icons text-[1.15em] leading-none" aria-hidden="true"
+                      >delete</span
+                    >
                     Delete
                   </button>
                 </div>

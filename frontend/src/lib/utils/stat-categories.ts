@@ -1,7 +1,7 @@
-import type { ParsedStat } from './stat-parsing'
-import { parseStat } from './stat-parsing'
-import { getStatIcon, getStatUnit } from './stat-icons'
-import { formatStatValue } from './stat-formatting'
+import type { ParsedStat } from './stat-parsing';
+import { parseStat } from './stat-parsing';
+import { getStatIcon, getStatUnit } from './stat-icons';
+import { formatStatValue } from './stat-formatting';
 
 /** Metric family -> display category label. Unrecognized metrics go to "Other". */
 export const METRIC_CATEGORIES: Record<string, string> = {
@@ -18,7 +18,7 @@ export const METRIC_CATEGORIES: Record<string, string> = {
   'Altitude Max': 'Elevation',
   Energy: 'Energy',
   Calories: 'Energy',
-}
+};
 
 /** Preferred unit variant per metric; null = use base (no "in X"). Only this variant is kept. */
 export const PREFERRED_UNITS: Record<string, string | null> = {
@@ -35,7 +35,7 @@ export const PREFERRED_UNITS: Record<string, string | null> = {
   'Altitude Max': null,
   Energy: null,
   Calories: null,
-}
+};
 
 /** Key metric names (metric or "Aggregation Metric") to promote per activity type. */
 export const KEY_METRICS: Record<string, string[]> = {
@@ -43,10 +43,10 @@ export const KEY_METRICS: Record<string, string[]> = {
   cycling: ['Distance', 'Duration', 'Average Power', 'Average Speed', 'Average Heart Rate'],
   swimming: ['Distance', 'Duration', 'Average Speed', 'Average Heart Rate'],
   default: ['Distance', 'Duration', 'Average Speed', 'Average Heart Rate', 'Energy'],
-}
+};
 
 function getCategoryForMetric(metric: string): string {
-  return METRIC_CATEGORIES[metric] ?? 'Other'
+  return METRIC_CATEGORIES[metric] ?? 'Other';
 }
 
 /**
@@ -55,9 +55,9 @@ function getCategoryForMetric(metric: string): string {
  */
 export function metricAggregationKey(parsed: ParsedStat): string {
   if (parsed.aggregation) {
-    return `${parsed.aggregation} ${parsed.metric}`.trim()
+    return `${parsed.aggregation} ${parsed.metric}`.trim();
   }
-  return parsed.metric
+  return parsed.metric;
 }
 
 /**
@@ -65,19 +65,19 @@ export function metricAggregationKey(parsed: ParsedStat): string {
  * (metric "Pace" vs "pace") collapse to one entry.
  */
 export function metricAggregationKeyNormalized(parsed: ParsedStat): string {
-  return metricAggregationKey(parsed).toLowerCase()
+  return metricAggregationKey(parsed).toLowerCase();
 }
 
 export interface StatEntry {
-  statType: string
-  value: string
-  unit: string
+  statType: string;
+  value: string;
+  unit: string;
 }
 
 /** One category of stats (e.g. "Speed", "Heart Rate") with its entries. */
 export interface StatsByCategory {
-  category: string
-  entries: StatEntry[]
+  category: string;
+  entries: StatEntry[];
 }
 
 /**
@@ -86,16 +86,16 @@ export interface StatsByCategory {
  */
 export function keepStatByPreferredUnit(parsed: ParsedStat): boolean {
   if (parsed.unitVariant === null) {
-    return true
+    return true;
   }
-  const preferred = PREFERRED_UNITS[parsed.metric]
+  const preferred = PREFERRED_UNITS[parsed.metric];
   if (preferred === undefined) {
-    return false
+    return false;
   }
   if (preferred === null) {
-    return false
+    return false;
   }
-  return parsed.unitVariant.toLowerCase() === preferred.toLowerCase()
+  return parsed.unitVariant.toLowerCase() === preferred.toLowerCase();
 }
 
 /**
@@ -112,45 +112,45 @@ const CATEGORY_ORDER = [
   'Elevation',
   'Energy',
   'Other',
-]
+];
 
 export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCategory[] {
-  const byCategory = new Map<string, StatEntry[]>()
-  const seenKey = new Set<string>()
+  const byCategory = new Map<string, StatEntry[]>();
+  const seenKey = new Set<string>();
 
   const sorted = [...entries].sort((a, b) => {
-    const pa = parseStat(a.statType)
-    const pb = parseStat(b.statType)
-    const aIsBase = pa.unitVariant === null
-    const bIsBase = pb.unitVariant === null
-    if (aIsBase && !bIsBase) return -1
-    if (!aIsBase && bIsBase) return 1
-    const aPreferred = keepStatByPreferredUnit(pa)
-    const bPreferred = keepStatByPreferredUnit(pb)
-    return (bPreferred ? 1 : 0) - (aPreferred ? 1 : 0)
-  })
+    const pa = parseStat(a.statType);
+    const pb = parseStat(b.statType);
+    const aIsBase = pa.unitVariant === null;
+    const bIsBase = pb.unitVariant === null;
+    if (aIsBase && !bIsBase) return -1;
+    if (!aIsBase && bIsBase) return 1;
+    const aPreferred = keepStatByPreferredUnit(pa);
+    const bPreferred = keepStatByPreferredUnit(pb);
+    return (bPreferred ? 1 : 0) - (aPreferred ? 1 : 0);
+  });
 
   for (const entry of sorted) {
-    const parsed = parseStat(entry.statType)
-    if (!getStatIcon(entry.statType)) continue
-    const key = metricAggregationKeyNormalized(parsed)
-    if (seenKey.has(key)) continue
-    const preferred = keepStatByPreferredUnit(parsed)
-    if (!preferred) continue
-    seenKey.add(key)
-    const category = getCategoryForMetric(parsed.metric)
+    const parsed = parseStat(entry.statType);
+    if (!getStatIcon(entry.statType)) continue;
+    const key = metricAggregationKeyNormalized(parsed);
+    if (seenKey.has(key)) continue;
+    const preferred = keepStatByPreferredUnit(parsed);
+    if (!preferred) continue;
+    seenKey.add(key);
+    const category = getCategoryForMetric(parsed.metric);
     if (!byCategory.has(category)) {
-      byCategory.set(category, [])
+      byCategory.set(category, []);
     }
-    byCategory.get(category)!.push(entry)
+    byCategory.get(category)!.push(entry);
   }
 
-  const result: StatsByCategory[] = []
+  const result: StatsByCategory[] = [];
   for (const cat of CATEGORY_ORDER) {
-    const list = byCategory.get(cat)
-    if (list && list.length > 0) result.push({ category: cat, entries: list })
+    const list = byCategory.get(cat);
+    if (list && list.length > 0) result.push({ category: cat, entries: list });
   }
-  return result
+  return result;
 }
 
 /**
@@ -162,18 +162,19 @@ export function findStatByMetric(
   metric: string,
   aggregation?: string | null
 ): { statType: string; value: unknown } | null {
-  const metricNorm = metric.toLowerCase().trim()
+  const metricNorm = metric.toLowerCase().trim();
   for (const statType of Object.keys(stats)) {
-    const parsed = parseStat(statType)
-    if (parsed.metric.toLowerCase().trim() !== metricNorm) continue
+    const parsed = parseStat(statType);
+    if (parsed.metric.toLowerCase().trim() !== metricNorm) continue;
     if (
       aggregation !== undefined &&
-      (parsed.aggregation?.toLowerCase().trim() ?? null) !== (aggregation?.toLowerCase().trim() ?? null)
+      (parsed.aggregation?.toLowerCase().trim() ?? null) !==
+        (aggregation?.toLowerCase().trim() ?? null)
     )
-      continue
-    return { statType, value: stats[statType] }
+      continue;
+    return { statType, value: stats[statType] };
   }
-  return null
+  return null;
 }
 
 /**
@@ -184,41 +185,47 @@ export function selectKeyMetrics(
   stats: Record<string, unknown>,
   activityType: string
 ): StatEntry[] {
-  const typeNorm = (activityType || '').toLowerCase().trim()
-  let keys = KEY_METRICS.default
-  if (typeNorm.includes('run')) keys = KEY_METRICS.running
+  const typeNorm = (activityType || '').toLowerCase().trim();
+  let keys = KEY_METRICS.default;
+  if (typeNorm.includes('run')) keys = KEY_METRICS.running;
   else if (typeNorm.includes('cycl') || typeNorm.includes('ride') || typeNorm.includes('bike'))
-    keys = KEY_METRICS.cycling
-  else if (typeNorm.includes('swim')) keys = KEY_METRICS.swimming
+    keys = KEY_METRICS.cycling;
+  else if (typeNorm.includes('swim')) keys = KEY_METRICS.swimming;
 
-  const entries: StatEntry[] = []
-  const statTypes = Object.keys(stats)
+  const entries: StatEntry[] = [];
+  const statTypes = Object.keys(stats);
   for (const keyMetric of keys) {
-    const keyNorm = keyMetric.toLowerCase()
-    const isSpeedKey = keyNorm.includes('speed')
+    const keyNorm = keyMetric.toLowerCase();
+    const isSpeedKey = keyNorm.includes('speed');
     let found = statTypes.find((statType) => {
-      const parsed = parseStat(statType)
+      const parsed = parseStat(statType);
       if (!keepStatByPreferredUnit(parsed)) {
-        if (!isSpeedKey || !parsed.metric.toLowerCase().includes('speed')) return false
+        if (!isSpeedKey || !parsed.metric.toLowerCase().includes('speed')) return false;
       }
-      return metricAggregationKey(parsed).toLowerCase() === keyNorm
-    })
+      return metricAggregationKey(parsed).toLowerCase() === keyNorm;
+    });
     if (isSpeedKey) {
       const preferred = statTypes.find(
         (statType) =>
           keepStatByPreferredUnit(parseStat(statType)) &&
           metricAggregationKey(parseStat(statType)).toLowerCase() === keyNorm
-      )
-      if (preferred) found = preferred
+      );
+      if (preferred) found = preferred;
     }
     if (found) {
-      const raw = stats[found] as number | string | number[] | Record<string, unknown> | null | undefined
+      const raw = stats[found] as
+        | number
+        | string
+        | number[]
+        | Record<string, unknown>
+        | null
+        | undefined;
       entries.push({
         statType: found,
         value: formatStatValue(raw, found),
         unit: getStatUnit(found),
-      })
+      });
     }
   }
-  return entries
+  return entries;
 }

@@ -1,215 +1,222 @@
 <script lang="ts">
   interface Props {
-    params?: { id?: string }
+    params?: { id?: string };
   }
-  let { params = {} }: Props = $props()
+  let { params = {} }: Props = $props();
 
-  import { push } from 'svelte-spa-router'
-  import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api'
-  import type { EventDetail as EventDetailType, StreamData } from '../lib/types'
-  import { formatDateWithTime, getActivityIcon, isChartableStream, isSmoothVariantToHide, hasLocationStreams, getActivityDeviceName } from '../lib/utils'
-  import { getStatUnit } from '../lib/utils/stat-icons'
-  import { formatStatValue } from '../lib/utils/stat-formatting'
-  import { selectKeyMetrics, getGroupedDeduplicatedStats } from '../lib/utils/stat-categories'
-  import LoadingSpinner from '../lib/components/LoadingSpinner.svelte'
-  import RouteMap from '../lib/components/RouteMap.svelte'
-  import SearchableSelect from '../lib/components/SearchableSelect.svelte'
-  import StatCard from '../lib/components/StatCard.svelte'
-  import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte'
-  import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte'
+  import { push } from 'svelte-spa-router';
+  import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api';
+  import type { EventDetail as EventDetailType, StreamData } from '../lib/types';
+  import {
+    formatDateWithTime,
+    getActivityIcon,
+    isChartableStream,
+    isSmoothVariantToHide,
+    hasLocationStreams,
+    getActivityDeviceName,
+  } from '../lib/utils';
+  import { getStatUnit } from '../lib/utils/stat-icons';
+  import { formatStatValue } from '../lib/utils/stat-formatting';
+  import { selectKeyMetrics, getGroupedDeduplicatedStats } from '../lib/utils/stat-categories';
+  import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
+  import RouteMap from '../lib/components/RouteMap.svelte';
+  import SearchableSelect from '../lib/components/SearchableSelect.svelte';
+  import StatCard from '../lib/components/StatCard.svelte';
+  import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte';
+  import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte';
 
-  const id = $derived(params?.id ?? '')
+  const id = $derived(params?.id ?? '');
 
-  let eventDetail = $state<EventDetailType | null>(null)
-  let loading = $state(true)
-  let error = $state<string | null>(null)
-  let streams = $state<StreamData[]>([])
-  let streamsLoading = $state(false)
-  let streamsError = $state<string | null>(null)
-  const event = $derived(eventDetail?.event ?? null)
+  let eventDetail = $state<EventDetailType | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let streams = $state<StreamData[]>([]);
+  let streamsLoading = $state(false);
+  let streamsError = $state<string | null>(null);
+  const event = $derived(eventDetail?.event ?? null);
 
   const mainActivityType = $derived.by(() => {
-    const ev = event
-    if (!ev) return ''
-    const activities = eventDetail?.activities ?? []
-    const fromActivities = activities[0]?.type
-    if (fromActivities) return fromActivities
-    const activityTypes = ev.stats?.['Activity Types']
-    if (Array.isArray(activityTypes) && activityTypes.length > 0) return String(activityTypes[0])
-    if (typeof activityTypes === 'string') return activityTypes
-    return ''
-  })
+    const ev = event;
+    if (!ev) return '';
+    const activities = eventDetail?.activities ?? [];
+    const fromActivities = activities[0]?.type;
+    if (fromActivities) return fromActivities;
+    const activityTypes = ev.stats?.['Activity Types'];
+    if (Array.isArray(activityTypes) && activityTypes.length > 0) return String(activityTypes[0]);
+    if (typeof activityTypes === 'string') return activityTypes;
+    return '';
+  });
 
-  const activityTypeIcon = $derived(getActivityIcon(mainActivityType))
+  const activityTypeIcon = $derived(getActivityIcon(mainActivityType));
 
   /** Key metrics for this activity type (4–6 stats), used in the header bar. */
   const keyMetrics = $derived.by(() => {
-    const ev = event
-    if (!ev?.stats) return []
-    return selectKeyMetrics(ev.stats, mainActivityType)
-  })
+    const ev = event;
+    if (!ev?.stats) return [];
+    return selectKeyMetrics(ev.stats, mainActivityType);
+  });
 
-  type StatEntry = { statType: string; value: string; unit: string }
   const statEntries = $derived.by(() => {
-    const ev = event
-    if (!ev?.stats) return []
+    const ev = event;
+    if (!ev?.stats) return [];
     return Object.entries(ev.stats).map(([statType, raw]) => ({
       statType,
       value: formatStatValue(raw, statType),
       unit: getStatUnit(statType),
-    }))
-  })
+    }));
+  });
 
-  const groupedStatsSections = $derived(getGroupedDeduplicatedStats(statEntries))
+  const groupedStatsSections = $derived(getGroupedDeduplicatedStats(statEntries));
 
-  const keyMetricTypes = $derived(new Set(keyMetrics.map((e) => e.statType)))
+  const keyMetricTypes = $derived(new Set(keyMetrics.map((e) => e.statType)));
 
   /** Whether there are any grouped stats to show (excluding key metrics). */
   const hasMoreStats = $derived(
     groupedStatsSections.some((section) =>
       section.entries.some((e) => !keyMetricTypes.has(e.statType))
     )
-  )
-  let moreStatsOpen = $state(false)
+  );
+  let moreStatsOpen = $state(false);
 
   // Inline edit: activity type and device
-  type EditField = 'activityType' | 'device' | null
-  let editField = $state<EditField>(null)
-  let activityTypesCache = $state<string[]>([])
-  let devicesCache = $state<string[]>([])
-  let optionsLoading = $state(false)
-  let saving = $state(false)
-  let saveError = $state<string | null>(null)
+  type EditField = 'activityType' | 'device' | null;
+  let editField = $state<EditField>(null);
+  let activityTypesCache = $state<string[]>([]);
+  let devicesCache = $state<string[]>([]);
+  let optionsLoading = $state(false);
+  let saving = $state(false);
+  let saveError = $state<string | null>(null);
 
   // Selected activity (defaults to first)
-  let selectedActivityId = $state<string | null>(null)
+  let selectedActivityId = $state<string | null>(null);
 
   // Activities list
-  const activities = $derived(eventDetail?.activities ?? [])
+  const activities = $derived(eventDetail?.activities ?? []);
 
   // Selected activity (or first if none selected)
   const selectedActivity = $derived.by(() => {
     if (selectedActivityId) {
-      return activities.find((a) => a.id === selectedActivityId) ?? activities[0] ?? null
+      return activities.find((a) => a.id === selectedActivityId) ?? activities[0] ?? null;
     }
-    return activities[0] ?? null
-  })
+    return activities[0] ?? null;
+  });
 
   // Initialize selected activity when activities load
   $effect(() => {
     if (activities.length > 0 && !selectedActivityId) {
-      selectedActivityId = activities[0].id
+      selectedActivityId = activities[0].id;
     }
-  })
+  });
 
-  const activityStartDate = $derived(
-    selectedActivity?.startDate ?? event?.startDate ?? Date.now()
-  )
+  const activityStartDate = $derived(selectedActivity?.startDate ?? event?.startDate ?? Date.now());
 
   // Device name from selected activity (or first activity)
   const deviceName = $derived.by(() => {
-    const act = selectedActivity
-    if (!act) return '—'
-    return getActivityDeviceName(act)
-  })
+    const act = selectedActivity;
+    if (!act) return '—';
+    return getActivityDeviceName(act);
+  });
 
   // Formatted date string: "Feb 19, 2026 at 08:39" (24-hour format)
   const formattedDateString = $derived.by(() => {
-    const ev = event
-    if (!ev?.startDate) return ''
-    return formatDateWithTime(ev.startDate)
-  })
+    const ev = event;
+    if (!ev?.startDate) return '';
+    return formatDateWithTime(ev.startDate);
+  });
 
   async function openActivityTypeEditor() {
-    saveError = null
+    saveError = null;
     if (activityTypesCache.length === 0) {
-      optionsLoading = true
+      optionsLoading = true;
       try {
-        activityTypesCache = await getActivityTypes()
+        activityTypesCache = await getActivityTypes();
       } finally {
-        optionsLoading = false
+        optionsLoading = false;
       }
     }
-    editField = 'activityType'
+    editField = 'activityType';
   }
 
   async function openDeviceEditor() {
-    saveError = null
+    saveError = null;
     if (devicesCache.length === 0) {
-      optionsLoading = true
+      optionsLoading = true;
       try {
-        devicesCache = await getDevices()
+        devicesCache = await getDevices();
       } finally {
-        optionsLoading = false
+        optionsLoading = false;
       }
     }
-    editField = 'device'
+    editField = 'device';
   }
 
   function closeEditor() {
-    editField = null
-    saveError = null
+    editField = null;
+    saveError = null;
   }
 
   async function commitActivityType(newType: string) {
-    const ev = event
-    const firstActivity = activities[0]
-    if (!id || !ev || !firstActivity) return
-    saving = true
-    saveError = null
+    const ev = event;
+    const firstActivity = activities[0];
+    if (!id || !ev || !firstActivity) return;
+    saving = true;
+    saveError = null;
     try {
-      const updated = await updateActivity(id, firstActivity.id, { type: newType })
+      const updated = await updateActivity(id, firstActivity.id, { type: newType });
       if (eventDetail) {
         const nextActivities = eventDetail.activities.map((a) =>
           a.id === updated.id ? updated : a
-        )
+        );
         const types = [
-          ...new Set(
-            nextActivities.map((a) => a.type).filter((t): t is string => Boolean(t))
-          ),
-        ].sort()
+          ...new Set(nextActivities.map((a) => a.type).filter((t): t is string => Boolean(t))),
+        ].sort();
         eventDetail = {
           ...eventDetail,
           activities: nextActivities,
           event: {
             ...eventDetail.event,
-            stats: { ...eventDetail.event.stats, 'Activity Types': types as unknown as string | number | number[] | Record<string, unknown> },
+            stats: {
+              ...eventDetail.event.stats,
+              'Activity Types': types as unknown as
+                | string
+                | number
+                | number[]
+                | Record<string, unknown>,
+            },
           },
-        }
+        };
       }
-      editField = null
+      editField = null;
     } catch (e) {
-      saveError = e instanceof Error ? e.message : 'Failed to update activity type'
+      saveError = e instanceof Error ? e.message : 'Failed to update activity type';
     } finally {
-      saving = false
+      saving = false;
     }
   }
 
   async function commitDevice(newDevice: string) {
-    const act = selectedActivity
-    if (!id || !act) return
-    saving = true
-    saveError = null
+    const act = selectedActivity;
+    if (!id || !act) return;
+    saving = true;
+    saveError = null;
     try {
-      const updated = await updateActivity(id, act.id, { deviceName: newDevice })
+      const updated = await updateActivity(id, act.id, { deviceName: newDevice });
       if (eventDetail) {
         eventDetail = {
           ...eventDetail,
-          activities: eventDetail.activities.map((a) =>
-            a.id === updated.id ? updated : a
-          ),
-        }
+          activities: eventDetail.activities.map((a) => (a.id === updated.id ? updated : a)),
+        };
       }
-      editField = null
+      editField = null;
     } catch (e) {
-      saveError = e instanceof Error ? e.message : 'Failed to update device'
+      saveError = e instanceof Error ? e.message : 'Failed to update device';
     } finally {
-      saving = false
+      saving = false;
     }
   }
 
   // Filter to chartable streams only; hide "X Smooth" when "X" is also present
-  const allStreamTypes = $derived(streams.map((s) => s.type))
+  const allStreamTypes = $derived(streams.map((s) => s.type));
   const chartableStreams = $derived(
     streams.filter(
       (s) =>
@@ -218,116 +225,116 @@
         s.data.length > 0 &&
         !isSmoothVariantToHide(s.type, allStreamTypes)
     )
-  )
+  );
 
   // Heart Rate first, then rest in original order (for toggles and chart order)
   const chartableStreamsOrdered = $derived.by(() => {
-    const list = [...chartableStreams]
-    const hr = list.find((s) => s.type === 'Heart Rate')
-    if (!hr) return list
-    return [hr, ...list.filter((s) => s.type !== 'Heart Rate')]
-  })
+    const list = [...chartableStreams];
+    const hr = list.find((s) => s.type === 'Heart Rate');
+    if (!hr) return list;
+    return [hr, ...list.filter((s) => s.type !== 'Heart Rate')];
+  });
 
   // Selected streams for visibility toggle (only Heart Rate selected by default)
-  let selectedStreamTypes = $state<Set<string>>(new Set())
-  let hasInitializedSelection = $state(false)
+  let selectedStreamTypes = $state<Set<string>>(new Set());
+  let hasInitializedSelection = $state(false);
 
   // View mode: 'stacked' or 'overlay'
-  let viewMode = $state<'stacked' | 'overlay'>('stacked')
+  let viewMode = $state<'stacked' | 'overlay'>('stacked');
 
-  const lastActivityIdRef = { current: null as string | null }
+  const lastActivityIdRef = { current: null as string | null };
 
   // When activity changes, allow re-initializing selection for the new activity's streams
   $effect(() => {
-    const aid = selectedActivity?.id ?? null
+    const aid = selectedActivity?.id ?? null;
     if (aid !== lastActivityIdRef.current) {
-      lastActivityIdRef.current = aid
-      hasInitializedSelection = false
+      lastActivityIdRef.current = aid;
+      hasInitializedSelection = false;
     }
-  })
+  });
 
   // Initialize selected streams when chartableStreams load: only Heart Rate by default
   $effect(() => {
     if (chartableStreams.length > 0 && !hasInitializedSelection) {
-      hasInitializedSelection = true
-      const hasHeartRate = chartableStreams.some((s) => s.type === 'Heart Rate')
+      hasInitializedSelection = true;
+      const hasHeartRate = chartableStreams.some((s) => s.type === 'Heart Rate');
       selectedStreamTypes = hasHeartRate
         ? new Set(['Heart Rate'])
-        : new Set([chartableStreams[0].type])
+        : new Set([chartableStreams[0].type]);
     }
-  })
+  });
 
   // Toggle stream visibility
   function toggleStream(type: string) {
-    const newSet = new Set(selectedStreamTypes)
+    const newSet = new Set(selectedStreamTypes);
     if (newSet.has(type)) {
-      newSet.delete(type)
+      newSet.delete(type);
     } else {
-      newSet.add(type)
+      newSet.add(type);
     }
-    selectedStreamTypes = newSet
+    selectedStreamTypes = newSet;
   }
 
   // Toggle view mode
-  function toggleViewMode() {
-    viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked'
+  function _toggleViewMode() {
+    viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked';
   }
 
-  const locationAvailable = $derived(hasLocationStreams(streams))
+  const locationAvailable = $derived(hasLocationStreams(streams));
 
   // Filter to only selected streams (order: Heart Rate first, then rest)
   const visibleStreams = $derived(
     chartableStreamsOrdered.filter((s) => selectedStreamTypes.has(s.type))
-  )
+  );
 
   async function loadEvent() {
     if (!id) {
-      eventDetail = null
-      loading = false
-      return
+      eventDetail = null;
+      loading = false;
+      return;
     }
-    loading = true
-    error = null
+    loading = true;
+    error = null;
     try {
-      eventDetail = await getEvent(id)
+      eventDetail = await getEvent(id);
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Event not found'
-      eventDetail = null
+      error = e instanceof Error ? e.message : 'Event not found';
+      eventDetail = null;
     } finally {
-      loading = false
+      loading = false;
     }
   }
 
   async function loadStreams() {
     if (!id || !selectedActivity?.id) {
-      streams = []
-      return
+      streams = [];
+      return;
     }
 
-    streamsLoading = true
-    streamsError = null
+    streamsLoading = true;
+    streamsError = null;
     try {
-      const loadedStreams = await getStreams(id, selectedActivity.id)
-      streams = loadedStreams
+      const loadedStreams = await getStreams(id, selectedActivity.id);
+      streams = loadedStreams;
     } catch (e) {
-      streamsError = e instanceof Error ? e.message : 'Failed to load streams'
-      streams = []
+      streamsError = e instanceof Error ? e.message : 'Failed to load streams';
+      streams = [];
     } finally {
-      streamsLoading = false
+      streamsLoading = false;
     }
   }
 
   // Load event when ID changes
   $effect(() => {
-    if (id) loadEvent()
-  })
+    if (id) loadEvent();
+  });
 
   // Load streams when event and selected activity are available (single effect for initial load and activity switch)
   $effect(() => {
     if (eventDetail && selectedActivity?.id && !loading) {
-      loadStreams()
+      loadStreams();
     }
-  })
+  });
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -348,9 +355,7 @@
       <p class="text-sm font-medium text-danger">{error}</p>
     </div>
   {:else if event}
-    <div
-      class="overflow-hidden rounded-xl border border-border bg-card shadow-sm backdrop-blur-lg"
-    >
+    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm backdrop-blur-lg">
       <!-- Header -->
       <div
         class="flex flex-wrap items-center gap-4 border-b border-border px-6 py-5 sm:flex-nowrap"
@@ -436,9 +441,7 @@
         </div>
         <!-- Key metrics: stat cards in header -->
         {#if keyMetrics.length > 0}
-          <div
-            class="flex flex-shrink-0 flex-wrap items-stretch justify-end gap-3 sm:flex-nowrap"
-          >
+          <div class="flex flex-shrink-0 flex-wrap items-stretch justify-end gap-3 sm:flex-nowrap">
             {#each keyMetrics as entry (entry.statType)}
               <StatCard statType={entry.statType} value={entry.value} unit={entry.unit} />
             {/each}
@@ -447,19 +450,16 @@
       </div>
 
       {#if saveError}
-        <div
-          class="border-t border-border px-6 py-2 text-sm text-danger"
-          role="alert"
-        >
+        <div class="border-t border-border px-6 py-2 text-sm text-danger" role="alert">
           {saveError}
         </div>
       {/if}
 
       <EventDetailMoreStats
-        hasMoreStats={hasMoreStats}
+        {hasMoreStats}
         open={moreStatsOpen}
         groupedSections={groupedStatsSections}
-        keyMetricTypes={keyMetricTypes}
+        {keyMetricTypes}
         onToggle={() => (moreStatsOpen = !moreStatsOpen)}
       />
     </div>
@@ -471,16 +471,16 @@
     {/if}
 
     <EventDetailStreamCharts
-      streamsLoading={streamsLoading}
-      streamsError={streamsError}
-      chartableStreams={chartableStreams}
-      chartableStreamsOrdered={chartableStreamsOrdered}
-      selectedStreamTypes={selectedStreamTypes}
-      viewMode={viewMode}
-      visibleStreams={visibleStreams}
-      activityStartDate={activityStartDate}
-      activities={activities}
-      selectedActivityId={selectedActivityId}
+      {streamsLoading}
+      {streamsError}
+      {chartableStreams}
+      {chartableStreamsOrdered}
+      {selectedStreamTypes}
+      {viewMode}
+      {visibleStreams}
+      {activityStartDate}
+      {activities}
+      {selectedActivityId}
       hasSelectedActivity={!!selectedActivity}
       onToggleStream={toggleStream}
       onViewModeStacked={() => (viewMode = 'stacked')}

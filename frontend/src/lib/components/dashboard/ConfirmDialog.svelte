@@ -1,15 +1,15 @@
 <script lang="ts">
   interface Props {
-    title: string
-    message: string
-    confirmLabel: string
-    loadingLabel?: string
-    cancelLabel?: string
-    loading?: boolean
-    danger?: boolean
-    confirmDisabled?: boolean
-    onConfirm: () => void
-    onCancel: () => void
+    title: string;
+    message: string;
+    confirmLabel: string;
+    loadingLabel?: string;
+    cancelLabel?: string;
+    loading?: boolean;
+    danger?: boolean;
+    confirmDisabled?: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
   }
   let {
     title,
@@ -22,7 +22,7 @@
     confirmDisabled = false,
     onConfirm,
     onCancel,
-  }: Props = $props()
+  }: Props = $props();
 </script>
 
 <div
@@ -66,5 +66,5 @@
         {/if}
       </button>
     </div>
-</div>
   </div>
+</div>

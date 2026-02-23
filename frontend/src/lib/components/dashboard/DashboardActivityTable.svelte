@@ -1,33 +1,33 @@
 <script lang="ts">
-  import type { ActivityRow } from '../../types'
-  import { getActivityIcon, getActivityDeviceName, formatDateWithTime } from '../../utils'
+  import type { ActivityRow } from '../../types';
+  import { getActivityIcon, getActivityDeviceName, formatDateWithTime } from '../../utils';
 
   interface Props {
-    rows: ActivityRow[]
-    isLoading: boolean
-    selectedEventIds: Set<string>
-    uniqueEventIds: string[]
-    selectAllChecked: boolean
-    selectAllIndeterminate: boolean
-    selectAllCheckbox?: HTMLInputElement | null
-    formatDurationCell: (stats: Record<string, unknown>) => string
-    formatAvgHeartRateCell: (stats: Record<string, unknown>) => string
-    formatCaloriesCell: (stats: Record<string, unknown>) => string
-    formatDistanceCell: (stats: Record<string, unknown>) => string
-    onSelectAllChange: () => void
-    onRowClick: (eventId: string) => void
-    onToggleEventSelection: (eventId: string) => void
-    onViewClick: (eventId: string, e: MouseEvent) => void
-    onFindComparisonsClick: (eventId: string) => void
-    onDeleteClick: (eventId: string, e: MouseEvent) => void
+    rows: ActivityRow[];
+    isLoading: boolean;
+    selectedEventIds: Set<string>;
+    uniqueEventIds: string[];
+    selectAllChecked: boolean;
+    selectAllIndeterminate: boolean;
+    selectAllCheckbox?: HTMLInputElement | null;
+    formatDurationCell: (stats: Record<string, unknown>) => string;
+    formatAvgHeartRateCell: (stats: Record<string, unknown>) => string;
+    formatCaloriesCell: (stats: Record<string, unknown>) => string;
+    formatDistanceCell: (stats: Record<string, unknown>) => string;
+    onSelectAllChange: () => void;
+    onRowClick: (eventId: string) => void;
+    onToggleEventSelection: (eventId: string) => void;
+    onViewClick: (eventId: string, e: MouseEvent) => void;
+    onFindComparisonsClick: (eventId: string) => void;
+    onDeleteClick: (eventId: string, e: MouseEvent) => void;
   }
   let {
     rows,
     isLoading,
     selectedEventIds,
-    uniqueEventIds,
+    uniqueEventIds: _uniqueEventIds,
     selectAllChecked,
-    selectAllIndeterminate,
+    selectAllIndeterminate: _selectAllIndeterminate,
     selectAllCheckbox = $bindable(null as HTMLInputElement | null),
     formatDurationCell,
     formatAvgHeartRateCell,
@@ -39,7 +39,7 @@
     onViewClick,
     onFindComparisonsClick,
     onDeleteClick,
-  }: Props = $props()
+  }: Props = $props();
 </script>
 
 <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
@@ -114,12 +114,12 @@
             class:cursor-pointer={!isLoading}
             class:bg-card-hover={isSelected}
             onclick={() => {
-              if (!isLoading) onRowClick(row.event.id)
+              if (!isLoading) onRowClick(row.event.id);
             }}
             onkeydown={(e) => {
               if (!isLoading && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault()
-                onRowClick(row.event.id)
+                e.preventDefault();
+                onRowClick(row.event.id);
               }
             }}
           >
@@ -138,10 +138,12 @@
                 <span
                   class="material-icons inline-flex shrink-0 items-center justify-center text-text-secondary"
                   style="font-size: 3rem; width: 3rem; height: 3rem; line-height: 1;"
-                  aria-hidden="true"
-                >{getActivityIcon(row.activity.type)}</span>
+                  aria-hidden="true">{getActivityIcon(row.activity.type)}</span
+                >
                 <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span class="truncate font-medium text-text-primary">{row.activity.type || '—'}</span>
+                  <span class="truncate font-medium text-text-primary"
+                    >{row.activity.type || '—'}</span
+                  >
                   <span class="truncate text-sm text-text-secondary">
                     {getActivityDeviceName(row.activity)}
                   </span>
@@ -175,19 +177,21 @@
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   onclick={(e) => {
-                    e.stopPropagation()
-                    onViewClick(row.event.id, e)
+                    e.stopPropagation();
+                    onViewClick(row.event.id, e);
                   }}
                 >
-                  <span class="material-icons text-base leading-none" aria-hidden="true">search</span>
+                  <span class="material-icons text-base leading-none" aria-hidden="true"
+                    >search</span
+                  >
                   View
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   onclick={(e) => {
-                    e.stopPropagation()
-                    onFindComparisonsClick(row.event.id)
+                    e.stopPropagation();
+                    onFindComparisonsClick(row.event.id);
                   }}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
@@ -200,7 +204,9 @@
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                   onclick={(e) => onDeleteClick(row.event.id, e)}
                 >
-                  <span class="material-icons text-base leading-none" aria-hidden="true">delete</span>
+                  <span class="material-icons text-base leading-none" aria-hidden="true"
+                    >delete</span
+                  >
                   Delete
                 </button>
               </div>
