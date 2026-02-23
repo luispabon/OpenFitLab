@@ -400,6 +400,9 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 ## 10. Appendices
 
 ### 10.1 Glossary
+
+These terms define the product; technical implementation (tables, API) is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 - **Event**: A top-level workout session created from a single file upload. An event can contain one or more activities and has event-level statistics aggregated across all its activities. The event name is typically derived from the uploaded filename.
 
 - **Activity**: An individual sport segment within an event. Each activity has a sport type (Running, Cycling, Swimming, etc.), its own statistics, and owns all time-series stream data (heart rate, GPS, cadence, etc.). Most single-sport files create one event with one activity, while multi-sport files (e.g., triathlons) create one event with multiple activities.

@@ -99,6 +99,8 @@ This file provides operational instructions for AI coding agents working in this
 
 ## API endpoints
 
+Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 - **GET /api/events** - List events
   - Query params: `startDate` (timestamp), `endDate` (timestamp), `limit` (default 50, max 200)
   - Returns: Array of event objects with `stats` object; optional `srcFileType` when present
@@ -131,22 +133,13 @@ This file provides operational instructions for AI coding agents working in this
 - **Relational stats storage:** Event and activity statistics stored in separate tables (`event_stats`, `activity_stats`) with one row per stat type, not as JSON blobs.
 - **Timestamped stream data:** Stream data stored relationally in `stream_data_points` with `time_ms` (BIGINT UTC milliseconds) and `sequence_index` for ordering.
 - **No migrations:** Schema runs on startup via `initializeSchema()`. Schema changes require recreating database.
-- **Self-hosted deployment:** Docker Compose is the deployment artifact. No cloud dependencies.
+- **Self-hosted deployment:** Docker Compose is the deployment artifact. No cloud dependencies. Rationale in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Conventions (coding, naming, error handling)
 
-- **Svelte (frontend):**
-  - Svelte 5 runes (`$state`, `$derived`, `$effect`); component props via `$props()`
-  - Tailwind CSS v4 for all styling; no SCSS or component CSS files
-  - API calls via `fetch()` in plain `.ts` modules; no RxJS
+- **Svelte (frontend):** Svelte 5 runes and Tailwind only. See [.cursor/rules/svelte-frontend.mdc](.cursor/rules/svelte-frontend.mdc).
 
-- **JavaScript (backend):**
-  - Node.js 24+ with CommonJS modules
-  - Express.js for HTTP server
-  - MySQL2 with connection pooling
-  - No TypeScript in backend (plain JavaScript)
-  - **Repositories own SQL**: `backend/src/repositories/` (event-repository, activity-repository, stream-repository, comparison-repository) contain all SQL. Services call repositories and pass `opts.db` or `opts.conn` (inside transactions). Use `runQuery(sql, params, opts)` in repositories; do not use `db.getPool().execute()` in services.
-  - All services that touch the DB accept optional `opts.db` for test injection. See `backend/README.md` for module map and conventions.
+- **JavaScript (backend):** Backend: repositories own SQL; services accept `opts.db` and use transactions for multi-statement writes; routes are thin. See [backend/README.md](backend/README.md) for module map and [.cursor/rules/backend-architecture.mdc](.cursor/rules/backend-architecture.mdc) for full conventions.
 
 - **Database:**
   - MariaDB/MySQL compatible
@@ -208,19 +201,33 @@ This file provides operational instructions for AI coding agents working in this
   - `MARIADB_USER` - Database user (default: qs)
   - `MARIADB_PASSWORD` - Database password (default: qspass)
 
+## Smoke test (after refactors)
+
+Run this checklist after each refactoring stage to confirm the app still works.
+
+1. **Upload a .FIT file via dashboard** → Verify event appears in the list.
+2. **Click event** → Verify detail page loads with stats + charts.
+3. **Navigate to comparisons** → Verify list loads.
+4. **DELETE an event** → Verify removal (event disappears from list).
+5. **Filter by activity type on dashboard** → Verify filtering works.
+
 ## When unsure (how to confirm unknowns; which files to read)
 
-- **Backend structure and conventions:** Check `backend/README.md`
-- **API endpoints:** Check `backend/src/routes/events.js`
-- **Database schema:** Check `backend/sql/schema.sql`
-- **File parsing:** Check `backend/src/parsers/file-parser.js`
-- **Stream extraction:** Check `backend/src/utils/stream-extractor.js`
-- **Database connection:** Check `backend/src/db.js`
-- **Frontend API and types:** Check `frontend/src/lib/api/`, `frontend/src/lib/types/`
-- **Frontend routes/pages:** Check `frontend/src/routes/`
-- **Route map (GPS):** Check `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts`
-- **Docker setup:** Check `docker-compose.yaml`
-- **Package scripts:** Check `backend/package.json` and `frontend/package.json`
-- **Frontend build:** Check `frontend/vite.config.ts`
-- **Cloud hosting (AWS/GCP):** Check `docs/HOSTING.md`
-- **Unknown:** Read relevant source files before making assumptions
+| Topic | File(s) |
+|-------|---------|
+| API endpoints | `backend/src/routes/events.js`; full details [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Database schema | `backend/sql/schema.sql` |
+| Backend conventions | `backend/README.md`, `.cursor/rules/backend-architecture.mdc` |
+| Frontend conventions | `.cursor/rules/svelte-frontend.mdc` |
+| Frontend API and types | `frontend/src/lib/api/`, `frontend/src/lib/types/` |
+| Frontend routes/pages | `frontend/src/routes/` |
+| Route map (GPS) | `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts` |
+| File parsing | `backend/src/parsers/file-parser.js` |
+| Stream extraction | `backend/src/utils/stream-extractor.js` |
+| Database connection | `backend/src/db.js` |
+| Docker setup | `docker-compose.yaml` |
+| Package scripts | `backend/package.json`, `frontend/package.json` |
+| Frontend build | `frontend/vite.config.ts` |
+| Cloud hosting (AWS/GCP) | `docs/HOSTING.md` |
+
+Read relevant source files before making assumptions.
