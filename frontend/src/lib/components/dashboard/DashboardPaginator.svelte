@@ -24,8 +24,8 @@
     goToPage,
   }: Props = $props();
 
-  const sizeSelectId = `page-size-select${idSuffix}`;
-  const jumpSelectId = `jump-to-page${idSuffix}`;
+  const sizeSelectId = $derived(`page-size-select${idSuffix}`);
+  const jumpSelectId = $derived(`jump-to-page${idSuffix}`);
 </script>
 
 {#if totalRows > 0}

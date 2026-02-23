@@ -28,13 +28,19 @@
 {#if open}
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    onclick={onCancel}
     role="dialog"
     aria-modal="true"
+    tabindex="-1"
+    onclick={onCancel}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') onCancel();
+    }}
   >
     <div
       class="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl"
+      role="presentation"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
       <div class="flex items-center justify-between border-b border-border p-6">
         <div class="flex-1">

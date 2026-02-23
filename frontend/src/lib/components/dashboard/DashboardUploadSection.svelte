@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import DropZoneOverlay from '../DropZoneOverlay.svelte';
 
   interface Props {
@@ -6,12 +7,16 @@
     onFilesSelected: (files: File[]) => void;
     accept?: string;
     isDraggingOver?: boolean;
+    bulkBar?: Snippet;
+    children?: Snippet;
   }
   let {
     isUploading,
     onFilesSelected,
     accept = '.json,.tcx,.fit,.gpx,.sml',
     isDraggingOver = $bindable(false),
+    bulkBar,
+    children,
   }: Props = $props();
 
   function handleFileSelect(event: Event) {
@@ -106,7 +111,11 @@
       onchange={handleFileSelect}
       disabled={isUploading}
     />
-    <slot name="bulkBar" />
+    {#if bulkBar}
+      {@render bulkBar()}
+    {/if}
   </div>
-  <slot />
+  {#if children}
+    {@render children()}
+  {/if}
 </div>

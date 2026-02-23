@@ -266,7 +266,7 @@
   }
 
   // Reference for select-all checkbox to set indeterminate state
-  let selectAllCheckbox: HTMLInputElement | null = null;
+  let selectAllCheckbox = $state<HTMLInputElement | null>(null);
 
   $effect(() => {
     if (selectAllCheckbox) {
@@ -280,7 +280,7 @@
   class:opacity-50={isDraggingOver && !isUploading}
 >
   <DashboardUploadSection {isUploading} onFilesSelected={handleFiles} bind:isDraggingOver>
-    <svelte:fragment slot="bulkBar">
+    {#snippet bulkBar()}
       <DashboardBulkActionBar
         selectedCount={selectedEventIds.size}
         disabled={eventsToBulkDelete.length > 0 || eventToDelete !== null}
@@ -292,8 +292,9 @@
         }}
         onDelete={handleBulkDeleteClick}
       />
-    </svelte:fragment>
+    {/snippet}
 
+    {#snippet children()}
     <!-- Loading Spinner (only for loading events, not uploads) -->
     {#if isLoading}
       <div class="mb-4">
@@ -339,6 +340,7 @@
     />
 
     <DashboardPaginationWithUrl {totalRows} bind:page bind:pageSize>
+      {#snippet children()}
       <DashboardActivityTable
         rows={activityRowsFromApi}
         {isLoading}
@@ -361,6 +363,7 @@
         onFindComparisonsClick={(id) => compareCandidatesFlow?.openForEvent(id)}
         onDeleteClick={handleDeleteClick}
       />
+      {/snippet}
     </DashboardPaginationWithUrl>
 
     <DashboardSingleDeleteFlow
@@ -383,5 +386,6 @@
       onCompare={(eventIds) => push(`/compare/new?events=${eventIds.join(',')}`)}
       onError={showToast}
     />
+    {/snippet}
   </DashboardUploadSection>
 </section>

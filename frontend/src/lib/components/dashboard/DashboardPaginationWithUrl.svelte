@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { push, querystring } from 'svelte-spa-router';
   import DashboardPaginator from './DashboardPaginator.svelte';
 
@@ -8,8 +9,9 @@
     totalRows: number;
     page?: number;
     pageSize?: number;
+    children?: Snippet;
   }
-  let { totalRows, page = $bindable(1), pageSize = $bindable(20) }: Props = $props();
+  let { totalRows, page = $bindable(1), pageSize = $bindable(20), children }: Props = $props();
 
   let suppressUrlSync = false;
   let lastQuerystringSynced = $state<string | undefined>(undefined);
@@ -126,7 +128,9 @@
   />
 </div>
 
-<slot />
+{#if children}
+  {@render children()}
+{/if}
 
 <div class="mt-3">
   <DashboardPaginator

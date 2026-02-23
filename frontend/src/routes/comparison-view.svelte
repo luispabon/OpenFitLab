@@ -661,7 +661,10 @@
             {@const currentActivityId = selectedActivities[eventId]}
             {#if eventDetail.activities.length > 1}
               <div>
-                <label class="mb-1 block text-sm font-medium text-text-secondary">
+                <label
+                  for="activity-select-{eventId}"
+                  class="mb-1 block text-sm font-medium text-text-secondary"
+                >
                   {(() => {
                     const activityId = selectedActivities[eventId];
                     const activity = eventDetail.activities.find((a) => a.id === activityId);
@@ -671,6 +674,7 @@
                   })()}
                 </label>
                 <select
+                  id="activity-select-{eventId}"
                   class="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-text-primary"
                   value={currentActivityId}
                   onchange={(e) =>
@@ -790,18 +794,33 @@
   {#if showSaveDialog}
     <div
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onclick={() => (showSaveDialog = false)}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="save-comparison-dialog-title"
+      tabindex="-1"
+      onclick={() => (showSaveDialog = false)}
+      onkeydown={(e) => {
+        if (e.key === 'Escape') showSaveDialog = false;
+      }}
     >
       <div
         class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
+        role="presentation"
         onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
       >
-        <h2 class="mb-4 text-lg font-semibold text-text-primary">Save Comparison</h2>
+        <h2 id="save-comparison-dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
+          Save Comparison
+        </h2>
         <div class="mb-6">
-          <label class="mb-2 block text-sm font-medium text-text-secondary">Name</label>
+          <label
+            for="save-comparison-name"
+            class="mb-2 block text-sm font-medium text-text-secondary"
+          >
+            Name
+          </label>
           <input
+            id="save-comparison-name"
             type="text"
             class="w-full rounded border border-border bg-card px-3 py-2 text-text-primary"
             bind:value={saveName}
