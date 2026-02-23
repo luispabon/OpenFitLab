@@ -98,6 +98,11 @@
     return eventIdsFromQuery.filter((id) => id.trim().length > 0)
   })
 
+  // Show spinner when viewing a saved comparison by ID but comparison not loaded yet (e.g. after save + replace)
+  const loadingComparison = $derived(
+    Boolean(comparisonId && comparisonId !== 'new' && savedComparison === null && !error)
+  )
+
   // Load saved comparison if viewing by ID
   async function loadSavedComparison() {
     if (!comparisonId || comparisonId === 'new') {
@@ -124,6 +129,7 @@
       error = e instanceof Error ? e.message : 'Failed to load comparison'
       savedComparison = null
       loadedComparisonId = null
+      loading = false
     }
   }
 
@@ -441,12 +447,14 @@
     // For existing comparisons, load saved comparison first
     // Only load if comparison ID changed
     if (loadedComparisonId !== id && !loading) {
+      // Clear any stale error from the 'new' path (e.g. after save + replace, query empty before id updated)
+      error = null
       loadSavedComparison().then(() => {
         // After loading saved comparison, check eventIds (which may come from saved comparison)
         const ids = savedComparison?.eventIds ?? []
         const idsStr = ids.slice().sort().join(',')
         
-        if (ids.length >= 2 && idsStr !== lastLoadAttempt && !loading) {
+        if (ids.length >= 2 && idsStr !== lastLoadAttempt) {
           lastLoadAttempt = idsStr
           loadEvents()
         } else if (ids.length < 2) {
@@ -550,7 +558,7 @@
     ← Back to Dashboard
   </button>
 
-  {#if loading}
+  {#if loading || loadingComparison}
     <div class="flex justify-center py-12">
       <LoadingSpinner />
     </div>
