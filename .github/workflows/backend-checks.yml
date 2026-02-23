@@ -40,3 +40,8 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+
+      - name: Unit tests (no deprecations)
+        run: npm run test:unit
+        env:
+          NODE_OPTIONS: '--throw-deprecation'

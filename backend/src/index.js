@@ -46,7 +46,11 @@ app.use((err, req, res, next) => {
 });
 
 async function start() {
-  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const uploadDir =
+    typeof UPLOAD_DIR === 'string' && UPLOAD_DIR.trim().length > 0
+      ? UPLOAD_DIR.trim()
+      : path.join(__dirname, '..', 'uploads');
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`API listening on http://0.0.0.0:${PORT}`);
