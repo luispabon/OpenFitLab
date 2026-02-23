@@ -8,6 +8,7 @@ const {
   validateStreamTypes,
   validateComparisonId,
   validateComparisonBody,
+  validateComparisonByEventsBody,
 } = require('../../src/utils/validation');
 
 function mockRes() {
@@ -353,6 +354,54 @@ describe('validateComparisonBody', () => {
     const res = mockRes();
     const next = mockNext();
     validateComparisonBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
+    strictEqual(next.called(), false);
+  });
+});
+
+describe('validateComparisonByEventsBody', () => {
+  it('calls next for valid body', () => {
+    const req = {
+      body: {
+        eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde'],
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 when eventIds is not an array', () => {
+    const req = { body: { eventIds: 'a1b2c3d4-e5f6-4789-a012-3456789abcde' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'eventIds must be a non-empty array' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when eventIds is empty array', () => {
+    const req = { body: { eventIds: [] } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'eventIds must be a non-empty array' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when an eventId is invalid UUID', () => {
+    const req = {
+      body: {
+        eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde', 'not-a-uuid'],
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
     strictEqual(next.called(), false);

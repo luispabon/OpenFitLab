@@ -179,6 +179,25 @@ function validateComparisonBody(req, res, next) {
   next();
 }
 
+/**
+ * Validates body for POST /api/comparisons/by-events
+ */
+function validateComparisonByEventsBody(req, res, next) {
+  const { eventIds } = req.body;
+
+  if (!Array.isArray(eventIds) || eventIds.length === 0) {
+    return res.status(400).json({ error: 'eventIds must be a non-empty array' });
+  }
+
+  for (const eventId of eventIds) {
+    if (!isValidUUID(eventId)) {
+      return res.status(400).json({ error: 'All eventIds must be valid UUIDs' });
+    }
+  }
+
+  next();
+}
+
 module.exports = {
   validateGetEventsQuery,
   validateGetActivityRowsQuery,
@@ -187,4 +206,5 @@ module.exports = {
   validateStreamTypes,
   validateComparisonId,
   validateComparisonBody,
+  validateComparisonByEventsBody,
 };

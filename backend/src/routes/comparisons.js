@@ -3,9 +3,14 @@ const {
   createComparison,
   getComparisons,
   getComparisonById,
+  getComparisonsByEventIds,
   deleteComparisonById,
 } = require('../services/comparison-service');
-const { validateComparisonId, validateComparisonBody } = require('../utils/validation');
+const {
+  validateComparisonId,
+  validateComparisonBody,
+  validateComparisonByEventsBody,
+} = require('../utils/validation');
 const { asyncHandler } = require('../middleware/async-handler');
 
 const router = express.Router();
@@ -26,6 +31,17 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const comparisons = await getComparisons(100);
+    res.json(comparisons);
+  })
+);
+
+// POST /api/comparisons/by-events
+router.post(
+  '/by-events',
+  validateComparisonByEventsBody,
+  asyncHandler(async (req, res) => {
+    const { eventIds } = req.body;
+    const comparisons = await getComparisonsByEventIds(eventIds);
     res.json(comparisons);
   })
 );
