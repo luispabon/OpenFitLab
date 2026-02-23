@@ -160,17 +160,21 @@
     try {
       const updated = await updateActivity(id, firstActivity.id, { type: newType })
       if (eventDetail) {
-        eventDetail.activities = eventDetail.activities.map((a) =>
+        const nextActivities = eventDetail.activities.map((a) =>
           a.id === updated.id ? updated : a
         )
         const types = [
           ...new Set(
-            eventDetail.activities.map((a) => a.type).filter((t): t is string => Boolean(t))
+            nextActivities.map((a) => a.type).filter((t): t is string => Boolean(t))
           ),
         ].sort()
-        eventDetail.event = {
-          ...eventDetail.event,
-          stats: { ...eventDetail.event.stats, 'Activity Types': types as unknown as string | number | number[] | Record<string, unknown> },
+        eventDetail = {
+          ...eventDetail,
+          activities: nextActivities,
+          event: {
+            ...eventDetail.event,
+            stats: { ...eventDetail.event.stats, 'Activity Types': types as unknown as string | number | number[] | Record<string, unknown> },
+          },
         }
       }
       editField = null
@@ -189,9 +193,12 @@
     try {
       const updated = await updateActivity(id, act.id, { deviceName: newDevice })
       if (eventDetail) {
-        eventDetail.activities = eventDetail.activities.map((a) =>
-          a.id === updated.id ? updated : a
-        )
+        eventDetail = {
+          ...eventDetail,
+          activities: eventDetail.activities.map((a) =>
+            a.id === updated.id ? updated : a
+          ),
+        }
       }
       editField = null
     } catch (e) {

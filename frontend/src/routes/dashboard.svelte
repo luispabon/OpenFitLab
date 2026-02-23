@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import { push } from 'svelte-spa-router'
   import { getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent } from '../lib/api'
   import type { ActivityRow } from '../lib/types'
@@ -24,6 +24,7 @@
   let activityRowsFromApi = $state<ActivityRow[]>([])
   let totalRows = $state(0)
   let isLoading = $state(false)
+  let loadGeneration = $state(0)
   let search = $state('')
   let selectedActivityTypes = $state<string[]>([])
   let selectedDevices = $state<string[]>([])
@@ -104,6 +105,10 @@
   })
 
   async function loadActivityRows() {
+    const myGen = untrack(() => {
+      loadGeneration += 1
+      return loadGeneration
+    })
     isLoading = true
     try {
       const offset = (page - 1) * pageSize
@@ -123,13 +128,15 @@
         search: search.trim() || undefined,
       }
       const result = await getActivityRows(params)
+      if (myGen !== loadGeneration) return
       activityRowsFromApi = result.rows
       totalRows = result.total
     } catch (error) {
+      if (myGen !== loadGeneration) return
       console.error('Failed to load activity rows:', error)
       showToast(error instanceof Error ? error.message : 'Failed to load activity rows')
     } finally {
-      isLoading = false
+      if (myGen === loadGeneration) isLoading = false
     }
   }
 

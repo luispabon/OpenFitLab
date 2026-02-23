@@ -162,13 +162,15 @@
 
       // Initialize selected activities (use saved or default to first)
       let activitiesChanged = false
+      const nextActivities = { ...selectedActivities }
       for (const eventDetail of events) {
         const eventId = eventDetail.event.id
-        if (!selectedActivities[eventId] && eventDetail.activities.length > 0) {
-          selectedActivities[eventId] = eventDetail.activities[0].id
+        if (!nextActivities[eventId] && eventDetail.activities.length > 0) {
+          nextActivities[eventId] = eventDetail.activities[0].id
           activitiesChanged = true
         }
       }
+      if (activitiesChanged) selectedActivities = nextActivities
 
       // Load streams for all selected activities
       // Reset signature if activities changed to force reload
@@ -336,7 +338,7 @@
 
   // Handle activity change for an event
   async function handleActivityChange(eventId: string, activityId: string) {
-    selectedActivities[eventId] = activityId
+    selectedActivities = { ...selectedActivities, [eventId]: activityId }
     await loadStreams()
   }
 
