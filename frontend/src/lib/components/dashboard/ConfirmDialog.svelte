@@ -8,6 +8,8 @@
     loading?: boolean;
     danger?: boolean;
     confirmDisabled?: boolean;
+    /** When set, shown in a prominent warning box below the message */
+    warningMessage?: string;
     onConfirm: () => void;
     onCancel: () => void;
   }
@@ -20,6 +22,7 @@
     loading = false,
     danger = false,
     confirmDisabled = false,
+    warningMessage,
     onConfirm,
     onCancel,
   }: Props = $props();
@@ -45,9 +48,20 @@
     <h2 id="confirm-dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
       {title}
     </h2>
-    <p class="mb-6 text-sm text-text-secondary">
+    <p class="mb-4 text-sm text-text-secondary">
       {message}
     </p>
+    {#if warningMessage}
+      <div
+        class="mb-6 flex gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"
+        role="alert"
+      >
+        <span class="material-icons shrink-0 text-base text-amber-400" aria-hidden="true"
+          >warning</span
+        >
+        <p>{warningMessage}</p>
+      </div>
+    {/if}
     <div class="flex justify-end gap-3">
       <button
         type="button"
