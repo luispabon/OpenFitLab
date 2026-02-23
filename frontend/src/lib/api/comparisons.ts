@@ -38,6 +38,28 @@ export async function getComparison(id: string): Promise<Comparison> {
   return response.json();
 }
 
+export interface ComparisonSummary {
+  id: string;
+  name: string;
+  createdAt?: number;
+}
+
+export async function getComparisonsByEventIds(eventIds: string[]): Promise<ComparisonSummary[]> {
+  const response = await fetch(`${API_BASE}/comparisons/by-events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ eventIds }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch comparisons: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function createComparison(
   name: string,
   eventIds: string[],
