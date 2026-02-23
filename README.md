@@ -75,6 +75,12 @@ Compose uses base Node images (`node:24-alpine` for the API, `node:22-alpine` fo
 
 Edit files under `backend/` or `frontend/` on your host and changes are reflected immediately (API restarts, frontend hot-reloads).
 
+## Testing / Quality checks
+
+- **Backend:** From `backend/`: `npm run lint`, `npm run format`, `npm run test:unit`. See [AGENTS.md](AGENTS.md) for full commands.
+- **Frontend:** From `frontend/`: `npm run ci` runs format, lint, typecheck, tests, and build.
+- **CI:** Push and pull requests to `main` run backend checks when backend files change and frontend checks when frontend files change (see `.github/workflows/`).
+
 ## API Documentation
 
 Events API: **GET** `/api/events` (list), **GET** `/api/events/:id` (single + activities), **GET** `/api/events/:id/activities/:activityId/streams` (streams), **POST** `/api/events` (upload), **DELETE** `/api/events/:id` (delete). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for parameters and response shapes.
