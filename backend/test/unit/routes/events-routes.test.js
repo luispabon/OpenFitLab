@@ -123,8 +123,21 @@ describe('Events route → service parameter mapping', () => {
 
   describe('DELETE /:id (deleteEventById)', () => {
     it('passes req.params.id to deleteEventById', async () => {
+      const queryFn = async (sql) => {
+        if (sql.includes('FROM comparisons')) return [];
+        return { affectedRows: 0 };
+      };
       const db = {
-        query: async () => ({ affectedRows: 0 }),
+        query: queryFn,
+        transaction: async (fn) => {
+          const fakeConn = {
+            execute: async (sql, params) => {
+              const result = await queryFn(sql, params);
+              return [result];
+            },
+          };
+          return fn(fakeConn);
+        },
       };
       const result = await deleteEventById('event-uuid', { db });
       strictEqual(result, false);

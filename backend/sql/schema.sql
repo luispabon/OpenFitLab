@@ -84,8 +84,16 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
 CREATE TABLE IF NOT EXISTS comparisons (
   id VARCHAR(36) PRIMARY KEY,
   name VARCHAR(512) NOT NULL,
-  event_ids JSON NOT NULL,
   settings JSON NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_created_at (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS comparison_events (
+  comparison_id VARCHAR(36) NOT NULL,
+  event_id VARCHAR(36) NOT NULL,
+  PRIMARY KEY (comparison_id, event_id),
+  INDEX idx_event_id (event_id),
+  CONSTRAINT fk_ce_comparison FOREIGN KEY (comparison_id) REFERENCES comparisons(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ce_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
