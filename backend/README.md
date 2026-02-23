@@ -6,7 +6,8 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 
 - **Entry**: `src/index.js` — Express app, CORS, JSON body, mounts routes, central error handler.
 - **Routes**: `src/routes/events.js`, `comparisons.js`, `meta.js` — validation + service calls only; no direct DB access.
-- **Services**: `src/services/*` — business logic and all SQL. Each service that uses the DB accepts optional `opts.db` for test injection.
+- **Services**: `src/services/*` — business logic; they call **repositories** and orchestrate transactions. Each service accepts optional `opts.db` for test injection.
+- **Repositories**: `src/repositories/*` — all SQL lives here. `event-repository`, `activity-repository`, `stream-repository`, `comparison-repository`; each uses `query-helper.runQuery(sql, params, opts)` so that `opts.conn` (inside a transaction) or `opts.db` is used.
 - **DB layer**: `src/db.js` — `query`, `queryOne`, `transaction`; schema in `sql/schema.sql` (run on startup, no migrations).
 - **Parsers**: `src/parsers/file-parser.js` — file parsing (TCX, FIT, GPX, JSON, SML) via sports-lib.
 - **Utils**: `src/utils/` — validation (Express middleware), transforms (row → API shape), stream-extractor, json-sanitizer.
@@ -14,9 +15,8 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 
 ## Data access
 
-- All SQL lives in **services** (no repository layer). Use `db.query()`, `db.queryOne()`, and `db.transaction(fn)`; inside a transaction use `conn.execute()`.
-- **event-delete-service** uses `db.query()` for DELETE and checks `result.affectedRows` (same pattern as other services).
-- For unit tests, inject a fake `db` with `query`, `queryOne`, and where needed `transaction` (and `getPool` only if the code path uses it).
+- All SQL lives in **repositories**. Services call repositories and pass `opts` (with `opts.db` or, inside `db.transaction(fn)`, `opts.conn`). Repositories use `runQuery(sql, params, opts)` which uses `conn.execute` when `opts.conn` is set, else `db.query`.
+- For unit tests, inject a fake `db` with `query` (and where needed `transaction`); repositories receive `opts.db` from the service.
 
 ## Errors
 

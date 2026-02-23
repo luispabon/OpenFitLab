@@ -14,6 +14,7 @@ describe('event-upload-service processUpload', () => {
     const conn = {
       execute: async (sql, params) => {
         executed.push({ sql: sql.substring(0, 80), params: params?.length ?? 0 });
+        return [{}];
       },
     };
     const db = {
@@ -35,7 +36,7 @@ describe('event-upload-service processUpload', () => {
     const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
     const buffer = fs.readFileSync(tcxPath);
     const db = {
-      transaction: async (fn) => fn({ execute: async () => {} }),
+      transaction: async (fn) => fn({ execute: async () => [{}] }),
     };
     const result = await processUpload(buffer, 'tcx', 'My Run.tcx', { db });
     strictEqual(result.eventJson.name, 'My Run');
@@ -45,7 +46,7 @@ describe('event-upload-service processUpload', () => {
     const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
     const buffer = fs.readFileSync(tcxPath);
     const db = {
-      transaction: async (fn) => fn({ execute: async () => {} }),
+      transaction: async (fn) => fn({ execute: async () => [{}] }),
     };
     const result = await processUpload(buffer, 'tcx', 'minimal.tcx', { db });
     ok(Array.isArray(result.activities));

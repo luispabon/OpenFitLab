@@ -1,46 +1,33 @@
 const defaultDb = require('../db');
-const {
-  aggregateStats,
-  mapEventRow,
-  mapActivityRow,
-  placeholders,
-} = require('../utils/transforms');
+const eventRepository = require('../repositories/event-repository');
+const activityRepository = require('../repositories/activity-repository');
+const { aggregateStats, mapEventRow, mapActivityRow } = require('../utils/transforms');
 
 /**
  * Takes raw event DB rows and returns fully mapped event objects with nested
  * activities and stats.
- * @param {Array<object>} eventRows - Raw rows from events table (id, start_date, name, etc.)
- * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
- * @returns {Promise<Array<object>>} Event objects with .activities and .stats
  */
 async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
   if (!eventRows || eventRows.length === 0) return [];
   const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
 
   const eventIds = eventRows.map((r) => r.id);
-  const [statsRows, activityRows] = await Promise.all([
-    db.query(
-      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds
-    ),
-    db.query(
-      `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds
-    ),
+  const [statsRows, activityRowsPerEvent] = await Promise.all([
+    eventRepository.getStatsByEventIds(eventIds, repoOpts),
+    Promise.all(eventIds.map((eventId) => activityRepository.findByEventId(eventId, repoOpts))),
   ]);
+  const allActivityRows = activityRowsPerEvent.flat();
 
   const statsByEventId = aggregateStats(statsRows, 'event_id');
   const events = eventRows.map((r) => mapEventRow(r, statsByEventId[r.id]));
 
-  if (activityRows.length > 0) {
-    const activityIds = activityRows.map((a) => a.id);
-    const activityStatsRows = await db.query(
-      `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-      activityIds
-    );
+  if (allActivityRows.length > 0) {
+    const activityIds = allActivityRows.map((a) => a.id);
+    const activityStatsRows = await activityRepository.getStatsByActivityIds(activityIds, repoOpts);
     const statsByActivityId = aggregateStats(activityStatsRows, 'activity_id');
     const activitiesByEventId = {};
-    for (const a of activityRows) {
+    for (const a of allActivityRows) {
       if (!activitiesByEventId[a.event_id]) activitiesByEventId[a.event_id] = [];
       activitiesByEventId[a.event_id].push(mapActivityRow(a, statsByActivityId[a.id]));
     }
@@ -64,23 +51,17 @@ async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
  */
 async function getEventById(eventId, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const event = await db.queryOne(
-    'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id = ?',
-    [eventId]
-  );
+  const repoOpts = { ...opts, db };
+  const event = await eventRepository.findById(eventId, repoOpts);
   if (!event) return null;
 
-  const activities = await db.query(
-    'SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE event_id = ?',
-    [eventId]
-  );
-
+  const activities = await activityRepository.findByEventId(eventId, repoOpts);
   const [eventStatsRows, activityStatsRows] = await Promise.all([
-    db.query('SELECT stat_type, value FROM event_stats WHERE event_id = ?', [eventId]),
+    eventRepository.getStatsByEventId(eventId, repoOpts),
     activities.length > 0
-      ? db.query(
-          `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activities.length)})`,
-          activities.map((a) => a.id)
+      ? activityRepository.getStatsByActivityIds(
+          activities.map((a) => a.id),
+          repoOpts
         )
       : [],
   ]);
@@ -95,113 +76,32 @@ async function getEventById(eventId, opts = {}) {
 
 /**
  * List events with optional date filter and limit.
- * @param {{ startDate?: number, endDate?: number, limit?: number }} filters
- * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
- * @returns {Promise<Array<object>>}
  */
 async function listEvents(filters = {}, opts = {}) {
   const db = opts.db ?? defaultDb;
-  let sql =
-    'SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE 1=1';
-  const params = [];
-  if (filters.startDate != null) {
-    sql += ' AND start_date >= ?';
-    params.push(Number(filters.startDate));
-  }
-  if (filters.endDate != null) {
-    sql += ' AND start_date <= ?';
-    params.push(Number(filters.endDate));
-  }
-  sql += ' ORDER BY start_date DESC';
-  const limit = Math.min(Number(filters.limit) || 50, 200);
-  sql += ' LIMIT ?';
-  params.push(limit);
-  const rows = await db.query(sql, params);
+  const repoOpts = { ...opts, db };
+  const rows = await eventRepository.findMany(filters, repoOpts);
   if (rows.length === 0) return [];
   return enrichEventsWithStatsAndActivities(rows, opts);
 }
 
 /**
  * Paginated activity rows with filters. Returns { rows: Array<{ event, activity }>, total }.
- * @param {{ limit?: number, offset?: number, startDate?: number, endDate?: number, activityTypes?: string[], devices?: string[], search?: string }} params
- * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
- * @returns {Promise<{ rows: Array<{ event: object, activity: object }>, total: number }>}
  */
 async function getActivityRows(params = {}, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const limit = Math.min(Math.max(1, Number(params.limit) || 20), 50);
-  const offset = Math.max(0, Number(params.offset) || 0);
-  const startDate = params.startDate != null ? Number(params.startDate) : null;
-  const endDate = params.endDate != null ? Number(params.endDate) : null;
-  const activityTypes = Array.isArray(params.activityTypes)
-    ? params.activityTypes.map((t) => String(t).trim()).filter(Boolean)
-    : params.activityTypes != null
-      ? [String(params.activityTypes).trim()].filter(Boolean)
-      : [];
-  const devices = Array.isArray(params.devices)
-    ? params.devices.map((d) => String(d).trim()).filter(Boolean)
-    : params.devices != null
-      ? [String(params.devices).trim()].filter(Boolean)
-      : [];
-  const searchRaw = params.search != null ? String(params.search).trim() : '';
-
-  let sql = 'FROM events e INNER JOIN activities a ON e.id = a.event_id WHERE 1=1';
-  const queryParams = [];
-
-  if (startDate != null) {
-    sql += ' AND COALESCE(a.start_date, e.start_date) >= ?';
-    queryParams.push(startDate);
-  }
-  if (endDate != null) {
-    sql += ' AND COALESCE(a.start_date, e.start_date) <= ?';
-    queryParams.push(endDate);
-  }
-  if (activityTypes.length > 0) {
-    sql += ` AND a.type IN (${placeholders(activityTypes.length)})`;
-    queryParams.push(...activityTypes);
-  }
-  if (devices.length > 0) {
-    sql += ` AND a.device_name IN (${placeholders(devices.length)})`;
-    queryParams.push(...devices);
-  }
-  if (searchRaw.length > 0) {
-    const escapeLike = (s) =>
-      String(s).replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const searchTerm = `%${escapeLike(searchRaw)}%`;
-    sql += ' AND (e.name LIKE ? OR a.name LIKE ? OR a.type LIKE ?)';
-    queryParams.push(searchTerm, searchTerm, searchTerm);
-  }
-
-  const countSql = `SELECT COUNT(*) AS total ${sql}`;
-  const countResult = await db.query(countSql, queryParams);
-  const total = Number(countResult[0]?.total ?? 0);
+  const repoOpts = { ...opts, db };
+  const { pairRows, total } = await activityRepository.getActivityRowPairs(params, repoOpts);
   if (total === 0) return { rows: [], total: 0 };
-
-  const orderAndPage = ' ORDER BY COALESCE(a.start_date, e.start_date) DESC LIMIT ? OFFSET ?';
-  const mainParams = [...queryParams, limit, offset];
-  const mainSql = `SELECT e.id AS event_id, a.id AS activity_id ${sql}${orderAndPage}`;
-  const pairRows = await db.query(mainSql, mainParams);
 
   const eventIds = [...new Set(pairRows.map((r) => r.event_id))];
   const activityIds = pairRows.map((r) => r.activity_id);
 
   const [eventRows, activityRows, eventStatsRows, activityStatsRows] = await Promise.all([
-    db.query(
-      `SELECT id, start_date, name, end_date, description, is_merge, src_file_type FROM events WHERE id IN (${placeholders(eventIds.length)})`,
-      eventIds
-    ),
-    db.query(
-      `SELECT id, event_id, name, start_date, end_date, type, event_start_date, device_name FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
-      activityIds
-    ),
-    db.query(
-      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds
-    ),
-    db.query(
-      `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-      activityIds
-    ),
+    eventRepository.findManyByIds(eventIds, repoOpts),
+    activityRepository.findManyByIds(activityIds, repoOpts),
+    eventRepository.getStatsByEventIds(eventIds, repoOpts),
+    activityRepository.getStatsByActivityIds(activityIds, repoOpts),
   ]);
 
   const eventsById = Object.fromEntries(eventRows.map((r) => [r.id, r]));
@@ -226,31 +126,24 @@ async function getActivityRows(params = {}, opts = {}) {
 
 /**
  * Returns events that overlap in time with the given source event (for comparison candidates).
- * @param {string} sourceEventId - Event UUID
- * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
- * @returns {Promise<Array<object> | null>} Array of events with stats/activities, or null if source event not found
  */
 async function getComparisonCandidates(sourceEventId, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const sourceEvent = await db.queryOne('SELECT start_date, end_date FROM events WHERE id = ?', [
-    sourceEventId,
-  ]);
+  const repoOpts = { ...opts, db };
+  const sourceEvent = await eventRepository.getDateRange(sourceEventId, repoOpts);
   if (!sourceEvent) return null;
 
   const sourceStartDate = Number(sourceEvent.start_date);
   const sourceEndDate =
     sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
 
-  const sql = `
-    SELECT id, start_date, name, end_date, description, is_merge, src_file_type
-    FROM events
-    WHERE id != ?
-      AND start_date <= ?
-      AND COALESCE(end_date, start_date) >= ?
-    ORDER BY start_date DESC
-    LIMIT 50
-  `;
-  const rows = await db.query(sql, [sourceEventId, sourceEndDate, sourceStartDate]);
+  const rows = await eventRepository.findOverlapping(
+    sourceEventId,
+    sourceStartDate,
+    sourceEndDate,
+    50,
+    repoOpts
+  );
   if (rows.length === 0) return [];
   return enrichEventsWithStatsAndActivities(rows, opts);
 }

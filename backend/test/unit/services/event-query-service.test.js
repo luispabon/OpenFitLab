@@ -91,7 +91,7 @@ describe('enrichEventsWithStatsAndActivities', () => {
 
 describe('getEventById', () => {
   it('returns null when event not found', async () => {
-    const db = { queryOne: async () => null, query: async () => [] };
+    const db = { query: async () => [] };
     const result = await getEventById('missing', { db });
     strictEqual(result, null);
   });
@@ -119,10 +119,13 @@ describe('getEventById', () => {
       },
     ];
     const db = {
-      queryOne: async () => eventRow,
       query: async (sql) => {
-        if (sql.includes('activities') && !sql.includes('activity_stats')) return activityRows;
-        if (sql.includes('event_stats')) return [{ stat_type: 'Distance', value: 5000 }];
+        if (sql.includes('FROM events WHERE id = ?') && !sql.includes(' IN '))
+          return [eventRow];
+        if (sql.includes('activities') && !sql.includes('activity_stats'))
+          return activityRows;
+        if (sql.includes('event_stats') && sql.includes('event_id = ?'))
+          return [{ stat_type: 'Distance', value: 5000 }];
         if (sql.includes('activity_stats')) return [{ activity_id: 'a1', stat_type: 'Duration', value: 300 }];
         return [];
       },
@@ -221,15 +224,18 @@ describe('getActivityRows', () => {
 
 describe('getComparisonCandidates', () => {
   it('returns null when source event not found', async () => {
-    const db = { queryOne: async () => null, query: async () => [] };
+    const db = { query: async () => [] };
     const result = await getComparisonCandidates('missing', { db });
     strictEqual(result, null);
   });
 
   it('returns empty array when no overlapping events', async () => {
     const db = {
-      queryOne: async () => ({ start_date: 1000, end_date: 2000 }),
-      query: async () => [],
+      query: async (sql) => {
+        if (sql.includes('start_date, end_date') && sql.includes('FROM events WHERE id = ?'))
+          return [{ start_date: 1000, end_date: 2000 }];
+        return [];
+      },
     };
     const result = await getComparisonCandidates('e1', { db });
     deepStrictEqual(result, []);
@@ -240,8 +246,9 @@ describe('getComparisonCandidates', () => {
       { id: 'e2', start_date: 1500, name: 'E2', end_date: 2500, description: null, is_merge: 0, src_file_type: null },
     ];
     const db = {
-      queryOne: async () => ({ start_date: 1000, end_date: 2000 }),
       query: async (sql) => {
+        if (sql.includes('start_date, end_date') && sql.includes('FROM events WHERE id = ?'))
+          return [{ start_date: 1000, end_date: 2000 }];
         if (sql.includes('WHERE id != ?')) return candidateRows;
         if (sql.includes('event_stats')) return [{ event_id: 'e2', stat_type: 'Distance', value: 3000 }];
         if (sql.includes('activities') && !sql.includes('activity_stats')) return [];

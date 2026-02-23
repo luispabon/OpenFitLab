@@ -145,7 +145,7 @@ This file provides operational instructions for AI coding agents working in this
   - Express.js for HTTP server
   - MySQL2 with connection pooling
   - No TypeScript in backend (plain JavaScript)
-  - No repository layer: all SQL lives in services. Use `db.query()`, `db.queryOne()`, `db.transaction(fn)` (and `conn.execute()` inside transactions). Do not use `db.getPool().execute()` in services.
+  - **Repositories own SQL**: `backend/src/repositories/` (event-repository, activity-repository, stream-repository, comparison-repository) contain all SQL. Services call repositories and pass `opts.db` or `opts.conn` (inside transactions). Use `runQuery(sql, params, opts)` in repositories; do not use `db.getPool().execute()` in services.
   - All services that touch the DB accept optional `opts.db` for test injection. See `backend/README.md` for module map and conventions.
 
 - **Database:**

@@ -7,10 +7,9 @@ globs: backend/**
 
 ## Data access
 
-- **Use the same DB API everywhere.** In services, use `db.query()`, `db.queryOne()`, and `db.transaction(fn)`. Inside a transaction, use `conn.execute()`. Do not use `db.getPool()` and then `pool.execute()` in services — it breaks a consistent mock contract for tests.
-- **All services that touch the DB must accept optional dependency injection** so they can be unit-tested with a fake DB: accept an `opts` (or similar) parameter and use `const db = opts?.db ?? defaultDb` (or equivalent). This applies to every new service and to any existing service that currently `require('../db')` directly.
-- **Keep all SQL in services** (or in repositories if the project introduces that layer). Routes must not import `db` or contain raw SQL.
-- **Use transactions for multi-statement writes** that must be atomic (e.g. insert event + event_stats + activities + streams in one go). Use `db.transaction(async (conn) => { ... })` and `conn.execute()` inside the callback.
+- **All SQL lives in repositories** (`src/repositories/*`). Services call repositories and pass `opts` (with `opts.db`, or `opts.conn` when inside a transaction). Repositories use `runQuery(sql, params, opts)` from `repositories/query-helper.js` (which uses `opts.conn.execute` when set, else `opts.db.query`). Do not put SQL in services or routes.
+- **All services that touch the DB must accept optional dependency injection** so they can be unit-tested: accept `opts` and use `const db = opts?.db ?? defaultDb`; pass `{ ...opts, db }` (or `{ ...opts, db, conn }` inside a transaction) to repository calls.
+- **Use transactions for multi-statement writes** that must be atomic. Services call `db.transaction(async (conn) => { ... })` and pass `{ ...opts, db, conn }` to repository methods so repos use the same connection.
 
 ## Routes and middleware
 

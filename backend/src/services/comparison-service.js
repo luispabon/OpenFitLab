@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
+const comparisonRepository = require('../repositories/comparison-repository');
 const { parseJSONField } = require('../utils/transforms');
 
 /**
@@ -11,13 +12,9 @@ const { parseJSONField } = require('../utils/transforms');
  */
 async function createComparison(name, eventIds, settings, opts = {}) {
   const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
   const id = randomUUID();
-  await db.query('INSERT INTO comparisons (id, name, event_ids, settings) VALUES (?, ?, ?, ?)', [
-    id,
-    name.trim(),
-    JSON.stringify(eventIds),
-    settings ? JSON.stringify(settings) : null,
-  ]);
+  await comparisonRepository.create(id, name.trim(), eventIds, settings, repoOpts);
   return {
     id,
     name: name.trim(),
@@ -34,10 +31,8 @@ async function createComparison(name, eventIds, settings, opts = {}) {
  */
 async function getComparisons(limit = 100, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const rows = await db.query(
-    'SELECT id, name, event_ids, settings, created_at FROM comparisons ORDER BY created_at DESC LIMIT ?',
-    [limit]
-  );
+  const repoOpts = { ...opts, db };
+  const rows = await comparisonRepository.findAll(limit, repoOpts);
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -54,10 +49,8 @@ async function getComparisons(limit = 100, opts = {}) {
  */
 async function getComparisonById(id, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const row = await db.queryOne(
-    'SELECT id, name, event_ids, settings, created_at FROM comparisons WHERE id = ?',
-    [id]
-  );
+  const repoOpts = { ...opts, db };
+  const row = await comparisonRepository.findById(id, repoOpts);
   if (!row) return null;
   return {
     id: row.id,
@@ -75,9 +68,10 @@ async function getComparisonById(id, opts = {}) {
  */
 async function deleteComparisonById(id, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const existing = await db.queryOne('SELECT id FROM comparisons WHERE id = ?', [id]);
+  const repoOpts = { ...opts, db };
+  const existing = await comparisonRepository.existsById(id, repoOpts);
   if (!existing) return false;
-  await db.query('DELETE FROM comparisons WHERE id = ?', [id]);
+  await comparisonRepository.deleteById(id, repoOpts);
   return true;
 }
 

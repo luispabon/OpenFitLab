@@ -55,7 +55,7 @@ describe('comparison-service', () => {
 
   describe('getComparisonById', () => {
     it('returns null when not found', async () => {
-      const db = { queryOne: async () => null };
+      const db = { query: async () => [] };
       const result = await getComparisonById('missing', { db });
       strictEqual(result, null);
     });
@@ -68,7 +68,7 @@ describe('comparison-service', () => {
         settings: null,
         created_at: new Date('2025-01-01T00:00:00Z'),
       };
-      const db = { queryOne: async () => row };
+      const db = { query: async () => [row] };
       const result = await getComparisonById('c1', { db });
       strictEqual(result.id, 'c1');
       deepStrictEqual(result.eventIds, ['e1', 'e2']);
@@ -78,7 +78,10 @@ describe('comparison-service', () => {
 
   describe('deleteComparisonById', () => {
     it('returns false when comparison not found', async () => {
-      const db = { queryOne: async () => null, query: async () => {} };
+      const db = {
+        query: async (sql) =>
+          sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 },
+      };
       const result = await deleteComparisonById('missing', { db });
       strictEqual(result, false);
     });
@@ -86,9 +89,11 @@ describe('comparison-service', () => {
     it('returns true and deletes when found', async () => {
       const calls = [];
       const db = {
-        queryOne: async () => ({ id: 'c1' }),
         query: async (sql) => {
           calls.push(sql);
+          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
+          if (sql.includes('DELETE')) return { affectedRows: 1 };
+          return [];
         },
       };
       const result = await deleteComparisonById('c1', { db });
