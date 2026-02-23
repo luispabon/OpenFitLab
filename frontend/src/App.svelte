@@ -1,9 +1,9 @@
 <script lang="ts">
-  import Router, { location } from 'svelte-spa-router'
-  import Dashboard from './routes/dashboard.svelte'
-  import EventDetail from './routes/event-detail.svelte'
-  import Comparisons from './routes/comparisons.svelte'
-  import ComparisonView from './routes/comparison-view.svelte'
+  import Router, { location } from 'svelte-spa-router';
+  import Dashboard from './routes/dashboard.svelte';
+  import EventDetail from './routes/event-detail.svelte';
+  import Comparisons from './routes/comparisons.svelte';
+  import ComparisonView from './routes/comparison-view.svelte';
 
   const routes = {
     '/': Dashboard,
@@ -11,32 +11,32 @@
     '/comparisons': Comparisons,
     '/compare/:id': ComparisonView,
     '*': Dashboard,
-  }
+  };
 
-  let sidebarCollapsed = $state(false)
+  let sidebarCollapsed = $state(false);
 
   // Load sidebar state from localStorage
   $effect(() => {
-    const saved = localStorage.getItem('sidebarCollapsed')
+    const saved = localStorage.getItem('sidebarCollapsed');
     if (saved !== null) {
-      sidebarCollapsed = saved === 'true'
+      sidebarCollapsed = saved === 'true';
     }
-  })
+  });
 
   // Save sidebar state to localStorage
   $effect(() => {
-    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed))
-  })
+    localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+  });
 
   function toggleSidebar() {
-    sidebarCollapsed = !sidebarCollapsed
+    sidebarCollapsed = !sidebarCollapsed;
   }
 
-  const currentLocation = $derived($location)
-  const isDashboardActive = $derived(currentLocation === '/' || currentLocation === '')
-  const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'))
+  const currentLocation = $derived($location);
+  const isDashboardActive = $derived(currentLocation === '/' || currentLocation === '');
+  const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
 
-  const sidebarWidth = $derived(sidebarCollapsed ? '4rem' : '16rem')
+  const sidebarWidth = $derived(sidebarCollapsed ? '4rem' : '16rem');
 </script>
 
 <div class="min-h-screen flex">
@@ -58,7 +58,9 @@
       <div class="flex-1 py-4">
         <a
           href="#/"
-          class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isDashboardActive ? 'bg-card-hover text-text-primary border-r-2 border-accent' : ''}"
+          class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isDashboardActive
+            ? 'bg-card-hover text-text-primary border-r-2 border-accent'
+            : ''}"
         >
           <span class="material-icons">dashboard</span>
           {#if !sidebarCollapsed}
@@ -67,7 +69,9 @@
         </a>
         <a
           href="#/comparisons"
-          class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isComparisonsActive ? 'bg-card-hover text-text-primary border-r-2 border-accent' : ''}"
+          class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isComparisonsActive
+            ? 'bg-card-hover text-text-primary border-r-2 border-accent'
+            : ''}"
         >
           <span class="material-icons">compare_arrows</span>
           {#if !sidebarCollapsed}
@@ -94,10 +98,7 @@
   </nav>
 
   <!-- Main Content -->
-  <main
-    class="flex-1 transition-all duration-300"
-    style="margin-left: {sidebarWidth};"
-  >
+  <main class="flex-1 transition-all duration-300" style="margin-left: {sidebarWidth};">
     <Router {routes} />
   </main>
 </div>

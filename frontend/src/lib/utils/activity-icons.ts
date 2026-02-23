@@ -130,7 +130,7 @@ const ACTIVITY_ICON_MAP: Record<string, string> = {
   'wheel chair': 'directions_walk',
   workout: 'fitness_center',
   match: 'sports',
-}
+};
 
 const SUBSTRING_FALLBACKS: Array<[string, string]> = [
   ['run', 'directions_run'],
@@ -177,23 +177,23 @@ const SUBSTRING_FALLBACKS: Array<[string, string]> = [
   ['step', 'stairs'],
   ['indoor', 'fitness_center'],
   ['train', 'fitness_center'],
-]
+];
 
 export function getActivityIcon(activityType: string | undefined | null): string {
-  if (!activityType) return 'category'
+  if (!activityType) return 'category';
 
-  const activities = activityType.split(',').map((a) => a.trim())
-  const activity = activities[0]
-  if (!activity) return 'category'
+  const activities = activityType.split(',').map((a) => a.trim());
+  const activity = activities[0];
+  if (!activity) return 'category';
 
-  const lower = activity.toLowerCase()
+  const lower = activity.toLowerCase();
 
-  const exact = ACTIVITY_ICON_MAP[lower]
-  if (exact) return exact
+  const exact = ACTIVITY_ICON_MAP[lower];
+  if (exact) return exact;
 
   for (const [sub, icon] of SUBSTRING_FALLBACKS) {
-    if (lower.includes(sub)) return icon
+    if (lower.includes(sub)) return icon;
   }
 
-  return 'category'
+  return 'category';
 }

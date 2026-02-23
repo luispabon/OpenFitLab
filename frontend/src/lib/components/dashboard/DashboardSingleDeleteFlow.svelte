@@ -1,13 +1,13 @@
 <script lang="ts">
-  import ConfirmDialog from './ConfirmDialog.svelte'
+  import ConfirmDialog from './ConfirmDialog.svelte';
 
   interface Props {
-    eventIdToDelete: string | null
-    deleteEvent: (id: string) => Promise<boolean>
-    onDone: () => void
-    onClosed: () => void
-    onError?: (message: string) => void
-    confirmDisabledWhen?: boolean
+    eventIdToDelete: string | null;
+    deleteEvent: (id: string) => Promise<boolean>;
+    onDone: () => void;
+    onClosed: () => void;
+    onError?: (message: string) => void;
+    confirmDisabledWhen?: boolean;
   }
   let {
     eventIdToDelete,
@@ -16,35 +16,35 @@
     onClosed,
     onError,
     confirmDisabledWhen = false,
-  }: Props = $props()
+  }: Props = $props();
 
-  let isDeleting = $state(false)
+  let isDeleting = $state(false);
 
-  const open = $derived(eventIdToDelete !== null)
+  const open = $derived(eventIdToDelete !== null);
 
   async function handleConfirm() {
-    const eventId = eventIdToDelete
-    if (!eventId) return
+    const eventId = eventIdToDelete;
+    if (!eventId) return;
 
-    isDeleting = true
+    isDeleting = true;
     try {
-      const deleted = await deleteEvent(eventId)
+      const deleted = await deleteEvent(eventId);
       if (deleted) {
-        onDone()
+        onDone();
       } else {
-        onError?.('Event not found')
+        onError?.('Event not found');
       }
     } catch (error) {
-      console.error('Failed to delete event:', error)
-      onError?.(error instanceof Error ? error.message : 'Failed to delete event')
+      console.error('Failed to delete event:', error);
+      onError?.(error instanceof Error ? error.message : 'Failed to delete event');
     } finally {
-      isDeleting = false
-      onClosed()
+      isDeleting = false;
+      onClosed();
     }
   }
 
   function handleCancel() {
-    onClosed()
+    onClosed();
   }
 </script>
 

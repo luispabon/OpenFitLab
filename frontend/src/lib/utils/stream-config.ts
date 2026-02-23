@@ -2,13 +2,13 @@
  * Configuration for stream types: colors, labels, units, and chartability
  */
 
-import type { StreamData } from '../types/event'
+import type { StreamData } from '../types/event';
 
 export interface StreamConfig {
-  color: string
-  unit: string
-  label: string
-  chartable: boolean
+  color: string;
+  unit: string;
+  label: string;
+  chartable: boolean;
 }
 
 /**
@@ -100,27 +100,27 @@ const STREAM_CONFIG: Record<string, StreamConfig> = {
     label: 'Position',
     chartable: false,
   },
-}
+};
 
 /**
  * Get configuration for a stream type
  * Returns a generic fallback config for unknown stream types
  */
 export function getStreamConfig(type: string): StreamConfig {
-  const normalized = type.trim()
-  const config = STREAM_CONFIG[normalized]
-  
+  const normalized = type.trim();
+  const config = STREAM_CONFIG[normalized];
+
   if (config) {
-    return config
+    return config;
   }
-  
+
   // Generic fallback for unknown stream types (visible on dark background, distinct from disabled state)
   return {
     color: '#38bdf8', // sky-400
     unit: '',
     label: normalized,
     chartable: true, // Assume chartable unless we know otherwise
-  }
+  };
 }
 
 /**
@@ -128,27 +128,27 @@ export function getStreamConfig(type: string): StreamConfig {
  * Filters out Time/Duration streams which are used for timestamps
  */
 export function isChartableStream(type: string): boolean {
-  const config = getStreamConfig(type)
-  return config.chartable
+  const config = getStreamConfig(type);
+  return config.chartable;
 }
 
-const SMOOTH_SUFFIX = ' Smooth'
+const SMOOTH_SUFFIX = ' Smooth';
 
 /**
  * Returns true if this stream type is a "Smooth" variant of another stream that is present.
  * When both "Altitude" and "Altitude Smooth" exist, we hide "Altitude Smooth" and only show "Altitude".
  */
 export function isSmoothVariantToHide(streamType: string, allStreamTypes: string[]): boolean {
-  if (!streamType.endsWith(SMOOTH_SUFFIX)) return false
-  const baseName = streamType.slice(0, -SMOOTH_SUFFIX.length).trim()
-  return baseName.length > 0 && allStreamTypes.includes(baseName)
+  if (!streamType.endsWith(SMOOTH_SUFFIX)) return false;
+  const baseName = streamType.slice(0, -SMOOTH_SUFFIX.length).trim();
+  return baseName.length > 0 && allStreamTypes.includes(baseName);
 }
 
 /**
  * Get all configured stream types (for reference)
  */
 export function getKnownStreamTypes(): string[] {
-  return Object.keys(STREAM_CONFIG)
+  return Object.keys(STREAM_CONFIG);
 }
 
 /**
@@ -156,9 +156,6 @@ export function getKnownStreamTypes(): string[] {
  * Requires either separate Latitude + Longitude streams or a Position stream.
  */
 export function hasLocationStreams(streams: StreamData[]): boolean {
-  const types = streams.map((s) => s.type)
-  return (
-    (types.includes('Latitude') && types.includes('Longitude')) ||
-    types.includes('Position')
-  )
+  const types = streams.map((s) => s.type);
+  return (types.includes('Latitude') && types.includes('Longitude')) || types.includes('Position');
 }

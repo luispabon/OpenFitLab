@@ -1,25 +1,25 @@
 <script lang="ts">
-  import type { Activity, StreamData } from '../../types'
-  import { getStreamConfig } from '../../utils/stream-config'
-  import TimeSeriesChart from '../TimeSeriesChart.svelte'
-  import OverlayChart from '../OverlayChart.svelte'
+  import type { Activity, StreamData } from '../../types';
+  import { getStreamConfig } from '../../utils/stream-config';
+  import TimeSeriesChart from '../TimeSeriesChart.svelte';
+  import OverlayChart from '../OverlayChart.svelte';
 
   interface Props {
-    streamsLoading: boolean
-    streamsError: string | null
-    chartableStreams: StreamData[]
-    chartableStreamsOrdered: StreamData[]
-    selectedStreamTypes: Set<string>
-    viewMode: 'stacked' | 'overlay'
-    visibleStreams: StreamData[]
-    activityStartDate: number
-    activities: Activity[]
-    selectedActivityId: string | null
-    hasSelectedActivity: boolean
-    onToggleStream: (type: string) => void
-    onViewModeStacked: () => void
-    onViewModeOverlay: () => void
-    onSelectActivity: (activityId: string) => void
+    streamsLoading: boolean;
+    streamsError: string | null;
+    chartableStreams: StreamData[];
+    chartableStreamsOrdered: StreamData[];
+    selectedStreamTypes: Set<string>;
+    viewMode: 'stacked' | 'overlay';
+    visibleStreams: StreamData[];
+    activityStartDate: number;
+    activities: Activity[];
+    selectedActivityId: string | null;
+    hasSelectedActivity: boolean;
+    onToggleStream: (type: string) => void;
+    onViewModeStacked: () => void;
+    onViewModeOverlay: () => void;
+    onSelectActivity: (activityId: string) => void;
   }
   let {
     streamsLoading,
@@ -37,7 +37,7 @@
     onViewModeStacked,
     onViewModeOverlay,
     onSelectActivity,
-  }: Props = $props()
+  }: Props = $props();
 </script>
 
 {#if streamsLoading}
@@ -60,9 +60,7 @@
     <p class="text-sm font-medium text-text-primary">
       {streamsError}
     </p>
-    <p class="mt-1 text-xs text-text-secondary">
-      Charts will not be available for this activity.
-    </p>
+    <p class="mt-1 text-xs text-text-secondary">Charts will not be available for this activity.</p>
   </div>
 {:else if chartableStreams.length > 0}
   <div class="mt-6 space-y-6">
@@ -121,7 +119,9 @@
             class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isSelected
               ? 'text-text-primary'
               : 'border-border bg-transparent text-text-muted hover:bg-card-hover'}"
-            style={isSelected ? `background-color: ${config.color}26; border-color: ${config.color}66` : ''}
+            style={isSelected
+              ? `background-color: ${config.color}26; border-color: ${config.color}66`
+              : ''}
             onclick={() => onToggleStream(stream.type)}
           >
             <span
@@ -154,17 +154,13 @@
       {/if}
     {:else}
       <div class="flex h-32 items-center justify-center rounded-lg border border-border bg-card">
-        <p class="text-sm text-text-secondary">
-          Select metrics above to view charts
-        </p>
+        <p class="text-sm text-text-secondary">Select metrics above to view charts</p>
       </div>
     {/if}
   </div>
 {:else if hasSelectedActivity}
   <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
-    <p class="text-sm font-medium text-text-primary">
-      No stream data available
-    </p>
+    <p class="text-sm font-medium text-text-primary">No stream data available</p>
     <p class="mt-1 text-xs text-text-secondary">
       This activity does not contain time-series data (heart rate, speed, etc.).
     </p>

@@ -1,16 +1,16 @@
 <script lang="ts">
-  const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const
+  const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const;
 
   interface Props {
-    totalRows: number
-    pageSize: number
-    totalPages: number
-    currentPageFromUrl: number
-    visiblePageNumbers: number[]
-    pageRangeText: string
-    idSuffix?: string
-    onPageSizeChange: (e: Event) => void
-    goToPage: (p: number) => void
+    totalRows: number;
+    pageSize: number;
+    totalPages: number;
+    currentPageFromUrl: number;
+    visiblePageNumbers: number[];
+    pageRangeText: string;
+    idSuffix?: string;
+    onPageSizeChange: (e: Event) => void;
+    goToPage: (p: number) => void;
   }
   let {
     totalRows,
@@ -22,10 +22,10 @@
     idSuffix = '',
     onPageSizeChange,
     goToPage,
-  }: Props = $props()
+  }: Props = $props();
 
-  const sizeSelectId = `page-size-select${idSuffix}`
-  const jumpSelectId = `jump-to-page${idSuffix}`
+  const sizeSelectId = $derived(`page-size-select${idSuffix}`);
+  const jumpSelectId = $derived(`jump-to-page${idSuffix}`);
 </script>
 
 {#if totalRows > 0}
@@ -60,7 +60,8 @@
         <button
           type="button"
           onclick={() => goToPage(p)}
-          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p === currentPageFromUrl
+          class="inline-flex h-9 w-9 items-center justify-center rounded-[28%] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent {p ===
+          currentPageFromUrl
             ? 'border-0 bg-accent text-white'
             : 'border border-border bg-surface text-text-primary hover:bg-card-hover'}"
           aria-label="Page {p}"

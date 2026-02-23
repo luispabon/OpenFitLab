@@ -476,6 +476,8 @@ frontend/src/
 └── main.ts                   # Entry point
 ```
 
+**Testing:** Vitest + jsdom + @testing-library/svelte; setup in `src/test/setup.ts`; fixtures in `src/test/fixtures/`. Test layers: unit (`lib/utils/__tests__/`, `lib/api/__tests__/`), components (`lib/components/__tests__/`), route smoke tests (`routes/__tests__/`).
+
 ### Key components and props
 
 - **RouteMap** (`lib/components/RouteMap.svelte`): Either `streams` (single route) or `routes` (array of `{ label, color, streams }` for multi-route). Uses MapLibre + OpenFreeMap; builds GeoJSON via `buildRouteGeoJSON` / `mergeBounds` from `lib/utils/geo.ts`.

@@ -1,96 +1,105 @@
-import type { EventSummary, EventDetail, StreamData, UploadResponse, Activity, ActivityRow } from '../types/event'
+import type {
+  EventSummary,
+  EventDetail,
+  StreamData,
+  UploadResponse,
+  Activity,
+  ActivityRow,
+} from '../types/event';
 
-const API_BASE = '/api'
+const API_BASE = '/api';
 
 export interface GetEventsParams {
-  startDate?: number
-  endDate?: number
-  limit?: number
+  startDate?: number;
+  endDate?: number;
+  limit?: number;
 }
 
 export async function getEvents(params?: GetEventsParams): Promise<EventSummary[]> {
-  const searchParams = new URLSearchParams()
+  const searchParams = new URLSearchParams();
   if (params?.startDate != null) {
-    searchParams.set('startDate', String(params.startDate))
+    searchParams.set('startDate', String(params.startDate));
   }
   if (params?.endDate != null) {
-    searchParams.set('endDate', String(params.endDate))
+    searchParams.set('endDate', String(params.endDate));
   }
-  searchParams.set('limit', String(params?.limit ?? 50))
+  searchParams.set('limit', String(params?.limit ?? 50));
 
-  const url = `${API_BASE}/events?${searchParams.toString()}`
-  const response = await fetch(url)
+  const url = `${API_BASE}/events?${searchParams.toString()}`;
+  const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch events: ${response.statusText}`)
+    throw new Error(`Failed to fetch events: ${response.statusText}`);
   }
 
-  return response.json()
+  return response.json();
 }
 
 export interface GetActivityRowsParams {
-  limit?: number
-  offset?: number
-  startDate?: number
-  endDate?: number
-  activityTypes?: string[]
-  devices?: string[]
-  search?: string
+  limit?: number;
+  offset?: number;
+  startDate?: number;
+  endDate?: number;
+  activityTypes?: string[];
+  devices?: string[];
+  search?: string;
 }
 
-export async function getActivityRows(params: GetActivityRowsParams = {}): Promise<{ rows: ActivityRow[]; total: number }> {
-  const searchParams = new URLSearchParams()
-  if (params.limit != null) searchParams.set('limit', String(params.limit))
-  if (params.offset != null) searchParams.set('offset', String(params.offset))
-  if (params.startDate != null) searchParams.set('startDate', String(params.startDate))
-  if (params.endDate != null) searchParams.set('endDate', String(params.endDate))
+export async function getActivityRows(
+  params: GetActivityRowsParams = {}
+): Promise<{ rows: ActivityRow[]; total: number }> {
+  const searchParams = new URLSearchParams();
+  if (params.limit != null) searchParams.set('limit', String(params.limit));
+  if (params.offset != null) searchParams.set('offset', String(params.offset));
+  if (params.startDate != null) searchParams.set('startDate', String(params.startDate));
+  if (params.endDate != null) searchParams.set('endDate', String(params.endDate));
   if (params.search != null && params.search.trim() !== '') {
-    searchParams.set('search', params.search.trim())
+    searchParams.set('search', params.search.trim());
   }
   if (params.activityTypes?.length) {
-    params.activityTypes.forEach((t) => searchParams.append('activityTypes', t))
+    params.activityTypes.forEach((t) => searchParams.append('activityTypes', t));
   }
   if (params.devices?.length) {
-    params.devices.forEach((d) => searchParams.append('devices', d))
+    params.devices.forEach((d) => searchParams.append('devices', d));
   }
 
-  const url = `${API_BASE}/events/activity-rows?${searchParams.toString()}`
-  const response = await fetch(url)
+  const url = `${API_BASE}/events/activity-rows?${searchParams.toString()}`;
+  const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch activity rows: ${response.statusText}`)
+    throw new Error(`Failed to fetch activity rows: ${response.statusText}`);
   }
 
-  return response.json()
+  return response.json();
 }
 
 export async function getEvent(id: string): Promise<EventDetail> {
-  const response = await fetch(`${API_BASE}/events/${id}`)
+  const response = await fetch(`${API_BASE}/events/${id}`);
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Event not found')
+      throw new Error('Event not found');
     }
-    throw new Error(`Failed to fetch event: ${response.statusText}`)
+    throw new Error(`Failed to fetch event: ${response.statusText}`);
   }
 
-  return response.json()
+  return response.json();
 }
 
 export async function getActivityTypes(): Promise<string[]> {
-  const response = await fetch(`${API_BASE}/activity-types`)
+  const response = await fetch(`${API_BASE}/activity-types`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch activity types: ${response.statusText}`)
+    throw new Error(`Failed to fetch activity types: ${response.statusText}`);
   }
-  return response.json()
+  return response.json();
 }
 
 export async function getDevices(): Promise<string[]> {
-  const response = await fetch(`${API_BASE}/devices`)
+  const response = await fetch(`${API_BASE}/devices`);
   if (!response.ok) {
-    throw new Error(`Failed to fetch devices: ${response.statusText}`)
+    throw new Error(`Failed to fetch devices: ${response.statusText}`);
   }
-  return response.json()
+  return response.json();
 }
 
 export async function updateActivity(
@@ -98,22 +107,19 @@ export async function updateActivity(
   activityId: string,
   updates: { type?: string; deviceName?: string }
 ): Promise<Activity> {
-  const response = await fetch(
-    `${API_BASE}/events/${eventId}/activities/${activityId}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    }
-  )
+  const response = await fetch(`${API_BASE}/events/${eventId}/activities/${activityId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error('Activity not found')
+      throw new Error('Activity not found');
     }
-    const data = await response.json().catch(() => ({}))
-    throw new Error(data.error || `Failed to update activity: ${response.statusText}`)
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to update activity: ${response.statusText}`);
   }
-  return response.json()
+  return response.json();
 }
 
 export async function getStreams(
@@ -121,91 +127,91 @@ export async function getStreams(
   activityId: string,
   types?: string[]
 ): Promise<StreamData[]> {
-  const searchParams = new URLSearchParams()
+  const searchParams = new URLSearchParams();
   if (types && types.length > 0) {
-    types.forEach((type) => searchParams.append('types', type))
+    types.forEach((type) => searchParams.append('types', type));
   }
 
   const url = `${API_BASE}/events/${eventId}/activities/${activityId}/streams${
     searchParams.toString() ? `?${searchParams.toString()}` : ''
-  }`
-  const response = await fetch(url)
+  }`;
+  const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch streams: ${response.statusText}`)
+    throw new Error(`Failed to fetch streams: ${response.statusText}`);
   }
 
-  return response.json()
+  return response.json();
 }
 
 export async function uploadFile(
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
-  const formData = new FormData()
-  formData.append('files', file)
+  const formData = new FormData();
+  formData.append('files', file);
 
   return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
+    const xhr = new XMLHttpRequest();
 
     // Set up progress tracking
     xhr.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable && onProgress) {
-        const progress = (event.loaded / event.total) * 100
-        onProgress(progress)
+        const progress = (event.loaded / event.total) * 100;
+        onProgress(progress);
       }
-    })
+    });
 
     // Handle completion
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const response = JSON.parse(xhr.responseText)
+          const response = JSON.parse(xhr.responseText);
           // Ensure progress is set to 100% on success
           if (onProgress) {
-            onProgress(100)
+            onProgress(100);
           }
-          resolve(response)
-        } catch (error) {
-          reject(new Error('Failed to parse response'))
+          resolve(response);
+        } catch (_error) {
+          reject(new Error('Failed to parse response'));
         }
       } else {
         try {
-          const error = JSON.parse(xhr.responseText)
-          reject(new Error(error.error || `Failed to upload file: ${xhr.statusText}`))
+          const error = JSON.parse(xhr.responseText);
+          reject(new Error(error.error || `Failed to upload file: ${xhr.statusText}`));
         } catch {
-          reject(new Error(`Failed to upload file: ${xhr.statusText}`))
+          reject(new Error(`Failed to upload file: ${xhr.statusText}`));
         }
       }
-    })
+    });
 
     // Handle errors
     xhr.addEventListener('error', () => {
-      reject(new Error('Network error during upload'))
-    })
+      reject(new Error('Network error during upload'));
+    });
 
     xhr.addEventListener('abort', () => {
-      reject(new Error('Upload aborted'))
-    })
+      reject(new Error('Upload aborted'));
+    });
 
     // Start the request
-    xhr.open('POST', `${API_BASE}/events`)
-    xhr.send(formData)
-  })
+    xhr.open('POST', `${API_BASE}/events`);
+    xhr.send(formData);
+  });
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
   const response = await fetch(`${API_BASE}/events/${id}`, {
     method: 'DELETE',
-  })
+  });
 
   if (response.status === 404) {
-    return false
+    return false;
   }
 
   if (!response.ok) {
-    throw new Error(`Failed to delete event: ${response.statusText}`)
+    throw new Error(`Failed to delete event: ${response.statusText}`);
   }
 
-  return true
+  return true;
 }

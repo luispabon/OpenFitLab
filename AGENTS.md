@@ -58,6 +58,20 @@ This file provides operational instructions for AI coding agents working in this
   - Map tiles: OpenFreeMap dark style (https://tiles.openfreemap.org/styles/dark) — no API key required
   - Install: `cd frontend && npm install`
 
+- **Lint and test:**
+  - `npm run format` / `npm run format:fix` — Prettier check/write for `src/**/*.{ts,svelte,css,json}`
+  - `npm run lint` / `npm run lint:fix` — ESLint on src/
+  - `npm run check` — svelte-check (tsconfig.app.json) + tsc (tsconfig.node.json)
+  - `npm run test` — Vitest (all tests); `npm run test:watch`; `npm run test:coverage`
+  - `npm run ci` — format → lint → check → test → build (single gate for pre-commit or CI)
+
+## CI (GitHub Actions)
+
+On **push to main** and **pull_request** targeting main:
+
+- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, and test:unit with `NODE_OPTIONS='--throw-deprecation'`. See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
+- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): `npm run ci` (format, lint, check, test, build). See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+
 ## Project layout and architecture
 
 - **Root structure:**
@@ -85,6 +99,8 @@ This file provides operational instructions for AI coding agents working in this
   - `frontend/src/routes/` - Page components (Dashboard, EventDetail)
   - `frontend/src/App.svelte` - Layout shell and router
   - `frontend/vite.config.ts` - Vite and Tailwind configuration
+  - `frontend/src/test/` - setup.ts, fixtures/ (event-detail, activity-rows, streams, comparisons)
+  - Tests: `src/lib/api/__tests__/`, `src/lib/utils/__tests__/`, `src/lib/components/__tests__/`, `src/routes/__tests__/`
 
 - **Database schema:**
   - `events` - Event metadata (id, start_date, name, end_date, description, is_merge, src_file_type, created_at)
@@ -268,6 +284,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 | Docker setup | `docker-compose.yaml` |
 | Package scripts | `backend/package.json`, `frontend/package.json` |
 | Frontend build | `frontend/vite.config.ts` |
+| Frontend lint, test, quality gate | `.cursor/rules/frontend-lint-test.mdc`, `frontend/package.json` |
 | Cloud hosting (AWS/GCP) | `docs/HOSTING.md` |
 
 Read relevant source files before making assumptions.

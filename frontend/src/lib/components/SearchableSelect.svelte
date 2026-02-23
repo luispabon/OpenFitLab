@@ -1,11 +1,11 @@
 <script lang="ts">
   interface Props {
-    options: string[]
-    value: string
-    allowCustom?: boolean
-    placeholder?: string
-    oncommit: (value: string) => void
-    oncancel: () => void
+    options: string[];
+    value: string;
+    allowCustom?: boolean;
+    placeholder?: string;
+    oncommit: (value: string) => void;
+    oncancel: () => void;
   }
   let {
     options,
@@ -14,86 +14,90 @@
     placeholder = 'Search…',
     oncommit,
     oncancel,
-  }: Props = $props()
+  }: Props = $props();
 
-  let inputEl = $state<HTMLInputElement | null>(null)
-  let query = $state('')
-  let highlightedIndex = $state(0)
+  let inputEl = $state<HTMLInputElement | null>(null);
+  let query = $state('');
+  let highlightedIndex = $state(0);
 
   $effect(() => {
-    query = value
-  })
+    query = value;
+  });
 
   const filtered = $derived.by(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return options
-    return options.filter((opt) => opt.toLowerCase().includes(q))
-  })
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(q));
+  });
 
   const showCustomHint = $derived(
     allowCustom && query.trim().length > 0 && !filtered.includes(query.trim())
-  )
-  const canCommitCustom = $derived(allowCustom && query.trim().length > 0)
-  const displayList = $derived(showCustomHint ? [query.trim(), ...filtered] : filtered)
+  );
+  const canCommitCustom = $derived(allowCustom && query.trim().length > 0);
+  const displayList = $derived(showCustomHint ? [query.trim(), ...filtered] : filtered);
 
   function commit(val: string) {
-    const v = val.trim()
-    if (v) oncommit(v)
+    const v = val.trim();
+    if (v) oncommit(v);
   }
 
   function handleKeydown(e: KeyboardEvent) {
     switch (e.key) {
       case 'Escape':
-        e.preventDefault()
-        oncancel()
-        return
+        e.preventDefault();
+        oncancel();
+        return;
       case 'Enter':
-        e.preventDefault()
-        if (displayList.length > 0 && highlightedIndex >= 0 && highlightedIndex < displayList.length) {
-          commit(displayList[highlightedIndex])
+        e.preventDefault();
+        if (
+          displayList.length > 0 &&
+          highlightedIndex >= 0 &&
+          highlightedIndex < displayList.length
+        ) {
+          commit(displayList[highlightedIndex]);
         } else if (canCommitCustom) {
-          commit(query.trim())
+          commit(query.trim());
         }
-        return
+        return;
       case 'ArrowDown':
-        e.preventDefault()
-        highlightedIndex = Math.min(highlightedIndex + 1, displayList.length - 1)
-        return
+        e.preventDefault();
+        highlightedIndex = Math.min(highlightedIndex + 1, displayList.length - 1);
+        return;
       case 'ArrowUp':
-        e.preventDefault()
-        highlightedIndex = Math.max(highlightedIndex - 1, 0)
-        return
+        e.preventDefault();
+        highlightedIndex = Math.max(highlightedIndex - 1, 0);
+        return;
       default:
-        break
+        break;
     }
   }
 
   function handleClickOutside(e: MouseEvent) {
-    const target = e.target as Node
+    const target = e.target as Node;
     if (inputEl && !inputEl.closest('.searchable-select-root')?.contains(target)) {
-      oncancel()
+      oncancel();
     }
   }
 
   $effect(() => {
-    query
-    const handler = handleClickOutside
-    window.addEventListener('click', handler, true)
-    return () => window.removeEventListener('click', handler, true)
-  })
+    void query;
+    const handler = handleClickOutside;
+    window.addEventListener('click', handler, true);
+    return () => window.removeEventListener('click', handler, true);
+  });
 
   $effect(() => {
     if (inputEl) {
-      inputEl.focus()
-      inputEl.select()
+      inputEl.focus();
+      inputEl.select();
     }
-  })
+  });
 
   $effect(() => {
-    query
-    displayList.length
-    highlightedIndex = 0
-  })
+    void query;
+    void displayList.length;
+    highlightedIndex = 0;
+  });
 </script>
 
 <div class="searchable-select-root relative w-full min-w-[12rem]">
@@ -102,7 +106,7 @@
     type="text"
     bind:value={query}
     onkeydown={handleKeydown}
-    placeholder={placeholder}
+    {placeholder}
     class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
     role="combobox"
     aria-expanded="true"

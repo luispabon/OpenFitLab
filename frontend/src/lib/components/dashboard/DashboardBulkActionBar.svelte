@@ -1,16 +1,18 @@
 <script lang="ts">
   interface Props {
-    selectedCount: number
-    disabled?: boolean
-    onClear: () => void
-    onCompare: () => void
-    onDelete: () => void
+    selectedCount: number;
+    disabled?: boolean;
+    onClear: () => void;
+    onCompare: () => void;
+    onDelete: () => void;
   }
-  let { selectedCount, disabled = false, onClear, onCompare, onDelete }: Props = $props()
+  let { selectedCount, disabled = false, onClear, onCompare, onDelete }: Props = $props();
 </script>
 
 {#if selectedCount > 0}
-  <div class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur shadow-sm">
+  <div
+    class="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 backdrop-blur shadow-sm"
+  >
     <p class="text-xs font-medium text-text-primary">
       {selectedCount} event{selectedCount !== 1 ? 's' : ''} selected
     </p>
@@ -18,7 +20,7 @@
       type="button"
       class="rounded border-2 border-border bg-surface px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover hover:border-text-secondary focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
       onclick={onClear}
-      disabled={disabled}
+      {disabled}
     >
       Clear
     </button>
@@ -28,14 +30,16 @@
       onclick={onCompare}
       disabled={selectedCount < 2 || disabled}
     >
-      <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">compare_arrows</span>
+      <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true"
+        >compare_arrows</span
+      >
       Compare
     </button>
     <button
       type="button"
       class="flex items-center rounded border-0 bg-danger px-1.5 py-0.5 text-xs font-medium text-white shadow-sm hover:bg-danger-hover focus:outline-none focus:ring-1 focus:ring-danger disabled:opacity-50"
       onclick={onDelete}
-      disabled={disabled}
+      {disabled}
     >
       <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true">delete</span>
       Delete

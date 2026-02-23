@@ -1,17 +1,17 @@
 <script lang="ts">
-  import type { ActivityRow, EventSummary } from '../../types'
-  import { getActivityIcon, getActivityDeviceName, formatDateWithTime } from '../../utils'
-  import LoadingSpinner from '../LoadingSpinner.svelte'
+  import type { ActivityRow, EventSummary } from '../../types';
+  import { getActivityIcon, getActivityDeviceName, formatDateWithTime } from '../../utils';
+  import LoadingSpinner from '../LoadingSpinner.svelte';
 
   interface Props {
-    open: boolean
-    sourceEventRow: ActivityRow | null
-    candidates: EventSummary[]
-    candidatesLoading: boolean
-    selectedCandidateIds: Set<string>
-    onToggleCandidate: (eventId: string) => void
-    onCompare: () => void
-    onCancel: () => void
+    open: boolean;
+    sourceEventRow: ActivityRow | null;
+    candidates: EventSummary[];
+    candidatesLoading: boolean;
+    selectedCandidateIds: Set<string>;
+    onToggleCandidate: (eventId: string) => void;
+    onCompare: () => void;
+    onCancel: () => void;
   }
   let {
     open,
@@ -22,19 +22,25 @@
     onToggleCandidate,
     onCompare,
     onCancel,
-  }: Props = $props()
+  }: Props = $props();
 </script>
 
 {#if open}
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    onclick={onCancel}
     role="dialog"
     aria-modal="true"
+    tabindex="-1"
+    onclick={onCancel}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') onCancel();
+    }}
   >
     <div
       class="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl"
+      role="presentation"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
     >
       <div class="flex items-center justify-between border-b border-border p-6">
         <div class="flex-1">
@@ -44,10 +50,12 @@
               <span
                 class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
                 style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
-                aria-hidden="true"
-              >{getActivityIcon(sourceEventRow.activity.type)}</span>
+                aria-hidden="true">{getActivityIcon(sourceEventRow.activity.type)}</span
+              >
               <div class="min-w-0 flex flex-col gap-0.5">
-                <span class="font-medium text-text-primary">{sourceEventRow.activity.type || '—'}</span>
+                <span class="font-medium text-text-primary"
+                  >{sourceEventRow.activity.type || '—'}</span
+                >
                 <span class="text-sm text-text-secondary">
                   {getActivityDeviceName(sourceEventRow.activity)}
                 </span>
@@ -58,7 +66,9 @@
                   {sourceEventRow.event.name || '—'}
                 </span>
                 <span class="text-sm text-text-secondary">
-                  {formatDateWithTime(sourceEventRow.activity.startDate ?? sourceEventRow.event.startDate)}
+                  {formatDateWithTime(
+                    sourceEventRow.activity.startDate ?? sourceEventRow.event.startDate
+                  )}
                 </span>
               </div>
             </div>
@@ -105,8 +115,8 @@
                 <span
                   class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
                   style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
-                  aria-hidden="true"
-                >{getActivityIcon(candidateActivity?.type)}</span>
+                  aria-hidden="true">{getActivityIcon(candidateActivity?.type)}</span
+                >
                 <div class="min-w-0 flex-1">
                   <div class="font-medium text-text-primary">{candidateActivity?.type || '—'}</div>
                   <div class="text-sm text-text-secondary">
@@ -142,7 +152,9 @@
           onclick={onCompare}
           disabled={selectedCandidateIds.size === 0}
         >
-          Compare ({selectedCandidateIds.size + 1} event{selectedCandidateIds.size + 1 !== 1 ? 's' : ''})
+          Compare ({selectedCandidateIds.size + 1} event{selectedCandidateIds.size + 1 !== 1
+            ? 's'
+            : ''})
         </button>
       </div>
     </div>

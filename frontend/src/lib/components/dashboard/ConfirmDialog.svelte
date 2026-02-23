@@ -1,15 +1,15 @@
 <script lang="ts">
   interface Props {
-    title: string
-    message: string
-    confirmLabel: string
-    loadingLabel?: string
-    cancelLabel?: string
-    loading?: boolean
-    danger?: boolean
-    confirmDisabled?: boolean
-    onConfirm: () => void
-    onCancel: () => void
+    title: string;
+    message: string;
+    confirmLabel: string;
+    loadingLabel?: string;
+    cancelLabel?: string;
+    loading?: boolean;
+    danger?: boolean;
+    confirmDisabled?: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
   }
   let {
     title,
@@ -22,19 +22,25 @@
     confirmDisabled = false,
     onConfirm,
     onCancel,
-  }: Props = $props()
+  }: Props = $props();
 </script>
 
 <div
   class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-  onclick={onCancel}
   role="dialog"
   aria-modal="true"
   aria-labelledby="confirm-dialog-title"
+  tabindex="-1"
+  onclick={onCancel}
+  onkeydown={(e) => {
+    if (e.key === 'Escape') onCancel();
+  }}
 >
   <div
     class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
+    role="presentation"
     onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
   >
     <h2 id="confirm-dialog-title" class="mb-4 text-lg font-semibold text-text-primary">
       {title}
@@ -66,5 +72,5 @@
         {/if}
       </button>
     </div>
-</div>
   </div>
+</div>
