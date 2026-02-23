@@ -32,6 +32,13 @@ npm run dev
 
 API: http://localhost:3000. Health: GET `/health`.
 
+## Test coverage
+
+- **`npm run test:coverage`** — Run unit tests with coverage (terminal summary). Uses Node’s `--experimental-test-coverage`.
+- **`npm run test:coverage:lcov`** — Same plus write LCOV to `coverage/lcov.info` (for CI/IDEs). Creates `coverage/` if needed; the directory is in `.gitignore`.
+
+To exclude code from coverage, use Node’s inline comments: `/* node:coverage ignore */` for a block, or `/* node:coverage ignore next */` / `/* node:coverage ignore next N */` for one or more lines.
+
 ## Indexes (schema)
 
 See `sql/schema.sql`. Key indexes: `events.start_date`; `activities` (event_id, type, device_name, start_date); `stream_data_points` (stream_id, time_ms) and (stream_id, sequence_index, time_ms) for stream fetch order; `comparisons.created_at`.

@@ -41,6 +41,8 @@ This file provides operational instructions for AI coding agents working in this
   - `npm run format:fix` - Fix formatting
   - `npm run test` - Run all tests (Node test runner)
   - `npm run test:unit` - Run unit tests only (`test/unit/**/*.test.js`)
+  - `npm run test:coverage` - Run unit tests with coverage (terminal summary; uses `--experimental-test-coverage`)
+  - `npm run test:coverage:lcov` - Same plus LCOV file at `coverage/lcov.info` (for CI/IDEs; `coverage/` is gitignored)
   - To verify Node 24 compatibility, run tests with `NODE_OPTIONS='--throw-deprecation' npm run test:unit` so deprecations fail the build.
 
 ### Frontend (`frontend/`)
@@ -62,15 +64,15 @@ This file provides operational instructions for AI coding agents working in this
   - `npm run format` / `npm run format:fix` — Prettier check/write for `src/**/*.{ts,svelte,css,json}`
   - `npm run lint` / `npm run lint:fix` — ESLint on src/
   - `npm run check` — svelte-check (tsconfig.app.json) + tsc (tsconfig.node.json)
-  - `npm run test` — Vitest (all tests); `npm run test:watch`; `npm run test:coverage`
+  - `npm run test` — Vitest (all tests); `npm run test:watch`; `npm run test:coverage` (coverage report in terminal and under `coverage/` as HTML and LCOV; `coverage/` is gitignored); `npm run test:coverage:ci` — same for CI
   - `npm run ci` — format → lint → check → test → build (single gate for pre-commit or CI)
 
 ## CI (GitHub Actions)
 
 On **push to main** and **pull_request** targeting main:
 
-- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, and test:unit with `NODE_OPTIONS='--throw-deprecation'`. See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
-- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): `npm run ci` (format, lint, check, test, build). See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, test:unit with `NODE_OPTIONS='--throw-deprecation'`, and test:coverage. See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
+- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): format, lint, check, test with coverage, build. See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
 
 ## Project layout and architecture
 

@@ -45,3 +45,6 @@ jobs:
         run: npm run test:unit
         env:
           NODE_OPTIONS: '--throw-deprecation'
+
+      - name: Coverage
+        run: npm run test:coverage
