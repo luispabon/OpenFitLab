@@ -1,4 +1,2 @@
-fixtures/
-# Keep backend test fixtures (canonical location for parser tests)
-!backend/test/fixtures/
-!backend/test/fixtures/**
+./fixtures/
+
