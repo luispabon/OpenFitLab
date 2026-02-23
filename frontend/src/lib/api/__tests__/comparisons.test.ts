@@ -3,6 +3,7 @@ import {
   getComparisonCandidates,
   getComparisons,
   getComparison,
+  getComparisonsByEventIds,
   createComparison,
   deleteComparison,
 } from '../comparisons';
@@ -132,6 +133,41 @@ describe('getComparison', () => {
     );
 
     await expect(getComparison('cmp-1')).rejects.toThrow(/Failed to fetch comparison/);
+  });
+});
+
+describe('getComparisonsByEventIds', () => {
+  it('POSTs eventIds and returns comparison summaries', async () => {
+    const summaries = [{ id: 'c1', name: 'Morning vs Evening', createdAt: 1704067200000 }];
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(summaries),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const result = await getComparisonsByEventIds(['evt-1', 'evt-2']);
+
+    expect(result).toEqual(summaries);
+    expect(mockFetch).toHaveBeenCalledWith('/api/comparisons/by-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventIds: ['evt-1', 'evt-2'] }),
+    });
+  });
+
+  it('throws on non-ok response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Server Error',
+      })
+    );
+
+    await expect(getComparisonsByEventIds(['evt-1'])).rejects.toThrow(
+      /Failed to fetch comparisons/
+    );
   });
 });
 

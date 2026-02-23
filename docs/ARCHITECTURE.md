@@ -104,7 +104,7 @@ erDiagram
     }
 ```
 
-All relationships use foreign keys with **ON DELETE CASCADE**: deleting an event removes its event_stats and activities; deleting an activity removes its activity_stats and streams; deleting a stream removes its stream_data_points. Event delete is implemented as a single `DELETE FROM events WHERE id = ?`.
+All relationships use foreign keys with **ON DELETE CASCADE**: deleting an event removes its event_stats and activities; deleting an activity removes its activity_stats and streams; deleting a stream removes its stream_data_points; comparison_events links are also cascaded. Event delete is implemented in a transaction: first delete any comparisons that reference the event (via comparison_events), then `DELETE FROM events WHERE id = ?`; CASCADE removes related rows.
 
 ### Event vs Activity: Core Concepts
 
@@ -214,13 +214,19 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
 #### comparisons
-Saved comparison definitions (optional feature). Not linked by foreign key to events.
+Saved comparison definitions (optional feature). Event membership is stored in `comparison_events`, not as JSON.
 
 - `id`: UUID primary key
 - `name`: User-defined name
-- `event_ids`: JSON array of event UUIDs
 - `settings`: JSON (e.g. selectedStreams, xAxisMode, selectedActivities)
 - `created_at`: Row creation timestamp
+
+#### comparison_events
+Link table between comparisons and events (many-to-many).
+
+- `comparison_id`: FK to comparisons(id) ON DELETE CASCADE
+- `event_id`: FK to events(id) ON DELETE CASCADE
+- Primary key (comparison_id, event_id). Index on event_id for “comparisons by event” queries.
 
 ## API Design
 
@@ -374,13 +380,9 @@ Delete an event and all related data.
 - 204 No Content (success)
 - 404 Not Found (event doesn't exist)
 
-**Cascade Deletion:**
-1. Delete `activity_stats` for all activities
-2. Delete `event_stats` for event
-3. Delete `stream_data_points` for all streams
-4. Delete `streams` for event
-5. Delete `activities` for event
-6. Delete `events` record
+**Deletion (in a single transaction):**
+1. Find comparisons that reference this event (via comparison_events) and delete those comparisons (CASCADE removes their comparison_events rows).
+2. Delete the event; CASCADE then removes event_stats, activities, activity_stats, streams, stream_data_points, and any remaining comparison_events rows.
 
 #### GET /api/activity-types
 Returns distinct activity types from the activities table. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).
@@ -390,9 +392,10 @@ Returns distinct device names from the activities table. **Response:** JSON arra
 
 #### Comparisons API
 
-- **GET /api/comparisons** – List saved comparisons. **Response:** Array of `{ id, name, eventIds, settings?, createdAt? }`. `createdAt` is milliseconds.
+- **GET /api/comparisons** – List saved comparisons. **Response:** Array of `{ id, name, eventIds, settings?, createdAt? }`. `eventIds` are read from comparison_events; `createdAt` is milliseconds.
 - **GET /api/comparisons/:id** – Get one comparison. **Response:** Same shape. 404 if not found.
-- **POST /api/comparisons** – Create comparison. **Body:** `{ name: string, eventIds: string[], settings?: { selectedStreams?, xAxisMode?, selectedActivities? } }`. **Response:** 201 with created comparison.
+- **POST /api/comparisons** – Create comparison. **Body:** `{ name: string, eventIds: string[], settings?: { selectedStreams?, xAxisMode?, selectedActivities? } }`. **Response:** 201 with created comparison. Backend stores event links in comparison_events.
+- **POST /api/comparisons/by-events** – Find comparisons linked to any of the given event IDs (e.g. for delete warnings). **Body:** `{ eventIds: string[] }` (non-empty, valid UUIDs). **Response:** Array of `{ id, name, createdAt? }`.
 - **DELETE /api/comparisons/:id** – Delete comparison. **Response:** 204 No Content or 404 Not Found.
 
 ## Data Flow
@@ -448,7 +451,7 @@ sequenceDiagram
 
 ### Route → API usage (data flow)
 
-- **Dashboard** (`routes/dashboard.svelte`): Uses `getActivityRows` (GET /api/events/activity-rows) for the table; `getActivityTypes`, `getDevices` for filters (once on mount); `uploadFile` (POST /api/events); `deleteEvent` (DELETE). List loads when page/filters change (effect); stale responses are ignored via a load generation counter.
+- **Dashboard** (`routes/dashboard.svelte`): Uses `getActivityRows` (GET /api/events/activity-rows) for the table; `getActivityTypes`, `getDevices` for filters (once on mount); `uploadFile` (POST /api/events); `deleteEvent` (DELETE). Single and bulk delete flows call `getComparisonsByEventIds` (POST /api/comparisons/by-events) to warn when comparisons will be removed. List loads when page/filters change (effect); stale responses are ignored via a load generation counter.
 - **Event detail** (`routes/event-detail.svelte`): Gets `id` from route params. First `getEvent` (GET /api/events/:id), then when event and selected activity exist, `getStreams` (GET .../streams). Waterfall: event then streams. Uses `getActivityTypes`, `getDevices`, `updateActivity` (PATCH) for inline edit of activity type and device.
 - **Comparisons list** (`routes/comparisons.svelte`): `getComparisons` (GET /api/comparisons) on mount; `deleteComparison` (DELETE) for removal.
 - **Comparison view** (`routes/comparison-view.svelte`): For `/compare/new?events=id1,id2` uses query event IDs; for `/compare/:id` uses `getComparison` then that comparison’s eventIds. Then `getEvent` per event and `getStreams` per selected activity. Uses `createComparison`, `deleteComparison` for save/delete.
@@ -460,7 +463,7 @@ frontend/src/
 ├── lib/
 │   ├── api/
 │   │   ├── events.ts          # getEvents, getActivityRows, getEvent, getStreams, uploadFile, deleteEvent, getActivityTypes, getDevices, updateActivity
-│   │   ├── comparisons.ts    # getComparisonCandidates, getComparisons, getComparison, createComparison, deleteComparison
+│   │   ├── comparisons.ts    # getComparisonCandidates, getComparisons, getComparison, getComparisonsByEventIds, createComparison, deleteComparison
 │   │   └── index.ts          # Re-exports
 │   ├── types/
 │   │   ├── event.ts          # EventSummary, EventDetail, Activity, ActivityRow, StreamData, UploadResponse, Comparison, ComparisonSettings

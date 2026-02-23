@@ -91,4 +91,21 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Yes' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   });
+
+  it('shows warning box with warningMessage when provided', () => {
+    render(ConfirmDialog, {
+      props: {
+        ...defaultProps,
+        warningMessage: 'This will also delete 2 comparisons: Run A, Run B.',
+      },
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('This will also delete 2 comparisons: Run A, Run B.');
+    expect(alert).toHaveTextContent('warning');
+  });
+
+  it('does not show warning box when warningMessage is undefined', () => {
+    render(ConfirmDialog, { props: defaultProps });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

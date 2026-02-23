@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from './ConfirmDialog.svelte';
   import UploadProgressBar from '../UploadProgressBar.svelte';
+  import { getComparisonsByEventIds } from '../../api/comparisons';
 
   interface Props {
     eventIdsToDelete: string[];
@@ -15,6 +16,8 @@
   let bulkDeleteProgress = $state(0);
   let currentDeleteIndex = $state(0);
   let totalToDelete = $state(0);
+  let affectedComparisons = $state<{ id: string; name: string; createdAt?: number }[]>([]);
+  let checkingComparisons = $state(false);
 
   const open = $derived(eventIdsToDelete.length > 0);
   const count = $derived(eventIdsToDelete.length);
@@ -23,6 +26,30 @@
     `Are you sure you want to delete ${count} event${count !== 1 ? 's' : ''}? This action cannot be undone.`
   );
   const confirmLabel = $derived(`Delete ${count} Event${count !== 1 ? 's' : ''}`);
+
+  $effect(() => {
+    const ids = eventIdsToDelete;
+    if (ids.length === 0) {
+      affectedComparisons = [];
+      return;
+    }
+    checkingComparisons = true;
+    getComparisonsByEventIds(ids)
+      .then((list) => {
+        affectedComparisons = list;
+        checkingComparisons = false;
+      })
+      .catch(() => {
+        affectedComparisons = [];
+        checkingComparisons = false;
+      });
+  });
+
+  const warningMessage = $derived(
+    affectedComparisons.length > 0
+      ? `This will also permanently delete ${affectedComparisons.length} comparison${affectedComparisons.length !== 1 ? 's' : ''}: ${affectedComparisons.map((c) => c.name).join(', ')}.`
+      : undefined
+  );
 
   async function handleConfirm() {
     const eventIds = eventIdsToDelete;
@@ -77,7 +104,8 @@
     {confirmLabel}
     loading={isBulkDeleting}
     danger={true}
-    confirmDisabled={isBulkDeleting || isDeleting}
+    confirmDisabled={isBulkDeleting || isDeleting || checkingComparisons}
+    {warningMessage}
     onConfirm={handleConfirm}
     onCancel={handleCancel}
   />

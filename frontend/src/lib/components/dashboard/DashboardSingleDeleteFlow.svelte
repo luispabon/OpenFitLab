@@ -1,5 +1,6 @@
 <script lang="ts">
   import ConfirmDialog from './ConfirmDialog.svelte';
+  import { getComparisonsByEventIds } from '../../api/comparisons';
 
   interface Props {
     eventIdToDelete: string | null;
@@ -19,8 +20,34 @@
   }: Props = $props();
 
   let isDeleting = $state(false);
+  let affectedComparisons = $state<{ id: string; name: string; createdAt?: number }[]>([]);
+  let checkingComparisons = $state(false);
 
   const open = $derived(eventIdToDelete !== null);
+
+  $effect(() => {
+    const id = eventIdToDelete;
+    if (!id) {
+      affectedComparisons = [];
+      return;
+    }
+    checkingComparisons = true;
+    getComparisonsByEventIds([id])
+      .then((list) => {
+        affectedComparisons = list;
+        checkingComparisons = false;
+      })
+      .catch(() => {
+        affectedComparisons = [];
+        checkingComparisons = false;
+      });
+  });
+
+  const warningMessage = $derived(
+    affectedComparisons.length > 0
+      ? `This will also permanently delete ${affectedComparisons.length} comparison${affectedComparisons.length !== 1 ? 's' : ''}: ${affectedComparisons.map((c) => c.name).join(', ')}.`
+      : undefined
+  );
 
   async function handleConfirm() {
     const eventId = eventIdToDelete;
@@ -55,7 +82,8 @@
     confirmLabel="Delete"
     loading={isDeleting}
     danger={true}
-    confirmDisabled={isDeleting || confirmDisabledWhen}
+    confirmDisabled={isDeleting || confirmDisabledWhen || checkingComparisons}
+    {warningMessage}
     onConfirm={handleConfirm}
     onCancel={handleCancel}
   />

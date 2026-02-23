@@ -12,12 +12,17 @@ const { parseJSONField } = require('../utils/transforms');
  */
 async function createComparison(name, eventIds, settings, opts = {}) {
   const db = opts.db ?? defaultDb;
-  const repoOpts = { ...opts, db };
   const id = randomUUID();
-  await comparisonRepository.create(id, name.trim(), eventIds, settings, repoOpts);
+  const trimmedName = name.trim();
+
+  await db.transaction(async (conn) => {
+    const txOpts = { ...opts, db, conn };
+    await comparisonRepository.create(id, trimmedName, eventIds, settings, txOpts);
+  });
+
   return {
     id,
-    name: name.trim(),
+    name: trimmedName,
     eventIds,
     settings: settings || null,
     createdAt: Date.now(),
@@ -36,7 +41,7 @@ async function getComparisons(limit = 100, opts = {}) {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    eventIds: parseJSONField(row.event_ids, []),
+    eventIds: row.event_ids,
     settings: parseJSONField(row.settings, null),
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
   }));
@@ -55,10 +60,27 @@ async function getComparisonById(id, opts = {}) {
   return {
     id: row.id,
     name: row.name,
-    eventIds: parseJSONField(row.event_ids, []),
+    eventIds: row.event_ids,
     settings: parseJSONField(row.settings, null),
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
   };
+}
+
+/**
+ * Find comparisons linked to any of the given event IDs.
+ * @param {string[]} eventIds
+ * @param {{ db?: object }} [opts]
+ * @returns {Promise<Array<{ id: string, name: string, createdAt?: number }>>}
+ */
+async function getComparisonsByEventIds(eventIds, opts = {}) {
+  const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
+  const rows = await comparisonRepository.findByEventIds(eventIds, repoOpts);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+  }));
 }
 
 /**
@@ -79,5 +101,6 @@ module.exports = {
   createComparison,
   getComparisons,
   getComparisonById,
+  getComparisonsByEventIds,
   deleteComparisonById,
 };
