@@ -1,0 +1,147 @@
+const { describe, it } = require('node:test');
+const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
+const { findById, findOrCreateByIdentity, deleteById } = require('../../../src/repositories/user-repository');
+
+function makeFakeDb(queryFn) {
+  return {
+    query: queryFn,
+    transaction: async (fn) => {
+      const fakeConn = {
+        execute: async (sql, params) => {
+          const result = await queryFn(sql, params);
+          return [result];
+        },
+      };
+      return fn(fakeConn);
+    },
+  };
+}
+
+describe('user-repository', () => {
+  describe('findById', () => {
+    it('returns user when found', async () => {
+      const user = { id: 'u1', display_name: 'Alice', avatar_url: null, created_at: new Date(), updated_at: new Date() };
+      const db = { query: async () => [user] };
+
+      const result = await findById('u1', { db });
+
+      strictEqual(result.id, 'u1');
+      strictEqual(result.display_name, 'Alice');
+    });
+
+    it('returns null when not found', async () => {
+      const db = { query: async () => [] };
+
+      const result = await findById('missing', { db });
+
+      strictEqual(result, null);
+    });
+  });
+
+  describe('findOrCreateByIdentity', () => {
+    it('creates a new user and identity when provider identity does not exist', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: params[0], display_name: 'Bob', avatar_url: 'http://img', created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('google', 'g123', {
+        displayName: 'Bob',
+        avatarUrl: 'http://img',
+        email: 'bob@example.com',
+        profileData: { raw: true },
+      }, { db });
+
+      strictEqual(result.created, true);
+      strictEqual(result.user.display_name, 'Bob');
+
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      ok(insertUser, 'should insert into users');
+      strictEqual(insertUser.params[1], 'Bob');
+      strictEqual(insertUser.params[2], 'http://img');
+
+      const insertIdentity = queries.find((q) => q.sql.includes('INSERT INTO user_identities'));
+      ok(insertIdentity, 'should insert into user_identities');
+      strictEqual(insertIdentity.params[2], 'google');
+      strictEqual(insertIdentity.params[3], 'g123');
+      strictEqual(insertIdentity.params[4], 'bob@example.com');
+      deepStrictEqual(JSON.parse(insertIdentity.params[5]), { raw: true });
+    });
+
+    it('returns existing user and updates profile when provider identity exists', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('FROM user_identities')) return [{ user_id: 'u-existing' }];
+        if (sql.includes('UPDATE users')) return { affectedRows: 1 };
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: 'u-existing', display_name: 'Updated', avatar_url: 'http://new', created_at: new Date(), updated_at: new Date() }];
+        }
+        return [];
+      });
+
+      const result = await findOrCreateByIdentity('github', 'gh456', {
+        displayName: 'Updated',
+        avatarUrl: 'http://new',
+      }, { db });
+
+      strictEqual(result.created, false);
+      strictEqual(result.user.id, 'u-existing');
+      strictEqual(result.user.display_name, 'Updated');
+
+      const update = queries.find((q) => q.sql.includes('UPDATE users'));
+      ok(update, 'should update user profile');
+      strictEqual(update.params[2], 'u-existing');
+
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      strictEqual(insertUser, undefined, 'should not insert a new user');
+    });
+
+    it('handles null profile fields gracefully', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: params[0], display_name: null, avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('google', 'g999', {}, { db });
+
+      strictEqual(result.created, true);
+
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      strictEqual(insertUser.params[1], null);
+      strictEqual(insertUser.params[2], null);
+
+      const insertIdentity = queries.find((q) => q.sql.includes('INSERT INTO user_identities'));
+      strictEqual(insertIdentity.params[4], null);
+      strictEqual(insertIdentity.params[5], null);
+    });
+  });
+
+  describe('deleteById', () => {
+    it('returns true when user is deleted', async () => {
+      const db = { query: async () => ({ affectedRows: 1 }) };
+
+      const result = await deleteById('u1', { db });
+
+      strictEqual(result, true);
+    });
+
+    it('returns false when user does not exist', async () => {
+      const db = { query: async () => ({ affectedRows: 0 }) };
+
+      const result = await deleteById('missing', { db });
+
+      strictEqual(result, false);
+    });
+  });
+});
