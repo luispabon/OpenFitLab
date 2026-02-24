@@ -78,4 +78,11 @@ async function transaction(fn) {
   }
 }
 
-module.exports = { getPool, initializeSchema, query, queryOne, transaction };
+async function closePool() {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
+}
+
+module.exports = { getPool, initializeSchema, query, queryOne, transaction, closePool };

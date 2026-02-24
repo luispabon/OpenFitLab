@@ -11,8 +11,8 @@ const { processUpload } = require('../services/event-upload-service');
 const { deleteEventById } = require('../services/event-delete-service');
 const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
-
 const { asyncHandler } = require('../middleware/async-handler');
+const { uploadLimiter } = require('../middleware/rate-limit');
 
 const router = express.Router();
 
@@ -92,6 +92,7 @@ router.get(
 // POST /api/events (multipart: files only)
 router.post(
   '/',
+  uploadLimiter,
   upload.array('files', 10),
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {

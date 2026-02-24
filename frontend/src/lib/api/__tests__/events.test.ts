@@ -84,7 +84,10 @@ describe('getActivityRows', () => {
     const result = await getActivityRows();
 
     expect(result).toEqual(payload);
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/events/activity-rows'), expect.any(Object));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/events/activity-rows'),
+      expect.any(Object)
+    );
   });
 
   it('appends activityTypes and devices to URL', async () => {
