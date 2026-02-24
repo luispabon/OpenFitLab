@@ -20,7 +20,7 @@ describe('event-upload-service processUpload', () => {
     const db = {
       transaction: async (fn) => fn(conn),
     };
-    const result = await processUpload(buffer, 'tcx', 'minimal.tcx', { db });
+    const result = await processUpload(buffer, 'tcx', 'minimal.tcx', { db, userId: 'u1' });
     ok(result.eventId);
     ok(result.eventJson);
     ok(Array.isArray(result.activities));
@@ -29,7 +29,7 @@ describe('event-upload-service processUpload', () => {
     strictEqual(executed.length >= 1, true);
     const eventInsert = executed.find((e) => e.sql.includes('INSERT INTO events'));
     ok(eventInsert, 'should insert into events');
-    strictEqual(eventInsert.params, 7);
+    strictEqual(eventInsert.params, 8);
   });
 
   it('uses filename without extension as event name', async () => {
@@ -38,7 +38,7 @@ describe('event-upload-service processUpload', () => {
     const db = {
       transaction: async (fn) => fn({ execute: async () => [{}] }),
     };
-    const result = await processUpload(buffer, 'tcx', 'My Run.tcx', { db });
+    const result = await processUpload(buffer, 'tcx', 'My Run.tcx', { db, userId: 'u1' });
     strictEqual(result.eventJson.name, 'My Run');
   });
 
@@ -48,7 +48,7 @@ describe('event-upload-service processUpload', () => {
     const db = {
       transaction: async (fn) => fn({ execute: async () => [{}] }),
     };
-    const result = await processUpload(buffer, 'tcx', 'minimal.tcx', { db });
+    const result = await processUpload(buffer, 'tcx', 'minimal.tcx', { db, userId: 'u1' });
     ok(Array.isArray(result.activities));
     for (const a of result.activities) {
       strictEqual(a.id, null);

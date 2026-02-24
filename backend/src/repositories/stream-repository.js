@@ -24,13 +24,15 @@ async function insertStreamDataPointsBatch(streamId, dataPoints, opts = {}) {
 }
 
 async function findByActivityAndEvent(activityId, eventId, types, opts = {}) {
-  let sql = 'SELECT id, type FROM streams WHERE activity_id = ? AND event_id = ?';
-  const params = [activityId, eventId];
+  if (!opts.userId) throw new Error('findByActivityAndEvent requires opts.userId');
+  let sql =
+    'SELECT s.id, s.type FROM streams s JOIN events e ON e.id = s.event_id WHERE s.activity_id = ? AND s.event_id = ? AND e.user_id = ?';
+  const params = [activityId, eventId, opts.userId];
   if (types && types.length > 0) {
-    sql += ` AND type IN (${placeholders(types.length)})`;
+    sql += ` AND s.type IN (${placeholders(types.length)})`;
     params.push(...types);
   }
-  sql += ' ORDER BY type';
+  sql += ' ORDER BY s.type';
   const rows = await runQuery(sql, params, opts);
   return Array.isArray(rows) ? rows : [];
 }

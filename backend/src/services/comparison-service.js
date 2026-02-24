@@ -11,12 +11,22 @@ const { parseJSONField } = require('../utils/transforms');
  * @returns {Promise<object>} { id, name, eventIds, settings, createdAt }
  */
 async function createComparison(name, eventIds, settings, opts = {}) {
+  if (!opts.userId) throw new Error('createComparison requires opts.userId');
   const db = opts.db ?? defaultDb;
   const id = randomUUID();
   const trimmedName = name.trim();
 
   await db.transaction(async (conn) => {
     const txOpts = { ...opts, db, conn };
+    // Verify all events belong to the user
+    const eventRepo = require('../repositories/event-repository');
+    const events = await eventRepo.findManyByIds(eventIds, { ...txOpts });
+    const ownedIds = new Set(events.map((e) => e.id));
+    if (ownedIds.size !== eventIds.length) {
+      const err = new Error('One or more events not found');
+      err.statusCode = 404;
+      throw err;
+    }
     await comparisonRepository.create(id, trimmedName, eventIds, settings, txOpts);
   });
 
@@ -35,6 +45,7 @@ async function createComparison(name, eventIds, settings, opts = {}) {
  * @returns {Promise<Array<object>>}
  */
 async function getComparisons(limit = 100, opts = {}) {
+  if (!opts.userId) throw new Error('getComparisons requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const rows = await comparisonRepository.findAll(limit, repoOpts);
@@ -53,6 +64,7 @@ async function getComparisons(limit = 100, opts = {}) {
  * @returns {Promise<object | null>}
  */
 async function getComparisonById(id, opts = {}) {
+  if (!opts.userId) throw new Error('getComparisonById requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const row = await comparisonRepository.findById(id, repoOpts);
@@ -73,6 +85,7 @@ async function getComparisonById(id, opts = {}) {
  * @returns {Promise<Array<{ id: string, name: string, createdAt?: number }>>}
  */
 async function getComparisonsByEventIds(eventIds, opts = {}) {
+  if (!opts.userId) throw new Error('getComparisonsByEventIds requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const rows = await comparisonRepository.findByEventIds(eventIds, repoOpts);
@@ -89,6 +102,7 @@ async function getComparisonsByEventIds(eventIds, opts = {}) {
  * @returns {Promise<boolean>} true if deleted, false if not found
  */
 async function deleteComparisonById(id, opts = {}) {
+  if (!opts.userId) throw new Error('deleteComparisonById requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const existing = await comparisonRepository.existsById(id, repoOpts);

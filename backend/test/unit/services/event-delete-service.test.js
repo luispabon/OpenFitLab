@@ -27,7 +27,7 @@ describe('deleteEventById', () => {
       return [];
     });
 
-    const result = await deleteEventById('e1', { db });
+    const result = await deleteEventById('e1', { db, userId: 'u1' });
 
     strictEqual(result, true);
     strictEqual(queries.some((q) => q.sql.includes('DELETE FROM comparisons')), false);
@@ -41,7 +41,7 @@ describe('deleteEventById', () => {
       return [];
     });
 
-    const result = await deleteEventById('missing', { db });
+    const result = await deleteEventById('missing', { db, userId: 'u1' });
 
     strictEqual(result, false);
   });
@@ -61,7 +61,7 @@ describe('deleteEventById', () => {
       return [];
     });
 
-    const result = await deleteEventById('e1', { db });
+    const result = await deleteEventById('e1', { db, userId: 'u1' });
 
     strictEqual(result, true);
 
@@ -72,6 +72,6 @@ describe('deleteEventById', () => {
     strictEqual(deleteEventIdx !== -1, true);
     strictEqual(deleteCompIdx < deleteEventIdx, true);
 
-    deepStrictEqual(queries[deleteCompIdx].params, ['c1', 'c2']);
+    deepStrictEqual(queries[deleteCompIdx].params.slice(0, 2), ['c1', 'c2']);
   });
 });

@@ -8,7 +8,7 @@ const router = express.Router();
 router.get(
   '/activity-types',
   asyncHandler(async (req, res) => {
-    const types = await getActivityTypes();
+    const types = await getActivityTypes({ userId: req.userId });
     res.json(types);
   })
 );
@@ -17,7 +17,7 @@ router.get(
 router.get(
   '/devices',
   asyncHandler(async (req, res) => {
-    const devices = await getDevices();
+    const devices = await getDevices({ userId: req.userId });
     res.json(devices);
   })
 );

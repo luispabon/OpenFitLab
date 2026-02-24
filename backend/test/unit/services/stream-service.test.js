@@ -5,14 +5,14 @@ const { getStreamsForActivity } = require('../../../src/services/stream-service'
 describe('getStreamsForActivity', () => {
   it('returns empty array when no streams', async () => {
     const db = { query: async () => [] };
-    const result = await getStreamsForActivity('e1', 'a1', {}, { db });
+    const result = await getStreamsForActivity('e1', 'a1', {}, { db, userId: 'u1' });
     deepStrictEqual(result, []);
   });
 
   it('returns streams with data points ordered by type and sequence', async () => {
     const db = {
       query: async (sql, params) => {
-        if (sql.includes('streams WHERE')) {
+        if (sql.includes('FROM streams')) {
           return [
             { id: 'a1_Heart Rate', type: 'Heart Rate' },
             { id: 'a1_Time', type: 'Time' },
@@ -29,7 +29,7 @@ describe('getStreamsForActivity', () => {
         return [];
       },
     };
-    const result = await getStreamsForActivity('e1', 'a1', {}, { db });
+    const result = await getStreamsForActivity('e1', 'a1', {}, { db, userId: 'u1' });
     strictEqual(result.length, 2);
     const hr = result.find((s) => s.type === 'Heart Rate');
     const time = result.find((s) => s.type === 'Time');
@@ -47,7 +47,7 @@ describe('getStreamsForActivity', () => {
     let capturedParams;
     const db = {
       query: async (sql, params) => {
-        if (sql.includes('streams WHERE')) {
+        if (sql.includes('FROM streams')) {
           capturedParams = params;
           return [{ id: 'a1_Heart Rate', type: 'Heart Rate' }];
         }
@@ -59,8 +59,8 @@ describe('getStreamsForActivity', () => {
         return [];
       },
     };
-    await getStreamsForActivity('e1', 'a1', { types: ['Heart Rate', 'Distance'] }, { db });
-    strictEqual(capturedParams[2], 'Heart Rate');
-    strictEqual(capturedParams[3], 'Distance');
+    await getStreamsForActivity('e1', 'a1', { types: ['Heart Rate', 'Distance'] }, { db, userId: 'u1' });
+    strictEqual(capturedParams[3], 'Heart Rate');
+    strictEqual(capturedParams[4], 'Distance');
   });
 });
