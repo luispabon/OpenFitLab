@@ -2,7 +2,7 @@ const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
 const ACTIVITY_COLUMNS =
-  'id, event_id, name, start_date, end_date, type, event_start_date, device_name';
+  'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.event_start_date, a.device_name';
 
 async function insertActivity(row, opts = {}) {
   const sql = `INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -37,7 +37,7 @@ async function insertActivityStats(activityId, stats, opts = {}) {
 async function findByEventId(eventId, opts = {}) {
   if (!opts.userId) throw new Error('findByEventId requires opts.userId');
   const rows = await runQuery(
-    `SELECT a.${ACTIVITY_COLUMNS}
+    `SELECT ${ACTIVITY_COLUMNS}
      FROM activities a
      JOIN events e ON e.id = a.event_id
      WHERE a.event_id = ? AND e.user_id = ?`,
@@ -50,7 +50,7 @@ async function findByEventId(eventId, opts = {}) {
 async function findByIdAndEventId(activityId, eventId, opts = {}) {
   if (!opts.userId) throw new Error('findByIdAndEventId requires opts.userId');
   const rows = await runQuery(
-    `SELECT a.${ACTIVITY_COLUMNS}
+    `SELECT ${ACTIVITY_COLUMNS}
      FROM activities a
      JOIN events e ON e.id = a.event_id
      WHERE a.id = ? AND a.event_id = ? AND e.user_id = ?`,
