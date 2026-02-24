@@ -9,7 +9,7 @@ describe('updateActivity', () => {
       transaction: async () => {},
       query: async () => [],
     };
-    const result = await updateActivity('e1', 'missing', { type: 'Running' }, { db });
+    const result = await updateActivity('e1', 'missing', { type: 'Running' }, { db, userId: 'u1' });
     strictEqual(result, null);
   });
 
@@ -36,7 +36,7 @@ describe('updateActivity', () => {
         return [];
       },
     };
-    const result = await updateActivity('e1', 'a1', { type: 'Cycling', deviceName: 'Wahoo' }, { db });
+    const result = await updateActivity('e1', 'a1', { type: 'Cycling', deviceName: 'Wahoo' }, { db, userId: 'u1' });
     strictEqual(result.id, 'a1');
     strictEqual(result.type, 'Running'); // from our mock row; real impl would return updated
     deepStrictEqual(result.stats, { Duration: 300 });
@@ -69,7 +69,7 @@ describe('updateActivity', () => {
         return [];
       },
     };
-    await updateActivity('e1', 'a1', { type: 'Cycling' }, { db });
+    await updateActivity('e1', 'a1', { type: 'Cycling' }, { db, userId: 'u1' });
     const updateCalls = executed.filter((e) => e.sql.includes('UPDATE'));
     strictEqual(updateCalls.length >= 1, true);
     const insertStat = executed.find((e) => e.sql.includes('INSERT') && e.params && e.params[1] === 'Activity Types');

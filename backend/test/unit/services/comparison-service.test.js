@@ -29,27 +29,27 @@ describe('comparison-service', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
+        if (sql.includes('FROM events')) {
+          return [
+            { id: 'e1' },
+            { id: 'e2' },
+          ];
+        }
         return { affectedRows: 1 };
       });
 
-      const result = await createComparison(' My Compare ', ['e1', 'e2'], { x: 1 }, { db });
+      const result = await createComparison(' My Compare ', ['e1', 'e2'], { x: 1 }, { db, userId: 'u1' });
 
-      strictEqual(queries.length, 3);
-      strictEqual(queries[0].sql, 'INSERT INTO comparisons (id, name, settings) VALUES (?, ?, ?)');
-      strictEqual(queries[0].params[1], 'My Compare');
-      deepStrictEqual(JSON.parse(queries[0].params[2]), { x: 1 });
+      strictEqual(queries.length, 4);
+      const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
+      strictEqual(Boolean(insertComp), true);
+      strictEqual(insertComp.params[2], 'My Compare');
+      deepStrictEqual(JSON.parse(insertComp.params[3]), { x: 1 });
 
-      strictEqual(
-        queries[1].sql,
-        'INSERT INTO comparison_events (comparison_id, event_id) VALUES (?, ?)'
-      );
-      strictEqual(queries[1].params[1], 'e1');
-
-      strictEqual(
-        queries[2].sql,
-        'INSERT INTO comparison_events (comparison_id, event_id) VALUES (?, ?)'
-      );
-      strictEqual(queries[2].params[1], 'e2');
+      const linkInserts = queries.filter((q) => q.sql.includes('INSERT INTO comparison_events'));
+      strictEqual(linkInserts.length, 2);
+      strictEqual(linkInserts[0].params[1], 'e1');
+      strictEqual(linkInserts[1].params[1], 'e2');
 
       strictEqual(typeof result.id, 'string');
       strictEqual(result.name, 'My Compare');
@@ -62,12 +62,20 @@ describe('comparison-service', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
+        if (sql.includes('FROM events')) {
+          return [
+            { id: 'e1' },
+            { id: 'e2' },
+          ];
+        }
         return { affectedRows: 1 };
       });
 
-      const result = await createComparison('Test', ['e1', 'e2'], null, { db });
+      const result = await createComparison('Test', ['e1', 'e2'], null, { db, userId: 'u1' });
 
-      strictEqual(queries[0].params[2], null);
+      const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
+      strictEqual(Boolean(insertComp), true);
+      strictEqual(insertComp.params[3], null);
       strictEqual(result.settings, null);
     });
   });
@@ -76,7 +84,7 @@ describe('comparison-service', () => {
     it('returns mapped list with event IDs from link table', async () => {
       const db = {
         query: async (sql) => {
-          if (sql.includes('FROM comparisons ORDER BY')) {
+          if (sql.includes('FROM comparisons') && sql.includes('ORDER BY')) {
             return [
               {
                 id: 'c1',
@@ -96,7 +104,7 @@ describe('comparison-service', () => {
         },
       };
 
-      const result = await getComparisons(50, { db });
+      const result = await getComparisons(50, { db, userId: 'u1' });
 
       strictEqual(result.length, 1);
       strictEqual(result[0].id, 'c1');
@@ -108,7 +116,7 @@ describe('comparison-service', () => {
 
     it('returns empty array when no comparisons exist', async () => {
       const db = { query: async () => [] };
-      const result = await getComparisons(50, { db });
+      const result = await getComparisons(50, { db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
   });
@@ -116,7 +124,7 @@ describe('comparison-service', () => {
   describe('getComparisonById', () => {
     it('returns null when not found', async () => {
       const db = { query: async () => [] };
-      const result = await getComparisonById('missing', { db });
+      const result = await getComparisonById('missing', { db, userId: 'u1' });
       strictEqual(result, null);
     });
 
@@ -140,7 +148,7 @@ describe('comparison-service', () => {
         },
       };
 
-      const result = await getComparisonById('c1', { db });
+      const result = await getComparisonById('c1', { db, userId: 'u1' });
 
       strictEqual(result.id, 'c1');
       deepStrictEqual(result.eventIds, ['e1', 'e2']);
@@ -157,7 +165,7 @@ describe('comparison-service', () => {
         ],
       };
 
-      const result = await getComparisonsByEventIds(['e1', 'e2'], { db });
+      const result = await getComparisonsByEventIds(['e1', 'e2'], { db, userId: 'u1' });
 
       strictEqual(result.length, 2);
       strictEqual(result[0].id, 'c1');
@@ -168,13 +176,13 @@ describe('comparison-service', () => {
 
     it('returns empty array when no comparisons match', async () => {
       const db = { query: async () => [] };
-      const result = await getComparisonsByEventIds(['e1'], { db });
+      const result = await getComparisonsByEventIds(['e1'], { db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
 
     it('returns empty array for empty input', async () => {
       const db = { query: async () => [] };
-      const result = await getComparisonsByEventIds([], { db });
+      const result = await getComparisonsByEventIds([], { db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
   });
@@ -185,7 +193,7 @@ describe('comparison-service', () => {
         query: async (sql) =>
           sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 },
       };
-      const result = await deleteComparisonById('missing', { db });
+      const result = await deleteComparisonById('missing', { db, userId: 'u1' });
       strictEqual(result, false);
     });
 
@@ -199,7 +207,7 @@ describe('comparison-service', () => {
           return [];
         },
       };
-      const result = await deleteComparisonById('c1', { db });
+      const result = await deleteComparisonById('c1', { db, userId: 'u1' });
       strictEqual(result, true);
       strictEqual(calls.some((s) => s.includes('DELETE')), true);
     });
