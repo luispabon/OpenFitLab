@@ -1,9 +1,10 @@
 import type { EventSummary, Comparison, ComparisonSettings } from '../types/event';
 
 const API_BASE = '/api';
+import { apiFetch } from './client';
 
 export async function getComparisonCandidates(eventId: string): Promise<EventSummary[]> {
-  const response = await fetch(`${API_BASE}/events/${eventId}/candidates`);
+  const response = await apiFetch(`${API_BASE}/events/${eventId}/candidates`);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -16,7 +17,7 @@ export async function getComparisonCandidates(eventId: string): Promise<EventSum
 }
 
 export async function getComparisons(): Promise<Comparison[]> {
-  const response = await fetch(`${API_BASE}/comparisons`);
+  const response = await apiFetch(`${API_BASE}/comparisons`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch comparisons: ${response.statusText}`);
@@ -26,7 +27,7 @@ export async function getComparisons(): Promise<Comparison[]> {
 }
 
 export async function getComparison(id: string): Promise<Comparison> {
-  const response = await fetch(`${API_BASE}/comparisons/${id}`);
+  const response = await apiFetch(`${API_BASE}/comparisons/${id}`);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -45,7 +46,7 @@ export interface ComparisonSummary {
 }
 
 export async function getComparisonsByEventIds(eventIds: string[]): Promise<ComparisonSummary[]> {
-  const response = await fetch(`${API_BASE}/comparisons/by-events`, {
+  const response = await apiFetch(`${API_BASE}/comparisons/by-events`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ export async function createComparison(
   eventIds: string[],
   settings?: ComparisonSettings
 ): Promise<Comparison> {
-  const response = await fetch(`${API_BASE}/comparisons`, {
+  const response = await apiFetch(`${API_BASE}/comparisons`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -82,7 +83,7 @@ export async function createComparison(
 }
 
 export async function deleteComparison(id: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE}/comparisons/${id}`, {
+  const response = await apiFetch(`${API_BASE}/comparisons/${id}`, {
     method: 'DELETE',
   });
 
