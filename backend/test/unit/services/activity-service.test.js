@@ -31,8 +31,8 @@ describe('updateActivity', () => {
       queryOne: async () => activityRow,
       transaction: async (fn) => fn(conn),
       query: async (sql) => {
-        if (sql.includes('SELECT id, event_id')) return [activityRow];
         if (sql.includes('activity_stats')) return [{ stat_type: 'Duration', value: 300 }];
+        if (sql.includes('activities')) return [activityRow];
         return [];
       },
     };
@@ -64,7 +64,7 @@ describe('updateActivity', () => {
       queryOne: async () => activityRow,
       transaction: async (fn) => fn(conn),
       query: async (sql) => {
-        if (sql.includes('SELECT id, event_id') && sql.includes('activities')) return [activityRow];
+        if (sql.includes('activities')) return [activityRow];
         if (sql.includes('activity_stats')) return [];
         return [];
       },
@@ -72,7 +72,7 @@ describe('updateActivity', () => {
     await updateActivity('e1', 'a1', { type: 'Cycling' }, { db, userId: 'u1' });
     const updateCalls = executed.filter((e) => e.sql.includes('UPDATE'));
     strictEqual(updateCalls.length >= 1, true);
-    const insertStat = executed.find((e) => e.sql.includes('INSERT') && e.params && e.params[1] === 'Activity Types');
+    const insertStat = executed.find((e) => e.sql.includes('event_stats') && e.params && e.params[1] === 'Activity Types');
     strictEqual(insertStat !== undefined, true);
   });
 });
