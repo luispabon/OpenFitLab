@@ -28,6 +28,12 @@ services:
       DB_USER: ${MARIADB_USER:-qs}
       DB_PASSWORD: ${MARIADB_PASSWORD:-qspass}
       DB_DATABASE: ${MARIADB_DATABASE:-openfitlab}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      OAUTH_CALLBACK_URL: ${OAUTH_CALLBACK_URL:-http://localhost:3000}
     depends_on:
       db:
         condition: service_healthy
