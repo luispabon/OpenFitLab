@@ -7,9 +7,11 @@ OpenFitLab is a self-hosted fitness activity tracking platform that allows users
 ```mermaid
 graph TB
     User[User Browser] --> Frontend[Svelte Frontend<br/>Port 4200]
-    Frontend -->|HTTP/REST| API[Express API<br/>Port 3000]
+    Frontend -->|HTTP/REST + session cookie| API[Express API<br/>Port 3000]
     API -->|Parse Files| Parser[File Parser<br/>sports-lib]
     API -->|Query/Insert| DB[(MariaDB<br/>Port 3306)]
+    API -->|OAuth| Google[Google OAuth]
+    API -->|OAuth| GitHub[GitHub OAuth]
     Parser -->|Extract Data| API
     
     subgraph "Docker Compose Services"
@@ -19,6 +21,8 @@ graph TB
         Adminer[Adminer UI<br/>Port 8080]
     end
 ```
+
+**Authentication:** Users sign in via Google or GitHub OAuth. The API uses server-side sessions (express-session, MySQL store); the session cookie is HttpOnly and SameSite=Lax. All data endpoints require a valid session and return only the authenticated user's data. Unauthenticated users see the login page; there is no public data.
 
 ## Technology Stack
 
@@ -37,7 +41,7 @@ graph TB
 - **Language**: TypeScript 5.9
 - **Styling**: Tailwind CSS v4
 - **Router**: svelte-spa-router
-- **API Client**: Native `fetch()` API
+- **API Client**: `apiFetch()` wrapper (credentials, 401 handling) over native `fetch()`
 
 ## Database Schema
 
@@ -45,14 +49,38 @@ graph TB
 
 ```mermaid
 erDiagram
+    USERS ||--o{ USER_IDENTITIES : has
+    USERS ||--o{ EVENTS : owns
+    USERS ||--o{ COMPARISONS : owns
     EVENTS ||--o{ ACTIVITIES : contains
     EVENTS ||--o{ EVENT_STATS : has
+    COMPARISONS ||--o{ COMPARISON_EVENTS : has
+    EVENTS ||--o{ COMPARISON_EVENTS : referenced_by
     ACTIVITIES ||--o{ ACTIVITY_STATS : has
     ACTIVITIES ||--o{ STREAMS : has
     STREAMS ||--o{ STREAM_DATA_POINTS : contains
 
+    USERS {
+        varchar id PK
+        varchar display_name
+        varchar avatar_url
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    USER_IDENTITIES {
+        varchar id PK
+        varchar user_id FK
+        varchar provider
+        varchar provider_user_id
+        varchar email
+        json profile_data
+        timestamp created_at
+    }
+
     EVENTS {
         varchar id PK
+        varchar user_id FK
         bigint start_date
         varchar name
         bigint end_date
@@ -102,9 +130,22 @@ erDiagram
         int sequence_index
         timestamp created_at
     }
+
+    COMPARISONS {
+        varchar id PK
+        varchar user_id FK
+        varchar name
+        json settings
+        timestamp created_at
+    }
+
+    COMPARISON_EVENTS {
+        varchar comparison_id PK,FK
+        varchar event_id PK,FK
+    }
 ```
 
-All relationships use foreign keys with **ON DELETE CASCADE**: deleting an event removes its event_stats and activities; deleting an activity removes its activity_stats and streams; deleting a stream removes its stream_data_points; comparison_events links are also cascaded. Event delete is implemented in a transaction: first delete any comparisons that reference the event (via comparison_events), then `DELETE FROM events WHERE id = ?`; CASCADE removes related rows.
+All relationships use foreign keys with **ON DELETE CASCADE**. Deleting a **user** cascades to user_identities, events (and their event_stats, activities, activity_stats, streams, stream_data_points), and comparisons (and comparison_events). Deleting an **event**: the event-delete-service first deletes any comparisons that reference the event (in a transaction), then `DELETE FROM events WHERE id = ?`; CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_events. Deleting an activity or stream cascades to their stats and stream_data_points respectively.
 
 ### Event vs Activity: Core Concepts
 
@@ -153,10 +194,38 @@ An **Activity** is an individual sport segment within an event. Key characterist
 
 ### Table Descriptions
 
+#### users
+User accounts. Created on first OAuth login; no email on this table (email lives in user_identities).
+
+- `id`: UUID (VARCHAR(36)) primary key
+- `display_name`: Display name from OAuth or user-editable (nullable)
+- `avatar_url`: Profile picture URL from provider (nullable)
+- `created_at`, `updated_at`: Timestamps
+
+#### user_identities
+OAuth provider identities linked to a user. One user can have multiple identities (e.g. Google and GitHub); unique on (provider, provider_user_id).
+
+- `id`: UUID primary key
+- `user_id`: FK to users ON DELETE CASCADE
+- `provider`: e.g. "google", "github"
+- `provider_user_id`: Provider's stable user ID (e.g. OIDC `sub`)
+- `email`: Email from provider (nullable)
+- `profile_data`: Raw OAuth profile JSON (nullable, for debugging)
+- `created_at`: Timestamp
+
+#### sessions
+Session store for express-session (express-mysql-session). Session ID, expiry, and serialized session data.
+
+- `session_id`: Primary key
+- `expires`: Expiry time (BIGINT)
+- `data`: Serialized session (MEDIUMTEXT)
+- Index on `expires` for cleanup
+
 #### events
-Top-level workout sessions. Each event represents a single workout session and can contain multiple activities.
+Top-level workout sessions. Each event represents a single workout session and can contain multiple activities. Owned by a user.
 
 - `id`: UUID (VARCHAR(36))
+- `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
 - `start_date`: Start timestamp in milliseconds (BIGINT)
 - `name`: Event name (derived from filename)
 - `end_date`: End timestamp (nullable)
@@ -214,9 +283,10 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
 #### comparisons
-Saved comparison definitions (optional feature). Event membership is stored in `comparison_events`, not as JSON.
+Saved comparison definitions (optional feature). Owned by a user; event membership is stored in `comparison_events`, not as JSON.
 
 - `id`: UUID primary key
+- `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
 - `name`: User-defined name
 - `settings`: JSON (e.g. selectedStreams, xAxisMode, selectedActivities)
 - `created_at`: Row creation timestamp
@@ -230,10 +300,18 @@ Link table between comparisons and events (many-to-many).
 
 ## API Design
 
-### REST Endpoints
+### Authentication and session
+
+- **OAuth:** Google and GitHub. Initiate via `GET /api/auth/google` or `GET /api/auth/github` (redirect to provider). Callbacks at `GET /api/auth/google/callback` and `GET /api/auth/github/callback` create or find the user, create a session, and redirect to the SPA.
+- **Session:** express-session with MySQL store; cookie name `ofl.sid`; HttpOnly, Secure in production, SameSite=Lax; 7-day max age. Session holds `userId`.
+- **Current user:** `GET /api/auth/me` returns `{ id, displayName, avatarUrl }` or 401. `POST /api/auth/logout` destroys the session.
+- **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the user and all their data (cascades).
+- **Protected routes:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session. Unauthenticated requests receive 401. All data is scoped by the authenticated user; ownership is enforced (e.g. `WHERE user_id = ?`), and 404 is returned when a resource by ID is not found or not owned.
+
+### REST Endpoints (data; all require auth and are user-scoped)
 
 #### GET /api/events
-List events with optional filtering.
+List events with optional filtering (current user only).
 
 **Query Parameters:**
 - `startDate` (number, optional): Filter events starting from this timestamp
@@ -385,10 +463,10 @@ Delete an event and all related data.
 2. Delete the event; CASCADE then removes event_stats, activities, activity_stats, streams, stream_data_points, and any remaining comparison_events rows.
 
 #### GET /api/activity-types
-Returns distinct activity types from the activities table. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).
+Returns distinct activity types from the current user's activities. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).
 
 #### GET /api/devices
-Returns distinct device names from the activities table. **Response:** JSON array of strings.
+Returns distinct device names from the current user's activities. **Response:** JSON array of strings.
 
 #### Comparisons API
 
@@ -449,6 +527,14 @@ sequenceDiagram
 
 ## Frontend Architecture
 
+### Authentication (frontend)
+
+- **Login:** Route `/#/login` shows "Sign in with Google" and "Sign in with GitHub"; buttons navigate to `GET /api/auth/google` or `GET /api/auth/github` (full redirect). After OAuth callback, user is redirected to `/#/?login=success`.
+- **Auth state:** `lib/stores/auth.ts` holds `currentUser`, `authChecked`, `authLoading`; `checkAuth()` calls `GET /api/auth/me` with `credentials: 'include'`. Used on app load.
+- **Route guard:** In `App.svelte`, if not `authLoading` and no `currentUser`, the login page is shown; otherwise the router (dashboard, event-detail, comparisons, comparison-view) is rendered. There is no public content; all pages require authentication.
+- **API client:** `lib/api/client.ts` provides `apiFetch()`; all API calls use it (or pass `credentials: 'include'`). On 401, auth state is cleared so the user sees the login page. Logout: `POST /api/auth/logout` then clear `currentUser`.
+- **User menu:** Sidebar shows avatar (or initials), display name, and logout; optionally "Delete account" (calls `DELETE /api/account`).
+
 ### Route → API usage (data flow)
 
 - **Dashboard** (`routes/dashboard.svelte`): Uses `getActivityRows` (GET /api/events/activity-rows) for the table; `getActivityTypes`, `getDevices` for filters (once on mount); `uploadFile` (POST /api/events); `deleteEvent` (DELETE). Single and bulk delete flows call `getComparisonsByEventIds` (POST /api/comparisons/by-events) to warn when comparisons will be removed. List loads when page/filters change (effect); stale responses are ignored via a load generation counter.
@@ -462,20 +548,24 @@ sequenceDiagram
 frontend/src/
 ├── lib/
 │   ├── api/
+│   │   ├── client.ts          # apiFetch (credentials, 401 handling)
 │   │   ├── events.ts          # getEvents, getActivityRows, getEvent, getStreams, uploadFile, deleteEvent, getActivityTypes, getDevices, updateActivity
 │   │   ├── comparisons.ts    # getComparisonCandidates, getComparisons, getComparison, getComparisonsByEventIds, createComparison, deleteComparison
 │   │   └── index.ts          # Re-exports
+│   ├── stores/
+│   │   └── auth.ts            # currentUser, checkAuth, logout; consumed by App.svelte
 │   ├── types/
 │   │   ├── event.ts          # EventSummary, EventDetail, Activity, ActivityRow, StreamData, UploadResponse, Comparison, ComparisonSettings
 │   │   └── index.ts
 │   ├── utils/                # format-date, activity-icons, stream-config, geo, activity-device, stat-*, chart-utils, dashboard-table-formatters
 │   └── components/           # RouteMap, StatCard, TimeSeriesChart, OverlayChart, ComparisonChart, SearchableSelect, Dashboard*, event-detail/*, comparison/*
 ├── routes/
-│   ├── dashboard.svelte      # List + upload + bulk actions
+│   ├── login.svelte           # Sign in with Google / GitHub (redirect to API)
+│   ├── dashboard.svelte       # List + upload + bulk actions
 │   ├── event-detail.svelte   # Event header, stats, map, stream charts
-│   ├── comparisons.svelte   # Saved comparisons list
+│   ├── comparisons.svelte     # Saved comparisons list
 │   └── comparison-view.svelte # Compare N events (charts, map, stats)
-├── App.svelte                # Layout, sidebar, router
+├── App.svelte                 # Layout, sidebar, router, auth guard, user menu
 └── main.ts                   # Entry point
 ```
 
@@ -535,11 +625,14 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 
 ## Security Considerations
 
-- **CORS**: Enabled for all origins in dev (should be restricted in production)
-- **File Upload**: Limited to supported formats (TCX, FIT, GPX, JSON, SML)
-- **SQL Injection**: Uses parameterized queries via mysql2
-- **Authentication**: Not yet implemented (single-user mode)
-- **File Size**: No explicit limits (relies on Express defaults)
+- **Authentication**: OAuth (Google, GitHub) with server-side session cookies. Session is HttpOnly, Secure in production, SameSite=Lax. No tokens in localStorage; XSS cannot steal session. CSRF mitigated by SameSite and JSON APIs.
+- **Authorization**: Every request to data endpoints is scoped by `req.userId`; repositories filter by `user_id`. Access by ID returns 404 when resource is not owned (no 403 to avoid leaking existence).
+- **CORS**: Restricted to configured origin in production; dev may allow localhost. Same-origin deployment (frontend and API on one domain) is recommended so cookies work without CORS.
+- **Rate limiting**: Applied to auth routes (login initiation and callbacks), uploads, and global API to limit abuse.
+- **Secure headers**: Helmet middleware (CSP, HSTS, X-Content-Type-Options, etc.). CSP allows self, inline styles (Tailwind), and HTTPS images (OAuth avatars).
+- **File upload**: Limited to supported formats (TCX, FIT, GPX, JSON, SML); multer file size limit (e.g. 50 MB). Files parsed and discarded.
+- **SQL injection**: Parameterized queries via mysql2.
+- **Secrets**: SESSION_SECRET required (no default); OAuth client ID/secret and callback URL from environment. No secrets in logs.
 
 ## Performance Considerations
 
@@ -551,9 +644,8 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 
 ## Future Enhancements
 
-- Authentication and multi-user support
+- Account linking (link multiple OAuth providers to one user)
 - Advanced analytics and correlation analysis
 - Additional file format support
-- Export functionality
 - Mobile app support
 - Real-time data sync from fitness trackers

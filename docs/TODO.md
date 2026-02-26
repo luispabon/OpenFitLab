@@ -140,12 +140,12 @@ This document lists features from the PRD that are not yet implemented. Features
 **Status:** Future  
 **Priority:** Low
 
+- [x] **Authentication and multi-user support** — Implemented: OAuth (Google, GitHub), server-side sessions, user-scoped data, account export and deletion. See [implementation_plans/authentication.md](../implementation_plans/authentication.md).
 - [ ] Additional file formats support
-- [ ] Authentication and multi-user support
 - [ ] Mobile app
 - [ ] Real-time sync from fitness trackers
 - [ ] Advanced analytics and insights
-- [ ] Export data capability (mentioned in PRD section 4.4)
+- [x] Export data capability — Implemented: `GET /api/account/export` (PRD section 4.4)
 - [ ] Graph export as images (mentioned in 3.3)
 - [ ] WCAG accessibility compliance (mentioned in 5.3)
 

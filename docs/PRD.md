@@ -225,8 +225,8 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ### 4.1 Deployment Model
 - **Self-hosted**: Docker Compose deployment
-- **Single-user**: No authentication required (for MVP)
-- **Data ownership**: User owns all data
+- **Multi-user**: Authentication required. OAuth (Google, GitHub) with server-side session cookies. Each user's data is isolated; no admin roles.
+- **Data ownership**: User owns all data; export and account deletion available.
 
 ### 4.2 Technology Stack
 
@@ -252,7 +252,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - File upload: Support files up to 50MB
 - Database queries: < 500ms for event list
 - Graph rendering: < 2s for 10,000 data points
-- Concurrent users: Support 1-5 concurrent users (single-user focus)
+- Concurrent users: Support multiple concurrent users; data scoped per authenticated user
 
 ### 4.4 Data Requirements
 - Store all activity data relationally
@@ -261,10 +261,10 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Export data capability (future)
 
 ### 4.5 Security Requirements
-- No authentication required (MVP)
+- Authentication required: OAuth (Google, GitHub) with server-side sessions; all data endpoints protected and user-scoped
 - SQL injection prevention (parameterized queries)
 - File upload validation (format checking)
-- CORS configuration for production
+- CORS configuration for production; rate limiting on auth and uploads
 
 ---
 
@@ -274,23 +274,25 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ```
 1. User starts application (docker compose up)
-2. User navigates to dashboard
-3. User uploads activity file
-4. System parses file and stores data
-5. User views activity in dashboard
-6. User clicks activity to view details
-7. User sees graphs and statistics
-8. User selects activities to compare
-9. User views comparison graphs
-10. User analyzes correlations
+2. User signs in via Google or GitHub (OAuth) on the login page
+3. User navigates to dashboard
+4. User uploads activity file
+5. System parses file and stores data
+6. User views activity in dashboard
+7. User clicks activity to view details
+8. User sees graphs and statistics
+9. User selects activities to compare
+10. User views comparison graphs
+11. User analyzes correlations
 ```
 
 ### 5.2 Key Screens
 
-1. **Dashboard**: List of all activities
-2. **Upload**: File upload interface
-3. **Activity Detail**: Single activity view with graphs
-4. **Comparison View**: Side-by-side activity comparison
+1. **Login**: Sign in with Google or GitHub (OAuth); no username/password
+2. **Dashboard**: List of all activities
+3. **Upload**: File upload interface
+4. **Activity Detail**: Single activity view with graphs
+5. **Comparison View**: Side-by-side activity comparison
 5. **Analysis View**: Correlation and statistical analysis
 
 ### 5.3 Design Principles
@@ -344,8 +346,8 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - [ ] Tracker quality metrics
 
 ### Phase 5: Enhancements
+- [x] Authentication and multi-user support (OAuth + session; user-scoped data; account export and deletion)
 - [ ] Additional file formats
-- [ ] Authentication and multi-user support
 - [ ] Mobile app
 - [ ] Real-time sync from fitness trackers
 - [ ] Advanced analytics and insights
@@ -356,7 +358,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ### 8.1 Constraints
 - Self-hosted deployment only
-- Single-user mode (no authentication in MVP)
+- Multi-user with authentication required (OAuth; no username/password)
 - Limited to supported file formats
 - No cloud dependencies
 
@@ -370,8 +372,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Mobile app
 - Real-time data sync
 - Social features
-- Cloud hosting
-- Multi-user authentication
+- Cloud hosting (optional; see docs/HOSTING.md)
 - Advanced machine learning analytics
 
 ---
