@@ -142,7 +142,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **GET /api/auth/me** - Return current user `{ id, displayName, avatarUrl }` or 401
 - **POST /api/auth/logout** - Destroy session, clear cookie
 - **GET /api/account/export** - Export all user data as JSON (query `?includeStreams=true` optional)
-- **DELETE /api/account** - Delete user account and all data
+- **DELETE /api/account** - Delete the current user's account and all data; clears session; 204 on success, 404 if user not found
 
 **Data endpoints (all require auth; scoped by user):**
 - **GET /api/events** - List events (simple list; only current user's events)
@@ -306,6 +306,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 ## Frontend API surface
 
 - **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Handles 401 by clearing auth state so user is shown login page.
+- **`frontend/src/lib/api/account.ts`**: `deleteAccount()` for DELETE /api/account. Used by account.svelte. Uses apiFetch.
 - **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
 - **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates, getComparisonsByEventIds), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison). Uses apiFetch.
 - **`frontend/src/lib/stores/auth.ts`**: Auth state (currentUser, authChecked, authLoading, checkAuth, logout). Consumed by App.svelte for route guard and user menu.
@@ -325,6 +326,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 | Frontend routes/pages | `frontend/src/routes/` |
 | Frontend list data (dashboard) | `frontend/src/lib/api/events.ts` (getActivityRows), `frontend/src/routes/dashboard.svelte` |
 | Frontend comparison flow | `frontend/src/routes/comparison-view.svelte`, `frontend/src/lib/api/comparisons.ts` |
+| Account / delete account | `frontend/src/routes/account.svelte`, `frontend/src/lib/api/account.ts` |
 | Route map (GPS) | `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts` |
 | File parsing | `backend/src/parsers/file-parser.js` |
 | Stream extraction | `backend/src/utils/stream-extractor.js` |

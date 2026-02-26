@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { push } from 'svelte-spa-router';
   import { logout } from '../stores/auth';
   const props = $props<{
     displayName: string | null;
@@ -30,13 +31,14 @@
   {#if !props.collapsed}
     <div class="min-w-0 flex-1">
       <div class="truncate text-sm text-text-primary">{props.displayName ?? 'User'}</div>
-      <button
-        class="mt-1 text-xs text-accent hover:underline"
-        onclick={() => logout()}
-        type="button"
-      >
-        Logout
-      </button>
+      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0 text-xs">
+        <button class="text-accent hover:underline" onclick={() => push('/account')} type="button">
+          Account
+        </button>
+        <button class="text-accent hover:underline" onclick={() => logout()} type="button">
+          Logout
+        </button>
+      </div>
     </div>
   {/if}
 </div>

@@ -4,6 +4,7 @@
   import EventDetail from './routes/event-detail.svelte';
   import Comparisons from './routes/comparisons.svelte';
   import ComparisonView from './routes/comparison-view.svelte';
+  import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import UserMenu from './lib/components/user-menu.svelte';
@@ -14,6 +15,7 @@
     '/event/:id': EventDetail,
     '/comparisons': Comparisons,
     '/compare/:id': ComparisonView,
+    '/account': Account,
     '*': Dashboard,
   };
 
