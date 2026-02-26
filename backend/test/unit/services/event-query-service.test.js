@@ -203,7 +203,7 @@ describe('getActivityRows', () => {
             { id: 'e2', start_date: 2000, name: 'E2', end_date: null, description: null, is_merge: 0, src_file_type: null },
           ];
         }
-        if (sql.includes('activities WHERE id IN')) {
+        if (sql.includes('activities a WHERE a.id IN')) {
           return [
             { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', event_start_date: 1000, device_name: null },
             { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', event_start_date: 2000, device_name: null },

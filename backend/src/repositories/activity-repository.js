@@ -62,7 +62,7 @@ async function findByIdAndEventId(activityId, eventId, opts = {}) {
 
 async function findManyByIds(ids, opts = {}) {
   if (!ids.length) return [];
-  const sql = `SELECT ${ACTIVITY_COLUMNS} FROM activities WHERE id IN (${placeholders(ids.length)})`;
+  const sql = `SELECT ${ACTIVITY_COLUMNS} FROM activities a WHERE a.id IN (${placeholders(ids.length)})`;
   const rows = await runQuery(sql, ids, opts);
   return Array.isArray(rows) ? rows : [];
 }
