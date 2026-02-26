@@ -306,7 +306,7 @@ Link table between comparisons and events (many-to-many).
 - **Account linking:** When a user signs in with a provider they have not used before, if their **verified** email matches an existing identity's email, the new identity is linked to that user so they have one account with multiple sign-in methods. Linking uses verified email only (Google: `email_verified`; GitHub: from profile or `GET /user/emails`). No separate "link account" UI.
 - **Session:** express-session with MySQL store; cookie name `ofl.sid`; HttpOnly, Secure in production, SameSite=Lax; 7-day max age. Session holds `userId`.
 - **Current user:** `GET /api/auth/me` returns `{ id, displayName, avatarUrl }` or 401. `POST /api/auth/logout` destroys the session.
-- **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the user and all their data (cascades).
+- **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the current user's account and all their data (cascades), clears the session cookie; 204 on success, 404 if user not found.
 - **Protected routes:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session. Unauthenticated requests receive 401. All data is scoped by the authenticated user; ownership is enforced (e.g. `WHERE user_id = ?`), and 404 is returned when a resource by ID is not found or not owned.
 
 ### REST Endpoints (data; all require auth and are user-scoped)
