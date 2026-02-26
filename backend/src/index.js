@@ -1,8 +1,13 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const { requireAuth } = require('./middleware/require-auth');
+const { apiLimiter, authLimiter, callbackLimiter } = require('./middleware/rate-limit');
+const authRouter = require('./routes/auth');
+const accountRouter = require('./routes/account');
 const eventsRouter = require('./routes/events');
 const comparisonsRouter = require('./routes/comparisons');
 const metaRouter = require('./routes/meta');
@@ -11,9 +16,36 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 
-app.use(cors({ origin: true }));
+// Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline for dev if needed
+        styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind needs inline styles
+        imgSrc: ["'self'", 'data:', 'https:'], // OAuth avatars
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        frameSrc: ["'none'"],
+      },
+    },
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+
+// CORS lockdown - only enable credentials for trusted origins in production
+const corsOrigin =
+  process.env.NODE_ENV === 'production' ? process.env.ALLOWED_ORIGINS?.split(',') || false : true; // In dev, allow all for convenience
+
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
+// Global rate limit
+app.use('/api', apiLimiter);
+
+// Public routes (no session needed)
 app.get('/', (req, res) => {
   res.json({ ok: true });
 });
@@ -26,10 +58,6 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ ok: false, error: 'Database connection failed' });
   }
 });
-
-app.use('/api/events', eventsRouter);
-app.use('/api/comparisons', comparisonsRouter);
-app.use('/api', metaRouter);
 
 // Central error handler for async routes
 app.use((err, req, res, next) => {
@@ -52,6 +80,29 @@ async function start() {
       : path.join(__dirname, '..', 'uploads');
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
+
+  // Session + Passport (needs DB pool for session store)
+  const { createSessionMiddleware } = require('./middleware/session');
+  const { configurePassport } = require('./middleware/passport');
+  const pool = await db.getPool();
+  app.use(createSessionMiddleware(pool));
+  const passport = configurePassport();
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Auth routes (public — session middleware is applied above)
+  app.use('/api/auth/google', authLimiter);
+  app.use('/api/auth/github', authLimiter);
+  app.use('/api/auth/google/callback', callbackLimiter);
+  app.use('/api/auth/github/callback', callbackLimiter);
+  app.use('/api/auth', authRouter);
+
+  // Protected routes (require auth)
+  app.use('/api/events', requireAuth, eventsRouter);
+  app.use('/api/comparisons', requireAuth, comparisonsRouter);
+  app.use('/api/account', requireAuth, accountRouter);
+  app.use('/api', requireAuth, metaRouter);
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`API listening on http://0.0.0.0:${PORT}`);
   });

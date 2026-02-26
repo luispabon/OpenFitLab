@@ -12,7 +12,7 @@ describe('meta-service', () => {
           { type: 'Swimming' },
         ],
       };
-      const result = await getActivityTypes({ db });
+      const result = await getActivityTypes({ db, userId: 'u1' });
       deepStrictEqual(result, ['Running', 'Cycling', 'Swimming']);
     });
 
@@ -25,13 +25,13 @@ describe('meta-service', () => {
           { type: 'Cycling' },
         ],
       };
-      const result = await getActivityTypes({ db });
+      const result = await getActivityTypes({ db, userId: 'u1' });
       deepStrictEqual(result, ['Running', 'Cycling']);
     });
 
     it('returns empty array when no rows', async () => {
       const db = { query: async () => [] };
-      const result = await getActivityTypes({ db });
+      const result = await getActivityTypes({ db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
   });
@@ -44,13 +44,13 @@ describe('meta-service', () => {
           { device_name: 'Wahoo' },
         ],
       };
-      const result = await getDevices({ db });
+      const result = await getDevices({ db, userId: 'u1' });
       deepStrictEqual(result, ['Garmin', 'Wahoo']);
     });
 
     it('returns empty array when no rows', async () => {
       const db = { query: async () => [] };
-      const result = await getDevices({ db });
+      const result = await getDevices({ db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
   });

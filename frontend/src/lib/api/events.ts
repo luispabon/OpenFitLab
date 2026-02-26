@@ -8,6 +8,7 @@ import type {
 } from '../types/event';
 
 const API_BASE = '/api';
+import { apiFetch } from './client';
 
 export interface GetEventsParams {
   startDate?: number;
@@ -26,7 +27,7 @@ export async function getEvents(params?: GetEventsParams): Promise<EventSummary[
   searchParams.set('limit', String(params?.limit ?? 50));
 
   const url = `${API_BASE}/events?${searchParams.toString()}`;
-  const response = await fetch(url);
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch events: ${response.statusText}`);
@@ -64,7 +65,7 @@ export async function getActivityRows(
   }
 
   const url = `${API_BASE}/events/activity-rows?${searchParams.toString()}`;
-  const response = await fetch(url);
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch activity rows: ${response.statusText}`);
@@ -74,7 +75,7 @@ export async function getActivityRows(
 }
 
 export async function getEvent(id: string): Promise<EventDetail> {
-  const response = await fetch(`${API_BASE}/events/${id}`);
+  const response = await apiFetch(`${API_BASE}/events/${id}`);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -87,7 +88,7 @@ export async function getEvent(id: string): Promise<EventDetail> {
 }
 
 export async function getActivityTypes(): Promise<string[]> {
-  const response = await fetch(`${API_BASE}/activity-types`);
+  const response = await apiFetch(`${API_BASE}/activity-types`);
   if (!response.ok) {
     throw new Error(`Failed to fetch activity types: ${response.statusText}`);
   }
@@ -95,7 +96,7 @@ export async function getActivityTypes(): Promise<string[]> {
 }
 
 export async function getDevices(): Promise<string[]> {
-  const response = await fetch(`${API_BASE}/devices`);
+  const response = await apiFetch(`${API_BASE}/devices`);
   if (!response.ok) {
     throw new Error(`Failed to fetch devices: ${response.statusText}`);
   }
@@ -107,7 +108,7 @@ export async function updateActivity(
   activityId: string,
   updates: { type?: string; deviceName?: string }
 ): Promise<Activity> {
-  const response = await fetch(`${API_BASE}/events/${eventId}/activities/${activityId}`, {
+  const response = await apiFetch(`${API_BASE}/events/${eventId}/activities/${activityId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -135,7 +136,7 @@ export async function getStreams(
   const url = `${API_BASE}/events/${eventId}/activities/${activityId}/streams${
     searchParams.toString() ? `?${searchParams.toString()}` : ''
   }`;
-  const response = await fetch(url);
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch streams: ${response.statusText}`);
@@ -196,12 +197,13 @@ export async function uploadFile(
 
     // Start the request
     xhr.open('POST', `${API_BASE}/events`);
+    xhr.withCredentials = true;
     xhr.send(formData);
   });
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
-  const response = await fetch(`${API_BASE}/events/${id}`, {
+  const response = await apiFetch(`${API_BASE}/events/${id}`, {
     method: 'DELETE',
   });
 

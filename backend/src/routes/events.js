@@ -11,8 +11,8 @@ const { processUpload } = require('../services/event-upload-service');
 const { deleteEventById } = require('../services/event-delete-service');
 const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
-
 const { asyncHandler } = require('../middleware/async-handler');
+const { uploadLimiter } = require('../middleware/rate-limit');
 
 const router = express.Router();
 
@@ -34,11 +34,14 @@ router.get(
   '/',
   validateGetEventsQuery,
   asyncHandler(async (req, res) => {
-    const events = await listEvents({
-      startDate: req.query.startDate != null ? Number(req.query.startDate) : undefined,
-      endDate: req.query.endDate != null ? Number(req.query.endDate) : undefined,
-      limit: req.query.limit,
-    });
+    const events = await listEvents(
+      {
+        startDate: req.query.startDate != null ? Number(req.query.startDate) : undefined,
+        endDate: req.query.endDate != null ? Number(req.query.endDate) : undefined,
+        limit: req.query.limit,
+      },
+      { userId: req.userId }
+    );
     res.json(events);
   })
 );
@@ -48,15 +51,18 @@ router.get(
   '/activity-rows',
   validateGetActivityRowsQuery,
   asyncHandler(async (req, res) => {
-    const result = await getActivityRows({
-      limit: req.query.limit,
-      offset: req.query.offset,
-      startDate: req.query.startDate != null ? Number(req.query.startDate) : undefined,
-      endDate: req.query.endDate != null ? Number(req.query.endDate) : undefined,
-      activityTypes: req.query.activityTypes,
-      devices: req.query.devices,
-      search: req.query.search,
-    });
+    const result = await getActivityRows(
+      {
+        limit: req.query.limit,
+        offset: req.query.offset,
+        startDate: req.query.startDate != null ? Number(req.query.startDate) : undefined,
+        endDate: req.query.endDate != null ? Number(req.query.endDate) : undefined,
+        activityTypes: req.query.activityTypes,
+        devices: req.query.devices,
+        search: req.query.search,
+      },
+      { userId: req.userId }
+    );
     res.json(result);
   })
 );
@@ -66,7 +72,7 @@ router.get(
   '/:id/candidates',
   validateEventId,
   asyncHandler(async (req, res) => {
-    const events = await getComparisonCandidates(req.params.id);
+    const events = await getComparisonCandidates(req.params.id, { userId: req.userId });
     if (events === null) return res.status(404).json({ error: 'Event not found' });
     res.json(events);
   })
@@ -77,7 +83,7 @@ router.get(
   '/:id',
   validateEventId,
   asyncHandler(async (req, res) => {
-    const result = await getEventById(req.params.id);
+    const result = await getEventById(req.params.id, { userId: req.userId });
     if (!result) return res.status(404).json({ error: 'Event not found' });
     res.json(result);
   })
@@ -86,6 +92,7 @@ router.get(
 // POST /api/events (multipart: files only)
 router.post(
   '/',
+  uploadLimiter,
   upload.array('files', 10),
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {
@@ -99,7 +106,8 @@ router.post(
     const { eventId, eventJson, activities } = await processUpload(
       primaryFile.buffer,
       extension,
-      primaryFile.originalname || 'file'
+      primaryFile.originalname || 'file',
+      { userId: req.userId }
     );
     res.status(201).json({ id: eventId, event: eventJson, activities });
   })
@@ -118,7 +126,9 @@ router.get(
         ? req.query.types
         : [req.query.types]
       : undefined;
-    const streams = await getStreamsForActivity(eventId, activityId, types ? { types } : {});
+    const streams = await getStreamsForActivity(eventId, activityId, types ? { types } : {}, {
+      userId: req.userId,
+    });
     res.json(streams);
   })
 );
@@ -139,7 +149,12 @@ router.patch(
       return res.status(400).json({ error: 'Provide at least one of type or deviceName' });
     }
 
-    const activity = await updateActivity(eventId, activityId, { type: typeUpdate, deviceName });
+    const activity = await updateActivity(
+      eventId,
+      activityId,
+      { type: typeUpdate, deviceName },
+      { userId: req.userId }
+    );
     if (!activity) return res.status(404).json({ error: 'Activity not found' });
     res.json(activity);
   })
@@ -150,7 +165,7 @@ router.delete(
   '/:id',
   validateEventId,
   asyncHandler(async (req, res) => {
-    const deleted = await deleteEventById(req.params.id);
+    const deleted = await deleteEventById(req.params.id, { userId: req.userId });
     if (!deleted) return res.status(404).json({ error: 'Event not found' });
     res.status(204).send();
   })

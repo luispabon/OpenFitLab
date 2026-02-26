@@ -11,13 +11,13 @@ const {
 describe('enrichEventsWithStatsAndActivities', () => {
   it('returns empty array for empty eventRows', async () => {
     const db = { query: async () => [] };
-    const result = await enrichEventsWithStatsAndActivities([], { db });
+    const result = await enrichEventsWithStatsAndActivities([], { db, userId: 'u1' });
     deepStrictEqual(result, []);
   });
 
   it('returns empty array for null eventRows', async () => {
     const db = { query: async () => [] };
-    const result = await enrichEventsWithStatsAndActivities(null, { db });
+    const result = await enrichEventsWithStatsAndActivities(null, { db, userId: 'u1' });
     deepStrictEqual(result, []);
   });
 
@@ -54,7 +54,7 @@ describe('enrichEventsWithStatsAndActivities', () => {
         return [];
       },
     };
-    const result = await enrichEventsWithStatsAndActivities(eventRows, { db });
+    const result = await enrichEventsWithStatsAndActivities(eventRows, { db, userId: 'u1' });
     strictEqual(result.length, 1);
     strictEqual(result[0].id, 'e1');
     strictEqual(result[0].startDate, 1000);
@@ -80,7 +80,7 @@ describe('enrichEventsWithStatsAndActivities', () => {
         return [];
       },
     };
-    const result = await enrichEventsWithStatsAndActivities(eventRows, { db });
+    const result = await enrichEventsWithStatsAndActivities(eventRows, { db, userId: 'u1' });
     strictEqual(result.length, 2);
     deepStrictEqual(result[0].stats, { Distance: 1000 });
     deepStrictEqual(result[1].stats, { Distance: 2000 });
@@ -92,7 +92,7 @@ describe('enrichEventsWithStatsAndActivities', () => {
 describe('getEventById', () => {
   it('returns null when event not found', async () => {
     const db = { query: async () => [] };
-    const result = await getEventById('missing', { db });
+    const result = await getEventById('missing', { db, userId: 'u1' });
     strictEqual(result, null);
   });
 
@@ -130,7 +130,7 @@ describe('getEventById', () => {
         return [];
       },
     };
-    const result = await getEventById('e1', { db });
+    const result = await getEventById('e1', { db, userId: 'u1' });
     strictEqual(result.event.id, 'e1');
     strictEqual(result.event.startDate, 1000);
     deepStrictEqual(result.event.stats, { Distance: 5000 });
@@ -143,7 +143,7 @@ describe('getEventById', () => {
 describe('listEvents', () => {
   it('returns empty array when no events', async () => {
     const db = { query: async () => [] };
-    const result = await listEvents({}, { db });
+    const result = await listEvents({}, { db, userId: 'u1' });
     deepStrictEqual(result, []);
   });
 
@@ -155,14 +155,14 @@ describe('listEvents', () => {
       query: async (sql, params) => {
         if (sql.includes('ORDER BY start_date DESC')) {
           strictEqual(params[params.length - 1], 50, 'default limit 50');
-          if (params[0] !== undefined) strictEqual(params[0], 1000, 'startDate filter');
-          if (params[1] !== undefined) strictEqual(params[1], 2000, 'endDate filter');
+          if (params[1] !== undefined) strictEqual(params[1], 1000, 'startDate filter');
+          if (params[2] !== undefined) strictEqual(params[2], 2000, 'endDate filter');
           return eventRows;
         }
         return [];
       },
     };
-    const result = await listEvents({ startDate: 1000, endDate: 2000 }, { db });
+    const result = await listEvents({ startDate: 1000, endDate: 2000 }, { db, userId: 'u1' });
     strictEqual(result.length, 1);
   });
 
@@ -176,14 +176,14 @@ describe('listEvents', () => {
         return [];
       },
     };
-    await listEvents({ limit: 999 }, { db });
+    await listEvents({ limit: 999 }, { db, userId: 'u1' });
   });
 });
 
 describe('getActivityRows', () => {
   it('returns empty rows and total 0 when no data', async () => {
     const db = { query: async (sql) => (sql.includes('COUNT') ? [{ total: 0 }] : []) };
-    const result = await getActivityRows({}, { db });
+    const result = await getActivityRows({}, { db, userId: 'u1' });
     deepStrictEqual(result, { rows: [], total: 0 });
   });
 
@@ -203,7 +203,7 @@ describe('getActivityRows', () => {
             { id: 'e2', start_date: 2000, name: 'E2', end_date: null, description: null, is_merge: 0, src_file_type: null },
           ];
         }
-        if (sql.includes('activities WHERE id IN')) {
+        if (sql.includes('activities a WHERE a.id IN')) {
           return [
             { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', event_start_date: 1000, device_name: null },
             { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', event_start_date: 2000, device_name: null },
@@ -214,7 +214,7 @@ describe('getActivityRows', () => {
         return [];
       },
     };
-    const result = await getActivityRows({ limit: 10, offset: 0 }, { db });
+    const result = await getActivityRows({ limit: 10, offset: 0 }, { db, userId: 'u1' });
     strictEqual(result.total, 2);
     strictEqual(result.rows.length, 2);
     strictEqual(result.rows[0].event.id, 'e1');
@@ -225,7 +225,7 @@ describe('getActivityRows', () => {
 describe('getComparisonCandidates', () => {
   it('returns null when source event not found', async () => {
     const db = { query: async () => [] };
-    const result = await getComparisonCandidates('missing', { db });
+    const result = await getComparisonCandidates('missing', { db, userId: 'u1' });
     strictEqual(result, null);
   });
 
@@ -237,7 +237,7 @@ describe('getComparisonCandidates', () => {
         return [];
       },
     };
-    const result = await getComparisonCandidates('e1', { db });
+    const result = await getComparisonCandidates('e1', { db, userId: 'u1' });
     deepStrictEqual(result, []);
   });
 
@@ -255,7 +255,7 @@ describe('getComparisonCandidates', () => {
         return [];
       },
     };
-    const result = await getComparisonCandidates('e1', { db });
+    const result = await getComparisonCandidates('e1', { db, userId: 'u1' });
     strictEqual(result.length, 1);
     strictEqual(result[0].id, 'e2');
     deepStrictEqual(result[0].stats, { Distance: 3000 });

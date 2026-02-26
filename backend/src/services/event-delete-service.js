@@ -16,6 +16,7 @@ const comparisonRepository = require('../repositories/comparison-repository');
  * @returns {Promise<boolean>} true if deleted, false if event not found
  */
 async function deleteEventById(eventId, opts = {}) {
+  if (!opts.userId) throw new Error('deleteEventById requires opts.userId');
   const db = opts.db ?? defaultDb;
 
   return db.transaction(async (conn) => {

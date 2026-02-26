@@ -34,7 +34,7 @@ describe('getEvents', () => {
 
     await getEvents();
 
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=50'));
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=50'), expect.any(Object));
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -84,7 +84,10 @@ describe('getActivityRows', () => {
     const result = await getActivityRows();
 
     expect(result).toEqual(payload);
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/events/activity-rows'));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/events/activity-rows'),
+      expect.any(Object)
+    );
   });
 
   it('appends activityTypes and devices to URL', async () => {
@@ -144,7 +147,7 @@ describe('getEvent', () => {
     const result = await getEvent('evt-1');
 
     expect(result).toEqual(eventDetailFixture);
-    expect(fetch).toHaveBeenCalledWith('/api/events/evt-1');
+    expect(fetch).toHaveBeenCalledWith('/api/events/evt-1', expect.any(Object));
   });
 
   it('throws "Event not found" on 404', async () => {
@@ -187,7 +190,7 @@ describe('getActivityTypes', () => {
 
     const result = await getActivityTypes();
     expect(result).toEqual(types);
-    expect(fetch).toHaveBeenCalledWith('/api/activity-types');
+    expect(fetch).toHaveBeenCalledWith('/api/activity-types', expect.any(Object));
   });
 
   it('throws on non-ok', async () => {
@@ -216,7 +219,7 @@ describe('getDevices', () => {
 
     const result = await getDevices();
     expect(result).toEqual(devices);
-    expect(fetch).toHaveBeenCalledWith('/api/devices');
+    expect(fetch).toHaveBeenCalledWith('/api/devices', expect.any(Object));
   });
 
   it('throws on non-ok', async () => {
@@ -316,7 +319,10 @@ describe('getStreams', () => {
 
     await getStreams('evt-1', 'act-1');
 
-    expect(fetch).toHaveBeenCalledWith('/api/events/evt-1/activities/act-1/streams');
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/evt-1/activities/act-1/streams',
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 
   it('appends types to URL when provided', async () => {
@@ -359,9 +365,10 @@ describe('deleteEvent', () => {
     const result = await deleteEvent('evt-1');
 
     expect(result).toBe(true);
-    expect(fetch).toHaveBeenCalledWith('/api/events/evt-1', {
-      method: 'DELETE',
-    });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/evt-1',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+    );
   });
 
   it('returns false on 404', async () => {

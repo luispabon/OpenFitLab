@@ -9,6 +9,7 @@ const { aggregateStats, mapEventRow, mapActivityRow } = require('../utils/transf
  */
 async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
   if (!eventRows || eventRows.length === 0) return [];
+  if (!opts.userId) throw new Error('enrichEventsWithStatsAndActivities requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
 
@@ -50,6 +51,7 @@ async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
  * @returns {Promise<{ event: object, activities: Array<object> } | null>}
  */
 async function getEventById(eventId, opts = {}) {
+  if (!opts.userId) throw new Error('getEventById requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const event = await eventRepository.findById(eventId, repoOpts);
@@ -78,17 +80,19 @@ async function getEventById(eventId, opts = {}) {
  * List events with optional date filter and limit.
  */
 async function listEvents(filters = {}, opts = {}) {
+  if (!opts.userId) throw new Error('listEvents requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const rows = await eventRepository.findMany(filters, repoOpts);
   if (rows.length === 0) return [];
-  return enrichEventsWithStatsAndActivities(rows, opts);
+  return enrichEventsWithStatsAndActivities(rows, repoOpts);
 }
 
 /**
  * Paginated activity rows with filters. Returns { rows: Array<{ event, activity }>, total }.
  */
 async function getActivityRows(params = {}, opts = {}) {
+  if (!opts.userId) throw new Error('getActivityRows requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const { pairRows, total } = await activityRepository.getActivityRowPairs(params, repoOpts);
@@ -128,6 +132,7 @@ async function getActivityRows(params = {}, opts = {}) {
  * Returns events that overlap in time with the given source event (for comparison candidates).
  */
 async function getComparisonCandidates(sourceEventId, opts = {}) {
+  if (!opts.userId) throw new Error('getComparisonCandidates requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const sourceEvent = await eventRepository.getDateRange(sourceEventId, repoOpts);

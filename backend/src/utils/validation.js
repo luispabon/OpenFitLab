@@ -198,6 +198,17 @@ function validateComparisonByEventsBody(req, res, next) {
   next();
 }
 
+/**
+ * Validates query parameters for GET /api/account/export
+ */
+function validateExportQuery(req, res, next) {
+  const { includeStreams } = req.query;
+  if (includeStreams != null && includeStreams !== 'true' && includeStreams !== 'false') {
+    return res.status(400).json({ error: 'includeStreams must be "true" or "false"' });
+  }
+  next();
+}
+
 module.exports = {
   validateGetEventsQuery,
   validateGetActivityRowsQuery,
@@ -207,4 +218,5 @@ module.exports = {
   validateComparisonId,
   validateComparisonBody,
   validateComparisonByEventsBody,
+  validateExportQuery,
 };

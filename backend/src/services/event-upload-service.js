@@ -11,6 +11,7 @@ const streamRepository = require('../repositories/stream-repository');
  * Parses an uploaded file and persists event, activities, stats, and streams to the DB.
  */
 async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
+  if (!opts.userId) throw new Error('processUpload requires opts.userId');
   const db = opts.db ?? defaultDb;
   const event = await FileParser.parseFile(fileBuffer, extension, originalFilename);
 

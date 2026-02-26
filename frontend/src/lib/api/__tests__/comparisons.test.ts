@@ -31,7 +31,10 @@ describe('getComparisonCandidates', () => {
     const result = await getComparisonCandidates('evt-1');
 
     expect(result).toEqual(candidates);
-    expect(fetch).toHaveBeenCalledWith('/api/events/evt-1/candidates');
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/evt-1/candidates',
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 
   it('throws "Event not found" on 404', async () => {
@@ -77,7 +80,10 @@ describe('getComparisons', () => {
     const result = await getComparisons();
 
     expect(result).toEqual(list);
-    expect(fetch).toHaveBeenCalledWith('/api/comparisons');
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/comparisons',
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 
   it('throws on non-ok', async () => {
@@ -106,7 +112,10 @@ describe('getComparison', () => {
     const result = await getComparison('cmp-1');
 
     expect(result).toEqual(comparisonFixture);
-    expect(fetch).toHaveBeenCalledWith('/api/comparisons/cmp-1');
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/comparisons/cmp-1',
+      expect.objectContaining({ credentials: 'include' })
+    );
   });
 
   it('throws "Comparison not found" on 404', async () => {
@@ -148,11 +157,15 @@ describe('getComparisonsByEventIds', () => {
     const result = await getComparisonsByEventIds(['evt-1', 'evt-2']);
 
     expect(result).toEqual(summaries);
-    expect(mockFetch).toHaveBeenCalledWith('/api/comparisons/by-events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventIds: ['evt-1', 'evt-2'] }),
-    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/comparisons/by-events',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventIds: ['evt-1', 'evt-2'] }),
+        credentials: 'include',
+      })
+    );
   });
 
   it('throws on non-ok response', async () => {
@@ -192,6 +205,7 @@ describe('createComparison', () => {
           eventIds: ['evt-1', 'evt-2'],
           settings: undefined,
         }),
+        credentials: 'include',
       })
     );
   });
@@ -254,9 +268,10 @@ describe('deleteComparison', () => {
     const result = await deleteComparison('cmp-1');
 
     expect(result).toBe(true);
-    expect(fetch).toHaveBeenCalledWith('/api/comparisons/cmp-1', {
-      method: 'DELETE',
-    });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/comparisons/cmp-1',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' })
+    );
   });
 
   it('returns false on 404', async () => {

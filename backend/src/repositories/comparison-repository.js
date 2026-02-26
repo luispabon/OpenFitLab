@@ -2,9 +2,10 @@ const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
 async function create(id, name, eventIds, settings, opts = {}) {
+  if (!opts.userId) throw new Error('create comparison requires opts.userId');
   await runQuery(
-    'INSERT INTO comparisons (id, name, settings) VALUES (?, ?, ?)',
-    [id, name, settings ? JSON.stringify(settings) : null],
+    'INSERT INTO comparisons (id, user_id, name, settings) VALUES (?, ?, ?, ?)',
+    [id, opts.userId, name, settings ? JSON.stringify(settings) : null],
     opts
   );
   for (const eventId of eventIds) {
@@ -17,9 +18,10 @@ async function create(id, name, eventIds, settings, opts = {}) {
 }
 
 async function findAll(limit, opts = {}) {
+  if (!opts.userId) throw new Error('findAll comparisons requires opts.userId');
   const rows = await runQuery(
-    'SELECT id, name, settings, created_at FROM comparisons ORDER BY created_at DESC LIMIT ?',
-    [limit],
+    'SELECT id, name, settings, created_at FROM comparisons WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+    [opts.userId, limit],
     opts
   );
   const comparisons = Array.isArray(rows) ? rows : [];
@@ -48,9 +50,10 @@ async function findAll(limit, opts = {}) {
 }
 
 async function findById(id, opts = {}) {
+  if (!opts.userId) throw new Error('findById comparison requires opts.userId');
   const rows = await runQuery(
-    'SELECT id, name, settings, created_at FROM comparisons WHERE id = ?',
-    [id],
+    'SELECT id, name, settings, created_at FROM comparisons WHERE id = ? AND user_id = ?',
+    [id, opts.userId],
     opts
   );
   const row = Array.isArray(rows) ? (rows[0] ?? null) : null;
@@ -71,30 +74,46 @@ async function findById(id, opts = {}) {
  */
 async function findByEventIds(eventIds, opts = {}) {
   if (!eventIds.length) return [];
+  if (!opts.userId) throw new Error('findByEventIds comparisons requires opts.userId');
   const rows = await runQuery(
     `SELECT DISTINCT c.id, c.name, c.created_at
      FROM comparisons c
      JOIN comparison_events ce ON ce.comparison_id = c.id
-     WHERE ce.event_id IN (${placeholders(eventIds.length)})`,
-    eventIds,
+     WHERE ce.event_id IN (${placeholders(eventIds.length)}) AND c.user_id = ?`,
+    [...eventIds, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];
 }
 
 async function existsById(id, opts = {}) {
-  const rows = await runQuery('SELECT id FROM comparisons WHERE id = ?', [id], opts);
+  if (!opts.userId) throw new Error('existsById comparison requires opts.userId');
+  const rows = await runQuery(
+    'SELECT id FROM comparisons WHERE id = ? AND user_id = ?',
+    [id, opts.userId],
+    opts
+  );
   return Array.isArray(rows) ? rows.length > 0 : false;
 }
 
 async function deleteById(id, opts = {}) {
-  const result = await runQuery('DELETE FROM comparisons WHERE id = ?', [id], opts);
+  if (!opts.userId) throw new Error('deleteById comparison requires opts.userId');
+  const result = await runQuery(
+    'DELETE FROM comparisons WHERE id = ? AND user_id = ?',
+    [id, opts.userId],
+    opts
+  );
   return result && result.affectedRows === 1;
 }
 
 async function deleteByIds(ids, opts = {}) {
   if (!ids.length) return;
-  await runQuery(`DELETE FROM comparisons WHERE id IN (${placeholders(ids.length)})`, ids, opts);
+  if (!opts.userId) throw new Error('deleteByIds comparison requires opts.userId');
+  await runQuery(
+    `DELETE FROM comparisons WHERE id IN (${placeholders(ids.length)}) AND user_id = ?`,
+    [...ids, opts.userId],
+    opts
+  );
 }
 
 module.exports = {

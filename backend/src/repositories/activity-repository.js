@@ -2,7 +2,7 @@ const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
 const ACTIVITY_COLUMNS =
-  'id, event_id, name, start_date, end_date, type, event_start_date, device_name';
+  'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.event_start_date, a.device_name';
 
 async function insertActivity(row, opts = {}) {
   const sql = `INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -35,18 +35,26 @@ async function insertActivityStats(activityId, stats, opts = {}) {
 }
 
 async function findByEventId(eventId, opts = {}) {
+  if (!opts.userId) throw new Error('findByEventId requires opts.userId');
   const rows = await runQuery(
-    `SELECT ${ACTIVITY_COLUMNS} FROM activities WHERE event_id = ?`,
-    [eventId],
+    `SELECT ${ACTIVITY_COLUMNS}
+     FROM activities a
+     JOIN events e ON e.id = a.event_id
+     WHERE a.event_id = ? AND e.user_id = ?`,
+    [eventId, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];
 }
 
 async function findByIdAndEventId(activityId, eventId, opts = {}) {
+  if (!opts.userId) throw new Error('findByIdAndEventId requires opts.userId');
   const rows = await runQuery(
-    `SELECT ${ACTIVITY_COLUMNS} FROM activities WHERE id = ? AND event_id = ?`,
-    [activityId, eventId],
+    `SELECT ${ACTIVITY_COLUMNS}
+     FROM activities a
+     JOIN events e ON e.id = a.event_id
+     WHERE a.id = ? AND a.event_id = ? AND e.user_id = ?`,
+    [activityId, eventId, opts.userId],
     opts
   );
   return Array.isArray(rows) ? (rows[0] ?? null) : null;
@@ -54,7 +62,7 @@ async function findByIdAndEventId(activityId, eventId, opts = {}) {
 
 async function findManyByIds(ids, opts = {}) {
   if (!ids.length) return [];
-  const sql = `SELECT ${ACTIVITY_COLUMNS} FROM activities WHERE id IN (${placeholders(ids.length)})`;
+  const sql = `SELECT ${ACTIVITY_COLUMNS} FROM activities a WHERE a.id IN (${placeholders(ids.length)})`;
   const rows = await runQuery(sql, ids, opts);
   return Array.isArray(rows) ? rows : [];
 }
@@ -76,22 +84,33 @@ async function updateDeviceName(activityId, eventId, deviceName, opts = {}) {
 }
 
 async function getTypesByEventId(eventId, opts = {}) {
-  const rows = await runQuery('SELECT type FROM activities WHERE event_id = ?', [eventId], opts);
+  if (!opts.userId) throw new Error('getTypesByEventId requires opts.userId');
+  const rows = await runQuery(
+    'SELECT a.type FROM activities a JOIN events e ON e.id = a.event_id WHERE a.event_id = ? AND e.user_id = ?',
+    [eventId, opts.userId],
+    opts
+  );
   const list = Array.isArray(rows) ? rows : [];
   return [...new Set(list.map((r) => r.type).filter(Boolean))].sort();
 }
 
 async function getStatsByActivityIds(activityIds, opts = {}) {
   if (!activityIds.length) return [];
-  const sql = `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`;
-  const rows = await runQuery(sql, activityIds, opts);
+  if (!opts.userId) throw new Error('getStatsByActivityIds requires opts.userId');
+  const sql = `SELECT ast.activity_id, ast.stat_type, ast.value
+               FROM activity_stats ast
+               JOIN activities a ON a.id = ast.activity_id
+               JOIN events e ON e.id = a.event_id
+               WHERE ast.activity_id IN (${placeholders(activityIds.length)}) AND e.user_id = ?`;
+  const rows = await runQuery(sql, [...activityIds, opts.userId], opts);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function getStatsByActivityId(activityId, opts = {}) {
+  if (!opts.userId) throw new Error('getStatsByActivityId requires opts.userId');
   const rows = await runQuery(
-    'SELECT stat_type, value FROM activity_stats WHERE activity_id = ?',
-    [activityId],
+    'SELECT ast.stat_type, ast.value FROM activity_stats ast JOIN activities a ON a.id = ast.activity_id JOIN events e ON e.id = a.event_id WHERE ast.activity_id = ? AND e.user_id = ?',
+    [activityId, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];
@@ -117,8 +136,8 @@ async function getActivityRowPairs(params, opts = {}) {
       : [];
   const searchRaw = params.search != null ? String(params.search).trim() : '';
 
-  let sql = 'FROM events e INNER JOIN activities a ON e.id = a.event_id WHERE 1=1';
-  const queryParams = [];
+  let sql = 'FROM events e INNER JOIN activities a ON e.id = a.event_id WHERE e.user_id = ?';
+  const queryParams = [opts.userId];
   if (startDate != null) {
     sql += ' AND COALESCE(a.start_date, e.start_date) >= ?';
     queryParams.push(startDate);
@@ -143,6 +162,7 @@ async function getActivityRowPairs(params, opts = {}) {
     queryParams.push(searchTerm, searchTerm, searchTerm);
   }
 
+  if (!opts.userId) throw new Error('getActivityRowPairs requires opts.userId');
   const countSql = `SELECT COUNT(*) AS total ${sql}`;
   const countResult = await runQuery(countSql, queryParams, opts);
   const total = Number(
@@ -158,18 +178,20 @@ async function getActivityRowPairs(params, opts = {}) {
 }
 
 async function getDistinctTypes(opts = {}) {
+  if (!opts.userId) throw new Error('getDistinctTypes requires opts.userId');
   const rows = await runQuery(
-    "SELECT DISTINCT type FROM activities WHERE type IS NOT NULL AND type != '' ORDER BY type",
-    [],
+    "SELECT DISTINCT a.type FROM activities a JOIN events e ON e.id = a.event_id WHERE a.type IS NOT NULL AND a.type != '' AND e.user_id = ? ORDER BY a.type",
+    [opts.userId],
     opts
   );
   return (Array.isArray(rows) ? rows : []).map((r) => r.type.trim()).filter(Boolean);
 }
 
 async function getDistinctDeviceNames(opts = {}) {
+  if (!opts.userId) throw new Error('getDistinctDeviceNames requires opts.userId');
   const rows = await runQuery(
-    "SELECT DISTINCT device_name FROM activities WHERE device_name IS NOT NULL AND device_name != '' ORDER BY device_name ASC",
-    [],
+    "SELECT DISTINCT a.device_name FROM activities a JOIN events e ON e.id = a.event_id WHERE a.device_name IS NOT NULL AND a.device_name != '' AND e.user_id = ? ORDER BY a.device_name ASC",
+    [opts.userId],
     opts
   );
   return (Array.isArray(rows) ? rows : []).map((r) => r.device_name);

@@ -4,11 +4,13 @@ const { placeholders } = require('../utils/transforms');
 const EVENT_COLUMNS = 'id, start_date, name, end_date, description, is_merge, src_file_type';
 
 async function insertEvent(row, opts = {}) {
-  const sql = `INSERT INTO events (id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+  if (!opts.userId) throw new Error('insertEvent requires opts.userId');
+  const sql = `INSERT INTO events (id, user_id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
   await runQuery(
     sql,
     [
       row.id,
+      opts.userId,
       row.start_date,
       row.name,
       row.end_date,
@@ -32,18 +34,29 @@ async function insertEventStats(eventId, stats, opts = {}) {
 }
 
 async function findById(id, opts = {}) {
-  const rows = await runQuery(`SELECT ${EVENT_COLUMNS} FROM events WHERE id = ?`, [id], opts);
+  if (!opts.userId) throw new Error('findById requires opts.userId');
+  const rows = await runQuery(
+    `SELECT ${EVENT_COLUMNS} FROM events WHERE id = ? AND user_id = ?`,
+    [id, opts.userId],
+    opts
+  );
   return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function getDateRange(id, opts = {}) {
-  const rows = await runQuery('SELECT start_date, end_date FROM events WHERE id = ?', [id], opts);
+  if (!opts.userId) throw new Error('getDateRange requires opts.userId');
+  const rows = await runQuery(
+    'SELECT start_date, end_date FROM events WHERE id = ? AND user_id = ?',
+    [id, opts.userId],
+    opts
+  );
   return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function findMany(filters, opts = {}) {
-  let sql = `SELECT ${EVENT_COLUMNS} FROM events WHERE 1=1`;
-  const params = [];
+  if (!opts.userId) throw new Error('findMany requires opts.userId');
+  let sql = `SELECT ${EVENT_COLUMNS} FROM events WHERE user_id = ?`;
+  const params = [opts.userId];
   if (filters.startDate != null) {
     sql += ' AND start_date >= ?';
     params.push(Number(filters.startDate));
@@ -60,36 +73,44 @@ async function findMany(filters, opts = {}) {
 
 async function findManyByIds(ids, opts = {}) {
   if (!ids.length) return [];
-  const sql = `SELECT ${EVENT_COLUMNS} FROM events WHERE id IN (${placeholders(ids.length)})`;
-  const rows = await runQuery(sql, ids, opts);
+  if (!opts.userId) throw new Error('findManyByIds requires opts.userId');
+  const sql = `SELECT ${EVENT_COLUMNS} FROM events WHERE id IN (${placeholders(ids.length)}) AND user_id = ?`;
+  const rows = await runQuery(sql, [...ids, opts.userId], opts);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function findOverlapping(excludeId, startDate, endDate, limit, opts = {}) {
+  if (!opts.userId) throw new Error('findOverlapping requires opts.userId');
   const sql = `
     SELECT ${EVENT_COLUMNS}
     FROM events
     WHERE id != ?
+      AND user_id = ?
       AND start_date <= ?
       AND COALESCE(end_date, start_date) >= ?
     ORDER BY start_date DESC
     LIMIT ?
   `;
-  const rows = await runQuery(sql, [excludeId, endDate, startDate, limit], opts);
+  const rows = await runQuery(sql, [excludeId, opts.userId, endDate, startDate, limit], opts);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function getStatsByEventIds(eventIds, opts = {}) {
   if (!eventIds.length) return [];
-  const sql = `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`;
-  const rows = await runQuery(sql, eventIds, opts);
+  if (!opts.userId) throw new Error('getStatsByEventIds requires opts.userId');
+  const sql = `SELECT es.event_id, es.stat_type, es.value
+               FROM event_stats es
+               JOIN events e ON e.id = es.event_id
+               WHERE es.event_id IN (${placeholders(eventIds.length)}) AND e.user_id = ?`;
+  const rows = await runQuery(sql, [...eventIds, opts.userId], opts);
   return Array.isArray(rows) ? rows : [];
 }
 
 async function getStatsByEventId(eventId, opts = {}) {
+  if (!opts.userId) throw new Error('getStatsByEventId requires opts.userId');
   const rows = await runQuery(
-    'SELECT stat_type, value FROM event_stats WHERE event_id = ?',
-    [eventId],
+    'SELECT es.stat_type, es.value FROM event_stats es JOIN events e ON e.id = es.event_id WHERE es.event_id = ? AND e.user_id = ?',
+    [eventId, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];
@@ -104,7 +125,12 @@ async function upsertEventStat(eventId, statType, value, opts = {}) {
 }
 
 async function deleteById(id, opts = {}) {
-  const result = await runQuery('DELETE FROM events WHERE id = ?', [id], opts);
+  if (!opts.userId) throw new Error('deleteById requires opts.userId');
+  const result = await runQuery(
+    'DELETE FROM events WHERE id = ? AND user_id = ?',
+    [id, opts.userId],
+    opts
+  );
   return result && result.affectedRows === 1;
 }
 

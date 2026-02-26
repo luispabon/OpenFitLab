@@ -21,7 +21,7 @@ router.post(
   validateComparisonBody,
   asyncHandler(async (req, res) => {
     const { name, eventIds, settings } = req.body;
-    const comparison = await createComparison(name, eventIds, settings);
+    const comparison = await createComparison(name, eventIds, settings, { userId: req.userId });
     res.status(201).json(comparison);
   })
 );
@@ -30,7 +30,7 @@ router.post(
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const comparisons = await getComparisons(100);
+    const comparisons = await getComparisons(100, { userId: req.userId });
     res.json(comparisons);
   })
 );
@@ -41,7 +41,7 @@ router.post(
   validateComparisonByEventsBody,
   asyncHandler(async (req, res) => {
     const { eventIds } = req.body;
-    const comparisons = await getComparisonsByEventIds(eventIds);
+    const comparisons = await getComparisonsByEventIds(eventIds, { userId: req.userId });
     res.json(comparisons);
   })
 );
@@ -51,7 +51,7 @@ router.get(
   '/:id',
   validateComparisonId,
   asyncHandler(async (req, res) => {
-    const comparison = await getComparisonById(req.params.id);
+    const comparison = await getComparisonById(req.params.id, { userId: req.userId });
     if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
     res.json(comparison);
   })
@@ -62,7 +62,7 @@ router.delete(
   '/:id',
   validateComparisonId,
   asyncHandler(async (req, res) => {
-    const deleted = await deleteComparisonById(req.params.id);
+    const deleted = await deleteComparisonById(req.params.id, { userId: req.userId });
     if (!deleted) return res.status(404).json({ error: 'Comparison not found' });
     res.status(204).send();
   })

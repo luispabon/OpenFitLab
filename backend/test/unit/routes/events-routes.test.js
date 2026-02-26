@@ -26,13 +26,14 @@ describe('Events route → service parameter mapping', () => {
       };
       const db = {
         query: async (sql, params) => {
-          strictEqual(params[0], 1000);
-          strictEqual(params[1], 2000);
-          strictEqual(params[2], 10);
+          strictEqual(params[0], 'u1');
+          strictEqual(params[1], 1000);
+          strictEqual(params[2], 2000);
+          strictEqual(params[3], 10);
           return [];
         },
       };
-      const result = await listEvents(filters, { db });
+      const result = await listEvents(filters, { db, userId: 'u1' });
       deepStrictEqual(result, []);
     });
   });
@@ -41,7 +42,7 @@ describe('Events route → service parameter mapping', () => {
     it('passes req.params.id to getEventById', async () => {
       const eventId = 'a1b2c3d4-e5f6-4789-a012-3456789abcde';
       const db = { queryOne: async () => null, query: async () => [] };
-      const result = await getEventById(eventId, { db });
+      const result = await getEventById(eventId, { db, userId: 'u1' });
       strictEqual(result, null);
     });
   });
@@ -67,7 +68,7 @@ describe('Events route → service parameter mapping', () => {
         search: query.search,
       };
       const db = { query: async (sql) => (sql.includes('COUNT') ? [{ total: 0 }] : []) };
-      const result = await getActivityRows(params, { db });
+      const result = await getActivityRows(params, { db, userId: 'u1' });
       deepStrictEqual(result, { rows: [], total: 0 });
     });
   });
@@ -75,7 +76,7 @@ describe('Events route → service parameter mapping', () => {
   describe('GET /:id/candidates (getComparisonCandidates)', () => {
     it('passes req.params.id to getComparisonCandidates', async () => {
       const db = { queryOne: async () => null, query: async () => [] };
-      const result = await getComparisonCandidates('event-uuid-here', { db });
+      const result = await getComparisonCandidates('event-uuid-here', { db, userId: 'u1' });
       strictEqual(result, null);
     });
   });
@@ -95,7 +96,7 @@ describe('Events route → service parameter mapping', () => {
         eventId,
         activityId,
         types ? { types } : {},
-        { db }
+        { db, userId: 'u1' }
       );
       deepStrictEqual(result, []);
     });
@@ -115,7 +116,7 @@ describe('Events route → service parameter mapping', () => {
         eventId,
         activityId,
         { type: body.type, deviceName: body.deviceName },
-        { db }
+        { db, userId: 'u1' }
       );
       strictEqual(result, null);
     });
@@ -139,7 +140,7 @@ describe('Events route → service parameter mapping', () => {
           return fn(fakeConn);
         },
       };
-      const result = await deleteEventById('event-uuid', { db });
+      const result = await deleteEventById('event-uuid', { db, userId: 'u1' });
       strictEqual(result, false);
     });
   });
