@@ -1,0 +1,11 @@
+---
+description: Do not use implementation_plans/ unless explicitly asked or generating for current task
+alwaysApply: true
+---
+
+# implementation_plans/ directory
+
+- **Do not** read, cite, or rely on documents under `implementation_plans/` unless:
+  - The user explicitly asks to use them (e.g. "use the auth implementation plan", "what does implementation_plans/authentication.md say?"), or
+  - The current task is to create or update an implementation plan (e.g. "draft an implementation plan for feature X").
+- That directory is gitignored and holds temporary working documents; they are not authoritative unless the user says otherwise.
