@@ -60,12 +60,18 @@ async function callLimiterNTimes(limiter, times, ip) {
     const res = makeRes();
     lastRes = res;
     await new Promise((resolve) => {
+      // Wire resolve into the response methods so we capture async blocks
+      const origJson = res.json.bind(res);
+      const origSend = res.send.bind(res);
+      const origEnd = res.end.bind(res);
+      res.json = (obj) => { origJson(obj); resolve(); return res; };
+      res.send = (obj) => { origSend(obj); resolve(); return res; };
+      res.end = () => { origEnd(); resolve(); return res; };
+
       limiter(req, res, () => {
         nextCount++;
         resolve();
       });
-      // If limiter blocked, it will have already set response synchronously
-      if (res.finished || res.statusCode === 429) resolve();
     });
   }
   return { nextCount, lastRes };
