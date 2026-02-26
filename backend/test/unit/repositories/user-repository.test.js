@@ -43,7 +43,8 @@ describe('user-repository', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('LOWER(TRIM(email))')) return [];
         if (sql.includes('FROM users WHERE')) {
           return [{ id: params[0], display_name: 'Bob', avatar_url: 'http://img', created_at: new Date(), updated_at: new Date() }];
         }
@@ -54,6 +55,7 @@ describe('user-repository', () => {
         displayName: 'Bob',
         avatarUrl: 'http://img',
         email: 'bob@example.com',
+        emailVerified: false,
         profileData: { raw: true },
       }, { db });
 
@@ -77,7 +79,7 @@ describe('user-repository', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM user_identities')) return [{ user_id: 'u-existing' }];
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [{ user_id: 'u-existing' }];
         if (sql.includes('UPDATE users')) return { affectedRows: 1 };
         if (sql.includes('FROM users WHERE')) {
           return [{ id: 'u-existing', display_name: 'Updated', avatar_url: 'http://new', created_at: new Date(), updated_at: new Date() }];
@@ -106,7 +108,8 @@ describe('user-repository', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('LOWER(TRIM(email))')) return [];
         if (sql.includes('FROM users WHERE')) {
           return [{ id: params[0], display_name: null, avatar_url: null, created_at: new Date(), updated_at: new Date() }];
         }
@@ -124,6 +127,111 @@ describe('user-repository', () => {
       const insertIdentity = queries.find((q) => q.sql.includes('INSERT INTO user_identities'));
       strictEqual(insertIdentity.params[4], null);
       strictEqual(insertIdentity.params[5], null);
+    });
+
+    it('links to existing user when verified email matches exactly one user', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('LOWER(TRIM(email))')) return [{ user_id: 'u-linked' }];
+        if (sql.includes('UPDATE users')) return { affectedRows: 1 };
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: 'u-linked', display_name: 'Linked', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('github', 'gh-new', {
+        displayName: 'Linked',
+        avatarUrl: null,
+        email: 'same@example.com',
+        emailVerified: true,
+        profileData: null,
+      }, { db });
+
+      strictEqual(result.created, false);
+      strictEqual(result.user.id, 'u-linked');
+
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      strictEqual(insertUser, undefined, 'should not insert a new user');
+
+      const insertIdentity = queries.find((q) => q.sql.includes('INSERT INTO user_identities'));
+      ok(insertIdentity, 'should insert new identity');
+      strictEqual(insertIdentity.params[1], 'u-linked');
+      strictEqual(insertIdentity.params[2], 'github');
+      strictEqual(insertIdentity.params[3], 'gh-new');
+      strictEqual(insertIdentity.params[4], 'same@example.com');
+    });
+
+    it('creates new user when verified email matches zero users', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('LOWER(TRIM(email))')) return [];
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: params[0], display_name: 'New', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('github', 'gh-other', {
+        displayName: 'New',
+        email: 'new@example.com',
+        emailVerified: true,
+      }, { db });
+
+      strictEqual(result.created, true);
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      ok(insertUser, 'should insert new user');
+      const insertIdentity = queries.find((q) => q.sql.includes('INSERT INTO user_identities'));
+      ok(insertIdentity, 'should insert new identity');
+    });
+
+    it('creates new user when email is present but not verified', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: params[0], display_name: 'Unverified', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('github', 'gh-unverified', {
+        displayName: 'Unverified',
+        email: 'unverified@example.com',
+        emailVerified: false,
+      }, { db });
+
+      strictEqual(result.created, true);
+      const emailLookup = queries.find((q) => q.sql.includes('LOWER(TRIM(email))'));
+      strictEqual(emailLookup, undefined, 'should not lookup by email when not verified');
+    });
+
+    it('creates new user when verified email matches more than one user', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('provider = ?') && sql.includes('provider_user_id = ?')) return [];
+        if (sql.includes('LOWER(TRIM(email))')) return [{ user_id: 'u1' }, { user_id: 'u2' }];
+        if (sql.includes('FROM users WHERE')) {
+          return [{ id: params[0], display_name: 'New', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await findOrCreateByIdentity('github', 'gh-dup', {
+        displayName: 'New',
+        email: 'shared@example.com',
+        emailVerified: true,
+      }, { db });
+
+      strictEqual(result.created, true);
+      const insertUser = queries.find((q) => q.sql.includes('INSERT INTO users'));
+      ok(insertUser, 'should create new user instead of linking');
     });
   });
 

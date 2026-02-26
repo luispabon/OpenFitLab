@@ -225,7 +225,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ### 4.1 Deployment Model
 - **Self-hosted**: Docker Compose deployment
-- **Multi-user**: Authentication required. OAuth (Google, GitHub) with server-side session cookies. Each user's data is isolated; no admin roles.
+- **Multi-user**: Authentication required. OAuth (Google, GitHub) with server-side session cookies. Each user's data is isolated; no admin roles. If a user signs in with both Google and GitHub using the same verified email, they receive one account (automatic account linking).
 - **Data ownership**: User owns all data; export and account deletion available.
 
 ### 4.2 Technology Stack
@@ -346,7 +346,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - [ ] Tracker quality metrics
 
 ### Phase 5: Enhancements
-- [x] Authentication and multi-user support (OAuth + session; user-scoped data; account export and deletion)
+- [x] Authentication and multi-user support (OAuth + session; user-scoped data; account export and deletion; account linking by verified email)
 - [ ] Additional file formats
 - [ ] Mobile app
 - [ ] Real-time sync from fitness trackers

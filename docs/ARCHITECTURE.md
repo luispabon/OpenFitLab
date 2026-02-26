@@ -303,6 +303,7 @@ Link table between comparisons and events (many-to-many).
 ### Authentication and session
 
 - **OAuth:** Google and GitHub. Initiate via `GET /api/auth/google` or `GET /api/auth/github` (redirect to provider). Callbacks at `GET /api/auth/google/callback` and `GET /api/auth/github/callback` create or find the user, create a session, and redirect to the SPA.
+- **Account linking:** When a user signs in with a provider they have not used before, if their **verified** email matches an existing identity's email, the new identity is linked to that user so they have one account with multiple sign-in methods. Linking uses verified email only (Google: `email_verified`; GitHub: from profile or `GET /user/emails`). No separate "link account" UI.
 - **Session:** express-session with MySQL store; cookie name `ofl.sid`; HttpOnly, Secure in production, SameSite=Lax; 7-day max age. Session holds `userId`.
 - **Current user:** `GET /api/auth/me` returns `{ id, displayName, avatarUrl }` or 401. `POST /api/auth/logout` destroys the session.
 - **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the user and all their data (cascades).
@@ -644,7 +645,7 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 
 ## Future Enhancements
 
-- Account linking (link multiple OAuth providers to one user)
+- Account linking (automatic by verified email) — implemented; see **Authentication and session** above.
 - Advanced analytics and correlation analysis
 - Additional file format support
 - Mobile app support
