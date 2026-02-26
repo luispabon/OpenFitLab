@@ -9,7 +9,7 @@ vi.mock('../../lib/api', () => ({
   getActivityRows: (...args: unknown[]) => mockGetActivityRows(...args),
   getActivityTypes: vi.fn(() => Promise.resolve([])),
   getDevices: vi.fn(() => Promise.resolve([])),
-  uploadFile: vi.fn(),
+  uploadFiles: vi.fn(() => Promise.resolve({ results: [] })),
   deleteEvent: vi.fn(),
 }));
 

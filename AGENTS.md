@@ -172,7 +172,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Body: `{ type?: string, deviceName?: string }` (at least one required)
   - Returns: Updated activity object; 404 if not found
 
-- **POST /api/events** - Upload and parse file
+- **POST /api/events** - Upload and parse files (1–10 per request); response `{ results: [...] }` per file
   - Content-Type: `multipart/form-data`
   - Body: `files` (one or more files: TCX, FIT, GPX, JSON, SML)
   - Backend parses file, extracts event/activities/streams, stores in database
@@ -307,7 +307,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 
 - **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Handles 401 by clearing auth state so user is shown login page.
 - **`frontend/src/lib/api/account.ts`**: `deleteAccount()` for DELETE /api/account. Used by account.svelte. Uses apiFetch.
-- **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
+- **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFiles, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
 - **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates, getComparisonsByEventIds), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison). Uses apiFetch.
 - **`frontend/src/lib/stores/auth.ts`**: Auth state (currentUser, authChecked, authLoading, checkAuth, logout). Consumed by App.svelte for route guard and user menu.
 - Types: `frontend/src/lib/types/event.ts` (and re-exported from `lib/types/index.ts`).

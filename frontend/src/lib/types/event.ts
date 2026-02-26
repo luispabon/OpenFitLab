@@ -40,10 +40,24 @@ export interface StreamData {
   }>;
 }
 
-export interface UploadResponse {
+export interface BatchUploadResultSuccess {
+  success: true;
+  filename: string;
   id: string;
   event: EventSummary;
   activities: Activity[];
+}
+
+export interface BatchUploadResultFailure {
+  success: false;
+  filename: string;
+  error: string;
+}
+
+export type BatchUploadResult = BatchUploadResultSuccess | BatchUploadResultFailure;
+
+export interface BatchUploadResponse {
+  results: BatchUploadResult[];
 }
 
 export interface ComparisonSettings {

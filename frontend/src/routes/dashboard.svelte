@@ -5,7 +5,7 @@
     getActivityRows,
     getActivityTypes,
     getDevices,
-    uploadFile,
+    uploadFiles,
     deleteEvent,
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
@@ -147,6 +147,8 @@
     loadActivityRows();
   }
 
+  const UPLOAD_CHUNK_SIZE = 10;
+
   async function handleFiles(fileList: File[]) {
     isUploading = true;
     totalFiles = fileList.length;
@@ -154,20 +156,23 @@
     let failed = 0;
 
     try {
-      for (let index = 0; index < fileList.length; index++) {
-        const file = fileList[index];
-        currentFileIndex = index;
-        currentFileName = file.name;
+      for (let i = 0; i < fileList.length; i += UPLOAD_CHUNK_SIZE) {
+        const chunk = fileList.slice(i, i + UPLOAD_CHUNK_SIZE);
+        currentFileIndex = i;
+        currentFileName = chunk[0]?.name ?? null;
         uploadProgress = 0;
 
         try {
-          await uploadFile(file, (progress) => {
+          const { results } = await uploadFiles(chunk, (progress) => {
             uploadProgress = progress;
           });
-          successful++;
+          for (const r of results) {
+            if (r.success) successful++;
+            else failed++;
+          }
         } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
-          failed++;
+          console.error(`Failed to upload batch:`, error);
+          failed += chunk.length;
         }
       }
 

@@ -89,7 +89,48 @@ router.get(
   })
 );
 
-// POST /api/events (multipart: files only)
+/**
+ * Build batch upload results for 1–10 files. Used by POST /api/events and by tests.
+ * @param {Array<{ buffer: Buffer, originalname?: string }>} files
+ * @param {string} userId
+ * @param {Function} processUploadFn - (buffer, extension, filename, opts) => Promise<{ eventId, eventJson, activities }>
+ * @returns {Promise<Array<{ success: boolean, filename: string, id?: string, event?: object, activities?: array, error?: string }>>}
+ */
+async function buildUploadResults(files, userId, processUploadFn) {
+  const results = [];
+  for (const file of files) {
+    const filename = file.originalname || 'file';
+    const extension = FileParser.getExtension(filename);
+    if (!extension) {
+      results.push({ success: false, filename, error: 'Unsupported file type' });
+      continue;
+    }
+    try {
+      const { eventId, eventJson, activities } = await processUploadFn(
+        file.buffer,
+        extension,
+        filename,
+        { userId }
+      );
+      results.push({
+        success: true,
+        filename,
+        id: eventId,
+        event: eventJson,
+        activities,
+      });
+    } catch (err) {
+      results.push({
+        success: false,
+        filename,
+        error: err.message || 'Failed to parse file',
+      });
+    }
+  }
+  return results;
+}
+
+// POST /api/events (multipart: 1–10 files; response always { results })
 router.post(
   '/',
   uploadLimiter,
@@ -98,18 +139,8 @@ router.post(
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'No files provided' });
     }
-    const primaryFile = req.files[0];
-    const extension = FileParser.getExtension(primaryFile.originalname || 'file');
-    if (!extension) {
-      return res.status(400).json({ error: 'Unable to determine file extension' });
-    }
-    const { eventId, eventJson, activities } = await processUpload(
-      primaryFile.buffer,
-      extension,
-      primaryFile.originalname || 'file',
-      { userId: req.userId }
-    );
-    res.status(201).json({ id: eventId, event: eventJson, activities });
+    const results = await buildUploadResults(req.files, req.userId, processUpload);
+    res.status(201).json({ results });
   })
 );
 
@@ -172,3 +203,4 @@ router.delete(
 );
 
 module.exports = router;
+module.exports.buildUploadResults = buildUploadResults;

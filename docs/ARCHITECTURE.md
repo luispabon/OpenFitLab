@@ -429,28 +429,22 @@ Update an activity's type or device name.
 **Response:** Updated activity object (same shape as in GET event). 400 if body is empty; 404 if event or activity not found.
 
 #### POST /api/events
-Upload and parse a file.
+Upload and parse multiple files (1–10 per request).
 
 **Request:**
 - Content-Type: `multipart/form-data`
-- Body: `files` (File or File[])
+- Body: `files` (1–10 files; field name `files`)
 
-**Response:**
-```json
-{
-  "id": "uuid",
-  "event": { ... },
-  "activities": [ ... ]
-}
-```
+**Response:** Always `{ results: BatchResult[] }` — one entry per file, in order. Each element is either:
+- Success: `{ success: true, filename: string, id: string, event: EventSummary, activities: Activity[] }`
+- Failure: `{ success: false, filename: string, error: string }`
 
-**Process:**
-1. Receive file upload
-2. Parse file using `@sports-alliance/sports-lib`
-3. Extract event, activities, and streams
-4. Store in database (events, activities, stats, streams, stream_data_points)
-5. Discard original file
-6. Return parsed data
+**Process (per file):**
+1. Resolve extension from filename; if unsupported, add `{ success: false, filename, error: "Unsupported file type" }` and continue.
+2. Parse file using `@sports-alliance/sports-lib`.
+3. Extract event, activities, and streams; store in database (events, activities, stats, streams, stream_data_points); discard original file.
+4. Add `{ success: true, filename, id, event, activities }` to results. On parse error, add `{ success: false, filename, error: message }`.
+5. Return `{ results }`.
 
 #### DELETE /api/events/:id
 Delete an event and all related data.
