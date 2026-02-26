@@ -101,4 +101,38 @@ describe('FileParser.parseFile', () => {
     ok(event.getActivities());
     strictEqual(event.getActivities().length >= 1, true);
   });
+
+  it('parses TCX with Lap missing StartTime (summary-only, e.g. Mi Fitness)', async () => {
+    const tcxPath = path.join(FIXTURES_DIR, 'lap-missing-start-time.tcx');
+    const buffer = fs.readFileSync(tcxPath);
+    const event = await FileParser.parseFile(buffer, 'tcx', 'lap-missing-start-time.tcx');
+    ok(event);
+    ok(event.getActivities());
+    strictEqual(event.getActivities().length, 1);
+    const activity = event.getActivities()[0];
+    ok(activity.startDate);
+    ok(activity.endDate);
+    strictEqual(!Number.isNaN(activity.startDate.getTime()), true);
+    strictEqual(!Number.isNaN(activity.endDate.getTime()), true);
+  });
+
+  it('throws clear error when TCX Lap has no StartTime and Activity has no valid Id', async () => {
+    const tcxNoId = `<?xml version="1.0"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="Running">
+      <Lap>
+        <TotalTimeSeconds>60</TotalTimeSeconds>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>`;
+    await require('node:assert').rejects(
+      async () =>
+        FileParser.parseFile(Buffer.from(tcxNoId, 'utf8'), 'tcx', 'no-id.tcx'),
+      (err) =>
+        err.message.includes('no-id.tcx') &&
+        err.message.includes('Lap missing StartTime')
+    );
+  });
 });
