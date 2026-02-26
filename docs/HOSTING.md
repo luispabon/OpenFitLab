@@ -83,11 +83,11 @@ The plans below use these no–load-balancer options as the default. Alternative
 Before going live on any cloud setup:
 
 1. **Environment variables / secrets**
-   - Backend: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Use the managed DB endpoint and credentials. Prefer secret stores (Secrets Manager, Parameter Store, Secret Manager) over plain env in production.
-   - Frontend: No change needed if you use same-origin `/api`; if you ever use a different API origin, add a build-time env (e.g. `VITE_API_BASE`) and use it in the API client.
+   - Backend: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Use the managed DB endpoint and credentials. **Authentication (required):** `SESSION_SECRET` (e.g. `openssl rand -hex 32`). **OAuth (at least one provider):** `OAUTH_CALLBACK_URL` (your public app URL, e.g. `https://your-domain.com`), and either `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` or `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`. Prefer secret stores (Secrets Manager, Parameter Store, Secret Manager) over plain env in production.
+   - Frontend: No change needed if you use same-origin `/api`; cookies (session) require same-origin or correct CORS + credentials. If you use a different API origin, add a build-time env (e.g. `VITE_API_BASE`) and ensure the API allows that origin and credentials.
 
-2. **CORS**
-   - Restrict CORS in the API to your frontend origin (e.g. `https://your-domain.com`). Do not allow `*` in production.
+2. **CORS and cookies**
+   - Restrict CORS in the API to your frontend origin (e.g. `https://your-domain.com`). Do not allow `*` in production. Session cookies require same-origin or a single domain serving both frontend and API (recommended) so `credentials: 'include'` works without extra CORS configuration.
 
 3. **HTTPS**
    - Use CloudFront (AWS) or Firebase Hosting / Cloud Run (GCP) with HTTPS. Custom domain: attach your certificate in the respective console.

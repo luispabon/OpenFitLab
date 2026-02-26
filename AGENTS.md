@@ -13,7 +13,7 @@ This file provides operational instructions for AI coding agents working in this
 
 2. **Access services:**
    - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
-   - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
+   - **Frontend:** http://localhost:4200 (Svelte/Vite dev server). **Authentication required:** unauthenticated users see the login page; sign in with Google or GitHub (OAuth must be configured in `.env`).
    - **Database:** MariaDB on `localhost:3306` (default user: `qs`, password: `qspass`, database: `openfitlab`)
    - **Adminer:** http://localhost:8080 (database admin UI)
 
@@ -31,7 +31,7 @@ This file provides operational instructions for AI coding agents working in this
   - Requires Node 24+ (from backend/package.json engines)
 
 - **Dependencies:**
-  - Main: `@sports-alliance/sports-lib`, `express`, `mysql2`, `multer`, `cors`, `xmldom`
+  - Main: `@sports-alliance/sports-lib`, `express`, `mysql2`, `multer`, `cors`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `express-mysql-session`, `helmet`, `express-rate-limit`
   - Install: `cd backend && npm install`
 
 - **Lint and test:**
@@ -83,12 +83,18 @@ On **push to main** and **pull_request** targeting main:
   - `docker-compose.yaml` - Docker Compose configuration
 
 - **Backend structure:**
-  - `backend/src/index.js` - Express app entry point
+  - `backend/src/index.js` - Express app entry point (session, passport, auth routes public; events/comparisons/meta/account behind requireAuth)
   - `backend/src/db.js` - Database connection and query helpers
-  - `backend/src/routes/events.js` - Events API routes
-  - `backend/src/routes/comparisons.js` - Comparisons API routes
-  - `backend/src/routes/meta.js` - Activity types and devices meta routes
-  - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service)
+  - `backend/src/routes/events.js` - Events API routes (require auth; scoped by user)
+  - `backend/src/routes/comparisons.js` - Comparisons API routes (require auth; scoped by user)
+  - `backend/src/routes/meta.js` - Activity types and devices meta routes (require auth; scoped by user)
+  - `backend/src/routes/auth.js` - Auth routes (OAuth init/callback, GET /api/auth/me, POST /api/auth/logout)
+  - `backend/src/routes/account.js` - Account routes (GET /api/account/export, DELETE /api/account)
+  - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service, account-service)
+  - `backend/src/repositories/user-repository.js` - User and identity CRUD; findOrCreateByIdentity for OAuth
+  - `backend/src/middleware/session.js` - express-session + MySQL store
+  - `backend/src/middleware/require-auth.js` - Require valid session; set req.userId
+  - `backend/src/middleware/passport.js` - Passport strategies (Google, GitHub)
   - `backend/src/parsers/file-parser.js` - File parsing (TCX, FIT, GPX, JSON, SML)
   - `backend/src/utils/stream-extractor.js` - Extract timestamped stream data points
   - `backend/src/utils/json-sanitizer.js` - Sanitize sports-lib JSON
@@ -98,30 +104,48 @@ On **push to main** and **pull_request** targeting main:
   - `frontend/src/lib/` - API modules, types, utils, reusable components
   - `frontend/src/lib/components/RouteMap.svelte` - GPS route map (MapLibre GL + OpenFreeMap dark tiles)
   - `frontend/src/lib/utils/geo.ts` - GeoJSON route builder from Latitude/Longitude or Position streams
-  - `frontend/src/routes/` - Page components (Dashboard, EventDetail)
-  - `frontend/src/App.svelte` - Layout shell and router
+  - `frontend/src/routes/` - Page components (Dashboard, EventDetail, login, comparisons, comparison-view)
+  - `frontend/src/lib/stores/auth.ts` - Auth state (currentUser, checkAuth); used by App.svelte for route guard
+  - `frontend/src/lib/api/client.ts` - apiFetch wrapper with credentials and 401 handling
+  - `frontend/src/App.svelte` - Layout shell, router, auth guard (login page when unauthenticated), user menu in sidebar
   - `frontend/vite.config.ts` - Vite and Tailwind configuration
   - `frontend/src/test/` - setup.ts, fixtures/ (event-detail, activity-rows, streams, comparisons)
   - Tests: `src/lib/api/__tests__/`, `src/lib/utils/__tests__/`, `src/lib/components/__tests__/`, `src/routes/__tests__/`
 
 - **Database schema:**
-  - `events` - Event metadata (id, start_date, name, end_date, description, is_merge, src_file_type, created_at)
+  - `users` - User profile (id UUID, display_name, avatar_url, created_at, updated_at). No email on users; email lives in user_identities.
+  - `user_identities` - OAuth identities (id, user_id, provider, provider_user_id, email, profile_data JSON). Unique (provider, provider_user_id). FK to users ON DELETE CASCADE.
+  - `sessions` - express-session store (session_id, expires, data). Managed by express-mysql-session.
+  - `events` - Event metadata (id, user_id, start_date, name, end_date, description, is_merge, src_file_type, created_at). FK to users ON DELETE CASCADE.
   - `event_stats` - Event-level statistics (event_id, stat_type, value JSON)
   - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, event_start_date, device_name, created_at)
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
   - `streams` - Stream metadata (id, activity_id, event_id, type)
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)
-  - `comparisons` - Saved comparison definitions (id, name, settings JSON, created_at). Event membership is in `comparison_events`.
+  - `comparisons` - Saved comparison definitions (id, user_id, name, settings JSON, created_at). Event membership is in `comparison_events`. FK to users ON DELETE CASCADE.
   - `comparison_events` - Link table (comparison_id, event_id) with FK to comparisons ON DELETE CASCADE and FK to events ON DELETE CASCADE. Event IDs for a comparison are stored here, not as JSON.
-  - Foreign keys with ON DELETE CASCADE: event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams; comparison_events → comparisons, events. Deleting an event removes its comparison_events rows; the event-delete-service also deletes any comparisons that referenced that event (in a transaction) so no orphan comparisons remain.
-  - Indexes: foreign keys, events.start_date, activities (event_id, type, device_name, start_date), stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms for stream fetch order), comparisons.created_at, comparison_events.event_id.
+  - Foreign keys with ON DELETE CASCADE: user_identities → users; event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams; comparison_events → comparisons, events; events → users; comparisons → users. Deleting a user cascades to identities, events (and their stats, activities, streams, stream_data_points), and comparisons (and comparison_events). Deleting an event: event-delete-service deletes comparisons that reference it (in a transaction), then deletes the event; CASCADE removes related rows.
+  - Indexes: foreign keys; users (id); user_identities (user_id, uk_provider_identity); sessions (expires); events (user_id, start_date, idx_user_start_date); activities (event_id, type, device_name, start_date); stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms); comparisons (user_id, created_at); comparison_events (event_id).
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
 ## API endpoints
 
 Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-- **GET /api/events** - List events (simple list)
+**Authentication:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session (cookie set after OAuth login). Unauthenticated requests return 401. Data is scoped to the authenticated user (`req.userId`).
+
+**Auth and account (public or session):**
+- **GET /api/auth/google** - Redirect to Google OAuth consent (no auth)
+- **GET /api/auth/google/callback** - Google OAuth callback → create/find user, set session, redirect to SPA (no auth)
+- **GET /api/auth/github** - Redirect to GitHub OAuth consent (no auth)
+- **GET /api/auth/github/callback** - GitHub OAuth callback (no auth)
+- **GET /api/auth/me** - Return current user `{ id, displayName, avatarUrl }` or 401
+- **POST /api/auth/logout** - Destroy session, clear cookie
+- **GET /api/account/export** - Export all user data as JSON (query `?includeStreams=true` optional)
+- **DELETE /api/account** - Delete user account and all data
+
+**Data endpoints (all require auth; scoped by user):**
+- **GET /api/events** - List events (simple list; only current user's events)
   - Query params: `startDate` (timestamp), `endDate` (timestamp), `limit` (default 50, max 200)
   - Returns: Array of event objects with `stats` object; optional `srcFileType` when present
   - Example: `GET /api/events?startDate=1771317000000&limit=10`
@@ -159,10 +183,10 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - In a transaction: deletes any comparisons that reference this event (via comparison_events), then deletes the event. Database ON DELETE CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_events rows.
   - Returns: 204 No Content or 404 Not Found
 
-- **GET /api/activity-types** - Distinct activity types (for filters/editors)
+- **GET /api/activity-types** - Distinct activity types from current user's activities (for filters/editors)
   - Returns: Array of strings
 
-- **GET /api/devices** - Distinct device names (for filters/editors)
+- **GET /api/devices** - Distinct device names from current user's activities (for filters/editors)
   - Returns: Array of strings
 
 - **GET /api/comparisons** - List saved comparisons
@@ -184,9 +208,11 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Key architectural decisions
 
+- **Authentication:** Backend-managed OAuth (Google, GitHub) with server-side session cookies (express-session, MySQL store). Session is HttpOnly, Secure in production, SameSite=Lax. No JWTs in localStorage. SPA calls `GET /api/auth/me` on load; all data endpoints require auth and are scoped by `req.userId`. Implementation plan: [implementation_plans/authentication.md](implementation_plans/authentication.md).
 - **File parsing on backend:** Files are uploaded raw, parsed server-side using `@sports-alliance/sports-lib`, then discarded. No file storage.
 - **Relational stats storage:** Event and activity statistics stored in separate tables (`event_stats`, `activity_stats`) with one row per stat type, not as JSON blobs.
 - **Timestamped stream data:** Stream data stored relationally in `stream_data_points` with `time_ms` (BIGINT UTC milliseconds) and `sequence_index` for ordering.
+- **Per-user data:** Only `events` and `comparisons` have `user_id`; all other data is owned via FK chain. Every query for events/comparisons (and meta derived from events) filters by `user_id`; IDOR prevention by returning 404 when resource is not owned.
 - **No migrations:** Schema runs on startup via `initializeSchema()`. Schema changes require recreating database.
 - **Self-hosted deployment:** Docker Compose is the deployment artifact. No cloud dependencies. Rationale in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -225,6 +251,8 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Break the relational stats structure (use `event_stats`/`activity_stats` tables, not JSON blobs)
   - Store comparison event membership as JSON; use the `comparison_events` link table
   - Modify stream data structure without updating `stream-extractor.js` and API endpoints
+  - Omit `user_id` (or `userId` in opts) from any query that reads or writes events or comparisons; every such query must scope by the authenticated user to prevent IDOR/data leak
+  - Trust `user_id` or resource ownership from request body or URL params; use only `req.userId` from requireAuth middleware
 
 - **Do:**
   - Use `db.initializeSchema()` to run schema on startup
@@ -235,6 +263,8 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Return stats nested under `stats` key in API responses
   - Handle JSON parsing for database JSON columns (may be objects or strings)
   - When deleting an event: delete comparisons that reference it first (event-delete-service does this in a transaction), then delete the event; CASCADE removes related rows (event_stats, activities, streams, comparison_events, etc.)
+  - Pass `userId` from `req.userId` into all services/repositories that list, create, or access events or comparisons; enforce ownership (e.g. `WHERE user_id = ?`) so users only see their own data
+  - Return 404 (not 403) when a resource by ID is not found or not owned, to avoid leaking existence
 
 - **Database changes:**
   - Schema runs on startup, so changes require recreating database
@@ -250,6 +280,10 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - `DB_PASSWORD` - Database password (default: qspass)
   - `DB_DATABASE` - Database name (default: openfitlab)
   - `UPLOAD_DIR` - Upload directory (default: `backend/uploads/`)
+  - `SESSION_SECRET` - **Required** for session signing. Generate with `openssl rand -hex 32`. No default; server refuses to start if missing or too short.
+  - `OAUTH_CALLBACK_URL` - Base URL for OAuth callbacks (e.g. `http://localhost:4200` in dev or `https://your-domain.com` in production). Used to build redirect_uri for providers.
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth (optional; if set, Google sign-in is enabled)
+  - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth (optional; if set, GitHub sign-in is enabled)
 
 - **Docker Compose:**
   - `MARIADB_ROOT_PASSWORD` - MariaDB root password (default: qsroot)
@@ -261,23 +295,29 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Run this checklist after each refactoring stage to confirm the app still works.
 
-1. **Upload a .FIT file via dashboard** → Verify event appears in the list.
-2. **Click event** → Verify detail page loads with stats + charts.
-3. **Navigate to comparisons** → Verify list loads.
-4. **DELETE an event** → Verify removal (event disappears from list).
-5. **Filter by activity type on dashboard** → Verify filtering works.
+1. **Open app** → Unauthenticated: login page; sign in with Google or GitHub → dashboard.
+2. **Upload a .FIT file via dashboard** → Verify event appears in the list.
+3. **Click event** → Verify detail page loads with stats + charts.
+4. **Navigate to comparisons** → Verify list loads.
+5. **DELETE an event** → Verify removal (event disappears from list).
+6. **Filter by activity type on dashboard** → Verify filtering works.
+7. **Multi-user isolation (optional):** Second browser/profile, sign in with different provider → empty dashboard; cannot see first user's events.
 
 ## Frontend API surface
 
-- **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams).
-- **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates in CompareCandidatesFlow, getComparisonsByEventIds in single/bulk delete flows for comparison warnings), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison).
+- **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Handles 401 by clearing auth state so user is shown login page.
+- **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFile, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
+- **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates, getComparisonsByEventIds), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison). Uses apiFetch.
+- **`frontend/src/lib/stores/auth.ts`**: Auth state (currentUser, authChecked, authLoading, checkAuth, logout). Consumed by App.svelte for route guard and user menu.
 - Types: `frontend/src/lib/types/event.ts` (and re-exported from `lib/types/index.ts`).
 
 ## When unsure (how to confirm unknowns; which files to read)
 
 | Topic | File(s) |
 |-------|---------|
-| API endpoints | `backend/src/routes/events.js`, `backend/src/routes/comparisons.js`, `backend/src/routes/meta.js`; full details [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| API endpoints | `backend/src/routes/events.js`, `backend/src/routes/comparisons.js`, `backend/src/routes/meta.js`, `backend/src/routes/auth.js`, `backend/src/routes/account.js`; full details [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Auth (backend) | `backend/src/routes/auth.js`, `backend/src/middleware/require-auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/passport.js`, `backend/src/repositories/user-repository.js` |
+| Auth (frontend) | `frontend/src/lib/stores/auth.ts`, `frontend/src/lib/api/client.ts`, `frontend/src/routes/login.svelte`, `frontend/src/App.svelte` |
 | Database schema | `backend/sql/schema.sql` |
 | Backend conventions | `backend/README.md`, `.cursor/rules/backend-architecture.mdc` |
 | Frontend conventions | `.cursor/rules/svelte-frontend.mdc` |
