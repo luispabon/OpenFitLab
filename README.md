@@ -19,7 +19,7 @@ graph TB
     API --> Parser[File Parser<br/>sports-lib]
     API --> DB[(MariaDB<br/>Port 3306)]
     Parser --> DB
-    
+
     subgraph "Data Flow"
         Upload[Upload File] --> Parse[Parse File]
         Parse --> Store[Store in DB]
@@ -97,11 +97,72 @@ Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxie
 
 ## Environment
 
-Copy `.env.example` to `.env` and adjust if needed. Defaults:
+Copy `.env.example` to `.env` and adjust if needed. Database defaults:
 
 - `MARIADB_ROOT_PASSWORD=qsroot`
 - `MARIADB_DATABASE=openfitlab`
 - `MARIADB_USER=qs`, `MARIADB_PASSWORD=qspass`
+
+Generate a session secret (required):
+
+```bash
+openssl rand -hex 32
+```
+
+Set the result as `SESSION_SECRET` in `.env`.
+
+### OAuth Provider Setup
+
+At least one OAuth provider must be configured for login to work. Both are optional — only the providers with credentials present in `.env` will appear on the login page.
+
+#### Google
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
+2. Create a project (or select an existing one).
+3. Click **Create Credentials** → **OAuth client ID**.
+4. Select **Web application** as the application type.
+5. Under **Authorized redirect URIs**, add:
+   - Local development: `http://localhost:3000/api/auth/google/callback`
+   - Production: `https://<your-domain>/api/auth/google/callback`
+6. Copy the **Client ID** and **Client Secret** into `.env`:
+
+```env
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+> [!TIP]
+> You may need to configure the **OAuth consent screen** first (user type, app name, scopes). The only scope required is `email` + `profile` (selected automatically by the app).
+
+#### GitHub
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers) → **OAuth Apps** → **New OAuth App**.
+2. Fill in the form:
+   - **Application name**: anything (e.g. `OpenFitLab`)
+   - **Homepage URL**: `http://localhost:4200` (or your production URL)
+   - **Authorization callback URL**:
+     - Local development: `http://localhost:3000/api/auth/github/callback`
+     - Production: `https://<your-domain>/api/auth/github/callback`
+3. Click **Register application**.
+4. On the app page, copy the **Client ID**. Click **Generate a new client secret** and copy it.
+5. Add both to `.env`:
+
+```env
+GITHUB_CLIENT_ID=your-client-id
+GITHUB_CLIENT_SECRET=your-client-secret
+```
+
+#### Callback Base URL
+
+Set `OAUTH_CALLBACK_URL` to the public base URL of your app (no trailing slash). This is used to construct the callback URLs above:
+
+```env
+# Local development (default)
+OAUTH_CALLBACK_URL=http://localhost:3000
+
+# Production example
+OAUTH_CALLBACK_URL=https://fit.example.com
+```
 
 ## Stop
 
