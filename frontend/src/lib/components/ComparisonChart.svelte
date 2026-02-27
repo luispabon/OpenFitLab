@@ -1,7 +1,10 @@
 <script lang="ts">
   import uPlot from 'uplot';
   import 'uplot/dist/uPlot.min.css';
-  import type { StreamData } from '../types';
+  import {
+    buildComparisonChartData,
+    type ComparisonChartEntry,
+  } from '../utils/comparison-chart-data';
   import { getStreamConfig } from '../utils/stream-config';
   import {
     formatElapsedTime,
@@ -13,16 +16,9 @@
     CHART_GRID_COLOR,
   } from '../utils/chart-utils';
 
-  interface ComparisonEntry {
-    eventName: string;
-    color: string;
-    data: StreamData;
-    activityStartDate: number;
-  }
-
   interface Props {
     streamType: string;
-    entries: ComparisonEntry[];
+    entries: ComparisonChartEntry[];
     xAxisMode: 'elapsed' | 'wall-clock';
   }
 
@@ -37,96 +33,7 @@
 
   const smoothPath = getSmoothPath();
 
-  // Build aligned data: merge X values from all events, create Y arrays per event
-  const chartData = $derived.by(() => {
-    const withPoints: { entry: ComparisonEntry; pts: { x: number; y: number }[] }[] = [];
-
-    for (const entry of entries) {
-      if (!entry.data?.data?.length) continue;
-      const pts: { x: number; y: number }[] = [];
-      for (const p of entry.data.data) {
-        const v = p.value;
-        if (typeof v !== 'number' || isNaN(v)) continue;
-
-        // X-axis: elapsed (relative) or wall-clock (absolute)
-        const x = xAxisMode === 'elapsed' ? Math.max(0, p.time - entry.activityStartDate) : p.time;
-
-        pts.push({ x, y: v });
-      }
-      if (pts.length > 0) withPoints.push({ entry, pts });
-    }
-
-    if (withPoints.length === 0) {
-      return { data: null as uPlot.AlignedData | null, xMin: 0, xMax: 0 };
-    }
-
-    // Merge all X values into sorted union
-    const xSet = new Set<number>();
-    for (const { pts } of withPoints) {
-      for (const p of pts) xSet.add(p.x);
-    }
-    const xSorted = Array.from(xSet).sort((a, b) => a - b);
-    if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0 };
-
-    // Create Y arrays: one per event, aligned to union X array
-    // Always use linear interpolation to fill gaps for smooth visualization
-    const yArrays: (number | null)[][] = [];
-
-    for (const { pts } of withPoints) {
-      if (pts.length === 0) {
-        yArrays.push(xSorted.map(() => null));
-        continue;
-      }
-
-      const byX = new Map(pts.map((p) => [p.x, p.y]));
-      const sortedPts = [...pts].sort((a, b) => a.x - b.x);
-
-      // Always interpolate to fill gaps - this ensures smooth curves even with sparse data
-      const interpolated: (number | null)[] = [];
-      for (const x of xSorted) {
-        const exact = byX.get(x);
-        if (exact !== undefined) {
-          interpolated.push(exact);
-        } else {
-          // Find surrounding points for interpolation
-          let leftIdx = -1;
-          let rightIdx = sortedPts.length;
-
-          for (let i = 0; i < sortedPts.length; i++) {
-            if (sortedPts[i].x < x) {
-              leftIdx = i;
-            } else if (sortedPts[i].x > x && rightIdx === sortedPts.length) {
-              rightIdx = i;
-              break;
-            }
-          }
-
-          if (leftIdx >= 0 && rightIdx < sortedPts.length) {
-            // Linear interpolation between surrounding points
-            const left = sortedPts[leftIdx];
-            const right = sortedPts[rightIdx];
-            const t = (x - left.x) / (right.x - left.x);
-            const interpolatedValue = left.y + t * (right.y - left.y);
-            interpolated.push(interpolatedValue);
-          } else if (leftIdx >= 0) {
-            // Extrapolate from last point (use last known value)
-            interpolated.push(sortedPts[leftIdx].y);
-          } else if (rightIdx < sortedPts.length) {
-            // Extrapolate from first point (use first known value)
-            interpolated.push(sortedPts[rightIdx].y);
-          } else {
-            interpolated.push(null);
-          }
-        }
-      }
-      yArrays.push(interpolated);
-    }
-
-    const data: uPlot.AlignedData = [xSorted, ...yArrays];
-    const xMin = xSorted[0];
-    const xMax = xSorted[xSorted.length - 1];
-    return { data, xMin, xMax };
-  });
+  const chartData = $derived.by(() => buildComparisonChartData(entries, xAxisMode));
 
   function resetZoom() {
     if (!chartInstance || !chartData.data) return;
