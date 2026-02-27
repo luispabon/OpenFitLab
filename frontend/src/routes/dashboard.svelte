@@ -158,7 +158,7 @@
     isUploading = true;
     totalFiles = fileList.length;
     let successful = 0;
-    let failed = 0;
+    const failedFilenames: string[] = [];
 
     try {
       for (let i = 0; i < fileList.length; i += UPLOAD_CHUNK_SIZE) {
@@ -183,11 +183,13 @@
           });
           for (const r of results) {
             if (r.success) successful++;
-            else failed++;
+            else failedFilenames.push(r.filename);
           }
         } catch (error) {
           console.error(`Failed to upload batch:`, error);
-          failed += chunk.length;
+          for (const file of chunk) {
+            failedFilenames.push(file.name);
+          }
         }
       }
 
@@ -195,8 +197,12 @@
         showToast(`Uploaded ${successful} file${successful > 1 ? 's' : ''} successfully`);
         await loadActivityRows();
       }
-      if (failed > 0) {
-        showToast(`Failed to upload ${failed} file${failed > 1 ? 's' : ''}`);
+      if (failedFilenames.length > 0) {
+        const sorted = [...failedFilenames].sort((a, b) => a.localeCompare(b));
+        const list = sorted.join(', ');
+        showToast(
+          `Failed to upload ${failedFilenames.length} file${failedFilenames.length > 1 ? 's' : ''}: ${list}`
+        );
       }
     } finally {
       isUploading = false;
