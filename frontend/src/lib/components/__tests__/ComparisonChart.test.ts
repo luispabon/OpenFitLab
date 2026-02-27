@@ -75,9 +75,7 @@ describe('ComparisonChart', () => {
       render(ComparisonChart, {
         props: {
           streamType: 'Heart Rate',
-          entries: [
-            entry(1000, [{ time: 1000, value: 80 }]),
-          ],
+          entries: [entry(1000, [{ time: 1000, value: 80 }])],
           xAxisMode: 'elapsed',
         },
       });

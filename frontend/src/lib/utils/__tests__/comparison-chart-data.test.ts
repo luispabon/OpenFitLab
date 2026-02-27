@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildComparisonChartData,
-  type ComparisonChartEntry,
-} from '../comparison-chart-data';
+import { buildComparisonChartData, type ComparisonChartEntry } from '../comparison-chart-data';
 
 function entry(
   activityStartDate: number,
@@ -28,10 +25,7 @@ describe('buildComparisonChartData', () => {
     });
 
     it('returns null data when all entries have no data points', () => {
-      const result = buildComparisonChartData(
-        [entry(1000, []), entry(2000, [])],
-        'elapsed'
-      );
+      const result = buildComparisonChartData([entry(1000, []), entry(2000, [])], 'elapsed');
       expect(result.data).toBeNull();
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
@@ -110,10 +104,7 @@ describe('buildComparisonChartData', () => {
   describe('elapsed mode with per-entry origin (current behavior)', () => {
     it('two entries with same start: first series starts at 0, second at 1000', () => {
       const result = buildComparisonChartData(
-        [
-          entry(1000, [{ time: 1000, value: 80 }]),
-          entry(1000, [{ time: 2000, value: 90 }]),
-        ],
+        [entry(1000, [{ time: 1000, value: 80 }]), entry(1000, [{ time: 2000, value: 90 }])],
         'elapsed'
       );
       expect(result.data).not.toBeNull();
