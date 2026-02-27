@@ -285,6 +285,9 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth (optional; if set, Google sign-in is enabled)
   - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth (optional; if set, GitHub sign-in is enabled)
 
+- **Frontend (Vite build-time; optional):**
+  - `VITE_UPLOAD_CHUNK_SIZE` - Files per upload batch (1–10; default 5). Backend accepts up to 10 per request.
+
 - **Docker Compose:**
   - `MARIADB_ROOT_PASSWORD` - MariaDB root password (default: qsroot)
   - `MARIADB_DATABASE` - Database name (default: openfitlab)

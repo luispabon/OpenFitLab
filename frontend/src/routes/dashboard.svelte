@@ -9,6 +9,7 @@
     deleteEvent,
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
+  import { getEnvNumber } from '../lib/utils/env';
   import {
     formatDurationCell,
     formatAvgHeartRateCell,
@@ -147,7 +148,11 @@
     loadActivityRows();
   }
 
-  const UPLOAD_CHUNK_SIZE = 10;
+  const UPLOAD_CHUNK_SIZE = getEnvNumber('VITE_UPLOAD_CHUNK_SIZE', {
+    default: 5,
+    min: 1,
+    max: 10,
+  });
 
   async function handleFiles(fileList: File[]) {
     isUploading = true;
@@ -160,11 +165,21 @@
         const chunk = fileList.slice(i, i + UPLOAD_CHUNK_SIZE);
         currentFileIndex = i;
         currentFileName = chunk[0]?.name ?? null;
-        uploadProgress = 0;
+        // Set progress to the start of this chunk (0% for first, ~24% for 11-20 of 42, etc.)
+        uploadProgress = totalFiles > 0 ? (i / totalFiles) * 100 : 0;
 
+        let firstProgressInChunk = true;
         try {
-          const { results } = await uploadFiles(chunk, (progress) => {
-            uploadProgress = progress;
+          const { results } = await uploadFiles(chunk, (chunkProgress) => {
+            // First event can fire with 100% (loaded===total) before bytes are sent; treat as 0
+            // so the bar stays at chunk-start% until upload actually progresses.
+            let effective = chunkProgress;
+            if (firstProgressInChunk) {
+              firstProgressInChunk = false;
+              if (chunkProgress > 0) effective = 0;
+            }
+            const completed = i + (effective / 100) * chunk.length;
+            uploadProgress = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
           });
           for (const r of results) {
             if (r.success) successful++;
@@ -310,6 +325,11 @@
     {#if isUploading}
       <UploadProgressBar
         currentFile={currentFileIndex + 1}
+        currentBatchEnd={
+          totalFiles > 0
+            ? currentFileIndex + Math.min(UPLOAD_CHUNK_SIZE, totalFiles - currentFileIndex)
+            : undefined
+        }
         {totalFiles}
         progress={uploadProgress}
         fileName={currentFileName || undefined}
