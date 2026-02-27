@@ -223,4 +223,64 @@ describe('buildComparisonChartData', () => {
       expect(y1[3]).toBe(200); // extrapolated from last
     });
   });
+
+  describe('Option A: elapsed common time origin', () => {
+    it('two entries with different starts: t0 is earliest start, series align by real time', () => {
+      const result = buildComparisonChartData(
+        [
+          entry(1000, [
+            { time: 1000, value: 80 },
+            { time: 2000, value: 120 },
+          ]),
+          entry(5000, [
+            { time: 5000, value: 90 },
+            { time: 6000, value: 100 },
+          ]),
+        ],
+        'elapsed'
+      );
+      expect(result.data).not.toBeNull();
+      const xs = (result.data as number[][])[0];
+      expect(xs).toEqual([0, 1000, 4000, 5000]);
+      // First series: first point at X=0, second at X=1000
+      expect((result.data as number[][])[1][0]).toBe(80);
+      expect((result.data as number[][])[1][1]).toBe(120);
+      // Second series: first point at X=4000 (5000-1000), second at X=5000
+      expect(xs[0]).toBe(0);
+      expect(xs[2]).toBe(4000);
+      expect(xs[3]).toBe(5000);
+      expect(result.xMin).toBe(0);
+      expect(result.xMax).toBe(5000);
+    });
+
+    it('three entries with different starts: t0 is earliest (500)', () => {
+      const result = buildComparisonChartData(
+        [
+          entry(1000, [{ time: 1000, value: 10 }]),
+          entry(2000, [{ time: 2000, value: 20 }]),
+          entry(500, [{ time: 500, value: 5 }]),
+        ],
+        'elapsed'
+      );
+      expect(result.data).not.toBeNull();
+      const xs = (result.data as number[][])[0];
+      // Entry 500 → 0; 1000 → 500; 2000 → 1500
+      expect(xs).toContain(0);
+      expect(xs).toContain(500);
+      expect(xs).toContain(1500);
+      expect(xs.sort((a, b) => a - b)).toEqual([0, 500, 1500]);
+    });
+
+    it('single entry: t0 equals that entry start (unchanged behavior)', () => {
+      const result = buildComparisonChartData(
+        [entry(1000, [{ time: 1000, value: 80 }])],
+        'elapsed'
+      );
+      expect(result.data).not.toBeNull();
+      expect((result.data as number[][])[0]).toEqual([0]);
+      expect((result.data as number[][])[1]).toEqual([80]);
+      expect(result.xMin).toBe(0);
+      expect(result.xMax).toBe(0);
+    });
+  });
 });

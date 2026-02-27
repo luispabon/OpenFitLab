@@ -33,6 +33,20 @@ export function buildComparisonChartData(
     return { data: null, xMin: 0, xMax: 0 };
   }
 
+  // Elapsed mode: use common time origin so all series align by real time
+  if (xAxisMode === 'elapsed') {
+    const t0 = Math.min(...withPoints.map((w) => w.entry.activityStartDate));
+    for (const w of withPoints) {
+      const newPts: { x: number; y: number }[] = [];
+      for (const p of w.entry.data.data) {
+        const v = p.value;
+        if (typeof v !== 'number' || isNaN(v)) continue;
+        newPts.push({ x: Math.max(0, p.time - t0), y: v });
+      }
+      w.pts = newPts;
+    }
+  }
+
   // Merge all X values into sorted union
   const xSet = new Set<number>();
   for (const { pts } of withPoints) {
