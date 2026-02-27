@@ -4,7 +4,7 @@
  * to lock in req → service parameter mapping. Validation is tested in validation.test.js.
  */
 const { describe, it } = require('node:test');
-const { strictEqual, deepStrictEqual } = require('node:assert/strict');
+const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const {
   listEvents,
   getEventById,
@@ -14,6 +14,12 @@ const {
 const { deleteEventById } = require('../../../src/services/event-delete-service');
 const { getStreamsForActivity } = require('../../../src/services/stream-service');
 const { updateActivity } = require('../../../src/services/activity-service');
+const { processUpload } = require('../../../src/services/event-upload-service');
+const { buildUploadResults } = require('../../../src/routes/events');
+const fs = require('fs');
+const path = require('path');
+
+const FIXTURES_DIR = path.join(__dirname, '..', '..', 'fixtures');
 
 describe('Events route → service parameter mapping', () => {
   describe('GET / (listEvents)', () => {
@@ -142,6 +148,63 @@ describe('Events route → service parameter mapping', () => {
       };
       const result = await deleteEventById('event-uuid', { db, userId: 'u1' });
       strictEqual(result, false);
+    });
+  });
+
+  describe('POST / (batch upload)', () => {
+    const fakeDb = {
+      transaction: async (fn) => fn({ execute: async () => [{}] }),
+    };
+    const processUploadWithFakeDb = (buffer, extension, filename, opts) =>
+      processUpload(buffer, extension, filename, { ...opts, db: fakeDb });
+
+    it('one file yields { results: [ one success item ] }', async () => {
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const buffer = fs.readFileSync(tcxPath);
+      const files = [{ buffer, originalname: 'minimal.tcx' }];
+      const results = await buildUploadResults(files, 'u1', processUploadWithFakeDb);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, true);
+      strictEqual(results[0].filename, 'minimal.tcx');
+      strictEqual(typeof results[0].id, 'string');
+      ok(results[0].event);
+      ok(Array.isArray(results[0].activities));
+    });
+
+    it('two files yield two success results', async () => {
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const buffer = fs.readFileSync(tcxPath);
+      const files = [
+        { buffer, originalname: 'first.tcx' },
+        { buffer, originalname: 'second.tcx' },
+      ];
+      const results = await buildUploadResults(files, 'u1', processUploadWithFakeDb);
+      strictEqual(results.length, 2);
+      strictEqual(results[0].success, true);
+      strictEqual(results[0].filename, 'first.tcx');
+      strictEqual(results[1].success, true);
+      strictEqual(results[1].filename, 'second.tcx');
+    });
+
+    it('unsupported extension yields success: false and error', async () => {
+      const files = [{ buffer: Buffer.from('x'), originalname: 'noext' }];
+      const results = await buildUploadResults(files, 'u1', processUploadWithFakeDb);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, false);
+      strictEqual(results[0].filename, 'noext');
+      strictEqual(results[0].error, 'Unsupported file type');
+    });
+
+    it('processUpload throw yields success: false with error message', async () => {
+      const failingProcessUpload = async () => {
+        throw new Error('Parse failed');
+      };
+      const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
+      const results = await buildUploadResults(files, 'u1', failingProcessUpload);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, false);
+      strictEqual(results[0].filename, 'a.tcx');
+      strictEqual(results[0].error, 'Parse failed');
     });
   });
 });

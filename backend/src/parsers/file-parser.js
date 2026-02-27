@@ -10,6 +10,7 @@ const {
 } = require('@sports-alliance/sports-lib');
 const JSONSanitizer = require('../utils/json-sanitizer');
 const { ParseError } = require('../errors');
+const { normalizeTcxLapStartTimes } = require('./tcx-normalizer');
 
 class FileParser {
   /**
@@ -52,6 +53,7 @@ class FileParser {
         if (ext === 'tcx') {
           const domParser = new DOMParser();
           const xmlDoc = domParser.parseFromString(text, 'application/xml');
+          normalizeTcxLapStartTimes(xmlDoc);
           event = await EventImporterTCX.getFromXML(xmlDoc, options);
         } else if (ext === 'gpx') {
           // GXParser expects the DOMParser constructor (it does new domParser() internally)

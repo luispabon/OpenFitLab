@@ -5,10 +5,11 @@
     getActivityRows,
     getActivityTypes,
     getDevices,
-    uploadFile,
+    uploadFiles,
     deleteEvent,
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
+  import { getEnvNumber } from '../lib/utils/env';
   import {
     formatDurationCell,
     formatAvgHeartRateCell,
@@ -147,27 +148,48 @@
     loadActivityRows();
   }
 
+  const UPLOAD_CHUNK_SIZE = getEnvNumber('VITE_UPLOAD_CHUNK_SIZE', {
+    default: 5,
+    min: 1,
+    max: 10,
+  });
+
   async function handleFiles(fileList: File[]) {
     isUploading = true;
     totalFiles = fileList.length;
     let successful = 0;
-    let failed = 0;
+    const failedFilenames: string[] = [];
 
     try {
-      for (let index = 0; index < fileList.length; index++) {
-        const file = fileList[index];
-        currentFileIndex = index;
-        currentFileName = file.name;
-        uploadProgress = 0;
+      for (let i = 0; i < fileList.length; i += UPLOAD_CHUNK_SIZE) {
+        const chunk = fileList.slice(i, i + UPLOAD_CHUNK_SIZE);
+        currentFileIndex = i;
+        currentFileName = chunk[0]?.name ?? null;
+        // Set progress to the start of this chunk (0% for first, ~24% for 11-20 of 42, etc.)
+        uploadProgress = totalFiles > 0 ? (i / totalFiles) * 100 : 0;
 
+        let firstProgressInChunk = true;
         try {
-          await uploadFile(file, (progress) => {
-            uploadProgress = progress;
+          const { results } = await uploadFiles(chunk, (chunkProgress) => {
+            // First event can fire with 100% (loaded===total) before bytes are sent; treat as 0
+            // so the bar stays at chunk-start% until upload actually progresses.
+            let effective = chunkProgress;
+            if (firstProgressInChunk) {
+              firstProgressInChunk = false;
+              if (chunkProgress > 0) effective = 0;
+            }
+            const completed = i + (effective / 100) * chunk.length;
+            uploadProgress = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
           });
-          successful++;
+          for (const r of results) {
+            if (r.success) successful++;
+            else failedFilenames.push(r.filename);
+          }
         } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
-          failed++;
+          console.error(`Failed to upload batch:`, error);
+          for (const file of chunk) {
+            failedFilenames.push(file.name);
+          }
         }
       }
 
@@ -175,8 +197,12 @@
         showToast(`Uploaded ${successful} file${successful > 1 ? 's' : ''} successfully`);
         await loadActivityRows();
       }
-      if (failed > 0) {
-        showToast(`Failed to upload ${failed} file${failed > 1 ? 's' : ''}`);
+      if (failedFilenames.length > 0) {
+        const sorted = [...failedFilenames].sort((a, b) => a.localeCompare(b));
+        const list = sorted.join(', ');
+        showToast(
+          `Failed to upload ${failedFilenames.length} file${failedFilenames.length > 1 ? 's' : ''}: ${list}`
+        );
       }
     } finally {
       isUploading = false;
@@ -305,6 +331,9 @@
     {#if isUploading}
       <UploadProgressBar
         currentFile={currentFileIndex + 1}
+        currentBatchEnd={totalFiles > 0
+          ? currentFileIndex + Math.min(UPLOAD_CHUNK_SIZE, totalFiles - currentFileIndex)
+          : undefined}
         {totalFiles}
         progress={uploadProgress}
         fileName={currentFileName || undefined}

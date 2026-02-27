@@ -2,7 +2,7 @@ import type {
   EventSummary,
   EventDetail,
   StreamData,
-  UploadResponse,
+  BatchUploadResponse,
   Activity,
   ActivityRow,
 } from '../types/event';
@@ -145,17 +145,18 @@ export async function getStreams(
   return response.json();
 }
 
-export async function uploadFile(
-  file: File,
+export async function uploadFiles(
+  files: File[],
   onProgress?: (progress: number) => void
-): Promise<UploadResponse> {
+): Promise<BatchUploadResponse> {
   const formData = new FormData();
-  formData.append('files', file);
+  for (const file of files) {
+    formData.append('files', file);
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
-    // Set up progress tracking
     xhr.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable && onProgress) {
         const progress = (event.loaded / event.total) * 100;
@@ -163,12 +164,10 @@ export async function uploadFile(
       }
     });
 
-    // Handle completion
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const response = JSON.parse(xhr.responseText);
-          // Ensure progress is set to 100% on success
+          const response = JSON.parse(xhr.responseText) as BatchUploadResponse;
           if (onProgress) {
             onProgress(100);
           }
@@ -178,15 +177,14 @@ export async function uploadFile(
         }
       } else {
         try {
-          const error = JSON.parse(xhr.responseText);
-          reject(new Error(error.error || `Failed to upload file: ${xhr.statusText}`));
+          const error = JSON.parse(xhr.responseText) as { error?: string };
+          reject(new Error(error.error || `Failed to upload: ${xhr.statusText}`));
         } catch {
-          reject(new Error(`Failed to upload file: ${xhr.statusText}`));
+          reject(new Error(`Failed to upload: ${xhr.statusText}`));
         }
       }
     });
 
-    // Handle errors
     xhr.addEventListener('error', () => {
       reject(new Error('Network error during upload'));
     });
@@ -195,7 +193,6 @@ export async function uploadFile(
       reject(new Error('Upload aborted'));
     });
 
-    // Start the request
     xhr.open('POST', `${API_BASE}/events`);
     xhr.withCredentials = true;
     xhr.send(formData);

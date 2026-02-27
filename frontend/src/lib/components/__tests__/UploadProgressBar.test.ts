@@ -71,4 +71,16 @@ describe('UploadProgressBar', () => {
     const progressbar = screen.getByRole('progressbar');
     expect(progressbar).toHaveAttribute('aria-valuenow', '42');
   });
+
+  it('shows file range when currentBatchEnd is provided and greater than currentFile', () => {
+    render(UploadProgressBar, {
+      props: {
+        currentFile: 1,
+        totalFiles: 25,
+        progress: 50,
+        currentBatchEnd: 10,
+      },
+    });
+    expect(screen.getByText(/1-10 of 25/)).toBeInTheDocument();
+  });
 });

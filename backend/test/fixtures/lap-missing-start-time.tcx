@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<TrainingCenterDatabase creator="Mi Fitness" version="1.0"
+    xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
+    <Activities>
+        <Activity Sport="Interval run (Basic)">
+            <Id>2025-12-04T15:36:04.000Z</Id>
+            <Calories>289</Calories>
+            <Lap>
+                <TotalTimeSeconds>1953</TotalTimeSeconds>
+                <Calories>217</Calories>
+                <HeartRateBpm>130</HeartRateBpm>
+                <Steps>3930</Steps>
+            </Lap>
+        </Activity>
+    </Activities>
+</TrainingCenterDatabase>
