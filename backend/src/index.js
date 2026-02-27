@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
 const { apiLimiter, authLimiter, callbackLimiter } = require('./middleware/rate-limit');
 const authRouter = require('./routes/auth');
@@ -13,8 +13,6 @@ const comparisonsRouter = require('./routes/comparisons');
 const metaRouter = require('./routes/meta');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 
 // Security headers
 app.use(
@@ -36,10 +34,7 @@ app.use(
 );
 
 // CORS lockdown - only enable credentials for trusted origins in production
-const corsOrigin =
-  process.env.NODE_ENV === 'production' ? process.env.ALLOWED_ORIGINS?.split(',') || false : true; // In dev, allow all for convenience
-
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors({ origin: config.server.corsAllowedOrigins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
 // Global rate limit
@@ -74,10 +69,7 @@ app.use((err, req, res, next) => {
 });
 
 async function start() {
-  const uploadDir =
-    typeof UPLOAD_DIR === 'string' && UPLOAD_DIR.trim().length > 0
-      ? UPLOAD_DIR.trim()
-      : path.join(__dirname, '..', 'uploads');
+  const uploadDir = config.server.uploadDir;
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
 
@@ -103,8 +95,8 @@ async function start() {
   app.use('/api/account', requireAuth, accountRouter);
   app.use('/api', requireAuth, metaRouter);
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`API listening on http://0.0.0.0:${PORT}`);
+  app.listen(config.server.port, '0.0.0.0', () => {
+    console.log(`API listening on http://0.0.0.0:${config.server.port}`);
   });
 }
 

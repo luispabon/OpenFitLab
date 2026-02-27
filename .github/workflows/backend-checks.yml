@@ -40,11 +40,16 @@ jobs:
 
       - name: Unit tests
         run: npm run test:unit
+        env:
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'
 
       - name: Unit tests (no deprecations)
         run: npm run test:unit
         env:
           NODE_OPTIONS: '--throw-deprecation'
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'
 
       - name: Coverage
         run: npm run test:coverage
+        env:
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'

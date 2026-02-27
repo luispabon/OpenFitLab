@@ -1,6 +1,7 @@
 const express = require('express');
 const passport = require('passport');
 const { asyncHandler } = require('../middleware/async-handler');
+const config = require('../config');
 
 const router = express.Router();
 
@@ -8,12 +9,8 @@ const router = express.Router();
  * Helper to check if an OAuth strategy is enabled
  */
 function isEnabled(strategy) {
-  if (strategy === 'google') {
-    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-  }
-  if (strategy === 'github') {
-    return !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
-  }
+  if (strategy === 'google') return config.oauth.google.enabled;
+  if (strategy === 'github') return config.oauth.github.enabled;
   return false;
 }
 
@@ -51,8 +48,7 @@ router.get(
     });
 
     // In development, redirect back to port 4200 if we started there
-    const redirectBase = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4200';
-    res.redirect(`${redirectBase}/#/?login=success`);
+    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
   })
 );
 
@@ -89,8 +85,7 @@ router.get(
       });
     });
 
-    const redirectBase = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4200';
-    res.redirect(`${redirectBase}/#/?login=success`);
+    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
   })
 );
 

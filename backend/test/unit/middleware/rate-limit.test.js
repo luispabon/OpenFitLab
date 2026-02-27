@@ -1,5 +1,10 @@
 const { describe, it, after } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
+
+// Config is loaded when rate-limit is required; SESSION_SECRET is required by config
+process.env.SESSION_SECRET =
+  process.env.SESSION_SECRET || 'a'.repeat(32);
+
 const {
   apiLimiter,
   authLimiter,

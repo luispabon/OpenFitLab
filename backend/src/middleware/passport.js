@@ -2,10 +2,11 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
 const userRepository = require('../repositories/user-repository');
+const config = require('../config');
 
 /**
  * Configures Passport with Google and GitHub OAuth strategies.
- * Strategies are only registered when the corresponding env vars are set.
+ * Strategies are only registered when the corresponding config is enabled.
  */
 function configurePassport() {
   passport.serializeUser((user, done) => {
@@ -21,14 +22,14 @@ function configurePassport() {
     }
   });
 
-  const callbackURL = process.env.OAUTH_CALLBACK_URL || 'http://localhost:3000';
+  const callbackURL = config.oauth.callbackUrl;
 
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  if (config.oauth.google.enabled) {
     passport.use(
       new GoogleStrategy(
         {
-          clientID: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          clientID: config.oauth.google.clientId,
+          clientSecret: config.oauth.google.clientSecret,
           callbackURL: `${callbackURL}/api/auth/google/callback`,
           scope: ['profile', 'email'],
         },
@@ -50,12 +51,12 @@ function configurePassport() {
     );
   }
 
-  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  if (config.oauth.github.enabled) {
     passport.use(
       new GitHubStrategy(
         {
-          clientID: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+          clientID: config.oauth.github.clientId,
+          clientSecret: config.oauth.github.clientSecret,
           callbackURL: `${callbackURL}/api/auth/github/callback`,
           scope: ['user:email'],
         },

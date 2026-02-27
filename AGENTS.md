@@ -273,7 +273,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Environment variables
 
-- **Backend:**
+- **Backend:** All backend environment variables are read only in [backend/src/config.js](backend/src/config.js); that file is the single source of truth for env names and defaults. Other backend code must use the config module, not `process.env`.
   - `PORT` - API port (default: 3000)
   - `DB_HOST` - Database host (default: localhost, or `db` in Docker)
   - `DB_USER` - Database user (default: qs)
@@ -284,6 +284,8 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - `OAUTH_CALLBACK_URL` - Base URL for OAuth callbacks (e.g. `http://localhost:4200` in dev or `https://your-domain.com` in production). Used to build redirect_uri for providers.
   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth (optional; if set, Google sign-in is enabled)
   - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth (optional; if set, GitHub sign-in is enabled)
+  - **Rate limiting (optional; all default if unset):** `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`; `AUTH_RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_WINDOW_MS`; `AUTH_CALLBACK_RATE_LIMIT_MAX`, `AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS`; `UPLOAD_RATE_LIMIT_MAX`, `UPLOAD_RATE_LIMIT_WINDOW_MS`. See config.js for defaults.
+  - **Production:** `NODE_ENV=production`, `ALLOWED_ORIGINS` (comma-separated list for CORS).
 
 - **Frontend (Vite build-time; optional):**
   - `VITE_UPLOAD_CHUNK_SIZE` - Files per upload batch (1–10; default 5). Backend accepts up to 10 per request.
@@ -333,6 +335,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 | Route map (GPS) | `frontend/src/lib/components/RouteMap.svelte`, `frontend/src/lib/utils/geo.ts` |
 | File parsing | `backend/src/parsers/file-parser.js` |
 | Stream extraction | `backend/src/utils/stream-extractor.js` |
+| Backend config (env) | `backend/src/config.js` — single place that reads process.env |
 | Database connection | `backend/src/db.js` |
 | Docker setup | `docker-compose.yaml` |
 | Package scripts | `backend/package.json`, `frontend/package.json` |
