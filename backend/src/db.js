@@ -1,15 +1,13 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const config = require('./config');
 
 let pool = null;
 
 function getConfig() {
   return {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'qs',
-    password: process.env.DB_PASSWORD || 'qspass',
-    database: process.env.DB_DATABASE || 'openfitlab',
+    ...config.db,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,

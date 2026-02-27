@@ -12,10 +12,10 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --check \"src/**/*.js\"",
     "format:fix": "prettier --write \"src/**/*.js\"",
-    "test": "node --test",
-    "test:unit": "node --test 'test/unit/**/*.test.js'",
-    "test:coverage": "node --experimental-test-coverage --test 'test/unit/**/*.test.js'",
-    "test:coverage:lcov": "mkdir -p coverage && node --experimental-test-coverage --test 'test/unit/**/*.test.js' --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
+    "test": "SESSION_SECRET=test-secret-at-least-32-characters-long node --test",
+    "test:unit": "SESSION_SECRET=test-secret-at-least-32-characters-long node --test 'test/unit/**/*.test.js'",
+    "test:coverage": "SESSION_SECRET=test-secret-at-least-32-characters-long node --experimental-test-coverage --test 'test/unit/**/*.test.js'",
+    "test:coverage:lcov": "mkdir -p coverage && SESSION_SECRET=test-secret-at-least-32-characters-long node --experimental-test-coverage --test 'test/unit/**/*.test.js' --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
     "@sports-alliance/sports-lib": "^6.1.14",

@@ -1,5 +1,6 @@
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
+const config = require('../config');
 
 /**
  * Creates the session middleware backed by the existing MariaDB pool.
@@ -7,11 +8,6 @@ const MySQLStore = require('express-mysql-session')(session);
  * @returns {function} Express session middleware
  */
 function createSessionMiddleware(pool) {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error('SESSION_SECRET must be set and at least 32 characters');
-  }
-
   const store = new MySQLStore(
     {
       createDatabaseTable: false,
@@ -28,14 +24,14 @@ function createSessionMiddleware(pool) {
   );
 
   return session({
-    secret,
+    secret: config.session.secret,
     store,
     resave: false,
     saveUninitialized: false,
     name: 'ofl.sid',
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: config.session.cookieSecure,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
