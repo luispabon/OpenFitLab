@@ -331,11 +331,9 @@
     {#if isUploading}
       <UploadProgressBar
         currentFile={currentFileIndex + 1}
-        currentBatchEnd={
-          totalFiles > 0
-            ? currentFileIndex + Math.min(UPLOAD_CHUNK_SIZE, totalFiles - currentFileIndex)
-            : undefined
-        }
+        currentBatchEnd={totalFiles > 0
+          ? currentFileIndex + Math.min(UPLOAD_CHUNK_SIZE, totalFiles - currentFileIndex)
+          : undefined}
         {totalFiles}
         progress={uploadProgress}
         fileName={currentFileName || undefined}
