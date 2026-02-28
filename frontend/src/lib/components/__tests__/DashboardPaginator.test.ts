@@ -127,4 +127,16 @@ describe('DashboardPaginator', () => {
     await fireEvent.change(jumpSelect, { target: { value: '4' } });
     expect(goToPage).toHaveBeenCalledWith(4);
   });
+
+  it('calls onPageSizeChange when per-page select is changed', async () => {
+    const onPageSizeChange = vi.fn();
+    render(DashboardPaginator, {
+      props: { ...defaultProps, onPageSizeChange },
+    });
+    const perPageSelect = screen.getByRole('combobox', { name: /per page/i });
+    await fireEvent.change(perPageSelect, { target: { value: '50' } });
+    expect(onPageSizeChange).toHaveBeenCalledTimes(1);
+    const event = onPageSizeChange.mock.calls[0][0] as Event;
+    expect((event.target as HTMLSelectElement).value).toBe('50');
+  });
 });

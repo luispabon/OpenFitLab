@@ -166,6 +166,23 @@ describe('buildRouteGeoJSON', () => {
     ]);
   });
 
+  it('applies MIN_BOUNDS_SPAN padding when Position points are degenerate (same or nearly same)', () => {
+    const streams = [
+      {
+        type: 'Position',
+        data: [
+          { time: 0, value: { latitude: 40.0, longitude: -74.0 } },
+          { time: 1, value: { latitude: 40.0, longitude: -74.0 } },
+        ],
+      },
+    ];
+    const result = buildRouteGeoJSON(streams);
+    expect(result).not.toBeNull();
+    const b = result!.bounds;
+    expect(b.maxLng - b.minLng).toBeGreaterThanOrEqual(0.0002);
+    expect(b.maxLat - b.minLat).toBeGreaterThanOrEqual(0.0002);
+  });
+
   it('uses only timestamps present in both Lat and Lng', () => {
     const streams = [
       {

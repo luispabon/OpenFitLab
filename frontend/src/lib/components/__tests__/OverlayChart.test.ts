@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import OverlayChart from '../OverlayChart.svelte';
 import { emptyStreamsFixture, streamsWithNumericFixture } from '../../../test/fixtures/streams';
 
 vi.mock('uplot', () => {
-  const mockInstance = {
+  const instance = {
     destroy: vi.fn(),
     batch: vi.fn((fn: () => void) => {
       if (fn) fn();
@@ -12,8 +13,11 @@ vi.mock('uplot', () => {
     setSize: vi.fn(),
     setScale: vi.fn(),
   };
+  (globalThis as { __overlayChartMock?: { instance: typeof instance } }).__overlayChartMock = {
+    instance,
+  };
   const Mock = vi.fn(function (this: unknown) {
-    return mockInstance;
+    return instance;
   });
   (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
     spline: () => () => {},
@@ -21,6 +25,20 @@ vi.mock('uplot', () => {
   };
   return { default: Mock };
 });
+
+function getOverlayChartMock() {
+  return (
+    globalThis as {
+      __overlayChartMock?: {
+        instance: {
+          destroy: ReturnType<typeof vi.fn>;
+          batch: ReturnType<typeof vi.fn>;
+          setScale: ReturnType<typeof vi.fn>;
+        };
+      };
+    }
+  ).__overlayChartMock!;
+}
 
 describe('OverlayChart', () => {
   describe('empty / no-data', () => {
@@ -108,6 +126,86 @@ describe('OverlayChart', () => {
       });
       expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
       expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+    });
+
+    it('renders with two streams (two Y scales / right axis path)', () => {
+      const twoStreams = [
+        {
+          type: 'Heart Rate',
+          data: [{ time: 1000, value: 80 }] as { time: number; value: number }[],
+        },
+        { type: 'Cadence', data: [{ time: 1000, value: 90 }] as { time: number; value: number }[] },
+      ];
+      render(OverlayChart, {
+        props: {
+          streams: twoStreams,
+          activityStartDate: 1000,
+        },
+      });
+      expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
+      expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+    });
+  });
+
+  describe('effect and chart lifecycle', () => {
+    it('resetZoom button click calls batch and setScale when chart exists', async () => {
+      render(OverlayChart, {
+        props: {
+          streams: streamsWithNumericFixture,
+          activityStartDate: 1000,
+        },
+      });
+      await tick();
+      const resetBtn = screen.getByText('Reset Zoom').closest('button');
+      expect(resetBtn).toBeInTheDocument();
+      resetBtn!.click();
+      expect(getOverlayChartMock().instance.batch).toHaveBeenCalled();
+      expect(getOverlayChartMock().instance.setScale).toHaveBeenCalledWith('x', expect.any(Object));
+    });
+
+    it('destroys previous chart when streams change (chartRef.current path)', async () => {
+      const { rerender } = render(OverlayChart, {
+        props: {
+          streams: streamsWithNumericFixture,
+          activityStartDate: 1000,
+        },
+      });
+      await tick();
+      const destroyCallsBefore = getOverlayChartMock().instance.destroy.mock.calls.length;
+      rerender({
+        streams: [
+          { type: 'Heart Rate', data: [{ time: 1000, value: 80 }] },
+          { type: 'Cadence', data: [{ time: 1000, value: 90 }] },
+        ],
+        activityStartDate: 1000,
+      });
+      await tick();
+      expect(getOverlayChartMock().instance.destroy.mock.calls.length).toBeGreaterThan(
+        destroyCallsBefore
+      );
+    });
+
+    it('cleanup on unmount calls destroy and ResizeObserver disconnect', () => {
+      const disconnectSpy = vi.fn();
+      const OriginalRO = window.ResizeObserver;
+      window.ResizeObserver = class {
+        observe = vi.fn();
+        disconnect = disconnectSpy;
+        unobserve = vi.fn();
+        constructor(_cb: ResizeObserverCallback) {}
+      } as unknown as typeof ResizeObserver;
+
+      const { unmount } = render(OverlayChart, {
+        props: {
+          streams: streamsWithNumericFixture,
+          activityStartDate: 1000,
+        },
+      });
+      unmount();
+
+      expect(getOverlayChartMock().instance.destroy).toHaveBeenCalled();
+      expect(disconnectSpy).toHaveBeenCalled();
+      window.ResizeObserver = OriginalRO;
     });
   });
 });

@@ -1,8 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('uplot', () => ({ default: {} }));
+vi.mock('uplot', () => ({
+  default: {
+    paths: {
+      spline: undefined,
+      linear: () => () => {},
+    },
+  },
+}));
 
-import { formatElapsedTime, formatWallClockTime, formatYValue } from '../chart-utils';
+import {
+  formatElapsedTime,
+  formatWallClockTime,
+  formatYValue,
+  getSmoothPath,
+} from '../chart-utils';
 
 describe('formatElapsedTime', () => {
   it('formats zero as 0:00', () => {
@@ -52,5 +64,12 @@ describe('formatYValue', () => {
   });
   it('formats exact integer Heart Rate', () => {
     expect(formatYValue(120, 'Heart Rate')).toBe('120');
+  });
+});
+
+describe('getSmoothPath', () => {
+  it('returns linear path builder when spline is missing (fallback)', () => {
+    const pathBuilder = getSmoothPath();
+    expect(typeof pathBuilder).toBe('function');
   });
 });

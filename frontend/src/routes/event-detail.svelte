@@ -275,11 +275,6 @@
     selectedStreamTypes = newSet;
   }
 
-  // Toggle view mode
-  function _toggleViewMode() {
-    viewMode = viewMode === 'stacked' ? 'overlay' : 'stacked';
-  }
-
   const locationAvailable = $derived(hasLocationStreams(streams));
 
   // Filter to only selected streams (order: Heart Rate first, then rest)

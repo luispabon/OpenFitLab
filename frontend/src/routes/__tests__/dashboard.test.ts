@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/svelte';
 import Dashboard from '../dashboard.svelte';
 import { activityRowsFixture } from '../../test/fixtures/activity-rows';
 
@@ -7,6 +7,7 @@ const mockGetActivityRows = vi.fn();
 const mockUploadFiles = vi.fn();
 const mockDeleteEvent = vi.fn();
 const mockPush = vi.fn();
+const mockGetComparisonCandidates = vi.fn();
 
 vi.mock('../../lib/api', () => ({
   getActivityRows: (...args: unknown[]) => mockGetActivityRows(...args),
@@ -14,7 +15,7 @@ vi.mock('../../lib/api', () => ({
   getDevices: vi.fn(() => Promise.resolve(['Garmin', 'Wahoo'])),
   uploadFiles: (...args: unknown[]) => mockUploadFiles(...args),
   deleteEvent: (...args: unknown[]) => mockDeleteEvent(...args),
-  getComparisonCandidates: vi.fn(() => Promise.resolve([])),
+  getComparisonCandidates: (...args: unknown[]) => mockGetComparisonCandidates(...args),
 }));
 
 vi.mock('../../lib/api/comparisons', () => ({
@@ -41,6 +42,12 @@ describe('Dashboard', () => {
     mockUploadFiles.mockResolvedValue({ results: [] });
     mockDeleteEvent.mockResolvedValue(undefined);
     mockPush.mockReset();
+    mockGetComparisonCandidates.mockReset();
+    mockGetComparisonCandidates.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows loading state while fetching', async () => {
@@ -202,5 +209,291 @@ describe('Dashboard', () => {
       },
       { timeout: 3000 }
     );
+  });
+
+  it('search debounce commits search and refetches with search param', async () => {
+    vi.useFakeTimers();
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const searchInput = screen.getByPlaceholderText('Search…');
+    fireEvent.input(searchInput, { target: { value: 'run' } });
+    expect(mockGetActivityRows).not.toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: 'run' })
+    );
+    await vi.advanceTimersByTimeAsync(300);
+    await waitFor(() => {
+      expect(mockGetActivityRows).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: 'run' })
+      );
+    });
+  });
+
+  it('calls getActivityRows with devices when device toggled', async () => {
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Device/ }));
+    await waitFor(() => {
+      expect(screen.getByText('Garmin')).toBeInTheDocument();
+    });
+    const garminCheckbox = screen.getByRole('checkbox', { name: /Garmin/ });
+    if (garminCheckbox) {
+      fireEvent.click(garminCheckbox);
+    }
+    await waitFor(() => {
+      expect(mockGetActivityRows).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          devices: ['Garmin'],
+          offset: 0,
+        })
+      );
+    });
+  });
+
+  it('second toast clears first toast timeout', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetActivityRows.mockReset();
+    mockGetActivityRows.mockRejectedValueOnce(new Error('First error'));
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('First error')).toBeInTheDocument();
+    });
+    mockGetActivityRows.mockRejectedValueOnce(new Error('Second error'));
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2024-01-01' } });
+    await waitFor(() => {
+      expect(screen.getByText('Second error')).toBeInTheDocument();
+    });
+    consoleError.mockRestore();
+  });
+
+  it('upload with progress callback updates progress', async () => {
+    let progressCb: ((p: number) => void) | undefined;
+    mockUploadFiles.mockImplementation((_files: File[], onProgress?: (p: number) => void) => {
+      progressCb = onProgress;
+      return Promise.resolve({
+        results: [{ success: true, filename: 'a.fit', id: 'evt-1', event: {}, activities: [] }],
+      });
+    });
+    const file = new File(['x'], 'a.fit', { type: 'application/octet-stream' });
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const input = document.getElementById('dashboard-file-upload');
+    fireEvent.change(input!, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(progressCb).toBeDefined();
+    });
+    progressCb!(50);
+    progressCb!(100);
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Uploaded 1 file successfully/)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('upload with mixed results shows success and failure toasts', async () => {
+    mockUploadFiles.mockResolvedValue({
+      results: [
+        { success: true, filename: 'ok.fit', id: 'evt-1', event: {}, activities: [] },
+        { success: false, filename: 'fail.fit' },
+      ],
+    });
+    const files = [
+      new File(['a'], 'ok.fit', { type: 'application/octet-stream' }),
+      new File(['b'], 'fail.fit', { type: 'application/octet-stream' }),
+    ];
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const input = document.getElementById('dashboard-file-upload');
+    fireEvent.change(input!, { target: { files } });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Uploaded 1 file successfully/)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Failed to upload 1 file: fail\.fit/)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+  });
+
+  it('upload batch error shows failed filenames toast', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockUploadFiles.mockRejectedValue(new Error('Network error'));
+    const file = new File(['x'], 'broken.fit', { type: 'application/octet-stream' });
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const input = document.getElementById('dashboard-file-upload');
+    fireEvent.change(input!, { target: { files: [file] } });
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Failed to upload 1 file: broken\.fit/)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+    consoleError.mockRestore();
+  });
+
+  it('select-all checkbox selects all when not all selected', async () => {
+    const row2 = {
+      ...activityRowsFixture[0],
+      event: { ...activityRowsFixture[0].event, id: 'evt-2', name: 'Evening Run' },
+      activity: { ...activityRowsFixture[0].activity, id: 'act-2' },
+    };
+    mockGetActivityRows.mockResolvedValue({
+      rows: [activityRowsFixture[0], row2],
+      total: 2,
+    });
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Evening Run')).toBeInTheDocument();
+    });
+    const selectAllCheckbox = screen.getByRole('checkbox', { name: 'Select all events' });
+    await fireEvent.click(selectAllCheckbox);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Compare' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+    expect(mockPush).toHaveBeenCalledWith(expect.stringMatching(/^\/compare\/new\?events=/));
+  });
+
+  it('bulk delete confirm calls onDone and onClosed', async () => {
+    mockDeleteEvent.mockResolvedValue(true);
+    const row2 = {
+      ...activityRowsFixture[0],
+      event: { ...activityRowsFixture[0].event, id: 'evt-2', name: 'Evening Run' },
+      activity: { ...activityRowsFixture[0].activity, id: 'act-2' },
+    };
+    mockGetActivityRows.mockResolvedValue({
+      rows: [activityRowsFixture[0], row2],
+      total: 2,
+    });
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Evening Run')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Select event Morning Run' }));
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Select event Evening Run' }));
+    await waitFor(() => {
+      expect(screen.getByText('2 events selected')).toBeInTheDocument();
+    });
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+    await fireEvent.click(deleteButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Delete 2 Events' });
+    await fireEvent.click(confirmBtn);
+    await waitFor(() => {
+      expect(screen.getByText(/Deleted 2 events successfully/)).toBeInTheDocument();
+    });
+    expect(mockDeleteEvent).toHaveBeenCalledWith('evt-1');
+    expect(mockDeleteEvent).toHaveBeenCalledWith('evt-2');
+  });
+
+  it('single delete confirm calls onDone and onClosed', async () => {
+    mockDeleteEvent.mockResolvedValue(true);
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Delete')).toBeInTheDocument();
+    });
+    const rowDeleteBtn = screen.getByRole('button', { name: 'Delete' });
+    await fireEvent.click(rowDeleteBtn);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Delete' });
+    await fireEvent.click(confirmBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Event deleted successfully')).toBeInTheDocument();
+    });
+    expect(mockDeleteEvent).toHaveBeenCalledWith('evt-1');
+  });
+
+  it('single delete error shows toast via onError', async () => {
+    mockDeleteEvent.mockResolvedValue(false);
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Delete')).toBeInTheDocument();
+    });
+    const rowDeleteBtn = screen.getByRole('button', { name: 'Delete' });
+    await fireEvent.click(rowDeleteBtn);
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Delete' });
+    await fireEvent.click(confirmBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Event not found')).toBeInTheDocument();
+    });
+  });
+
+  it('Find comparisons opens CompareCandidatesFlow', async () => {
+    mockGetComparisonCandidates.mockResolvedValue([
+      { id: 'evt-2', name: 'Other Run', startDate: 0, stats: {} },
+    ]);
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const findButtons = screen.getAllByRole('button', { name: 'Find' });
+    await fireEvent.click(findButtons[0]);
+    await waitFor(() => {
+      expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1');
+    });
+  });
+
+  it('CompareCandidatesFlow onCompare pushes to compare URL', async () => {
+    mockGetComparisonCandidates.mockResolvedValue([
+      { id: 'evt-2', name: 'Other Run', startDate: 0, stats: {} },
+    ]);
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const findButtons = screen.getAllByRole('button', { name: 'Find' });
+    await fireEvent.click(findButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByText('Other Run')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    const candidateCheckbox = within(dialog).getByRole('checkbox');
+    await fireEvent.click(candidateCheckbox);
+    const compareBtn = within(dialog).getByRole('button', { name: /Compare \(2 events\)/ });
+    await fireEvent.click(compareBtn);
+    expect(mockPush).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/compare\/new\?events=evt-1,evt-2/)
+    );
+  });
+
+  it('CompareCandidatesFlow onError shows toast when candidates fail', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockGetComparisonCandidates.mockRejectedValue(new Error('Candidates failed'));
+    render(Dashboard);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const findButtons = screen.getAllByRole('button', { name: 'Find' });
+    await fireEvent.click(findButtons[0]);
+    await waitFor(() => {
+      expect(screen.getByText('Candidates failed')).toBeInTheDocument();
+    });
+    consoleError.mockRestore();
   });
 });

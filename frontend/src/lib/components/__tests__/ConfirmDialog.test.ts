@@ -70,6 +70,16 @@ describe('ConfirmDialog', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('calls onCancel when backdrop is clicked', async () => {
+    const onCancel = vi.fn();
+    render(ConfirmDialog, {
+      props: { ...defaultProps, onCancel },
+    });
+    const dialog = screen.getByRole('dialog');
+    await fireEvent.click(dialog);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
   it('has role="dialog" and aria-modal="true"', () => {
     render(ConfirmDialog, { props: defaultProps });
     const dialog = screen.getByRole('dialog');

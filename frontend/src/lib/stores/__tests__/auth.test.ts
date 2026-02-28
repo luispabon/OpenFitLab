@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkAuth, logout } from '../../stores/auth';
+import { get } from 'svelte/store';
+import { checkAuth, logout, user } from '../../stores/auth';
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -16,13 +17,24 @@ describe('auth store', () => {
 
     await checkAuth();
 
-    // No direct getters exported for currentUser in tests; rely on subsequent logout to not throw
+    expect(get(user)).toEqual({ id: 'u1', displayName: 'Alice', avatarUrl: null });
     expect((globalThis as unknown as { fetch: typeof fetch }).fetch).toHaveBeenCalledWith(
       '/api/auth/me',
       {
         credentials: 'include',
       }
     );
+  });
+
+  it('sets user to null when /api/auth/me returns non-ok', async () => {
+    user.set({ id: 'u1', displayName: 'Alice', avatarUrl: null });
+    vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValueOnce(
+      new Response(null, { status: 401 }) as unknown as Response
+    );
+
+    await checkAuth();
+
+    expect(get(user)).toBeNull();
   });
 
   it('clears session on logout', async () => {

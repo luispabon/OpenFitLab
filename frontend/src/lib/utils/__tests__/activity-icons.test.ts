@@ -26,6 +26,9 @@ describe('getActivityIcon', () => {
   it('returns category for unknown activity type', () => {
     expect(getActivityIcon('Underwater Basket Weaving')).toBe('category');
   });
+  it('returns category when no exact match and no substring fallback (line 187)', () => {
+    expect(getActivityIcon('unknown-activity-xyz')).toBe('category');
+  });
   it('returns category for null', () => {
     expect(getActivityIcon(null)).toBe('category');
   });

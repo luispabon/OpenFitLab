@@ -124,6 +124,20 @@ describe('DashboardUploadSection', () => {
     });
   });
 
+  it('shows overlay after dragover with Files type', async () => {
+    render(DashboardUploadSection, {
+      props: {
+        isUploading: false,
+        onFilesSelected: () => {},
+      },
+    });
+    const region = screen.getByRole('region', { name: 'Dashboard upload area' });
+    region.dispatchEvent(createDragEvent('dragover', { types: ['Files'] }));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /drop files to upload/i })).toBeInTheDocument();
+    });
+  });
+
   it('hides overlay after dragleave when leaving region', async () => {
     render(DashboardUploadSection, {
       props: {

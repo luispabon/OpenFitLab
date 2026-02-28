@@ -27,6 +27,12 @@ describe('formatDateShort', () => {
   it('returns non-empty for number', () => {
     expect(formatDateShort(1700000000000).length).toBeGreaterThan(0);
   });
+  it('returns toLocaleString for Date object (covers Date branch)', () => {
+    const result = formatDateShort(new Date(2024, 0, 15));
+    expect(result).not.toBe('');
+    expect(result).toContain('2024');
+    expect(result.length).toBeGreaterThan(0);
+  });
 });
 
 describe('formatDateWithTime', () => {

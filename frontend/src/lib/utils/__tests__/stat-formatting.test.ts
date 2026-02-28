@@ -204,4 +204,13 @@ describe('formatStatValue', () => {
   it('formats object that is not coordinate as JSON', () => {
     expect(formatStatValue({ foo: 'bar' })).toBe('{"foo":"bar"}');
   });
+  it('returns string as-is when string is not valid JSON coordinate (formatCoordinateValue catch)', () => {
+    const result = formatStatValue('not valid json', undefined);
+    expect(result).toBe('not valid json');
+  });
+  it('formats coordinate from JSON string with latitude/longitude', () => {
+    const result = formatStatValue('{"latitude": 40.7128, "longitude": -74.006}', undefined);
+    expect(result).toContain('°N');
+    expect(result).toContain('°W');
+  });
 });
