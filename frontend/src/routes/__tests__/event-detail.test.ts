@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import EventDetail from '../event-detail.svelte';
 import { eventDetailFixture, activityFixture } from '../../test/fixtures/event-detail';
-import { streamsNoLocationFixture } from '../../test/fixtures/streams';
+import {
+  streamsNoLocationFixture,
+  streamsLatLngFixture,
+} from '../../test/fixtures/streams';
+import type { EventDetail as EventDetailType } from '../../lib/types';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();
@@ -22,6 +26,11 @@ vi.mock('../../lib/api', () => ({
 vi.mock('svelte-spa-router', () => ({
   push: (...args: unknown[]) => mockPush(...args),
 }));
+
+vi.mock('../../lib/components/RouteMap.svelte', async () => {
+  const mod = await import('./RouteMapStub.svelte');
+  return { default: mod.default };
+});
 
 describe('EventDetail', () => {
   beforeEach(() => {
@@ -205,5 +214,148 @@ describe('EventDetail', () => {
     });
     const hrButton = screen.getByRole('button', { name: /Heart Rate/i });
     await fireEvent.click(hrButton);
+  });
+
+  it('uses default params when params is undefined', async () => {
+    render(EventDetail, { props: {} });
+    expect(mockGetEvent).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '← Back to Dashboard' })).toBeInTheDocument();
+    });
+  });
+
+  it('derives mainActivityType from event.stats Activity Types array when activities have no type', async () => {
+    const noTypeActivity = { ...activityFixture, type: undefined };
+    const eventWithTypesInStats = {
+      event: {
+        ...eventDetailFixture.event,
+        stats: {
+          ...eventDetailFixture.event.stats,
+          'Activity Types': ['cycling', 'running'],
+        },
+      },
+      activities: [noTypeActivity],
+    } satisfies EventDetailType;
+    mockGetEvent.mockResolvedValue(eventWithTypesInStats);
+    mockGetStreams.mockResolvedValue([]);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('cycling')).toBeInTheDocument();
+    });
+  });
+
+  it('derives mainActivityType from event.stats Activity Types string when activities have no type', async () => {
+    const noTypeActivity = { ...activityFixture, type: undefined };
+    const eventWithStringType = {
+      event: {
+        ...eventDetailFixture.event,
+        stats: {
+          ...eventDetailFixture.event.stats,
+          'Activity Types': 'hiking',
+        },
+      },
+      activities: [noTypeActivity],
+    } satisfies EventDetailType;
+    mockGetEvent.mockResolvedValue(eventWithStringType);
+    mockGetStreams.mockResolvedValue([]);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /hiking/ })).toBeInTheDocument();
+    });
+  });
+
+  it('shows fallback when no activities and no Activity Types in stats', async () => {
+    const eventNoActivities = {
+      event: eventDetailFixture.event,
+      activities: [],
+    } satisfies EventDetailType;
+    mockGetEvent.mockResolvedValue(eventNoActivities);
+    mockGetStreams.mockResolvedValue([]);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: '← Back to Dashboard' })).toBeInTheDocument();
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows saveError when commit activity type fails', async () => {
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    mockUpdateActivity.mockRejectedValue(new Error('Network error'));
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('running')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /running/ }));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Activity type…')).toBeInTheDocument();
+    });
+    const combobox = screen.getByPlaceholderText('Activity type…');
+    await fireEvent.input(combobox, { target: { value: 'cy' } });
+    await waitFor(() => {
+      expect(screen.getByText('cycling', { selector: '[role="option"]' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByText('cycling', { selector: '[role="option"]' }));
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+  });
+
+  it('shows saveError when commit device fails', async () => {
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    mockUpdateActivity.mockRejectedValue(new Error('Server error'));
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Garmin Forerunner 945')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Garmin Forerunner 945' }));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Device…')).toBeInTheDocument();
+    });
+    const combobox = screen.getByPlaceholderText('Device…');
+    await fireEvent.input(combobox, { target: { value: 'Wahoo' } });
+    await waitFor(() => {
+      expect(screen.getByText('Wahoo Elemnt', { selector: '[role="option"]' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByText('Wahoo Elemnt', { selector: '[role="option"]' }));
+    await waitFor(() => {
+      expect(screen.getByText('Server error')).toBeInTheDocument();
+    });
+  });
+
+  it('renders RouteMap when streams have location data', async () => {
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    mockGetStreams.mockResolvedValue(streamsLatLngFixture);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('route-map')).toBeInTheDocument();
+    });
+  });
+
+  it('calls onViewModeStacked when Stacked is clicked in charts', async () => {
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    mockGetStreams.mockResolvedValue(streamsNoLocationFixture);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Heart Rate/i })).toBeInTheDocument();
+    });
+    const stackedButton = screen.getByRole('button', { name: 'Stacked' });
+    await fireEvent.click(stackedButton);
+    await fireEvent.click(screen.getByRole('button', { name: 'Overlay' }));
+  });
+
+  it('shows Event not found when getEvent returns event null', async () => {
+    mockGetEvent.mockResolvedValue({
+      event: null,
+      activities: [],
+    } as unknown as EventDetailType);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Event not found.')).toBeInTheDocument();
+    });
   });
 });
