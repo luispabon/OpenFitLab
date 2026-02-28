@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import EventDetail from '../event-detail.svelte';
 import { eventDetailFixture, activityFixture } from '../../test/fixtures/event-detail';
-import {
-  streamsNoLocationFixture,
-  streamsLatLngFixture,
-} from '../../test/fixtures/streams';
+import { streamsNoLocationFixture, streamsLatLngFixture } from '../../test/fixtures/streams';
 import type { EventDetail as EventDetailType } from '../../lib/types';
 
 const mockGetEvent = vi.fn();
