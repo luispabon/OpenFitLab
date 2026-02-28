@@ -41,6 +41,17 @@ describe('JSONSanitizer.sanitize', () => {
     deepStrictEqual(result.unknownTypes.sort(), ['UnknownStat']);
   });
 
+  it('sanitizeStats omits stat type when getDataClassFromDataType throws and adds to unknownTypes', () => {
+    const getDataClassThrows = (type) => {
+      if (type === 'ThrowingStat') throw new Error('Unknown data type');
+      return knownTypes.has(type) ? {} : null;
+    };
+    const input = { stats: { Distance: 5000, ThrowingStat: 99, 'Heart Rate': 140 } };
+    const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: getDataClassThrows });
+    deepStrictEqual(result.sanitizedJson.stats, { Distance: 5000, 'Heart Rate': 140 });
+    deepStrictEqual(result.unknownTypes.sort(), ['ThrowingStat']);
+  });
+
   it('filters out null, undefined, NaN from stats', () => {
     const input = { stats: { Distance: 5000, NullVal: null, NanVal: NaN, Undef: undefined } };
     const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: mockGetDataClass });
@@ -95,6 +106,22 @@ describe('JSONSanitizer.sanitize', () => {
     deepStrictEqual(result.unknownTypes, []);
   });
 
+  it('sanitizeStreams array keeps entry that has no type', () => {
+    const input = {
+      activities: [
+        {
+          id: 'a1',
+          streams: [{ data: [1] }, { type: 'Distance', data: [2] }],
+        },
+      ],
+    };
+    const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: mockGetDataClass });
+    deepStrictEqual(result.sanitizedJson.activities[0].streams, [
+      { data: [1] },
+      { type: 'Distance', data: [2] },
+    ]);
+  });
+
   it('removes unknown type keys from streams object map', () => {
     const input = {
       activities: [
@@ -110,6 +137,38 @@ describe('JSONSanitizer.sanitize', () => {
     const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: mockGetDataClass });
     deepStrictEqual(result.sanitizedJson.activities[0].streams, { 'Heart Rate': [100] });
     deepStrictEqual(result.unknownTypes, ['UnknownStream']);
+  });
+
+  it('sanitizeStreams object removes key when getDataClassFromDataType throws and adds to unknownTypes', () => {
+    const getDataClassThrows = (type) => {
+      if (type === 'ThrowingStream') throw new Error('Unknown stream type');
+      return knownTypes.has(type) ? {} : null;
+    };
+    const input = {
+      activities: [
+        {
+          id: 'a1',
+          streams: { 'Heart Rate': [100], ThrowingStream: [1] },
+        },
+      ],
+    };
+    const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: getDataClassThrows });
+    deepStrictEqual(result.sanitizedJson.activities[0].streams, { 'Heart Rate': [100] });
+    deepStrictEqual(result.unknownTypes.sort(), ['ThrowingStream']);
+  });
+
+  it('sanitizeStreams leaves streams unchanged when null or non-array non-object', () => {
+    const inputNull = { activities: [{ id: 'a1', streams: null }] };
+    const resultNull = JSONSanitizer.sanitize(inputNull, {
+      getDataClassFromDataType: mockGetDataClass,
+    });
+    deepStrictEqual(resultNull.sanitizedJson.activities[0].streams, null);
+
+    const inputNumber = { activities: [{ id: 'a1', streams: 42 }] };
+    const resultNumber = JSONSanitizer.sanitize(inputNumber, {
+      getDataClassFromDataType: mockGetDataClass,
+    });
+    deepStrictEqual(resultNumber.sanitizedJson.activities[0].streams, 42);
   });
 
   it('uses real sports-lib when no getDataClassFromDataType option (integration)', () => {

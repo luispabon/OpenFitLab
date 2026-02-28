@@ -83,4 +83,12 @@ async function closePool() {
   }
 }
 
-module.exports = { getPool, initializeSchema, query, queryOne, transaction, closePool };
+module.exports = {
+  getPool,
+  getConfig,
+  initializeSchema,
+  query,
+  queryOne,
+  transaction,
+  closePool,
+};

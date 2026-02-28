@@ -128,7 +128,7 @@ describe('RouteMap', () => {
       await vi.waitFor(() => {
         expect(globalThis.__routeMapFakeMap).toBeDefined();
       });
-      onloadRef?.();
+      (onloadRef as unknown as (() => void) | undefined)?.();
       await vi.waitFor(() => {
         expect(globalThis.__routeMapAddImageSpy).toHaveBeenCalledWith(
           'route-direction-arrow',
@@ -189,7 +189,7 @@ describe('RouteMap', () => {
       await vi.waitFor(() => {
         expect(globalThis.__routeMapFakeMap).toBeDefined();
       });
-      onloadRef?.();
+      (onloadRef as unknown as (() => void) | undefined)?.();
       await vi.waitFor(() => {
         expect(globalThis.__routeMapAddImageSpy).toHaveBeenCalled();
       });

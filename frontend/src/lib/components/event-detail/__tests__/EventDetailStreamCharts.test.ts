@@ -126,7 +126,7 @@ describe('EventDetailStreamCharts', () => {
         ...defaultProps,
         chartableStreams: [heartRateStream],
         chartableStreamsOrdered: [heartRateStream],
-        selectedStreamTypes: new Set(),
+        selectedStreamTypes: new Set<string>(),
         visibleStreams: [],
       },
     });

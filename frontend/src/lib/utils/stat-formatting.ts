@@ -126,7 +126,7 @@ export function formatDuration(seconds: number): string {
  * - Speed: always km/h (converts from other units if needed).
  */
 export function formatStatValue(
-  value: number | string | number[] | Record<string, unknown> | undefined | null,
+  value: number | string | number[] | string[] | Record<string, unknown> | undefined | null,
   statType?: string
 ): string {
   if (value == null) return '';

@@ -1,0 +1,344 @@
+/**
+ * Unit tests for db.js. Mocks mysql2/promise and fs so no real DB is required.
+ * Uses require hook and cache clearing so db module loads with mocks.
+ */
+const { describe, it, before, after } = require('node:test');
+const { strictEqual, ok, deepStrictEqual } = require('node:assert/strict');
+const path = require('path');
+const Module = require('module');
+
+const backendDir = path.join(__dirname, '..', '..');
+const dbPath = path.join(backendDir, 'src', 'db.js');
+const dbPathResolved = require.resolve(dbPath);
+
+let db;
+let originalRequire;
+let createPoolCalls;
+let poolRefs;
+let mockConn;
+let mockFsReadFileSync;
+
+function createMockPool() {
+  const pool = {
+    execute: async () => [[]],
+    getConnection: async () => mockConn,
+    end: async () => {},
+  };
+  poolRefs.push(pool);
+  return pool;
+}
+
+function installMocks() {
+  createPoolCalls = [];
+  poolRefs = [];
+
+  const mockMysql = {
+    createPool(config) {
+      createPoolCalls.push(config);
+      return createMockPool();
+    },
+  };
+
+  mockFsReadFileSync = null;
+  const mockFs = {
+    readFileSync(filePath, encoding) {
+      mockFsReadFileSync = { filePath, encoding };
+      return 'CREATE TABLE IF NOT EXISTS test (id INT);';
+    },
+  };
+
+  originalRequire = Module.prototype.require;
+  Module.prototype.require = function (id) {
+    if (id === 'mysql2/promise') return mockMysql;
+    if (id === 'fs') return mockFs;
+    return originalRequire.apply(this, arguments);
+  };
+}
+
+function uninstallMocks() {
+  Module.prototype.require = originalRequire;
+  delete require.cache[dbPathResolved];
+  try {
+    delete require.cache[require.resolve('mysql2/promise')];
+  } catch (_) {}
+}
+
+before(() => {
+  installMocks();
+  delete require.cache[dbPathResolved];
+  try {
+    delete require.cache[require.resolve('mysql2/promise')];
+  } catch (_) {}
+  db = require(dbPath);
+});
+
+after(() => {
+  uninstallMocks();
+});
+
+describe('db', () => {
+  describe('getConfig', () => {
+    it('returns object with host, user, password, database and pool options', () => {
+      const config = db.getConfig();
+      strictEqual(typeof config.host, 'string');
+      strictEqual(typeof config.user, 'string');
+      strictEqual(typeof config.password, 'string');
+      strictEqual(typeof config.database, 'string');
+      strictEqual(config.waitForConnections, true);
+      strictEqual(config.connectionLimit, 10);
+      strictEqual(config.queueLimit, 0);
+      strictEqual(config.multipleStatements, true);
+    });
+  });
+
+  describe('getPool', () => {
+    it('returns same pool on second call', async () => {
+      createPoolCalls.length = 0;
+      poolRefs.length = 0;
+
+      const p1 = await db.getPool();
+      const p2 = await db.getPool();
+      strictEqual(p1, p2);
+      strictEqual(createPoolCalls.length, 1);
+    });
+  });
+
+  describe('initializeSchema', () => {
+    it('ensures database exists then reads schema.sql and executes it', async () => {
+      const adminQueryCalls = [];
+      const mainQueryCalls = [];
+      const schemaContent = 'CREATE TABLE t (id INT);';
+
+      const adminPool = {
+        query: async (sql) => {
+          adminQueryCalls.push(sql);
+          return [];
+        },
+        end: async () => {},
+      };
+
+      const mainPool = {
+        query: async (sql) => {
+          mainQueryCalls.push(sql);
+          return [];
+        },
+        execute: async () => [[]],
+        getConnection: async () => ({}),
+        end: async () => {},
+      };
+
+      const mockMysql = {
+        createPool(config) {
+          if (!config.database) {
+            return adminPool;
+          }
+          return mainPool;
+        },
+      };
+
+      const originalReq = Module.prototype.require;
+      Module.prototype.require = function (id) {
+        if (id === 'mysql2/promise') return mockMysql;
+        if (id === 'fs') {
+          return {
+            readFileSync(filePath, encoding) {
+              strictEqual(encoding, 'utf8');
+              ok(
+                filePath.endsWith('schema.sql') || filePath.includes('sql'),
+                'should read schema.sql'
+              );
+              return schemaContent;
+            },
+          };
+        }
+        return originalReq.apply(this, arguments);
+      };
+
+      delete require.cache[dbPathResolved];
+      const dbFresh = require(dbPath);
+      await dbFresh.initializeSchema();
+
+      strictEqual(adminQueryCalls.length, 1);
+      ok(
+        adminQueryCalls[0].includes('CREATE DATABASE') && adminQueryCalls[0].includes('IF NOT EXISTS'),
+        'ensureDatabaseExists should run CREATE DATABASE IF NOT EXISTS'
+      );
+      const config = dbFresh.getConfig();
+      ok(adminQueryCalls[0].includes(config.database), 'should use config.database name');
+
+      strictEqual(mainQueryCalls.length, 1);
+      strictEqual(mainQueryCalls[0], schemaContent);
+
+      Module.prototype.require = originalReq;
+      delete require.cache[dbPathResolved];
+      require(dbPath);
+    });
+  });
+
+  describe('query and queryOne', () => {
+    it('query returns rows from execute, queryOne returns first row or null', async () => {
+      const row1 = { id: 1 };
+      const row2 = { id: 2 };
+      let executeSql;
+      let executeParams;
+
+      const mockPool = {
+        execute: async (sql, params) => {
+          executeSql = sql;
+          executeParams = params;
+          return [[row1, row2]];
+        },
+        getConnection: async () => mockConn,
+        end: async () => {},
+      };
+
+      createPoolCalls.length = 0;
+      poolRefs.length = 0;
+      const mockMysql = {
+        createPool() {
+          createPoolCalls.push({});
+          return mockPool;
+        },
+      };
+
+      const originalReq = Module.prototype.require;
+      Module.prototype.require = function (id) {
+        if (id === 'mysql2/promise') return mockMysql;
+        if (id === 'fs') return { readFileSync: () => '' };
+        return originalReq.apply(this, arguments);
+      };
+
+      delete require.cache[dbPathResolved];
+      const dbFresh = require(dbPath);
+
+      const rows = await dbFresh.query('SELECT * FROM t', [1]);
+      deepStrictEqual(rows, [row1, row2]);
+      strictEqual(executeSql, 'SELECT * FROM t');
+      deepStrictEqual(executeParams, [1]);
+
+      const one = await dbFresh.queryOne('SELECT * FROM t WHERE id = ?', [1]);
+      strictEqual(one, row1);
+
+      mockPool.execute = async () => [[]];
+      const none = await dbFresh.queryOne('SELECT * FROM empty');
+      strictEqual(none, null);
+
+      Module.prototype.require = originalReq;
+      delete require.cache[dbPathResolved];
+      require(dbPath);
+    });
+  });
+
+  describe('transaction', () => {
+    it('commits and returns result when fn succeeds', async () => {
+      const calls = [];
+      const conn = {
+        beginTransaction: async () => calls.push('begin'),
+        commit: async () => calls.push('commit'),
+        rollback: async () => calls.push('rollback'),
+        release: async () => calls.push('release'),
+      };
+
+      const mockPool = {
+        execute: async () => [[]],
+        getConnection: async () => conn,
+        end: async () => {},
+      };
+
+      const mockMysql = { createPool: () => mockPool };
+      const originalReq = Module.prototype.require;
+      Module.prototype.require = function (id) {
+        if (id === 'mysql2/promise') return mockMysql;
+        if (id === 'fs') return { readFileSync: () => '' };
+        return originalReq.apply(this, arguments);
+      };
+
+      delete require.cache[dbPathResolved];
+      const dbFresh = require(dbPath);
+
+      const result = await dbFresh.transaction(async (c) => {
+        strictEqual(c, conn);
+        return 'ok';
+      });
+
+      strictEqual(result, 'ok');
+      deepStrictEqual(calls, ['begin', 'commit', 'release']);
+
+      Module.prototype.require = originalReq;
+      delete require.cache[dbPathResolved];
+      require(dbPath);
+    });
+
+    it('rolls back and releases when fn throws', async () => {
+      const calls = [];
+      const conn = {
+        beginTransaction: async () => calls.push('begin'),
+        commit: async () => calls.push('commit'),
+        rollback: async () => calls.push('rollback'),
+        release: async () => calls.push('release'),
+      };
+
+      const mockPool = {
+        execute: async () => [[]],
+        getConnection: async () => conn,
+        end: async () => {},
+      };
+
+      const mockMysql = { createPool: () => mockPool };
+      const originalReq = Module.prototype.require;
+      Module.prototype.require = function (id) {
+        if (id === 'mysql2/promise') return mockMysql;
+        if (id === 'fs') return { readFileSync: () => '' };
+        return originalReq.apply(this, arguments);
+      };
+
+      delete require.cache[dbPathResolved];
+      const dbFresh = require(dbPath);
+
+      await require('node:assert').rejects(
+        async () =>
+          dbFresh.transaction(async () => {
+            throw new Error('fail');
+          }),
+        (err) => err.message === 'fail'
+      );
+
+      deepStrictEqual(calls, ['begin', 'rollback', 'release']);
+
+      Module.prototype.require = originalReq;
+      delete require.cache[dbPathResolved];
+      require(dbPath);
+    });
+  });
+
+  describe('closePool', () => {
+    it('calls pool.end and clears pool', async () => {
+      const endCalls = [];
+      const mockPool = {
+        execute: async () => [[]],
+        getConnection: async () => ({}),
+        end: async () => endCalls.push(1),
+      };
+
+      const mockMysql = { createPool: () => mockPool };
+      const originalReq = Module.prototype.require;
+      Module.prototype.require = function (id) {
+        if (id === 'mysql2/promise') return mockMysql;
+        if (id === 'fs') return { readFileSync: () => '' };
+        return originalReq.apply(this, arguments);
+      };
+
+      delete require.cache[dbPathResolved];
+      const dbFresh = require(dbPath);
+
+      await dbFresh.getPool();
+      await dbFresh.closePool();
+
+      strictEqual(endCalls.length, 1);
+
+      Module.prototype.require = originalReq;
+      delete require.cache[dbPathResolved];
+      require(dbPath);
+    });
+  });
+});
