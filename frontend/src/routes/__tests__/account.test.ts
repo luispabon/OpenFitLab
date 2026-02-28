@@ -34,7 +34,9 @@ describe('Account', () => {
       screen.getByText(/I understand that all my data will be permanently deleted/)
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText('DELETE')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Permanently delete my account' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Permanently delete my account' })
+    ).toBeInTheDocument();
   });
 
   it('disables delete button until checkbox checked and confirm text is DELETE', async () => {
@@ -81,7 +83,9 @@ describe('Account', () => {
     });
     expect(mockSetCurrentUser).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Permanently delete my account' })).not.toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Permanently delete my account' })
+    ).not.toBeDisabled();
   });
 
   it('on error without error message shows fallback text', async () => {
@@ -99,7 +103,10 @@ describe('Account', () => {
   it('shows loading state while deleting', async () => {
     const holder: { resolve: (value: { ok: true }) => void } = { resolve: () => {} };
     mockDeleteAccount.mockImplementation(
-      () => new Promise((resolve) => { holder.resolve = resolve; })
+      () =>
+        new Promise((resolve) => {
+          holder.resolve = resolve;
+        })
     );
     render(Account);
     fireEvent.click(screen.getByRole('checkbox', { name: /I understand/ }));

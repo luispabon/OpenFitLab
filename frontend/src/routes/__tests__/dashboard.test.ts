@@ -34,7 +34,10 @@ vi.mock('svelte-spa-router', () => ({
 describe('Dashboard', () => {
   beforeEach(() => {
     mockGetActivityRows.mockReset();
-    mockGetActivityRows.mockResolvedValue({ rows: activityRowsFixture, total: activityRowsFixture.length });
+    mockGetActivityRows.mockResolvedValue({
+      rows: activityRowsFixture,
+      total: activityRowsFixture.length,
+    });
     mockUploadFiles.mockResolvedValue({ results: [] });
     mockDeleteEvent.mockResolvedValue(undefined);
     mockPush.mockReset();
@@ -164,7 +167,9 @@ describe('Dashboard', () => {
   it('row selection shows bulk bar and Clear removes selection', async () => {
     render(Dashboard);
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: 'Select event Morning Run' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('checkbox', { name: 'Select event Morning Run' })
+      ).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('checkbox', { name: 'Select event Morning Run' }));
     await waitFor(() => {

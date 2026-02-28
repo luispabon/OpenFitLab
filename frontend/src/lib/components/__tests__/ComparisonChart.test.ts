@@ -1,16 +1,7 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import ComparisonChart from '../ComparisonChart.svelte';
 import type { ComparisonChartEntry } from '../../utils/comparison-chart-data';
-
-beforeAll(() => {
-  window.ResizeObserver = class ResizeObserver {
-    observe = vi.fn();
-    disconnect = vi.fn();
-    unobserve = vi.fn();
-    constructor(_callback: ResizeObserverCallback) {}
-  };
-});
 
 vi.mock('uplot', () => {
   const mockInstance = {

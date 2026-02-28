@@ -43,3 +43,11 @@ export const streamsNoLocationFixture: StreamData[] = [
 ];
 
 export const emptyStreamsFixture: StreamData[] = [];
+
+/** Minimal numeric stream for chart tests (e.g. OverlayChart). One Heart Rate point. */
+export const streamsWithNumericFixture: StreamData[] = [
+  {
+    type: 'Heart Rate',
+    data: [{ time: 1000, value: 80 }],
+  },
+];

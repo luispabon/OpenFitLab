@@ -96,9 +96,7 @@ describe('Comparisons', () => {
   });
 
   it('deletes comparison and reloads list when dialog Confirm is clicked', async () => {
-    mockGetComparisons
-      .mockResolvedValueOnce([comparisonFixture])
-      .mockResolvedValueOnce([]);
+    mockGetComparisons.mockResolvedValueOnce([comparisonFixture]).mockResolvedValueOnce([]);
     mockDeleteComparison.mockResolvedValue(undefined);
     render(Comparisons);
     await waitFor(() => {
