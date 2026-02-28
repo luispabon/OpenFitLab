@@ -1,26 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/svelte';
 import ComparisonView from '../comparison-view.svelte';
-import { eventDetailFixture } from '../../test/fixtures/event-detail';
-import { comparisonFixture } from '../../test/fixtures/comparisons';
-
-const eventDetailEvt2 = {
-  ...eventDetailFixture,
-  event: {
-    ...eventDetailFixture.event,
-    id: 'evt-2',
-    name: 'Evening Run',
-  },
-  activities: [
-    {
-      ...eventDetailFixture.activities[0],
-      id: 'act-2',
-      eventID: 'evt-2',
-      name: 'Evening Run',
-      deviceName: 'Wahoo Elemnt',
-    },
-  ],
-};
+import {
+  eventDetailFixture,
+  eventDetailEvt2Fixture,
+  comparisonFixture,
+} from '../../test/fixtures/comparison-view';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();
@@ -54,7 +39,7 @@ describe('ComparisonView', () => {
     vi.clearAllMocks();
     mockGetStreams.mockResolvedValue([]);
     mockGetEvent.mockImplementation((id: string) =>
-      Promise.resolve(id === 'evt-1' ? eventDetailFixture : eventDetailEvt2)
+      Promise.resolve(id === 'evt-1' ? eventDetailFixture : eventDetailEvt2Fixture)
     );
   });
 

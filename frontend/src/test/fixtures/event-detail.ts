@@ -36,4 +36,24 @@ export const eventDetailFixture = {
   activities: [activityFixture],
 } satisfies EventDetail;
 
+const activityEvt2Fixture = {
+  ...activityFixture,
+  id: 'act-2',
+  eventID: 'evt-2',
+  name: 'Evening Run',
+  deviceName: 'Wahoo Elemnt',
+} satisfies Activity;
+
+const eventSummaryEvt2Fixture = {
+  ...eventSummaryFixture,
+  id: 'evt-2',
+  name: 'Evening Run',
+} satisfies EventSummary;
+
+/** Second event detail for comparison-view tests (evt-2, Evening Run, Wahoo Elemnt). */
+export const eventDetailEvt2Fixture = {
+  event: eventSummaryEvt2Fixture,
+  activities: [activityEvt2Fixture],
+} satisfies EventDetail;
+
 export { eventSummaryFixture, activityFixture };
