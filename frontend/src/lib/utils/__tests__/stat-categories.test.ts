@@ -222,4 +222,29 @@ describe('getGroupedDeduplicatedStats', () => {
     expect(speedGroup!.entries).toHaveLength(1);
     expect(speedGroup!.entries[0].statType).toContain('Kilometers per Hour');
   });
+  it('skips entries that do not match preferred unit (continue branch)', () => {
+    const entries: StatEntry[] = [
+      { statType: 'Average Speed in Knots', value: '13', unit: 'knots' },
+    ];
+    const result = getGroupedDeduplicatedStats(entries);
+    const speedGroup = result.find((r) => r.category === 'Speed');
+    expect(speedGroup).toBeUndefined();
+  });
+});
+
+describe('selectKeyMetrics preferred speed', () => {
+  it('prefers Average Speed in Kilometers per Hour when both Knots and km/h exist (line 203 branch)', () => {
+    const stats = {
+      Distance: 5000,
+      Duration: 3600,
+      'Average Speed in Knots': 6.5,
+      'Average Speed in Kilometers per Hour': 12,
+      'Average Heart Rate': 145,
+      Ascent: 100,
+    };
+    const result = selectKeyMetrics(stats, 'Running');
+    const speedEntry = result.find((e) => e.statType.includes('Speed'));
+    expect(speedEntry).toBeDefined();
+    expect(speedEntry!.statType).toContain('Kilometers per Hour');
+  });
 });

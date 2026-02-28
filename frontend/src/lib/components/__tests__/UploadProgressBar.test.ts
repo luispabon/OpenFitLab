@@ -83,4 +83,25 @@ describe('UploadProgressBar', () => {
     });
     expect(screen.getByText(/1-10 of 25/)).toBeInTheDocument();
   });
+
+  it('shows "currentFile-currentBatchEnd of totalFiles" and custom label when all props set', () => {
+    render(UploadProgressBar, {
+      props: {
+        currentFile: 2,
+        totalFiles: 10,
+        progress: 30,
+        currentBatchEnd: 5,
+        fileName: 'test.gpx',
+        label: 'Saving',
+        progressColor: 'bg-green-500',
+      },
+    });
+    expect(screen.getByText(/Saving/)).toBeInTheDocument();
+    expect(screen.getByText(/2-5 of 10/)).toBeInTheDocument();
+    expect(screen.getByText('test.gpx')).toBeInTheDocument();
+    expect(screen.getByText('30%')).toBeInTheDocument();
+    const progressBar = screen.getByRole('progressbar');
+    const fill = progressBar.parentElement?.querySelector('.bg-green-500');
+    expect(fill).toBeInTheDocument();
+  });
 });

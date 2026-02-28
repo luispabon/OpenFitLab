@@ -99,6 +99,32 @@ describe('DashboardBulkDeleteFlow', () => {
     });
   });
 
+  it('calls onDone with failed count and onClosed when deleteEvent rejects', async () => {
+    const onDone = vi.fn();
+    const onClosed = vi.fn();
+    mockDeleteEvent.mockRejectedValueOnce(new Error('Network error')).mockResolvedValueOnce(true);
+    render(DashboardBulkDeleteFlow, {
+      props: {
+        ...defaultProps,
+        eventIdsToDelete: ['evt-1', 'evt-2'],
+        onDone,
+        onClosed,
+      },
+    });
+    await waitFor(() => {
+      expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete 2 Events' }));
+    await waitFor(() => {
+      expect(mockDeleteEvent).toHaveBeenCalledWith('evt-1');
+      expect(mockDeleteEvent).toHaveBeenCalledWith('evt-2');
+    });
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalledWith(1, 1);
+      expect(onClosed).toHaveBeenCalled();
+    });
+  });
+
   it('shows progress bar while bulk deleting', async () => {
     let resolveFirst!: (value: boolean) => void;
     mockDeleteEvent.mockImplementation(

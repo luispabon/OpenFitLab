@@ -77,6 +77,17 @@ describe('DashboardFilters', () => {
     expect(screen.getByText('No matching types')).toBeInTheDocument();
   });
 
+  it('calls onToggleActivityType when activity type checkbox in list is clicked', async () => {
+    const onToggleActivityType = vi.fn();
+    render(DashboardFilters, {
+      props: { ...defaultProps, onToggleActivityType },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /Activity type/ }));
+    const runningLabel = screen.getByRole('checkbox', { name: /running/i });
+    await fireEvent.click(runningLabel);
+    expect(onToggleActivityType).toHaveBeenCalledWith('running');
+  });
+
   it('shows device count and device list with checkboxes', async () => {
     const onToggleDevice = vi.fn();
     render(DashboardFilters, {

@@ -3,6 +3,20 @@ import { render, fireEvent } from '@testing-library/svelte';
 import UserMenu from '../../components/user-menu.svelte';
 
 describe('user-menu', () => {
+  it('renders initials "U" when displayName is null', () => {
+    const { getByText } = render(UserMenu, {
+      props: { displayName: null, avatarUrl: null, collapsed: false },
+    });
+    expect(getByText('U')).toBeTruthy();
+  });
+
+  it('renders initials "U" when displayName is whitespace only', () => {
+    const { getByText } = render(UserMenu, {
+      props: { displayName: '   ', avatarUrl: null, collapsed: false },
+    });
+    expect(getByText('U')).toBeTruthy();
+  });
+
   it('renders initials when no avatar and triggers logout on click', async () => {
     const { getByText } = render(UserMenu, {
       props: { displayName: 'Alice Bob', avatarUrl: null, collapsed: false },

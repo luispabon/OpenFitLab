@@ -213,6 +213,32 @@ describe('buildComparisonChartData', () => {
       expect(y1[1]).toBe(150); // interpolated between 100 and 200
       expect(y1[3]).toBe(200); // extrapolated from last
     });
+
+    it('extrapolates from first point when X is before first point of a series (rightIdx only)', () => {
+      // Series 1: points at 1000, 2000 (elapsed 0, 1000); Series 2: at 0, 1000, 2000 (elapsed 0, 1000, 2000). Union X = [0, 1000, 2000]. For series 1 at x=0 we have no point -> extrapolate from first.
+      const result = buildComparisonChartData(
+        [
+          entry(1000, [
+            { time: 1000, value: 10 },
+            { time: 2000, value: 20 },
+          ]),
+          entry(0, [
+            { time: 0, value: 5 },
+            { time: 1000, value: 15 },
+            { time: 2000, value: 25 },
+          ]),
+        ],
+        'elapsed'
+      );
+      expect(result.data).not.toBeNull();
+      const xs = (result.data as number[][])[0];
+      expect(xs).toEqual([0, 1000, 2000]);
+      const y1 = (result.data as number[][])[1];
+      // At x=0 series 1 has no point; extrapolate from first (10)
+      expect(y1[0]).toBe(10);
+      expect(y1[1]).toBe(10);
+      expect(y1[2]).toBe(20);
+    });
   });
 
   describe('Option A: elapsed common time origin', () => {

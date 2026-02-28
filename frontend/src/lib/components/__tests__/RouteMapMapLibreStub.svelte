@@ -20,15 +20,24 @@
   }: Props = $props();
 
   onMount(() => {
+    const g = typeof globalThis !== 'undefined' ? (globalThis as Record<string, unknown>) : {};
+    const addImageSpy = (g.__routeMapAddImageSpy as (...args: unknown[]) => void) ?? (() => {});
+    const setLayoutPropertySpy =
+      (g.__routeMapSetLayoutPropertySpy as (...args: unknown[]) => void) ?? (() => {});
+    const styleLoadCbs: (() => void)[] = [];
     const fakeMap = {
       fitBounds: () => {},
       isStyleLoaded: () => true,
-      addImage: () => {},
-      on: () => {},
+      addImage: addImageSpy,
+      on: (ev: string, cb: () => void) => {
+        if (ev === 'style.load') styleLoadCbs.push(cb);
+      },
       off: () => {},
-      getStyle: () => ({ layers: [] }),
-      setLayoutProperty: () => {},
+      getStyle: () => ({ layers: [{ id: 'labels-layer', type: 'symbol' }] }),
+      setLayoutProperty: setLayoutPropertySpy,
+      _fireStyleLoad: () => styleLoadCbs.forEach((cb) => cb()),
     };
+    (g.__routeMapFakeMap as unknown) = fakeMap;
     map = fakeMap;
     onload?.({ target: map });
   });

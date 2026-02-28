@@ -88,4 +88,24 @@ describe('deleteAccount', () => {
     }
     expect(setSpy).toHaveBeenCalledWith(null);
   });
+
+  it('returns { ok: false, status, error } when response has non-JSON body (catch branch)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 500,
+        ok: false,
+        statusText: 'Internal Server Error',
+        text: () => Promise.resolve('plain text error body'),
+      })
+    );
+
+    const result = await deleteAccount();
+
+    expect(result).toEqual({
+      ok: false,
+      status: 500,
+      error: 'Internal Server Error',
+    });
+  });
 });

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import RouteMap from '../RouteMap.svelte';
 import {
   streamsLatLngFixture,
@@ -8,9 +8,23 @@ import {
   emptyStreamsFixture,
 } from '../../../test/fixtures/streams';
 
+declare global {
+  var __routeMapAddImageSpy: (...args: unknown[]) => void;
+  var __routeMapSetLayoutPropertySpy: (...args: unknown[]) => void;
+  var __routeMapFakeMap: { _fireStyleLoad: () => void };
+}
+
 vi.mock('svelte-maplibre-gl', () => import('./route-map-maplibre-stubs'));
 
 describe('RouteMap', () => {
+  beforeEach(() => {
+    globalThis.__routeMapAddImageSpy = vi.fn();
+    globalThis.__routeMapSetLayoutPropertySpy = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   describe('no route data', () => {
     it('renders nothing when streams is empty and routes is undefined', () => {
       render(RouteMap, { props: { streams: emptyStreamsFixture } });
@@ -91,6 +105,102 @@ describe('RouteMap', () => {
       });
       expect(screen.getByText('Route A:')).toBeInTheDocument();
       expect(screen.getByText('Route B:')).toBeInTheDocument();
+    });
+  });
+
+  describe('map effects (arrow image and labels)', () => {
+    it('calls addImage when arrow image loads and map is ready', async () => {
+      let onloadRef: (() => void) | null = null;
+      vi.stubGlobal(
+        'Image',
+        vi.fn(function (this: { onload: (() => void) | null; src: string }) {
+          this.onload = null;
+          this.src = '';
+          onloadRef = () => {
+            if (this.onload) this.onload();
+          };
+          return this;
+        })
+      );
+
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+
+      await vi.waitFor(() => {
+        expect(globalThis.__routeMapFakeMap).toBeDefined();
+      });
+      onloadRef?.();
+      await vi.waitFor(() => {
+        expect(globalThis.__routeMapAddImageSpy).toHaveBeenCalledWith(
+          'route-direction-arrow',
+          expect.anything(),
+          expect.objectContaining({ pixelRatio: 2, sdf: true })
+        );
+      });
+    });
+
+    it('calls setLayoutProperty when labels toggle is clicked', async () => {
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+
+      await vi.waitFor(() => {
+        expect(globalThis.__routeMapFakeMap).toBeDefined();
+      });
+
+      const labelsBtn = screen.getByTitle('Hide labels');
+      await fireEvent.click(labelsBtn);
+
+      expect(globalThis.__routeMapSetLayoutPropertySpy).toHaveBeenCalledWith(
+        'labels-layer',
+        'visibility',
+        'none'
+      );
+
+      await fireEvent.click(screen.getByTitle('Show labels'));
+      expect(globalThis.__routeMapSetLayoutPropertySpy).toHaveBeenCalledWith(
+        'labels-layer',
+        'visibility',
+        'visible'
+      );
+    });
+
+    it('theme selector changes selectedTheme and style URL', async () => {
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+      const select = screen.getByRole('combobox');
+      expect(select).toHaveValue('liberty');
+      await fireEvent.change(select, { target: { value: 'dark' } });
+      expect(select).toHaveValue('dark');
+    });
+
+    it('style.load listener calls addArrowImage when fired', async () => {
+      let onloadRef: (() => void) | null = null;
+      vi.stubGlobal(
+        'Image',
+        vi.fn(function (this: { onload: (() => void) | null; src: string }) {
+          this.onload = null;
+          this.src = '';
+          onloadRef = () => {
+            if (this.onload) this.onload();
+          };
+          return this;
+        })
+      );
+
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+
+      await vi.waitFor(() => {
+        expect(globalThis.__routeMapFakeMap).toBeDefined();
+      });
+      onloadRef?.();
+      await vi.waitFor(() => {
+        expect(globalThis.__routeMapAddImageSpy).toHaveBeenCalled();
+      });
+      const addImageBefore = (globalThis.__routeMapAddImageSpy as ReturnType<typeof vi.fn>).mock
+        .calls.length;
+      globalThis.__routeMapFakeMap._fireStyleLoad();
+      await vi.waitFor(() => {
+        expect(
+          (globalThis.__routeMapAddImageSpy as ReturnType<typeof vi.fn>).mock.calls.length
+        ).toBeGreaterThan(addImageBefore);
+      });
     });
   });
 });

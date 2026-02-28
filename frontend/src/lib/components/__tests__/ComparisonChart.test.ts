@@ -1,10 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import ComparisonChart from '../ComparisonChart.svelte';
 import type { ComparisonChartEntry } from '../../utils/comparison-chart-data';
+import type uPlot from 'uplot';
+
+interface ComparisonChartMockRef {
+  lastOptsRef: { current: uPlot.Options | null };
+  instance: {
+    destroy: ReturnType<typeof vi.fn>;
+    batch: ReturnType<typeof vi.fn>;
+    setSize: ReturnType<typeof vi.fn>;
+    setScale: ReturnType<typeof vi.fn>;
+  };
+}
 
 vi.mock('uplot', () => {
-  const mockInstance = {
+  const lastOptsRef = { current: null as uPlot.Options | null };
+  const instance = {
     destroy: vi.fn(),
     batch: vi.fn((fn: () => void) => {
       if (fn) fn();
@@ -12,8 +25,18 @@ vi.mock('uplot', () => {
     setSize: vi.fn(),
     setScale: vi.fn(),
   };
-  const Mock = vi.fn(function (this: unknown) {
-    return mockInstance;
+  (globalThis as { __comparisonChartMock?: ComparisonChartMockRef }).__comparisonChartMock = {
+    lastOptsRef,
+    instance,
+  };
+  const Mock = vi.fn(function (
+    _this: unknown,
+    opts: uPlot.Options,
+    _data: uPlot.AlignedData,
+    _container: HTMLElement
+  ) {
+    lastOptsRef.current = opts;
+    return instance;
   });
   (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
     spline: () => () => {},
@@ -21,6 +44,10 @@ vi.mock('uplot', () => {
   };
   return { default: Mock };
 });
+
+function getChartMock(): ComparisonChartMockRef {
+  return (globalThis as { __comparisonChartMock?: ComparisonChartMockRef }).__comparisonChartMock!;
+}
 
 function entry(
   activityStartDate: number,
@@ -119,6 +146,77 @@ describe('ComparisonChart', () => {
       });
       expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
       expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+    });
+  });
+
+  describe('effect and chart lifecycle', () => {
+    it('destroys previous chart when entries change (chartRef.current path)', async () => {
+      const { rerender } = render(ComparisonChart, {
+        props: {
+          streamType: 'Heart Rate',
+          entries: [entry(1000, [{ time: 1000, value: 80 }])],
+          xAxisMode: 'elapsed',
+        },
+      });
+      await tick();
+      const destroyCallsBefore = getChartMock().instance.destroy.mock.calls.length;
+      rerender({
+        streamType: 'Heart Rate',
+        entries: [
+          entry(1000, [{ time: 1000, value: 80 }]),
+          entry(2000, [{ time: 2000, value: 90 }]),
+        ],
+        xAxisMode: 'elapsed',
+      });
+      await tick();
+      expect(getChartMock().instance.destroy.mock.calls.length).toBeGreaterThan(destroyCallsBefore);
+    });
+
+    it('resetZoom button click calls batch and setScale when chart exists', async () => {
+      render(ComparisonChart, {
+        props: {
+          streamType: 'Heart Rate',
+          entries: [
+            entry(1000, [
+              { time: 1000, value: 80 },
+              { time: 2000, value: 90 },
+            ]),
+          ],
+          xAxisMode: 'elapsed',
+        },
+      });
+      await tick();
+      const resetBtn = screen.getByText('Reset Zoom').closest('button');
+      expect(resetBtn).toBeInTheDocument();
+      resetBtn!.click();
+      expect(getChartMock().instance.batch).toHaveBeenCalled();
+      expect(getChartMock().instance.setScale).toHaveBeenCalledWith('x', expect.any(Object));
+    });
+
+    it('cleanup on unmount calls destroy and ResizeObserver disconnect', () => {
+      const disconnectSpy = vi.fn();
+      const OriginalRO = window.ResizeObserver;
+      window.ResizeObserver = class {
+        observe = vi.fn();
+        disconnect = disconnectSpy;
+        unobserve = vi.fn();
+        constructor(_cb: ResizeObserverCallback) {}
+      } as unknown as typeof ResizeObserver;
+
+      const { unmount } = render(ComparisonChart, {
+        props: {
+          streamType: 'Heart Rate',
+          entries: [entry(1000, [{ time: 1000, value: 80 }])],
+          xAxisMode: 'elapsed',
+        },
+      });
+      unmount();
+
+      expect(
+        getChartMock().instance.destroy
+      ).toHaveBeenCalled();
+      expect(disconnectSpy).toHaveBeenCalled();
+      window.ResizeObserver = OriginalRO;
     });
   });
 });

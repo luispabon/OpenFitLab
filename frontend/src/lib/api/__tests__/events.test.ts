@@ -8,6 +8,7 @@ import {
   updateActivity,
   getStreams,
   deleteEvent,
+  uploadFiles,
 } from '../events';
 import { eventDetailFixture } from '../../../test/fixtures/event-detail';
 import { activityRowsFixture } from '../../../test/fixtures/activity-rows';
@@ -119,6 +120,19 @@ describe('getActivityRows', () => {
 
     const url = mockFetch.mock.calls[0][0];
     expect(url).not.toContain('search=');
+  });
+
+  it('sets search param with trimmed value when search is non-blank', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ rows: [], total: 0 }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    await getActivityRows({ search: '  run  ' });
+
+    const url = mockFetch.mock.calls[0][0];
+    expect(url).toContain('search=run');
   });
 
   it('throws on non-ok response', async () => {
@@ -349,6 +363,178 @@ describe('getStreams', () => {
     );
 
     await expect(getStreams('evt-1', 'act-1')).rejects.toThrow(/Failed to fetch streams/);
+  });
+});
+
+describe('uploadFiles', () => {
+  function createXHRMock() {
+    const loadListeners: (() => void)[] = [];
+    const errorListeners: (() => void)[] = [];
+    const abortListeners: (() => void)[] = [];
+    const progressListeners: ((e: ProgressEvent) => void)[] = [];
+    const xhr = {
+      open: vi.fn(),
+      send: vi.fn(),
+      withCredentials: false,
+      status: 200,
+      statusText: 'OK',
+      responseText: '{}',
+      upload: {
+        addEventListener: vi.fn((ev: string, fn: (e: ProgressEvent) => void) => {
+          if (ev === 'progress') progressListeners.push(fn);
+        }),
+      },
+      addEventListener: vi.fn((ev: string, fn: () => void) => {
+        if (ev === 'load') loadListeners.push(fn);
+        if (ev === 'error') errorListeners.push(fn);
+        if (ev === 'abort') abortListeners.push(fn);
+      }),
+      _fireLoad: () => loadListeners.forEach((fn) => fn()),
+      _fireError: () => errorListeners.forEach((fn) => fn()),
+      _fireAbort: () => abortListeners.forEach((fn) => fn()),
+      _fireProgress: (e: ProgressEvent) => progressListeners.forEach((fn) => fn(e)),
+    };
+    return xhr;
+  }
+
+  it('resolves with response and calls onProgress(100) on success', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const onProgress = vi.fn();
+    const response = { results: [{ id: 'ev-1', event: {}, activities: [] }] };
+    const p = uploadFiles([new File(['x'], 'a.gpx')], onProgress);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 200;
+    xhr.responseText = JSON.stringify(response);
+    xhr._fireProgress({ lengthComputable: true, loaded: 50, total: 100 } as ProgressEvent);
+    xhr._fireProgress({ lengthComputable: true, loaded: 100, total: 100 } as ProgressEvent);
+    xhr._fireLoad();
+
+    const result = await p;
+    expect(result).toEqual(response);
+    expect(onProgress).toHaveBeenCalledWith(100);
+    expect(xhr.open).toHaveBeenCalledWith('POST', '/api/events');
+    expect(xhr.withCredentials).toBe(true);
+  });
+
+  it('does not call onProgress when not provided', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 200;
+    xhr.responseText = JSON.stringify({ results: [] });
+    xhr._fireLoad();
+
+    await p;
+    expect(xhr.upload.addEventListener).toHaveBeenCalledWith('progress', expect.any(Function));
+  });
+
+  it('rejects with error message from JSON body on 4xx/5xx', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 400;
+    xhr.statusText = 'Bad Request';
+    xhr.responseText = JSON.stringify({ error: 'Invalid file type' });
+    xhr._fireLoad();
+
+    await expect(p).rejects.toThrow('Invalid file type');
+  });
+
+  it('rejects with statusText when error response has non-JSON body', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 500;
+    xhr.statusText = 'Internal Server Error';
+    xhr.responseText = 'plain text error';
+    xhr._fireLoad();
+
+    await expect(p).rejects.toThrow('Internal Server Error');
+  });
+
+  it('rejects with "Failed to parse response" when success response is invalid JSON', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 200;
+    xhr.responseText = 'not json';
+    xhr._fireLoad();
+
+    await expect(p).rejects.toThrow('Failed to parse response');
+  });
+
+  it('rejects with "Network error during upload" on error event', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr._fireError();
+
+    await expect(p).rejects.toThrow('Network error during upload');
+  });
+
+  it('rejects with "Upload aborted" on abort event', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr._fireAbort();
+
+    await expect(p).rejects.toThrow('Upload aborted');
   });
 });
 
