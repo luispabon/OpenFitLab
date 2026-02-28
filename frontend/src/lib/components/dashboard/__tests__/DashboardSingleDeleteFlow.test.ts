@@ -108,6 +108,7 @@ describe('DashboardSingleDeleteFlow', () => {
   });
 
   it('calls onError and onClosed when deleteEvent rejects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const onError = vi.fn();
     const onClosed = vi.fn();
     mockDeleteEvent.mockRejectedValue(new Error('Network error'));
@@ -122,5 +123,6 @@ describe('DashboardSingleDeleteFlow', () => {
       expect(onError).toHaveBeenCalledWith('Network error');
       expect(onClosed).toHaveBeenCalled();
     });
+    consoleError.mockRestore();
   });
 });
