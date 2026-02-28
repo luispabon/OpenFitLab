@@ -94,7 +94,8 @@ class FileParser {
         const filenameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '').trim(); // Remove extension and trim
         if (filenameWithoutExt) {
           event.name = filenameWithoutExt;
-        } else if (!event.name || !event.name.trim()) {
+        } else {
+          // Filename is only extension (e.g. '.tcx' or '  .tcx  ')
           event.name = 'Untitled Event';
         }
       } else if (!event.name || !event.name.trim()) {

@@ -1,4 +1,5 @@
 const { describe, it } = require('node:test');
+const assert = require('node:assert');
 const { strictEqual, deepStrictEqual } = require('node:assert/strict');
 const {
   createComparison,
@@ -77,6 +78,31 @@ describe('comparison-service', () => {
       strictEqual(Boolean(insertComp), true);
       strictEqual(insertComp.params[3], null);
       strictEqual(result.settings, null);
+    });
+
+    it('rejects with statusCode 404 when fewer events found than requested (transaction rolls back)', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('FROM events')) {
+          return [{ id: 'e1' }];
+        }
+        return { affectedRows: 1 };
+      });
+
+      await assert.rejects(
+        async () => {
+          await createComparison('Test', ['e1', 'e2', 'e3'], null, { db, userId: 'u1' });
+        },
+        (err) => {
+          strictEqual(err.statusCode, 404);
+          strictEqual(err.message, 'One or more events not found');
+          return true;
+        }
+      );
+
+      const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
+      strictEqual(insertComp, undefined, 'transaction should roll back; no comparison insert');
     });
   });
 

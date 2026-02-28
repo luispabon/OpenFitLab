@@ -9,6 +9,7 @@ const {
   validateComparisonId,
   validateComparisonBody,
   validateComparisonByEventsBody,
+  validateExportQuery,
 } = require('../../src/utils/validation');
 
 function mockRes() {
@@ -404,6 +405,65 @@ describe('validateComparisonByEventsBody', () => {
     validateComparisonByEventsBody(req, res, next);
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
+    strictEqual(next.called(), false);
+  });
+});
+
+describe('validateExportQuery', () => {
+  it('calls next when includeStreams is "true"', () => {
+    const req = { query: { includeStreams: 'true' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, null);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next when includeStreams is "false"', () => {
+    const req = { query: { includeStreams: 'false' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, null);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next when includeStreams is not provided', () => {
+    const req = { query: {} };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, null);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 when includeStreams is "yes"', () => {
+    const req = { query: { includeStreams: 'yes' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'includeStreams must be "true" or "false"' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when includeStreams is 1', () => {
+    const req = { query: { includeStreams: 1 } };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'includeStreams must be "true" or "false"' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when includeStreams is empty string', () => {
+    const req = { query: { includeStreams: '' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateExportQuery(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'includeStreams must be "true" or "false"' });
     strictEqual(next.called(), false);
   });
 });

@@ -135,4 +135,32 @@ describe('FileParser.parseFile', () => {
         err.message.includes('Lap missing StartTime')
     );
   });
+
+  it('parses FIT buffer (Buffer→ArrayBuffer path) and returns event', async () => {
+    const fitPath = path.join(FIXTURES_DIR, 'minimal.fit');
+    const buffer = fs.readFileSync(fitPath);
+    ok(Buffer.isBuffer(buffer));
+    const event = await FileParser.parseFile(buffer, 'fit', 'activity.fit');
+    ok(event);
+    ok(event.getActivities);
+    const activities = event.getActivities();
+    ok(Array.isArray(activities));
+    strictEqual(activities.length >= 1, true);
+  });
+
+  it('sets event name to Untitled Event when filename is only extension', async () => {
+    const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+    const buffer = fs.readFileSync(tcxPath);
+    const event = await FileParser.parseFile(buffer, 'tcx', '  .tcx  ');
+    strictEqual(event.name, 'Untitled Event');
+  });
+
+  it('sets event name when no filename (Untitled Event when parsed event has no name)', async () => {
+    const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+    const buffer = fs.readFileSync(tcxPath);
+    const event = await FileParser.parseFile(buffer, 'tcx', '');
+    ok(event);
+    ok(event.name);
+    strictEqual(event.name.trim().length > 0, true);
+  });
 });

@@ -151,4 +151,54 @@ describe('extractStreamDataPointsFromJSON', () => {
     strictEqual(zStream.dataPoints.length, 2);
     deepStrictEqual(zStream.dataPoints.map((dp) => dp.value), [10, 20]);
   });
+
+  it('Time stream with Date objects uses correct timestamps', () => {
+    const d0 = new Date(BASE_MS);
+    const d1 = new Date(BASE_MS + 1000);
+    const activityJson = {
+      streams: [
+        { type: 'Time', data: [d0, d1] },
+        { type: 'Distance', data: [0, 5] },
+      ],
+    };
+    const result = extractStreamDataPointsFromJSON(activityJson, BASE_MS);
+    strictEqual(result.length, 2);
+    const timeStream = result.find((s) => s.type === 'Time');
+    strictEqual(timeStream.dataPoints.length, 2);
+    strictEqual(timeStream.dataPoints[0].time, BASE_MS);
+    strictEqual(timeStream.dataPoints[1].time, BASE_MS + 1000);
+  });
+
+  it('non-Time stream uses timestamps from Time stream when Time has absolute Date', () => {
+    const d0 = new Date(BASE_MS);
+    const d1 = new Date(BASE_MS + 2000);
+    const activityJson = {
+      streams: [
+        { type: 'Time', data: [d0, d1] },
+        { type: 'Distance', data: [10, 20] },
+      ],
+    };
+    const result = extractStreamDataPointsFromJSON(activityJson, 0);
+    const distStream = result.find((s) => s.type === 'Distance');
+    strictEqual(distStream.dataPoints.length, 2);
+    strictEqual(distStream.dataPoints[0].time, BASE_MS);
+    strictEqual(distStream.dataPoints[1].time, BASE_MS + 2000);
+  });
+
+  it('Time value not Date/string/number falls back to activityStartDateMs', () => {
+    const d0 = new Date(BASE_MS);
+    const activityJson = {
+      streams: [
+        { type: 'Time', data: [d0, {}] },
+        { type: 'X', data: [1, 2] },
+      ],
+    };
+    const result = extractStreamDataPointsFromJSON(activityJson, BASE_MS);
+    const timeStream = result.find((s) => s.type === 'Time');
+    strictEqual(timeStream.dataPoints[0].time, BASE_MS);
+    strictEqual(timeStream.dataPoints[1].time, BASE_MS);
+    const xStream = result.find((s) => s.type === 'X');
+    strictEqual(xStream.dataPoints[0].time, BASE_MS);
+    strictEqual(xStream.dataPoints[1].time, BASE_MS);
+  });
 });
