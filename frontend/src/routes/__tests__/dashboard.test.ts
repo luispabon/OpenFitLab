@@ -254,6 +254,7 @@ describe('Dashboard', () => {
   });
 
   it('second toast clears first toast timeout', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetActivityRows.mockReset();
     mockGetActivityRows.mockRejectedValueOnce(new Error('First error'));
     render(Dashboard);
@@ -265,6 +266,7 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('Second error')).toBeInTheDocument();
     });
+    consoleError.mockRestore();
   });
 
   it('upload with progress callback updates progress', async () => {
@@ -327,6 +329,7 @@ describe('Dashboard', () => {
   });
 
   it('upload batch error shows failed filenames toast', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockUploadFiles.mockRejectedValue(new Error('Network error'));
     const file = new File(['x'], 'broken.fit', { type: 'application/octet-stream' });
     render(Dashboard);
@@ -341,6 +344,7 @@ describe('Dashboard', () => {
       },
       { timeout: 3000 }
     );
+    consoleError.mockRestore();
   });
 
   it('select-all checkbox selects all when not all selected', async () => {
