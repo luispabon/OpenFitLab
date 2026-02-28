@@ -4,6 +4,16 @@ import { afterEach, vi } from 'vitest';
 
 afterEach(cleanup);
 
+// ResizeObserver used by chart components (e.g. ComparisonChart, OverlayChart)
+window.ResizeObserver =
+  window.ResizeObserver ||
+  class ResizeObserver {
+    observe = vi.fn();
+    disconnect = vi.fn();
+    unobserve = vi.fn();
+    constructor(_callback: ResizeObserverCallback) {}
+  };
+
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
@@ -17,3 +27,32 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// Suppress "Not implemented: HTMLCanvasElement's getContext()" from jsdom when chart code runs
+const noop = () => {};
+const mockContext = {
+  getImageData: noop,
+  putImageData: noop,
+  fillRect: noop,
+  clearRect: noop,
+  fillText: noop,
+  measureText: () => ({ width: 0 }),
+  canvas: { width: 0, height: 0, style: {} },
+  save: noop,
+  restore: noop,
+  translate: noop,
+  scale: noop,
+  beginPath: noop,
+  moveTo: noop,
+  lineTo: noop,
+  stroke: noop,
+  fill: noop,
+  rect: noop,
+  arc: noop,
+  getContextAttributes: () => ({}),
+};
+if (typeof HTMLCanvasElement !== 'undefined') {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    mockContext as unknown as CanvasRenderingContext2D
+  );
+}

@@ -71,4 +71,60 @@ describe('DashboardPaginator', () => {
     expect(screen.getByRole('option', { name: '20' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '50' })).toBeInTheDocument();
   });
+
+  it('calls goToPage(1) when Previous page clicked and current page is 2', async () => {
+    const goToPage = vi.fn();
+    render(DashboardPaginator, {
+      props: {
+        ...defaultProps,
+        currentPageFromUrl: 2,
+        goToPage,
+      },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    expect(goToPage).toHaveBeenCalledWith(1);
+  });
+
+  it('calls goToPage(5) when Next page clicked and current page is 4', async () => {
+    const goToPage = vi.fn();
+    render(DashboardPaginator, {
+      props: {
+        ...defaultProps,
+        currentPageFromUrl: 4,
+        totalPages: 5,
+        visiblePageNumbers: [1, 3, 4, 5],
+        pageRangeText: '61-80 of 100',
+        goToPage,
+      },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(goToPage).toHaveBeenCalledWith(5);
+  });
+
+  it('shows ellipsis between non-adjacent page numbers', () => {
+    render(DashboardPaginator, {
+      props: {
+        ...defaultProps,
+        visiblePageNumbers: [1, 3, 4, 5],
+        currentPageFromUrl: 3,
+      },
+    });
+    const ellipsis = screen.getByText('…');
+    expect(ellipsis).toBeInTheDocument();
+  });
+
+  it('calls goToPage when jump-to-page select is changed', async () => {
+    const goToPage = vi.fn();
+    render(DashboardPaginator, {
+      props: {
+        ...defaultProps,
+        currentPageFromUrl: 2,
+        totalPages: 5,
+        goToPage,
+      },
+    });
+    const jumpSelect = screen.getByRole('combobox', { name: /page 2 of 5/i });
+    await fireEvent.change(jumpSelect, { target: { value: '4' } });
+    expect(goToPage).toHaveBeenCalledWith(4);
+  });
 });

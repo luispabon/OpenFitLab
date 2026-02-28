@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import DashboardSingleDeleteFlow from '../DashboardSingleDeleteFlow.svelte';
 
 const mockGetComparisonsByEventIds = vi.fn();
@@ -59,5 +59,70 @@ describe('DashboardSingleDeleteFlow', () => {
       expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('handles getComparisonsByEventIds rejection without crashing', async () => {
+    mockGetComparisonsByEventIds.mockRejectedValue(new Error('Network error'));
+    render(DashboardSingleDeleteFlow, {
+      props: { ...defaultProps, eventIdToDelete: 'evt-1' },
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('calls onDone and onClosed when confirm and deleteEvent resolves true', async () => {
+    const onDone = vi.fn();
+    const onClosed = vi.fn();
+    mockDeleteEvent.mockResolvedValue(true);
+    render(DashboardSingleDeleteFlow, {
+      props: { ...defaultProps, eventIdToDelete: 'evt-1', onDone, onClosed },
+    });
+    await waitFor(() => {
+      expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(onDone).toHaveBeenCalled();
+      expect(onClosed).toHaveBeenCalled();
+    });
+  });
+
+  it('calls onError and onClosed when deleteEvent resolves false', async () => {
+    const onError = vi.fn();
+    const onClosed = vi.fn();
+    mockDeleteEvent.mockResolvedValue(false);
+    render(DashboardSingleDeleteFlow, {
+      props: { ...defaultProps, eventIdToDelete: 'evt-1', onError, onClosed },
+    });
+    await waitFor(() => {
+      expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith('Event not found');
+      expect(onClosed).toHaveBeenCalled();
+    });
+  });
+
+  it('calls onError and onClosed when deleteEvent rejects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onError = vi.fn();
+    const onClosed = vi.fn();
+    mockDeleteEvent.mockRejectedValue(new Error('Network error'));
+    render(DashboardSingleDeleteFlow, {
+      props: { ...defaultProps, eventIdToDelete: 'evt-1', onError, onClosed },
+    });
+    await waitFor(() => {
+      expect(mockGetComparisonsByEventIds).toHaveBeenCalled();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith('Network error');
+      expect(onClosed).toHaveBeenCalled();
+    });
+    consoleError.mockRestore();
   });
 });
