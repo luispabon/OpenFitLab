@@ -5,7 +5,7 @@ export interface EventSummary {
   endDate?: number;
   description?: string;
   isMerge?: boolean;
-  stats: Record<string, number | string | number[] | Record<string, unknown>>;
+  stats: Record<string, number | string | number[] | string[] | Record<string, unknown>>;
   activities?: Activity[];
   srcFileType?: string;
 }
@@ -23,7 +23,7 @@ export interface Activity {
   startDate?: number;
   endDate?: number;
   type?: string;
-  stats: Record<string, number | string | number[] | Record<string, unknown>>;
+  stats: Record<string, number | string | number[] | string[] | Record<string, unknown>>;
   deviceName?: string;
 }
 
