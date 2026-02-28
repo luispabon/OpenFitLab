@@ -12,9 +12,10 @@ vi.mock('uplot', () => {
     setSize: vi.fn(),
     setScale: vi.fn(),
   };
-  (globalThis as { __timeSeriesChartMock?: { instance: typeof instance } }).__timeSeriesChartMock = {
-    instance,
-  };
+  (globalThis as { __timeSeriesChartMock?: { instance: typeof instance } }).__timeSeriesChartMock =
+    {
+      instance,
+    };
   const Mock = vi.fn(function (this: unknown) {
     return instance;
   });
@@ -26,15 +27,17 @@ vi.mock('uplot', () => {
 });
 
 function getTimeSeriesChartMock() {
-  return (globalThis as {
-    __timeSeriesChartMock?: {
-      instance: {
-        destroy: ReturnType<typeof vi.fn>;
-        batch: ReturnType<typeof vi.fn>;
-        setScale: ReturnType<typeof vi.fn>;
+  return (
+    globalThis as {
+      __timeSeriesChartMock?: {
+        instance: {
+          destroy: ReturnType<typeof vi.fn>;
+          batch: ReturnType<typeof vi.fn>;
+          setScale: ReturnType<typeof vi.fn>;
+        };
       };
-    };
-  }).__timeSeriesChartMock!;
+    }
+  ).__timeSeriesChartMock!;
 }
 
 const streamWithData = {

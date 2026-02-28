@@ -27,8 +27,17 @@ vi.mock('uplot', () => {
 });
 
 function getOverlayChartMock() {
-  return (globalThis as { __overlayChartMock?: { instance: { destroy: ReturnType<typeof vi.fn>; batch: ReturnType<typeof vi.fn>; setScale: ReturnType<typeof vi.fn> } } })
-    .__overlayChartMock!;
+  return (
+    globalThis as {
+      __overlayChartMock?: {
+        instance: {
+          destroy: ReturnType<typeof vi.fn>;
+          batch: ReturnType<typeof vi.fn>;
+          setScale: ReturnType<typeof vi.fn>;
+        };
+      };
+    }
+  ).__overlayChartMock!;
 }
 
 describe('OverlayChart', () => {
@@ -121,7 +130,10 @@ describe('OverlayChart', () => {
 
     it('renders with two streams (two Y scales / right axis path)', () => {
       const twoStreams = [
-        { type: 'Heart Rate', data: [{ time: 1000, value: 80 }] as { time: number; value: number }[] },
+        {
+          type: 'Heart Rate',
+          data: [{ time: 1000, value: 80 }] as { time: number; value: number }[],
+        },
         { type: 'Cadence', data: [{ time: 1000, value: 90 }] as { time: number; value: number }[] },
       ];
       render(OverlayChart, {

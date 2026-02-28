@@ -212,9 +212,7 @@ describe('ComparisonChart', () => {
       });
       unmount();
 
-      expect(
-        getChartMock().instance.destroy
-      ).toHaveBeenCalled();
+      expect(getChartMock().instance.destroy).toHaveBeenCalled();
       expect(disconnectSpy).toHaveBeenCalled();
       window.ResizeObserver = OriginalRO;
     });
