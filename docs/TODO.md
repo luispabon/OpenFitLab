@@ -109,6 +109,17 @@ This document lists features from the PRD that are not yet implemented. Features
 - [ ] Graph export as images (mentioned in 3.3)
 - [ ] WCAG accessibility compliance (mentioned in 5.3)
 
+### Security / DevSecOps (CI)
+
+**Status:** Implemented  
+**Priority:** N/A
+
+- [x] **Dependency vulnerability scanning** — Dependabot (`.github/dependabot.yml`), npm audit in backend/frontend CI, dependency-review-action on PRs
+- [x] **Secrets scanning** — Gitleaks on PR diffs (`.github/workflows/security-checks.yml`), weekly full-history (`.github/workflows/security-scheduled.yml`), `.gitleaks.toml` allowlist
+- [x] **SAST** — Semgrep (Node.js/JavaScript/TypeScript) and eslint-plugin-security in backend lint
+- [x] **Docker config scanning** — Trivy for Dockerfile and docker-compose (security-checks.yml); backend Dockerfile updated with non-root USER
+- [ ] **Docker image scanning** — Deferred until the project builds its own production images; add Trivy image scan to security-scheduled.yml when applicable
+
 ---
 
 ## Implementation Notes

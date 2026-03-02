@@ -634,6 +634,16 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 - **File upload**: Limited to supported formats (TCX, FIT, GPX, JSON, SML); multer file size limit (e.g. 50 MB). Files parsed and discarded.
 - **SQL injection**: Parameterized queries via mysql2.
 - **Secrets**: SESSION_SECRET required (no default); OAuth client ID/secret and callback URL from environment. No secrets in logs.
+- **CI security checks:**
+  - Dependabot: automated dependency vulnerability alerts and PRs
+  - npm audit: run in CI for both backend and frontend (warn-only)
+  - dependency-review-action: fails PRs that introduce new vulnerable dependencies (HIGH/CRITICAL)
+  - Gitleaks: secrets scanning on PR diffs and weekly full-history
+  - GitHub push protection: blocks pushes containing known secret patterns
+  - Semgrep: SAST with Node.js/JavaScript/TypeScript rulesets on every PR
+  - eslint-plugin-security: security-focused lint rules in backend ESLint
+  - Trivy: Dockerfile and docker-compose misconfiguration scanning
+  - Docker image scanning: deferred until the project builds its own production images
 
 ## Performance Considerations
 

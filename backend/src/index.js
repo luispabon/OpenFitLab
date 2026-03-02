@@ -56,6 +56,8 @@ app.get('/health', async (req, res) => {
 
 async function start() {
   const uploadDir = config.server.uploadDir;
+  // uploadDir from config (env), not user input
+  /* eslint-disable-next-line security/detect-non-literal-fs-filename */
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
 

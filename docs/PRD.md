@@ -247,6 +247,7 @@ This use case is served by the Activity Comparison feature (Section 3.4). Users 
 - SQL injection prevention (parameterized queries)
 - File upload validation (format checking)
 - CORS configuration for production; rate limiting on auth and uploads
+- Automated CI security scanning: dependency vulnerability checks, secrets detection, static analysis (see docs/ARCHITECTURE.md)
 
 ---
 
@@ -401,3 +402,4 @@ These terms define the product; technical implementation (tables, API) is in [do
 - **2026-02-16**: Initial PRD created
 - MVP file upload and dashboard complete
 - Visualization and comparison features in progress
+- **2026-03-02**: Security requirements (4.5) updated with automated CI security scanning (dependency checks, secrets detection, SAST, Docker config scan). See docs/ARCHITECTURE.md.
