@@ -1,21 +1,7 @@
 const { describe, it } = require('node:test');
 const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const { exportUserData, deleteAccount } = require('../../../src/services/account-service');
-
-function makeFakeDb(queryFn) {
-  return {
-    query: queryFn,
-    transaction: async (fn) => {
-      const fakeConn = {
-        execute: async (sql, params) => {
-          const result = await queryFn(sql, params);
-          return [result];
-        },
-      };
-      return fn(fakeConn);
-    },
-  };
-}
+const { makeFakeDb } = require('../../helpers/fake-db');
 
 describe('account-service', () => {
   describe('exportUserData', () => {

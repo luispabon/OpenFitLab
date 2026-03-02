@@ -1,21 +1,7 @@
 const { describe, it } = require('node:test');
 const { strictEqual, deepStrictEqual } = require('node:assert/strict');
 const { deleteEventById } = require('../../../src/services/event-delete-service');
-
-function makeFakeDb(queryFn) {
-  return {
-    query: queryFn,
-    transaction: async (fn) => {
-      const fakeConn = {
-        execute: async (sql, params) => {
-          const result = await queryFn(sql, params);
-          return [result];
-        },
-      };
-      return fn(fakeConn);
-    },
-  };
-}
+const { makeFakeDb } = require('../../helpers/fake-db');
 
 describe('deleteEventById', () => {
   it('returns true when event is deleted with no linked comparisons', async () => {

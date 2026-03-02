@@ -1,6 +1,7 @@
 const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
 const comparisonRepository = require('../repositories/comparison-repository');
+const eventRepository = require('../repositories/event-repository');
 const { parseJSONField } = require('../utils/transforms');
 
 /**
@@ -15,8 +16,6 @@ async function createComparison(name, eventIds, settings, opts = {}) {
   const db = opts.db ?? defaultDb;
   const id = randomUUID();
   const trimmedName = name.trim();
-
-  const eventRepository = require('../repositories/event-repository');
 
   await db.transaction(async (conn) => {
     const txOpts = { ...opts, db, conn };

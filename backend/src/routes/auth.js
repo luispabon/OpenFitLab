@@ -3,6 +3,7 @@ const passport = require('passport');
 const { asyncHandler } = require('../middleware/async-handler');
 const config = require('../config');
 const { ValidationError } = require('../errors');
+const userRepository = require('../repositories/user-repository');
 
 const router = express.Router();
 
@@ -95,7 +96,6 @@ router.get(
     if (!req.session?.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const userRepository = require('../repositories/user-repository');
     const user = await userRepository.findById(req.session.userId);
     if (!user) {
       req.session.destroy(() => {});

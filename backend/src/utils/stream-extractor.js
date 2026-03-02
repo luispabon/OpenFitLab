@@ -3,108 +3,6 @@
  */
 
 /**
- * Check if a value is null, undefined, or NaN
- * @param {any} value - Value to check
- * @returns {boolean} True if value is null/undefined/NaN
- */
-function isNullValue(value) {
-  return value === null || value === undefined || (typeof value === 'number' && isNaN(value));
-}
-
-/**
- * Extract timestamps from a Time stream or calculate from activity start date
- * @param {Object} activity - Parsed activity object from sports-lib
- * @param {number} activityStartDateMs - Activity start date in milliseconds (Unix timestamp)
- * @param {Array} streamData - Array of stream values
- * @returns {Array<number>} Array of timestamps in milliseconds
- */
-function extractTimestamps(activity, activityStartDateMs, streamData) {
-  // Try to get Time stream from activity
-  const timeStream = activity.getStreams
-    ? activity.getStreams().find((s) => s.getType && s.getType() === 'Time')
-    : null;
-
-  if (timeStream && timeStream.getData) {
-    const timeData = timeStream.getData();
-    if (timeData && Array.isArray(timeData) && timeData.length === streamData.length) {
-      // Time stream contains offsets in seconds, convert to absolute timestamps
-      return timeData.map((offsetSeconds) => activityStartDateMs + offsetSeconds * 1000);
-    }
-  }
-
-  // Fallback: If no Time stream, try to use Duration stream
-  const durationStream = activity.getStreams
-    ? activity.getStreams().find((s) => s.getType && s.getType() === 'Duration')
-    : null;
-  if (durationStream && durationStream.getData) {
-    const durationData = durationStream.getData();
-    if (durationData && Array.isArray(durationData) && durationData.length === streamData.length) {
-      // Duration stream contains elapsed time in seconds
-      return durationData.map((durationSeconds) => activityStartDateMs + durationSeconds * 1000);
-    }
-  }
-
-  // Last resort: Generate timestamps assuming 1-second intervals
-  // This is not ideal but handles cases where time data is missing
-  return streamData.map((_, index) => activityStartDateMs + index * 1000);
-}
-
-/**
- * Extract stream data points with timestamps from an activity (sports-lib object API).
- * Kept for potential future use; currently only extractStreamDataPointsFromJSON is used.
- * @param {Object} activity - Parsed activity object from sports-lib
- * @param {number} activityStartDateMs - Activity start date in milliseconds
- * @returns {Array<{type: string, dataPoints: Array<{time: number, value: any}>}>}
- */
-// eslint-disable-next-line no-unused-vars -- kept for API symmetry / future use
-function extractStreamDataPoints(activity, activityStartDateMs) {
-  const streams = [];
-
-  if (!activity.getStreams || typeof activity.getStreams !== 'function') {
-    return streams;
-  }
-
-  const activityStreams = activity.getStreams();
-  if (!Array.isArray(activityStreams)) {
-    return streams;
-  }
-
-  for (const stream of activityStreams) {
-    if (!stream || !stream.getType || !stream.getData) {
-      continue;
-    }
-
-    const streamType = stream.getType();
-    const streamData = stream.getData();
-
-    if (!streamType || !streamData || !Array.isArray(streamData) || streamData.length === 0) {
-      continue;
-    }
-
-    // Extract timestamps for this stream
-    const timestamps = extractTimestamps(activity, activityStartDateMs, streamData);
-
-    // Create data points with timestamps, filtering out null values
-    const dataPoints = streamData
-      .map((value, index) => ({
-        time: timestamps[index] || activityStartDateMs + index * 1000,
-        value: value,
-      }))
-      .filter((dp) => !isNullValue(dp.value));
-
-    // Only include streams that have at least one valid data point
-    if (dataPoints.length > 0) {
-      streams.push({
-        type: streamType,
-        dataPoints: dataPoints,
-      });
-    }
-  }
-
-  return streams;
-}
-
-/**
  * Convert stream JSON format to data points
  * Handles both array format and object map format from toJSON()
  * @param {Object} activityJson - Activity JSON from toJSON()
@@ -218,7 +116,12 @@ function extractStreamDataPointsFromJSON(activityJson, activityStartDateMs) {
         time: timestamps[index] || activityStartDateMs + index * 1000,
         value: value,
       }))
-      .filter((dp) => !isNullValue(dp.value));
+      .filter(
+      (dp) =>
+        dp.value !== null &&
+        dp.value !== undefined &&
+        (typeof dp.value !== 'number' || !isNaN(dp.value))
+    );
 
     // Only include streams that have at least one valid data point
     if (dataPoints.length > 0) {

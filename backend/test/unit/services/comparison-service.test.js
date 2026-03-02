@@ -8,21 +8,7 @@ const {
   getComparisonsByEventIds,
   deleteComparisonById,
 } = require('../../../src/services/comparison-service');
-
-function makeFakeDb(queryFn) {
-  return {
-    query: queryFn,
-    transaction: async (fn) => {
-      const fakeConn = {
-        execute: async (sql, params) => {
-          const result = await queryFn(sql, params);
-          return [result];
-        },
-      };
-      return fn(fakeConn);
-    },
-  };
-}
+const { makeFakeDb } = require('../../helpers/fake-db');
 
 describe('comparison-service', () => {
   describe('createComparison', () => {
