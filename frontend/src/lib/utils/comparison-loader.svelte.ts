@@ -11,9 +11,9 @@ import { isChartableStream, isSmoothVariantToHide } from './stream-config';
 const EMPTY_EVENTS: EventDetail[] = [];
 const EMPTY_STREAMS: Record<string, StreamData[]> = {};
 
-let lastLoadedKey = $state('');
-let loadGeneration = $state(0);
-let loadedStreamsSignature = $state('');
+let lastLoadedKey = '';
+let loadGeneration = 0;
+let loadedStreamsSignature = '';
 let abortController: AbortController | null = null;
 
 /** Single reactive state object (mutate properties, do not reassign) so it can be exported. */

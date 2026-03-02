@@ -30,7 +30,7 @@ vi.mock('svelte-spa-router', () => ({
   location: {
     subscribe: (fn: (v: string) => void) => {
       fn('#/compare/new');
-      return { unsubscribe: () => {} };
+      return () => {};
     },
   },
 }));
