@@ -82,17 +82,10 @@ async function start() {
   app.use('/api', requireAuth, metaRouter);
 
   // Central error handler for async routes
+  const { errorHandler } = require('./middleware/error-handler');
   app.use((err, req, res, next) => {
     console.error(err);
-    if (res.headersSent) {
-      return next(err);
-    }
-    const message = err && err.message ? err.message : 'Internal server error';
-    const statusCode =
-      typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600
-        ? err.statusCode
-        : 500;
-    res.status(statusCode).json({ error: message });
+    errorHandler(err, req, res, next);
   });
 
   app.listen(config.server.port, '0.0.0.0', () => {
