@@ -13,6 +13,7 @@ const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
 const { asyncHandler } = require('../middleware/async-handler');
 const { uploadLimiter } = require('../middleware/rate-limit');
+const { ValidationError, NotFoundError } = require('../errors');
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ router.get(
   validateEventId,
   asyncHandler(async (req, res) => {
     const events = await getComparisonCandidates(req.params.id, { userId: req.userId });
-    if (events === null) return res.status(404).json({ error: 'Event not found' });
+    if (events === null) throw new NotFoundError('Event not found');
     res.json(events);
   })
 );
@@ -84,7 +85,7 @@ router.get(
   validateEventId,
   asyncHandler(async (req, res) => {
     const result = await getEventById(req.params.id, { userId: req.userId });
-    if (!result) return res.status(404).json({ error: 'Event not found' });
+    if (!result) throw new NotFoundError('Event not found');
     res.json(result);
   })
 );
@@ -137,7 +138,7 @@ router.post(
   upload.array('files', 10),
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files provided' });
+      throw new ValidationError('No files provided');
     }
     const results = await buildUploadResults(req.files, req.userId, processUpload);
     res.status(201).json({ results });
@@ -177,7 +178,7 @@ router.patch(
       (typeUpdate === undefined || typeUpdate === null) &&
       (deviceName === undefined || deviceName === null)
     ) {
-      return res.status(400).json({ error: 'Provide at least one of type or deviceName' });
+      throw new ValidationError('Provide at least one of type or deviceName');
     }
 
     const activity = await updateActivity(
@@ -186,7 +187,7 @@ router.patch(
       { type: typeUpdate, deviceName },
       { userId: req.userId }
     );
-    if (!activity) return res.status(404).json({ error: 'Activity not found' });
+    if (!activity) throw new NotFoundError('Activity not found');
     res.json(activity);
   })
 );
@@ -197,7 +198,7 @@ router.delete(
   validateEventId,
   asyncHandler(async (req, res) => {
     const deleted = await deleteEventById(req.params.id, { userId: req.userId });
-    if (!deleted) return res.status(404).json({ error: 'Event not found' });
+    if (!deleted) throw new NotFoundError('Event not found');
     res.status(204).send();
   })
 );

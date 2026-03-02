@@ -12,6 +12,7 @@ const {
   validateComparisonByEventsBody,
 } = require('../utils/validation');
 const { asyncHandler } = require('../middleware/async-handler');
+const { NotFoundError } = require('../errors');
 
 const router = express.Router();
 
@@ -52,7 +53,7 @@ router.get(
   validateComparisonId,
   asyncHandler(async (req, res) => {
     const comparison = await getComparisonById(req.params.id, { userId: req.userId });
-    if (!comparison) return res.status(404).json({ error: 'Comparison not found' });
+    if (!comparison) throw new NotFoundError('Comparison not found');
     res.json(comparison);
   })
 );
@@ -63,7 +64,7 @@ router.delete(
   validateComparisonId,
   asyncHandler(async (req, res) => {
     const deleted = await deleteComparisonById(req.params.id, { userId: req.userId });
-    if (!deleted) return res.status(404).json({ error: 'Comparison not found' });
+    if (!deleted) throw new NotFoundError('Comparison not found');
     res.status(204).send();
   })
 );

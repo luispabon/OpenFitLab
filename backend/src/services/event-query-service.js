@@ -14,11 +14,10 @@ async function enrichEventsWithStatsAndActivities(eventRows, opts = {}) {
   const repoOpts = { ...opts, db };
 
   const eventIds = eventRows.map((r) => r.id);
-  const [statsRows, activityRowsPerEvent] = await Promise.all([
+  const [statsRows, allActivityRows] = await Promise.all([
     eventRepository.getStatsByEventIds(eventIds, repoOpts),
-    Promise.all(eventIds.map((eventId) => activityRepository.findByEventId(eventId, repoOpts))),
+    activityRepository.findManyByEventIds(eventIds, repoOpts),
   ]);
-  const allActivityRows = activityRowsPerEvent.flat();
 
   const statsByEventId = aggregateStats(statsRows, 'event_id');
   const events = eventRows.map((r) => mapEventRow(r, statsByEventId[r.id]));

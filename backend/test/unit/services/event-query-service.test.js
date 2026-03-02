@@ -191,19 +191,19 @@ describe('getActivityRows', () => {
     const db = {
       query: async (sql, params) => {
         if (sql.includes('COUNT')) return [{ total: 2 }];
-        if (sql.includes('event_id, a.id AS activity_id')) {
+        if (sql.includes('e.id AS event_id, a.id AS activity_id')) {
           return [
             { event_id: 'e1', activity_id: 'a1' },
             { event_id: 'e2', activity_id: 'a2' },
           ];
         }
-        if (sql.includes('events WHERE id IN')) {
+        if (sql.includes('FROM events') && sql.includes('WHERE id IN')) {
           return [
             { id: 'e1', start_date: 1000, name: 'E1', end_date: null, description: null, is_merge: 0, src_file_type: null },
             { id: 'e2', start_date: 2000, name: 'E2', end_date: null, description: null, is_merge: 0, src_file_type: null },
           ];
         }
-        if (sql.includes('activities a WHERE a.id IN')) {
+        if (sql.includes('FROM activities a') && sql.includes('WHERE a.id IN')) {
           return [
             { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', event_start_date: 1000, device_name: null },
             { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', event_start_date: 2000, device_name: null },

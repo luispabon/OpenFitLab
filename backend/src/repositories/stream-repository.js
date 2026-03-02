@@ -39,11 +39,14 @@ async function findByActivityAndEvent(activityId, eventId, types, opts = {}) {
 
 async function findDataPointsByStreamIds(streamIds, opts = {}) {
   if (!streamIds.length) return [];
-  const sql = `SELECT stream_id, time_ms, value, sequence_index
-     FROM stream_data_points
-     WHERE stream_id IN (${placeholders(streamIds.length)})
-     ORDER BY stream_id, sequence_index ASC, time_ms ASC`;
-  const rows = await runQuery(sql, streamIds, opts);
+  if (!opts.userId) throw new Error('findDataPointsByStreamIds requires opts.userId');
+  const sql = `SELECT sdp.stream_id, sdp.time_ms, sdp.value, sdp.sequence_index
+     FROM stream_data_points sdp
+     JOIN streams s ON s.id = sdp.stream_id
+     JOIN events e ON e.id = s.event_id
+     WHERE sdp.stream_id IN (${placeholders(streamIds.length)}) AND e.user_id = ?
+     ORDER BY sdp.stream_id, sdp.sequence_index ASC, sdp.time_ms ASC`;
+  const rows = await runQuery(sql, [...streamIds, opts.userId], opts);
   return Array.isArray(rows) ? rows : [];
 }
 

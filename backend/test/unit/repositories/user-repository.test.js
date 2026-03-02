@@ -1,21 +1,7 @@
 const { describe, it } = require('node:test');
 const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const { findById, findOrCreateByIdentity, deleteById } = require('../../../src/repositories/user-repository');
-
-function makeFakeDb(queryFn) {
-  return {
-    query: queryFn,
-    transaction: async (fn) => {
-      const fakeConn = {
-        execute: async (sql, params) => {
-          const result = await queryFn(sql, params);
-          return [result];
-        },
-      };
-      return fn(fakeConn);
-    },
-  };
-}
+const { makeFakeDb } = require('../../helpers/fake-db');
 
 describe('user-repository', () => {
   describe('findById', () => {
