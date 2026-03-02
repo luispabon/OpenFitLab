@@ -136,8 +136,7 @@
             <td class="px-3 py-4">
               <div class="flex min-w-0 items-center gap-2">
                 <span
-                  class="material-icons inline-flex shrink-0 items-center justify-center text-text-secondary"
-                  style="font-size: 3rem; width: 3rem; height: 3rem; line-height: 1;"
+                  class="material-icons inline-flex h-12 w-12 shrink-0 items-center justify-center text-[3rem] leading-none text-text-secondary"
                   aria-hidden="true">{getActivityIcon(row.activity.type)}</span
                 >
                 <div class="flex min-w-0 flex-1 flex-col gap-0.5">

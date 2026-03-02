@@ -10,7 +10,7 @@ vi.mock('../../lib/api', () => ({
   deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
 }));
 
-vi.mock('../../lib/stores/auth', () => ({
+vi.mock('../../lib/stores/auth.svelte', () => ({
   setCurrentUser: (...args: unknown[]) => mockSetCurrentUser(...args),
 }));
 

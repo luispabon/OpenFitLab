@@ -189,6 +189,24 @@ describe('getEvent', () => {
 
     await expect(getEvent('evt-1')).rejects.toThrow(/Failed to fetch event/);
   });
+
+  it('passes signal to fetch when options.signal provided', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(eventDetailFixture),
+      })
+    );
+
+    await getEvent('evt-1', { signal: controller.signal });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/evt-1',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });
 
 describe('getActivityTypes', () => {
@@ -363,6 +381,24 @@ describe('getStreams', () => {
     );
 
     await expect(getStreams('evt-1', 'act-1')).rejects.toThrow(/Failed to fetch streams/);
+  });
+
+  it('passes signal to fetch when options.signal provided', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(streamsLatLngFixture),
+      })
+    );
+
+    await getStreams('evt-1', 'act-1', undefined, { signal: controller.signal });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/events/evt-1/activities/act-1/streams',
+      expect.objectContaining({ signal: controller.signal })
+    );
   });
 });
 

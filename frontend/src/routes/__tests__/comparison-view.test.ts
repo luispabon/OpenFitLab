@@ -57,7 +57,7 @@ describe('ComparisonView', () => {
   it('shows error when getEvent fails', async () => {
     mockGetEvent.mockRejectedValue(new Error('Event not found'));
     render(ComparisonView, {
-      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+      props: { params: { id: 'new' }, query: { events: 'err-1,err-2' } },
     });
     await waitFor(() => {
       expect(screen.getByText('Event not found')).toBeInTheDocument();
@@ -78,8 +78,14 @@ describe('ComparisonView', () => {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
     await waitFor(() => {
-      expect(mockGetEvent).toHaveBeenCalledWith('evt-1');
-      expect(mockGetEvent).toHaveBeenCalledWith('evt-2');
+      expect(mockGetEvent).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ signal: expect.anything() })
+      );
+      expect(mockGetEvent).toHaveBeenCalledWith(
+        'evt-2',
+        expect.objectContaining({ signal: expect.anything() })
+      );
     });
     await waitFor(() => {
       expect(screen.getByText('Event Comparison')).toBeInTheDocument();
@@ -151,11 +157,20 @@ describe('ComparisonView', () => {
     mockGetComparison.mockResolvedValue(comparisonFixture);
     render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
     await waitFor(() => {
-      expect(mockGetComparison).toHaveBeenCalledWith('cmp-1');
+      expect(mockGetComparison).toHaveBeenCalledWith(
+        'cmp-1',
+        expect.objectContaining({ signal: expect.anything() })
+      );
     });
     await waitFor(() => {
-      expect(mockGetEvent).toHaveBeenCalledWith('evt-1');
-      expect(mockGetEvent).toHaveBeenCalledWith('evt-2');
+      expect(mockGetEvent).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ signal: expect.anything() })
+      );
+      expect(mockGetEvent).toHaveBeenCalledWith(
+        'evt-2',
+        expect.objectContaining({ signal: expect.anything() })
+      );
     });
     await waitFor(() => {
       expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
@@ -190,7 +205,7 @@ describe('ComparisonView', () => {
 
   it('shows error when getComparison fails', async () => {
     mockGetComparison.mockRejectedValue(new Error('Comparison not found'));
-    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    render(ComparisonView, { props: { params: { id: 'cmp-err' } } });
     await waitFor(() => {
       expect(screen.getByText('Comparison not found')).toBeInTheDocument();
     });

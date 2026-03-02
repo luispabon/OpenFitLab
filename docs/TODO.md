@@ -29,12 +29,7 @@ This document lists features from the PRD that are not yet implemented. Features
 
 **Description:** Compare two or more activities side-by-side. Implemented: multi-select from dashboard, comparison view `/compare/:id`, time-synchronized overlay charts, statistics comparison table with delta column.
 
-**Remaining (candidates for removal / low priority):**
-- [ ] Highlight differences on charts (delta is already shown in stats table)
-- [ ] Merged view (combine activities into one)
-- [ ] Visual indicators for differences (color coding, annotations on charts)
-
-**Related User Stories:** US-4: Compare Activities, US-5: Merge Activities
+**Related User Stories:** US-4: Compare Activities
 
 ---
 
@@ -84,52 +79,20 @@ This document lists features from the PRD that are not yet implemented. Features
 - [ ] Implement data export functionality (CSV, JSON)
 
 **Related User Stories:**
-- US-6: Analyze Stream Correlations
+- US-5: Analyze Stream Correlations
 
 ---
 
 ## Phase 4: Tracker Comparison
 
-### 3.6 Tracker Comparison (Planned)
+### 3.6 Tracker Comparison (Complete - via Activity Comparison)
 
-**Status:** Not Started  
-**Priority:** Medium
+**Status:** Complete (served by Activity Comparison)  
+**Priority:** N/A
 
-**Description:** Compare data from different fitness trackers for the same activity.
+**Description:** Compare data from different fitness trackers for the same activity. This use case is served by the Activity Comparison feature (Section 3.4). Users upload files from different devices, create a comparison, and view time-synchronized overlay charts with a statistics delta table.
 
-**Requirements:**
-- [ ] Identify activities from different devices
-- [ ] Overlay data from multiple trackers
-- [ ] Calculate differences between measurements
-- [ ] Highlight discrepancies
-- [ ] Generate accuracy assessment
-- [ ] Show which tracker provides more consistent data
-
-**Use Cases:**
-- Compare heart rate from Garmin vs. Apple Watch
-- Compare GPS accuracy between devices
-- Evaluate cadence sensor differences
-- Assess elevation measurement accuracy
-
-**Acceptance Criteria:**
-- [ ] Can identify activities from different devices
-- [ ] Data from multiple trackers can be overlaid
-- [ ] Differences are calculated and displayed
-- [ ] Accuracy metrics are meaningful
-- [ ] Results help users evaluate tracker quality
-
-**Technical Tasks:**
-- [ ] Extract device/tracker information from file metadata (device name already stored on activities)
-- [ ] Create device identification logic
-- [ ] Create tracker comparison view/page (`/tracker-compare/:activityId`)
-- [ ] Implement time alignment for different trackers
-- [ ] Calculate measurement differences (delta, percentage)
-- [ ] Create accuracy metrics (consistency, variance, etc.)
-- [ ] Visualize discrepancies (highlight areas of difference)
-- [ ] Generate comparison report
-
-**Related User Stories:**
-- US-7: Compare Fitness Trackers
+**Related User Stories:** US-6: Compare Fitness Trackers
 
 ---
 
@@ -142,9 +105,6 @@ This document lists features from the PRD that are not yet implemented. Features
 
 - [x] **Authentication and multi-user support** — Implemented: OAuth (Google, GitHub), server-side sessions, user-scoped data, account export and deletion, account linking (automatic by verified email). See [implementation_plans/authentication.md](../implementation_plans/authentication.md).
 - [ ] Additional file formats support
-- [ ] Mobile app
-- [ ] Real-time sync from fitness trackers
-- [ ] Advanced analytics and insights
 - [x] Export data capability — Implemented: `GET /api/account/export` (PRD section 4.4)
 - [ ] Graph export as images (mentioned in 3.3)
 - [ ] WCAG accessibility compliance (mentioned in 5.3)
@@ -166,9 +126,7 @@ This document lists features from the PRD that are not yet implemented. Features
 - Consider caching correlation results
 
 **For Tracker Comparison (3.6):**
-- Device metadata extraction from file metadata (device_name column used when available)
-- May need fuzzy matching for similar activities
-- Consider time window matching for same activity from different devices
+- Served by Activity Comparison (3.4); no additional dependencies needed
 
 ### API Endpoints Needed
 
@@ -180,8 +138,7 @@ This document lists features from the PRD that are not yet implemented. Features
 - [ ] Or calculate client-side (may be slow for large datasets)
 
 **For Tracker Comparison:**
-- [ ] `GET /api/activities/:activityId/devices` - Get device metadata
-- [ ] `GET /api/activities/similar/:activityId` - Find similar activities from different devices
+- No additional endpoints needed; served by Activity Comparison
 
 ### Database Considerations
 
@@ -201,7 +158,7 @@ This document lists features from the PRD that are not yet implemented. Features
 
 ### Future Success Metrics
 - [ ] User can analyze correlations between streams
-- [ ] User can compare data from different trackers
+- [x] User can compare data from different trackers (via Activity Comparison)
 - [ ] System handles 1000+ activities without performance degradation
 - [ ] Users report positive experience with visualization quality
 

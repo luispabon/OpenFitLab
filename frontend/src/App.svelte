@@ -6,9 +6,10 @@
   import ComparisonView from './routes/comparison-view.svelte';
   import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
+  import NotFound from './routes/not-found.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import UserMenu from './lib/components/user-menu.svelte';
-  import { checkAuth, user as userStore, authLoading as authLoadingStore } from './lib/stores/auth';
+  import { checkAuth, state as authState } from './lib/stores/auth.svelte';
 
   const routes = {
     '/': Dashboard,
@@ -16,20 +17,11 @@
     '/comparisons': Comparisons,
     '/compare/:id': ComparisonView,
     '/account': Account,
-    '*': Dashboard,
+    '*': NotFound,
   };
 
-  let sidebarCollapsed = $state(false);
+  let sidebarCollapsed = $state(localStorage.getItem('sidebarCollapsed') === 'true');
 
-  // Load sidebar state from localStorage
-  $effect(() => {
-    const saved = localStorage.getItem('sidebarCollapsed');
-    if (saved !== null) {
-      sidebarCollapsed = saved === 'true';
-    }
-  });
-
-  // Save sidebar state to localStorage
   $effect(() => {
     localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   });
@@ -49,9 +41,6 @@
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
 
   const sidebarWidth = $derived(sidebarCollapsed ? '4rem' : '16rem');
-
-  const user = $derived($userStore);
-  const authLoading = $derived($authLoadingStore);
 </script>
 
 <div class="min-h-screen flex">
@@ -69,11 +58,11 @@
         {/if}
       </div>
 
-      {#if authLoading}
+      {#if authState.authLoading}
         <div class="flex-1 grid place-items-center p-4">
           <LoadingSpinner />
         </div>
-      {:else if !user}
+      {:else if !authState.user}
         <!-- When not authenticated, show only brand; user can use main area to login -->
         <div class="flex-1"></div>
       {:else}
@@ -106,8 +95,8 @@
         <!-- User Menu -->
         <div class="border-t border-border">
           <UserMenu
-            displayName={user?.displayName ?? null}
-            avatarUrl={user?.avatarUrl ?? null}
+            displayName={authState.user?.displayName ?? null}
+            avatarUrl={authState.user?.avatarUrl ?? null}
             collapsed={sidebarCollapsed}
           />
         </div>
@@ -132,11 +121,11 @@
 
   <!-- Main Content -->
   <main class="flex-1 transition-all duration-300" style="margin-left: {sidebarWidth};">
-    {#if authLoading}
+    {#if authState.authLoading}
       <div class="grid place-items-center p-8">
         <LoadingSpinner />
       </div>
-    {:else if !user}
+    {:else if !authState.user}
       <LoginPage />
     {:else}
       <Router {routes} />

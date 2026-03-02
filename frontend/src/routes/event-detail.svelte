@@ -6,6 +6,7 @@
 
   import { push } from 'svelte-spa-router';
   import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api';
+  import { isAbortError } from '../lib/api/client';
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types';
   import {
     formatDateWithTime,
@@ -282,53 +283,69 @@
     chartableStreamsOrdered.filter((s) => selectedStreamTypes.has(s.type))
   );
 
-  async function loadEvent() {
-    if (!id) {
+  // Load event when ID changes (with AbortController so navigating away cancels the request)
+  $effect(() => {
+    const idVal = id;
+    if (!idVal) {
       eventDetail = null;
       loading = false;
       return;
     }
+    const ac = new AbortController();
+    let cancelled = false;
     loading = true;
     error = null;
-    try {
-      eventDetail = await getEvent(id);
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Event not found';
-      eventDetail = null;
-    } finally {
-      loading = false;
-    }
-  }
-
-  async function loadStreams() {
-    if (!id || !selectedActivity?.id) {
-      streams = [];
-      return;
-    }
-
-    streamsLoading = true;
-    streamsError = null;
-    try {
-      const loadedStreams = await getStreams(id, selectedActivity.id);
-      streams = loadedStreams;
-    } catch (e) {
-      streamsError = e instanceof Error ? e.message : 'Failed to load streams';
-      streams = [];
-    } finally {
-      streamsLoading = false;
-    }
-  }
-
-  // Load event when ID changes
-  $effect(() => {
-    if (id) loadEvent();
+    getEvent(idVal, { signal: ac.signal })
+      .then((data) => {
+        if (!cancelled) eventDetail = data;
+      })
+      .catch((e) => {
+        if (isAbortError(e)) return;
+        if (!cancelled) {
+          error = e instanceof Error ? e.message : 'Event not found';
+          eventDetail = null;
+        }
+      })
+      .finally(() => {
+        if (!cancelled) loading = false;
+      });
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
   });
 
-  // Load streams when event and selected activity are available (single effect for initial load and activity switch)
+  // Load streams when event and selected activity are available (with AbortController)
   $effect(() => {
-    if (eventDetail && selectedActivity?.id && !loading) {
-      loadStreams();
+    const idVal = id;
+    const activityId = selectedActivity?.id;
+    const ev = eventDetail;
+    if (!idVal || !activityId || !ev || loading) {
+      if (!idVal || !activityId) streams = [];
+      return;
     }
+    const ac = new AbortController();
+    let cancelled = false;
+    streamsLoading = true;
+    streamsError = null;
+    getStreams(idVal, activityId, undefined, { signal: ac.signal })
+      .then((loadedStreams) => {
+        if (!cancelled) streams = loadedStreams;
+      })
+      .catch((e) => {
+        if (isAbortError(e)) return;
+        if (!cancelled) {
+          streamsError = e instanceof Error ? e.message : 'Failed to load streams';
+          streams = [];
+        }
+      })
+      .finally(() => {
+        if (!cancelled) streamsLoading = false;
+      });
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
   });
 </script>
 

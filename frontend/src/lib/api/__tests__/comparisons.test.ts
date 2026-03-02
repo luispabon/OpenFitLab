@@ -143,6 +143,24 @@ describe('getComparison', () => {
 
     await expect(getComparison('cmp-1')).rejects.toThrow(/Failed to fetch comparison/);
   });
+
+  it('passes signal to fetch when options.signal provided', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(comparisonFixture),
+      })
+    );
+
+    await getComparison('cmp-1', { signal: controller.signal });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/comparisons/cmp-1',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });
 
 describe('getComparisonsByEventIds', () => {

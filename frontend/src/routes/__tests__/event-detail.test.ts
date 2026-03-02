@@ -52,7 +52,10 @@ describe('EventDetail', () => {
     mockGetEvent.mockResolvedValue(eventDetailFixture);
     render(EventDetail, { props: { params: { id: 'evt-1' } } });
     await waitFor(() => {
-      expect(mockGetEvent).toHaveBeenCalledWith('evt-1');
+      expect(mockGetEvent).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ signal: expect.anything() })
+      );
     });
   });
 

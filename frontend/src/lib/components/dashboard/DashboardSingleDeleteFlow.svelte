@@ -31,16 +31,24 @@
       affectedComparisons = [];
       return;
     }
+    let cancelled = false;
     checkingComparisons = true;
     getComparisonsByEventIds([id])
       .then((list) => {
-        affectedComparisons = list;
-        checkingComparisons = false;
+        if (!cancelled) {
+          affectedComparisons = list;
+          checkingComparisons = false;
+        }
       })
       .catch(() => {
-        affectedComparisons = [];
-        checkingComparisons = false;
+        if (!cancelled) {
+          affectedComparisons = [];
+          checkingComparisons = false;
+        }
       });
+    return () => {
+      cancelled = true;
+    };
   });
 
   const warningMessage = $derived(

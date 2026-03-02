@@ -54,7 +54,6 @@ describe('Comparisons', () => {
       expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
     });
     expect(screen.getByText('2 events')).toBeInTheDocument();
-    // formatDate(1700000000000) -> "Nov 14, 2023" (locale en-US)
     expect(screen.getByText(/Nov 14, 2023/)).toBeInTheDocument();
   });
 

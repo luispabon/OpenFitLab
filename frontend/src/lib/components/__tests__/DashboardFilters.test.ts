@@ -1,0 +1,50 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/svelte';
+import DashboardFilters from '../dashboard/DashboardFilters.svelte';
+
+describe('DashboardFilters', () => {
+  const defaultProps = {
+    onSearchInput: vi.fn(),
+    activityTypesOptions: ['running', 'cycling'],
+    selectedActivityTypes: [],
+    onToggleActivityType: vi.fn(),
+    devicesOptions: ['Garmin', 'Suunto'],
+    selectedDevices: [],
+    onToggleDevice: vi.fn(),
+    dateStartStr: '',
+    dateEndStr: '',
+    onDateStartChange: vi.fn(),
+    onDateEndChange: vi.fn(),
+  };
+
+  it('renders search input and activity type filter', () => {
+    render(DashboardFilters, { props: defaultProps });
+    expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Activity type/ })).toBeInTheDocument();
+  });
+
+  it('calls onToggleActivityType when activity type checkbox changed', async () => {
+    const onToggleActivityType = vi.fn();
+    render(DashboardFilters, {
+      props: {
+        ...defaultProps,
+        onToggleActivityType,
+        selectedActivityTypes: [],
+      },
+    });
+    await fireEvent.click(screen.getByRole('button', { name: /Activity type/ }));
+    const runningCheckbox = await screen.findByRole('checkbox', { name: /running/i });
+    await fireEvent.click(runningCheckbox);
+    expect(onToggleActivityType).toHaveBeenCalledWith('running');
+  });
+
+  it('calls onDateStartChange when start date changed', async () => {
+    const onDateStartChange = vi.fn();
+    render(DashboardFilters, {
+      props: { ...defaultProps, onDateStartChange },
+    });
+    const startInput = screen.getByLabelText('From');
+    await fireEvent.change(startInput, { target: { value: '2024-01-01' } });
+    expect(onDateStartChange).toHaveBeenCalledWith('2024-01-01');
+  });
+});

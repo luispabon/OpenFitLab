@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { deleteAccount } from '../account';
-import * as auth from '../../stores/auth';
+import * as auth from '../../stores/auth.svelte';
 
 beforeEach(() => {
   vi.restoreAllMocks();
