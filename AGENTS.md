@@ -51,7 +51,7 @@ This file provides operational instructions for AI coding agents working in this
   - `npm run dev` - Start Vite dev server on port 4200
   - `npm run build` - Production build
   - `npm run preview` - Preview production build locally
-  - Requires Node 22+
+  - Requires Node 20+
 
 - **Stack:** Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router
 
