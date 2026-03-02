@@ -6,6 +6,7 @@ import {
   eventDetailEvt2Fixture,
   comparisonFixture,
 } from '../../test/fixtures/comparison-view';
+import { reset as resetLoader } from '../../lib/utils/comparison-loader.svelte';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();
@@ -36,6 +37,7 @@ vi.mock('svelte-spa-router', () => ({
 
 describe('ComparisonView', () => {
   beforeEach(() => {
+    resetLoader();
     vi.clearAllMocks();
     mockGetStreams.mockResolvedValue([]);
     mockGetEvent.mockImplementation((id: string) =>
@@ -44,7 +46,13 @@ describe('ComparisonView', () => {
   });
 
   it('shows loading state when fetching events', async () => {
-    mockGetEvent.mockReturnValue(new Promise(() => {}));
+    const delay = 50;
+    mockGetEvent.mockImplementation(
+      (id: string) =>
+        new Promise((r) =>
+          setTimeout(() => r(id === 'evt-1' ? eventDetailFixture : eventDetailEvt2Fixture), delay)
+        )
+    );
     render(ComparisonView, {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });

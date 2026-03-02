@@ -96,13 +96,10 @@ describe('EventDetail', () => {
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('when id is missing does not call getEvent and shows loading', async () => {
+  it('when id is missing shows Event not found', () => {
     render(EventDetail, { props: { params: {} } });
     expect(mockGetEvent).not.toHaveBeenCalled();
-    await waitFor(() => {
-      const spinner = document.querySelector('svg.animate-spin');
-      expect(spinner).toBeInTheDocument();
-    });
+    expect(screen.getByText('Event not found.')).toBeInTheDocument();
   });
 
   it('opens activity type editor and cancel closes it', async () => {

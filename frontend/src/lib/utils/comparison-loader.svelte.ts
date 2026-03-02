@@ -46,6 +46,23 @@ export function setComparison(value: Comparison | null) {
   state.comparison = value;
 }
 
+/** Reset module-level state (for tests). */
+export function reset(): void {
+  if (abortController) abortController.abort();
+  abortController = null;
+  lastLoadedKey = '';
+  loadGeneration = 0;
+  loadedStreamsSignature = '';
+  state.status = 'idle';
+  state.comparison = null;
+  state.events = EMPTY_EVENTS;
+  state.streamsByEventId = EMPTY_STREAMS;
+  state.error = null;
+  state.selectedActivities = {};
+  state.selectedStreamTypes = new Set();
+  state.xAxisMode = 'elapsed';
+}
+
 function deriveKey(comparisonId: string, eventIdsFromQuery: string[]): string {
   if (comparisonId === 'new') {
     const ids = eventIdsFromQuery.filter((id) => id.trim().length > 0).sort();
