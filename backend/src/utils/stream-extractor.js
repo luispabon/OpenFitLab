@@ -117,11 +117,11 @@ function extractStreamDataPointsFromJSON(activityJson, activityStartDateMs) {
         value: value,
       }))
       .filter(
-      (dp) =>
-        dp.value !== null &&
-        dp.value !== undefined &&
-        (typeof dp.value !== 'number' || !isNaN(dp.value))
-    );
+        (dp) =>
+          dp.value !== null &&
+          dp.value !== undefined &&
+          (typeof dp.value !== 'number' || !isNaN(dp.value))
+      );
 
     // Only include streams that have at least one valid data point
     if (dataPoints.length > 0) {

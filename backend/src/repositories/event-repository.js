@@ -28,11 +28,7 @@ async function insertEventStats(eventId, stats, opts = {}) {
   );
   if (entries.length === 0) return;
   const placeholdersList = entries.map(() => '(?, ?, ?)').join(', ');
-  const values = entries.flatMap(([statType, value]) => [
-    eventId,
-    statType,
-    JSON.stringify(value),
-  ]);
+  const values = entries.flatMap(([statType, value]) => [eventId, statType, JSON.stringify(value)]);
   await runQuery(
     `INSERT INTO event_stats (event_id, stat_type, value) VALUES ${placeholdersList}`,
     values,
