@@ -23,15 +23,22 @@ async function insertActivity(row, opts = {}) {
 }
 
 async function insertActivityStats(activityId, stats, opts = {}) {
-  for (const [statType, value] of Object.entries(stats)) {
-    if (value === undefined || value === null) continue;
-    if (statType === 'Device Names') continue;
-    await runQuery(
-      'INSERT INTO activity_stats (activity_id, stat_type, value) VALUES (?, ?, ?)',
-      [activityId, statType, JSON.stringify(value)],
-      opts
-    );
-  }
+  const entries = Object.entries(stats).filter(([statType, value]) => {
+    if (statType === 'Device Names') return false;
+    return value !== undefined && value !== null;
+  });
+  if (entries.length === 0) return;
+  const placeholdersList = entries.map(() => '(?, ?, ?)').join(', ');
+  const values = entries.flatMap(([statType, value]) => [
+    activityId,
+    statType,
+    JSON.stringify(value),
+  ]);
+  await runQuery(
+    `INSERT INTO activity_stats (activity_id, stat_type, value) VALUES ${placeholdersList}`,
+    values,
+    opts
+  );
 }
 
 async function findByEventId(eventId, opts = {}) {
@@ -62,8 +69,23 @@ async function findByIdAndEventId(activityId, eventId, opts = {}) {
 
 async function findManyByIds(ids, opts = {}) {
   if (!ids.length) return [];
-  const sql = `SELECT ${ACTIVITY_COLUMNS} FROM activities a WHERE a.id IN (${placeholders(ids.length)})`;
-  const rows = await runQuery(sql, ids, opts);
+  if (!opts.userId) throw new Error('findManyByIds requires opts.userId');
+  const sql = `SELECT ${ACTIVITY_COLUMNS}
+               FROM activities a
+               JOIN events e ON e.id = a.event_id
+               WHERE a.id IN (${placeholders(ids.length)}) AND e.user_id = ?`;
+  const rows = await runQuery(sql, [...ids, opts.userId], opts);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function findManyByEventIds(eventIds, opts = {}) {
+  if (!eventIds.length) return [];
+  if (!opts.userId) throw new Error('findManyByEventIds requires opts.userId');
+  const sql = `SELECT ${ACTIVITY_COLUMNS}
+               FROM activities a
+               JOIN events e ON e.id = a.event_id
+               WHERE a.event_id IN (${placeholders(eventIds.length)}) AND e.user_id = ?`;
+  const rows = await runQuery(sql, [...eventIds, opts.userId], opts);
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -203,6 +225,7 @@ module.exports = {
   findByEventId,
   findByIdAndEventId,
   findManyByIds,
+  findManyByEventIds,
   updateType,
   updateDeviceName,
   getTypesByEventId,

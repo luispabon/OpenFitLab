@@ -48,8 +48,7 @@
           {#if sourceEventRow}
             <div class="flex items-center gap-3">
               <span
-                class="material-icons shrink-0 inline-flex items-center justify-center text-text-secondary"
-                style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; line-height: 1;"
+                class="material-icons inline-flex h-10 w-10 shrink-0 items-center justify-center text-[2.5rem] leading-none text-text-secondary"
                 aria-hidden="true">{getActivityIcon(sourceEventRow.activity.type)}</span
               >
               <div class="min-w-0 flex flex-col gap-0.5">

@@ -6,14 +6,8 @@
   let { params = {}, query = {} }: Props = $props();
 
   import { push, replace, location } from 'svelte-spa-router';
-  import {
-    getEvent,
-    getStreams,
-    getComparison,
-    createComparison,
-    deleteComparison,
-  } from '../lib/api';
-  import type { EventDetail, StreamData, Comparison, ComparisonSettings } from '../lib/types';
+  import { createComparison, deleteComparison } from '../lib/api';
+  import type { StreamData, ComparisonSettings } from '../lib/types';
   import {
     isChartableStream,
     isSmoothVariantToHide,
@@ -21,6 +15,15 @@
     getActivityDeviceName,
     hasLocationStreams,
   } from '../lib/utils';
+  import {
+    state as loaderState,
+    load as loaderLoad,
+    loadStreams as loaderLoadStreams,
+    setSelectedActivities,
+    setSelectedStreamTypes,
+    setXAxisMode,
+    setComparison,
+  } from '../lib/utils/comparison-loader.svelte';
   import { parseStat } from '../lib/utils/stat-parsing';
   import {
     keepStatByPreferredUnit,
@@ -33,15 +36,18 @@
 
   const comparisonId = $derived(params?.id ?? '');
 
-  // Parse query parameters from URL hash - use state that updates reactively
-  // svelte-spa-router uses hash-based routing, so query params are in the hash fragment
+  // Sync router location to state so parsing effect re-runs when hash changes
+  let locationForEffect = $state('');
+  $effect(() => {
+    const unsub = location.subscribe((v) => (locationForEffect = v));
+    return unsub;
+  });
+
+  // Parse query parameters from URL hash
   let eventIdsFromQueryState = $state<string[]>([]);
 
-  // Update eventIdsFromQueryState when location changes
   $effect(() => {
-    const _loc = $location; // Access location to trigger reactivity
-
-    // First try the query prop (if svelte-spa-router provides it)
+    const _loc = locationForEffect;
     if (query?.events) {
       const ids = query.events
         .split(',')
@@ -49,240 +55,73 @@
         .filter((id) => id.length > 0);
       const idsStr = ids.slice().sort().join(',');
       const currentStr = eventIdsFromQueryState.slice().sort().join(',');
-      // Only update if changed
-      if (idsStr !== currentStr) {
-        eventIdsFromQueryState = ids;
-      }
+      if (idsStr !== currentStr) eventIdsFromQueryState = ids;
       return;
     }
-
     try {
-      // Parse from window.location.hash since svelte-spa-router uses hash routing
-      // Hash format: #/compare/new?events=id1,id2
       const hash = window.location.hash;
       const hashMatch = hash.match(/\?events=([^&]+)/);
-      if (hashMatch && hashMatch[1]) {
-        const eventsParam = decodeURIComponent(hashMatch[1]);
-        const ids = eventsParam
+      if (hashMatch?.[1]) {
+        const ids = decodeURIComponent(hashMatch[1])
           .split(',')
           .map((id) => id.trim())
           .filter((id) => id.length > 0);
         const idsStr = ids.slice().sort().join(',');
         const currentStr = eventIdsFromQueryState.slice().sort().join(',');
-        // Only update if changed
-        if (idsStr !== currentStr) {
-          eventIdsFromQueryState = ids;
-        }
-      } else {
-        // Only update if not already empty
-        if (eventIdsFromQueryState.length > 0) {
-          eventIdsFromQueryState = [];
-        }
-      }
-    } catch (_e) {
-      // Silently handle errors - only update if needed
-      if (eventIdsFromQueryState.length > 0) {
+        if (idsStr !== currentStr) eventIdsFromQueryState = ids;
+      } else if (eventIdsFromQueryState.length > 0) {
         eventIdsFromQueryState = [];
       }
+    } catch {
+      if (eventIdsFromQueryState.length > 0) eventIdsFromQueryState = [];
     }
   });
 
   const eventIdsFromQuery = $derived(eventIdsFromQueryState);
 
-  // Event color palette (distinct colors for up to 6 events)
+  // Trigger loader when comparisonId or (for 'new') eventIdsFromQueryState change
+  $effect(() => {
+    loaderLoad(comparisonId, eventIdsFromQueryState);
+  });
+
   const EVENT_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899'];
 
-  let savedComparison = $state<Comparison | null>(null);
-  let events = $state<EventDetail[]>([]);
-  let streamsByEventId = $state<Record<string, StreamData[]>>({});
-  let selectedActivities = $state<Record<string, string>>({}); // eventId -> activityId
-  let loading = $state(false); // Start as false, will be set to true when loading starts
-  let error = $state<string | null>(null);
-  let xAxisMode = $state<'elapsed' | 'wall-clock'>('elapsed');
-  let selectedStreamTypes = $state<Set<string>>(new Set());
   let showSaveDialog = $state(false);
   let saveName = $state('');
   let isSaving = $state(false);
   let isDeleting = $state(false);
+  let saveError = $state<string | null>(null);
 
-  // Track what we've loaded to prevent infinite loops
-  let loadedComparisonId = $state<string | null>(null);
-  let loadedEventIds = $state<string[]>([]);
-  let loadedStreamsSignature = $state<string>(''); // Track which activities we've loaded streams for
-  let lastLoadAttempt = $state<string>(''); // Track the last event IDs we attempted to load
-
-  // Determine event IDs: from saved comparison or query string
   const eventIds = $derived.by(() => {
-    if (comparisonId && comparisonId !== 'new' && savedComparison) {
-      return savedComparison.eventIds;
+    if (comparisonId && comparisonId !== 'new' && loaderState.comparison) {
+      return loaderState.comparison.eventIds;
     }
     return eventIdsFromQuery.filter((id) => id.trim().length > 0);
   });
 
-  // Show spinner when viewing a saved comparison by ID but comparison not loaded yet (e.g. after save + replace)
+  const loading = $derived(loaderState.status === 'loading');
   const loadingComparison = $derived(
-    Boolean(comparisonId && comparisonId !== 'new' && savedComparison === null && !error)
+    Boolean(
+      comparisonId &&
+      comparisonId !== 'new' &&
+      loaderState.comparison === null &&
+      !loaderState.error
+    )
   );
-
-  // Load saved comparison if viewing by ID
-  async function loadSavedComparison() {
-    if (!comparisonId || comparisonId === 'new') {
-      savedComparison = null;
-      loadedComparisonId = null;
-      return;
-    }
-
-    // Don't reload if we've already loaded this comparison
-    if (loadedComparisonId === comparisonId && savedComparison) {
-      return;
-    }
-
-    try {
-      const comp = await getComparison(comparisonId);
-      savedComparison = comp;
-      loadedComparisonId = comparisonId;
-      if (comp.settings) {
-        xAxisMode = comp.settings.xAxisMode ?? 'elapsed';
-        selectedStreamTypes = new Set(comp.settings.selectedStreams ?? []);
-        selectedActivities = comp.settings.selectedActivities ?? {};
-      }
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load comparison';
-      savedComparison = null;
-      loadedComparisonId = null;
-      loading = false;
-    }
-  }
-
-  // Load all events
-  async function loadEvents() {
-    if (eventIds.length < 2) {
-      error = 'At least 2 events are required for comparison';
-      loading = false;
-      return;
-    }
-
-    // Don't reload if we've already loaded these exact event IDs
-    const eventIdsStr = eventIds.slice().sort().join(',');
-    const loadedEventIdsStr = loadedEventIds.slice().sort().join(',');
-    if (loadedEventIdsStr === eventIdsStr && events.length > 0) {
-      loading = false;
-      return;
-    }
-
-    // Prevent concurrent loads - check this AFTER checking if already loaded
-    if (loading) {
-      return;
-    }
-
-    loading = true;
-    error = null;
-    // Reset loaded streams signature when loading new events
-    loadedStreamsSignature = '';
-
-    try {
-      const loadedEvents = await Promise.all(eventIds.map((id) => getEvent(id)));
-      events = loadedEvents;
-      loadedEventIds = [...eventIds];
-      // Update lastLoadAttempt to match what we just loaded
-      lastLoadAttempt = eventIds.slice().sort().join(',');
-
-      // Initialize selected activities (use saved or default to first)
-      let activitiesChanged = false;
-      const nextActivities = { ...selectedActivities };
-      for (const eventDetail of events) {
-        const eventId = eventDetail.event.id;
-        if (!nextActivities[eventId] && eventDetail.activities.length > 0) {
-          nextActivities[eventId] = eventDetail.activities[0].id;
-          activitiesChanged = true;
-        }
-      }
-      if (activitiesChanged) selectedActivities = nextActivities;
-
-      // Load streams for all selected activities
-      // Reset signature if activities changed to force reload
-      if (activitiesChanged) {
-        loadedStreamsSignature = '';
-      }
-      await loadStreams();
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to load events';
-      events = [];
-      loadedEventIds = [];
-    } finally {
-      loading = false;
-    }
-  }
-
-  // Load streams for all selected activities
-  async function loadStreams() {
-    // Check if we already have streams for these exact activities
-    const currentActivityIds = events
-      .map((e) => {
-        const eventId = e.event.id;
-        return `${eventId}:${selectedActivities[eventId] || ''}`;
-      })
-      .sort()
-      .join('|');
-
-    // Don't reload if we've already loaded streams for these activities
-    if (loadedStreamsSignature === currentActivityIds && Object.keys(streamsByEventId).length > 0) {
-      return;
-    }
-
-    // Create a signature of what we're about to load
-    const streamsToLoad: Record<string, StreamData[]> = {};
-
-    await Promise.all(
-      events.map(async (eventDetail) => {
-        const eventId = eventDetail.event.id;
-        const activityId = selectedActivities[eventId];
-        if (!activityId) return;
-
-        try {
-          const loadedStreams = await getStreams(eventId, activityId);
-          streamsToLoad[eventId] = loadedStreams;
-        } catch (e) {
-          console.error(`Failed to load streams for event ${eventId}:`, e);
-          streamsToLoad[eventId] = [];
-        }
-      })
-    );
-
-    // Update state and signature
-    streamsByEventId = streamsToLoad;
-    loadedStreamsSignature = currentActivityIds;
-
-    // Initialize selected streams if not set (default to Heart Rate if available)
-    if (selectedStreamTypes.size === 0) {
-      const allStreamTypes = new Set<string>();
-      for (const streamList of Object.values(streamsToLoad)) {
-        for (const stream of streamList) {
-          if (
-            isChartableStream(stream.type) &&
-            !isSmoothVariantToHide(
-              stream.type,
-              streamList.map((s) => s.type)
-            )
-          ) {
-            allStreamTypes.add(stream.type);
-          }
-        }
-      }
-      if (allStreamTypes.has('Heart Rate')) {
-        selectedStreamTypes = new Set(['Heart Rate']);
-      } else if (allStreamTypes.size > 0) {
-        selectedStreamTypes = new Set([Array.from(allStreamTypes)[0]]);
-      }
-    }
-  }
+  const error = $derived(loaderState.error);
+  const events = $derived(loaderState.events);
+  const streamsByEventId = $derived(loaderState.streamsByEventId);
+  const selectedActivities = $derived(loaderState.selectedActivities);
+  const selectedStreamTypes = $derived(loaderState.selectedStreamTypes);
+  const xAxisMode = $derived(loaderState.xAxisMode);
+  const savedComparison = $derived(loaderState.comparison);
 
   // Get all unique stream types across all events, but only include streams where at least 2 devices have data
   const allStreamTypes = $derived.by(() => {
     const streamCounts = new Map<string, number>();
 
     // Count how many devices have each stream type
-    for (const streamList of Object.values(streamsByEventId)) {
+    for (const streamList of Object.values(loaderState.streamsByEventId)) {
       const seenTypes = new Set<string>();
       for (const stream of streamList) {
         if (
@@ -367,21 +206,18 @@
     return filteredTypes;
   });
 
-  // Toggle stream visibility
   function toggleStream(type: string) {
-    const newSet = new Set(selectedStreamTypes);
-    if (newSet.has(type)) {
-      newSet.delete(type);
-    } else {
-      newSet.add(type);
-    }
-    selectedStreamTypes = newSet;
+    setSelectedStreamTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
   }
 
-  // Handle activity change for an event
   async function handleActivityChange(eventId: string, activityId: string) {
-    selectedActivities = { ...selectedActivities, [eventId]: activityId };
-    await loadStreams();
+    setSelectedActivities((prev) => ({ ...prev, [eventId]: activityId }));
+    await loaderLoadStreams();
   }
 
   // Generate auto name for comparison
@@ -404,7 +240,6 @@
     return `${events.length} Events Comparison`;
   }
 
-  // Save comparison
   async function handleSave() {
     if (!saveName.trim()) {
       saveName = generateComparisonName();
@@ -414,26 +249,25 @@
     isSaving = true;
     try {
       const settings: ComparisonSettings = {
-        selectedStreams: Array.from(selectedStreamTypes),
-        xAxisMode,
-        selectedActivities: { ...selectedActivities },
+        selectedStreams: Array.from(loaderState.selectedStreamTypes),
+        xAxisMode: loaderState.xAxisMode,
+        selectedActivities: { ...loaderState.selectedActivities },
       };
 
       const saved = await createComparison(saveName.trim(), eventIds, settings);
-      savedComparison = saved;
+      setComparison(saved);
       showSaveDialog = false;
       saveName = '';
+      saveError = null;
 
-      // Update URL to saved comparison ID
       replace(`/compare/${saved.id}`);
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to save comparison';
+      saveError = e instanceof Error ? e.message : 'Failed to save comparison';
     } finally {
       isSaving = false;
     }
   }
 
-  // Delete comparison
   async function handleDelete() {
     if (!savedComparison) return;
 
@@ -442,84 +276,10 @@
       await deleteComparison(savedComparison.id);
       push('/comparisons');
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to delete comparison';
+      loaderState.error = e instanceof Error ? e.message : 'Failed to delete comparison';
       isDeleting = false;
     }
   }
-
-  // Initialize: load saved comparison first, then events
-  // Only depend on comparisonId to prevent infinite loops - don't depend on eventIdsFromQueryState
-  $effect(() => {
-    const id = comparisonId;
-
-    // For new comparisons, check eventIdsFromQueryState (but don't make it a dependency)
-    if (id === 'new') {
-      savedComparison = null;
-      loadedComparisonId = null;
-
-      // Get current query IDs without making it a reactive dependency
-      const queryIds = eventIdsFromQueryState;
-      const ids = queryIds.filter((id) => id.trim().length > 0);
-
-      // Early return if no IDs
-      if (ids.length < 2) {
-        if (!loading) {
-          loading = false;
-          error = 'At least 2 events are required for comparison';
-        }
-        return;
-      }
-
-      const idsStr = ids.slice().sort().join(',');
-
-      // Only load if we haven't attempted to load these IDs yet
-      if (idsStr !== lastLoadAttempt && !loading) {
-        lastLoadAttempt = idsStr;
-        loadEvents();
-      }
-      return;
-    }
-
-    // For existing comparisons, load saved comparison first
-    // Only load if comparison ID changed
-    if (loadedComparisonId !== id && !loading) {
-      // Clear any stale error from the 'new' path (e.g. after save + replace, query empty before id updated)
-      error = null;
-      loadSavedComparison().then(() => {
-        // After loading saved comparison, check eventIds (which may come from saved comparison)
-        const ids = savedComparison?.eventIds ?? [];
-        const idsStr = ids.slice().sort().join(',');
-
-        if (ids.length >= 2 && idsStr !== lastLoadAttempt) {
-          lastLoadAttempt = idsStr;
-          loadEvents();
-        } else if (ids.length < 2) {
-          loading = false;
-          error = 'At least 2 events are required for comparison';
-        }
-      });
-    }
-  });
-
-  // Separate effect to handle eventIdsFromQueryState changes for new comparisons
-  $effect(() => {
-    // Only run for new comparisons
-    if (comparisonId !== 'new') return;
-
-    // Access eventIdsFromQueryState to make it a dependency
-    const queryIds = eventIdsFromQueryState;
-    const ids = queryIds.filter((id) => id.trim().length > 0);
-
-    if (ids.length < 2) return;
-
-    const idsStr = ids.slice().sort().join(',');
-
-    // Only trigger load if IDs changed and we haven't attempted to load them
-    if (idsStr !== lastLoadAttempt && !loading) {
-      lastLoadAttempt = idsStr;
-      loadEvents();
-    }
-  });
 
   // Routes for the comparison map: one per event with location streams, colored by EVENT_COLORS
   const comparisonRoutes = $derived.by(() => {
@@ -642,6 +402,7 @@
             class="rounded border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
             onclick={() => {
               saveName = generateComparisonName();
+              saveError = null;
               showSaveDialog = true;
             }}
           >
@@ -724,7 +485,7 @@
               class="rounded border px-3 py-1 text-sm transition-colors {xAxisMode === 'elapsed'
                 ? 'border-border bg-card text-text-primary'
                 : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
-              onclick={() => (xAxisMode = 'elapsed')}
+              onclick={() => setXAxisMode('elapsed')}
             >
               Elapsed
             </button>
@@ -733,7 +494,7 @@
               class="rounded border px-3 py-1 text-sm transition-colors {xAxisMode === 'wall-clock'
                 ? 'border-border bg-card text-text-primary'
                 : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
-              onclick={() => (xAxisMode = 'wall-clock')}
+              onclick={() => setXAxisMode('wall-clock')}
             >
               Wall Clock
             </button>
@@ -798,9 +559,15 @@
       aria-modal="true"
       aria-labelledby="save-comparison-dialog-title"
       tabindex="-1"
-      onclick={() => (showSaveDialog = false)}
+      onclick={() => {
+        showSaveDialog = false;
+        saveError = null;
+      }}
       onkeydown={(e) => {
-        if (e.key === 'Escape') showSaveDialog = false;
+        if (e.key === 'Escape') {
+          showSaveDialog = false;
+          saveError = null;
+        }
       }}
     >
       <div
@@ -830,12 +597,18 @@
               if (e.key === 'Escape') showSaveDialog = false;
             }}
           />
+          {#if saveError}
+            <p class="mt-2 text-sm text-danger">{saveError}</p>
+          {/if}
         </div>
         <div class="flex justify-end gap-3">
           <button
             type="button"
             class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover"
-            onclick={() => (showSaveDialog = false)}
+            onclick={() => {
+              showSaveDialog = false;
+              saveError = null;
+            }}
             disabled={isSaving}
           >
             Cancel

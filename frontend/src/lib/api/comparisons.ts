@@ -3,6 +3,19 @@ import type { EventSummary, Comparison, ComparisonSettings } from '../types/even
 const API_BASE = '/api';
 import { apiFetch } from './client';
 
+function assertComparison(data: unknown): asserts data is Comparison {
+  const d = data as Record<string, unknown> | undefined;
+  if (!d || typeof d.id !== 'string') {
+    throw new Error('Invalid comparison response: missing id');
+  }
+  if (typeof d.name !== 'string') {
+    throw new Error('Invalid comparison response: missing name');
+  }
+  if (!Array.isArray(d.eventIds)) {
+    throw new Error('Invalid comparison response: missing eventIds array');
+  }
+}
+
 export async function getComparisonCandidates(eventId: string): Promise<EventSummary[]> {
   const response = await apiFetch(`${API_BASE}/events/${eventId}/candidates`);
 
@@ -26,8 +39,15 @@ export async function getComparisons(): Promise<Comparison[]> {
   return response.json();
 }
 
-export async function getComparison(id: string): Promise<Comparison> {
-  const response = await apiFetch(`${API_BASE}/comparisons/${id}`);
+export interface GetComparisonOptions {
+  signal?: AbortSignal;
+}
+
+export async function getComparison(
+  id: string,
+  options?: GetComparisonOptions
+): Promise<Comparison> {
+  const response = await apiFetch(`${API_BASE}/comparisons/${id}`, { signal: options?.signal });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -36,7 +56,9 @@ export async function getComparison(id: string): Promise<Comparison> {
     throw new Error(`Failed to fetch comparison: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertComparison(data);
+  return data;
 }
 
 export interface ComparisonSummary {
@@ -79,7 +101,9 @@ export async function createComparison(
     throw new Error(error.error || `Failed to create comparison: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertComparison(data);
+  return data;
 }
 
 export async function deleteComparison(id: string): Promise<boolean> {

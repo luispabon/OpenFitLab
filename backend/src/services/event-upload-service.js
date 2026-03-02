@@ -31,6 +31,8 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
   const eventIsMerge = eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0;
   const srcFileType = extension || null;
 
+  const activities = event.getActivities();
+
   await db.transaction(async (conn) => {
     const tOpts = { ...opts, db, conn };
     await eventRepository.insertEvent(
@@ -47,7 +49,6 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
     );
     await eventRepository.insertEventStats(eventId, eventStats, tOpts);
 
-    const activities = event.getActivities();
     for (const activity of activities) {
       const aid = randomUUID();
       const activityJson = activity.toJSON();
@@ -111,7 +112,6 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
     }
   });
 
-  const activities = event.getActivities();
   const responseActivities = activities.map((activity) => {
     const activityJson = activity.toJSON();
     return { ...activityJson, id: null };

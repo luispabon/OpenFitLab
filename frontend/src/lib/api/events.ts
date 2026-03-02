@@ -9,6 +9,33 @@ import type {
 
 const API_BASE = '/api';
 import { apiFetch } from './client';
+import { setCurrentUser } from '../stores/auth.svelte';
+
+function assertEventDetail(data: unknown): asserts data is EventDetail {
+  const d = data as Record<string, unknown>;
+  const event = d?.event as Record<string, unknown> | undefined;
+  if (!event || typeof event.id !== 'string') {
+    throw new Error('Invalid event response: missing event.id');
+  }
+  if (!Array.isArray(d?.activities)) {
+    throw new Error('Invalid event response: missing activities array');
+  }
+}
+
+function assertStreamDataArray(data: unknown): asserts data is StreamData[] {
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid streams response: expected array');
+  }
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i] as Record<string, unknown> | undefined;
+    if (!item || typeof item.type !== 'string') {
+      throw new Error(`Invalid streams response: item ${i} missing type`);
+    }
+    if (!Array.isArray(item.data)) {
+      throw new Error(`Invalid streams response: item ${i} missing data array`);
+    }
+  }
+}
 
 export interface GetEventsParams {
   startDate?: number;
@@ -74,8 +101,12 @@ export async function getActivityRows(
   return response.json();
 }
 
-export async function getEvent(id: string): Promise<EventDetail> {
-  const response = await apiFetch(`${API_BASE}/events/${id}`);
+export interface GetEventOptions {
+  signal?: AbortSignal;
+}
+
+export async function getEvent(id: string, options?: GetEventOptions): Promise<EventDetail> {
+  const response = await apiFetch(`${API_BASE}/events/${id}`, { signal: options?.signal });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -84,7 +115,9 @@ export async function getEvent(id: string): Promise<EventDetail> {
     throw new Error(`Failed to fetch event: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertEventDetail(data);
+  return data;
 }
 
 export async function getActivityTypes(): Promise<string[]> {
@@ -123,10 +156,15 @@ export async function updateActivity(
   return response.json();
 }
 
+export interface GetStreamsOptions {
+  signal?: AbortSignal;
+}
+
 export async function getStreams(
   eventId: string,
   activityId: string,
-  types?: string[]
+  types?: string[],
+  options?: GetStreamsOptions
 ): Promise<StreamData[]> {
   const searchParams = new URLSearchParams();
   if (types && types.length > 0) {
@@ -136,13 +174,15 @@ export async function getStreams(
   const url = `${API_BASE}/events/${eventId}/activities/${activityId}/streams${
     searchParams.toString() ? `?${searchParams.toString()}` : ''
   }`;
-  const response = await apiFetch(url);
+  const response = await apiFetch(url, { signal: options?.signal });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch streams: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertStreamDataArray(data);
+  return data;
 }
 
 export async function uploadFiles(
@@ -165,6 +205,9 @@ export async function uploadFiles(
     });
 
     xhr.addEventListener('load', () => {
+      if (xhr.status === 401) {
+        setCurrentUser(null);
+      }
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText) as BatchUploadResponse;

@@ -10,4 +10,20 @@ class ParseError extends Error {
   }
 }
 
-module.exports = { ParseError };
+class ValidationError extends Error {
+  constructor(message, options = {}) {
+    super(message, options);
+    this.name = 'ValidationError';
+    this.statusCode = 400;
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(message, options = {}) {
+    super(message, options);
+    this.name = 'NotFoundError';
+    this.statusCode = 404;
+  }
+}
+
+module.exports = { ParseError, ValidationError, NotFoundError };

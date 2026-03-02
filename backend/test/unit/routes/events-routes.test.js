@@ -21,6 +21,7 @@ const { updateActivity } = require('../../../src/services/activity-service');
 const { processUpload } = require('../../../src/services/event-upload-service');
 const eventsRouterModule = require('../../../src/routes/events');
 const { buildUploadResults } = eventsRouterModule;
+const { errorHandler } = require('../../../src/middleware/error-handler');
 const fs = require('fs');
 const path = require('path');
 
@@ -44,6 +45,7 @@ function createEventsApp(router) {
     next();
   });
   app.use('/api/events', router);
+  app.use(errorHandler);
   return app;
 }
 

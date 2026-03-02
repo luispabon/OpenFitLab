@@ -1,6 +1,6 @@
 <script lang="ts">
   import { push } from 'svelte-spa-router';
-  import { logout } from '../stores/auth';
+  import { logout } from '../stores/auth.svelte';
   const props = $props<{
     displayName: string | null;
     avatarUrl: string | null;

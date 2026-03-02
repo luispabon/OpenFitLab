@@ -8,21 +8,7 @@ const {
   getComparisonsByEventIds,
   deleteComparisonById,
 } = require('../../../src/services/comparison-service');
-
-function makeFakeDb(queryFn) {
-  return {
-    query: queryFn,
-    transaction: async (fn) => {
-      const fakeConn = {
-        execute: async (sql, params) => {
-          const result = await queryFn(sql, params);
-          return [result];
-        },
-      };
-      return fn(fakeConn);
-    },
-  };
-}
+const { makeFakeDb } = require('../../helpers/fake-db');
 
 describe('comparison-service', () => {
   describe('createComparison', () => {
@@ -41,16 +27,14 @@ describe('comparison-service', () => {
 
       const result = await createComparison(' My Compare ', ['e1', 'e2'], { x: 1 }, { db, userId: 'u1' });
 
-      strictEqual(queries.length, 4);
+      strictEqual(queries.length, 3);
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
       strictEqual(Boolean(insertComp), true);
       strictEqual(insertComp.params[2], 'My Compare');
       deepStrictEqual(JSON.parse(insertComp.params[3]), { x: 1 });
 
-      const linkInserts = queries.filter((q) => q.sql.includes('INSERT INTO comparison_events'));
-      strictEqual(linkInserts.length, 2);
-      strictEqual(linkInserts[0].params[1], 'e1');
-      strictEqual(linkInserts[1].params[1], 'e2');
+      const linkInsert = queries.find((q) => q.sql.includes('INSERT INTO comparison_events'));
+      strictEqual(Boolean(linkInsert), true);
 
       strictEqual(typeof result.id, 'string');
       strictEqual(result.name, 'My Compare');

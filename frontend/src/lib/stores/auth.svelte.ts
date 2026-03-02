@@ -1,31 +1,31 @@
-// Auth store for managing current user session
-// Use Svelte writable stores in plain TS modules
-import { writable } from 'svelte/store';
-
+// Auth store for managing current user session (Svelte 5 runes)
 export interface AuthUser {
   id: string;
   displayName: string | null;
   avatarUrl: string | null;
 }
 
-export const user = writable<AuthUser | null>(null);
-export const authChecked = writable(false);
-export const authLoading = writable(true);
+// Single state object: only mutate properties so it can be exported
+export const state = $state({
+  user: null as AuthUser | null,
+  authChecked: false,
+  authLoading: true,
+});
 
 export async function checkAuth(): Promise<void> {
   try {
     const res = await fetch('/api/auth/me', { credentials: 'include' });
     if (res.ok) {
       const u = await res.json();
-      user.set(u);
+      state.user = u;
     } else {
-      user.set(null);
+      state.user = null;
     }
   } catch {
-    user.set(null);
+    state.user = null;
   } finally {
-    authChecked.set(true);
-    authLoading.set(false);
+    state.authChecked = true;
+    state.authLoading = false;
   }
 }
 
@@ -33,10 +33,10 @@ export async function logout(): Promise<void> {
   try {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   } finally {
-    user.set(null);
+    state.user = null;
   }
 }
 
 export function setCurrentUser(u: AuthUser | null) {
-  user.set(u);
+  state.user = u;
 }

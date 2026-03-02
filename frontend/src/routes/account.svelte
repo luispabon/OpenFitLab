@@ -1,7 +1,7 @@
 <script lang="ts">
   import { push } from 'svelte-spa-router';
   import { deleteAccount } from '../lib/api';
-  import { setCurrentUser } from '../lib/stores/auth';
+  import { setCurrentUser } from '../lib/stores/auth.svelte';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
 
   const CONFIRM_PHRASE = 'DELETE';

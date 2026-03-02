@@ -51,7 +51,7 @@ This file provides operational instructions for AI coding agents working in this
   - `npm run dev` - Start Vite dev server on port 4200
   - `npm run build` - Production build
   - `npm run preview` - Preview production build locally
-  - Requires Node 22+
+  - Requires Node 20+
 
 - **Stack:** Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router
 
@@ -281,7 +281,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - `DB_DATABASE` - Database name (default: openfitlab)
   - `UPLOAD_DIR` - Upload directory (default: `backend/uploads/`)
   - `SESSION_SECRET` - **Required** for session signing. Generate with `openssl rand -hex 32`. No default; server refuses to start if missing or too short.
-  - `OAUTH_CALLBACK_URL` - Base URL for OAuth callbacks (e.g. `http://localhost:4200` in dev or `https://your-domain.com` in production). Used to build redirect_uri for providers.
+  - `OAUTH_CALLBACK_URL` - Base URL for OAuth callbacks (e.g. `http://localhost:3000` in dev or `https://your-domain.com` in production). Used to build redirect_uri for providers.
   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth (optional; if set, Google sign-in is enabled)
   - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth (optional; if set, GitHub sign-in is enabled)
   - **Rate limiting (optional; all default if unset):** `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS`; `AUTH_RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_WINDOW_MS`; `AUTH_CALLBACK_RATE_LIMIT_MAX`, `AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS`; `UPLOAD_RATE_LIMIT_MAX`, `UPLOAD_RATE_LIMIT_WINDOW_MS`. Defaults: API 100/60000; AUTH 10/900000; AUTH_CALLBACK 20/900000; UPLOAD 30/900000. See [backend/src/config.js](backend/src/config.js) for defaults.

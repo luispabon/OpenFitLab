@@ -24,6 +24,17 @@ export default [
       },
     },
   },
+  // .svelte.ts files use Svelte 5 runes ($state, etc.); parse as TypeScript so runes are valid identifiers
+  {
+    files: ['**/*.svelte.ts'],
+    languageOptions: {
+      parser: ts.parser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+  },
   {
     rules: {
       '@typescript-eslint/no-unused-vars': [

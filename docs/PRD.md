@@ -52,17 +52,12 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - **I want to** compare two or more workouts side-by-side
 - **So that** I can see how my performance changes over time
 
-**US-5: Merge Activities**
-- **As a** user
-- **I want to** merge multiple activities into one view
-- **So that** I can analyze combined workout data
-
-**US-6: Analyze Stream Correlations**
+**US-5: Analyze Stream Correlations**
 - **As a** user
 - **I want to** see correlation analysis between different data streams (e.g., heart rate vs. pace)
 - **So that** I can understand relationships in my performance data
 
-**US-7: Compare Fitness Trackers**
+**US-6: Compare Fitness Trackers**
 - **As a** user
 - **I want to** compare data from different fitness trackers
 - **So that** I can evaluate which device provides more accurate measurements
@@ -115,7 +110,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - [x] Clickable to view details
 - [x] Responsive design
 
-### 3.3 Activity Visualization (In Progress)
+### 3.3 Activity Visualization (Complete)
 
 **Description**: Display interactive graphs for workout metrics.
 
@@ -136,16 +131,15 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Interactive tooltips showing exact values
 - Zoom and pan capabilities
 - Multiple metrics on same graph (overlay)
-- Export graphs as images (future)
 
 **Acceptance Criteria**:
-- [ ] Graphs render correctly for all stream types
-- [ ] Time axis shows correct timestamps
-- [ ] Tooltips display accurate values
-- [ ] Graphs are responsive and performant
-- [ ] Multiple streams can be overlaid
+- [x] Graphs render correctly for all stream types
+- [x] Time axis shows correct timestamps
+- [x] Tooltips display accurate values
+- [x] Graphs are responsive and performant
+- [x] Multiple streams can be overlaid
 
-### 3.4 Activity Comparison (Planned)
+### 3.4 Activity Comparison (Complete)
 
 **Description**: Compare two or more activities side-by-side.
 
@@ -153,16 +147,12 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Select multiple activities for comparison (implemented)
 - Display activities in synchronized time view (implemented)
 - Overlay graphs for same metrics (e.g., heart rate from both activities) (implemented)
-- Highlight differences between activities (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
 - Show statistics comparison table (implemented)
-- Support merged view (combine activities into one) (candidate for removal)
 
 **Acceptance Criteria**:
 - [x] User can select 2+ activities to compare
-- [x] Graphs are synchronized by time or distance (time sync implemented; distance sync candidate for removal)
-- [ ] Differences are visually highlighted (candidate for removal - chart-level highlighting not implemented; delta column in stats table IS included)
+- [x] Graphs are synchronized by time
 - [x] Statistics table shows side-by-side comparison
-- [ ] Merged view combines data correctly (candidate for removal)
 
 ### 3.5 Stream Analysis (Planned)
 
@@ -194,17 +184,11 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - [ ] Analysis works for any two stream types
 - [ ] Results are exportable
 
-### 3.6 Tracker Comparison (Planned)
+### 3.6 Tracker Comparison (Complete - via Activity Comparison)
 
 **Description**: Compare data from different fitness trackers for the same activity.
 
-**Requirements**:
-- Identify activities from different devices
-- Overlay data from multiple trackers
-- Calculate differences between measurements
-- Highlight discrepancies
-- Generate accuracy assessment
-- Show which tracker provides more consistent data
+This use case is served by the Activity Comparison feature (Section 3.4). Users upload files recorded by different devices for the same workout, create a comparison, and view time-synchronized overlay charts with a statistics delta table. Device names are stored per activity and displayed in the comparison view.
 
 **Use Cases**:
 - Compare heart rate from Garmin vs. Apple Watch
@@ -213,11 +197,9 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Assess elevation measurement accuracy
 
 **Acceptance Criteria**:
-- [ ] Can identify activities from different devices
-- [ ] Data from multiple trackers can be overlaid
-- [ ] Differences are calculated and displayed
-- [ ] Accuracy metrics are meaningful
-- [ ] Results help users evaluate tracker quality
+- [x] Data from multiple trackers can be overlaid (via Activity Comparison)
+- [x] Differences are calculated and displayed (via statistics delta table)
+- [x] Results help users evaluate tracker quality
 
 ---
 
@@ -258,7 +240,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Store all activity data relationally
 - Support unlimited activities per user
 - Retain data indefinitely (user-controlled)
-- Export data capability (future)
+- Export data capability (implemented: `GET /api/account/export`)
 
 ### 4.5 Security Requirements
 - Authentication required: OAuth (Google, GitHub) with server-side sessions; all data endpoints protected and user-scoped
@@ -308,12 +290,12 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 ### 6.1 MVP Success Criteria
 - [x] Users can upload activity files successfully
 - [x] Users can view their activities in a dashboard
-- [ ] Users can visualize activity data in graphs
-- [ ] Users can compare two activities side-by-side
+- [x] Users can visualize activity data in graphs
+- [x] Users can compare two activities side-by-side
 
 ### 6.2 Future Success Metrics
 - User can analyze correlations between streams
-- User can compare data from different trackers
+- User can compare data from different trackers (implemented via Activity Comparison)
 - System handles 1000+ activities without performance degradation
 - Users report positive experience with visualization quality
 
@@ -321,17 +303,16 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 
 ## 7. Roadmap
 
-### Phase 1: MVP (Current)
+### Phase 1: MVP (Complete)
 - [x] File upload (TCX, FIT, GPX, JSON, SML)
 - [x] Activity dashboard
 - [x] Database schema and API
-- [ ] Basic activity visualization
+- [x] Basic activity visualization
 
-### Phase 2: Visualization & Comparison
-- [ ] Complete activity visualization (all stream types)
-- [ ] Activity comparison (side-by-side)
-- [ ] Merged activity view
-- [ ] Enhanced graph interactions
+### Phase 2: Visualization & Comparison (Complete)
+- [x] Complete activity visualization (all stream types)
+- [x] Activity comparison (side-by-side)
+- [x] Enhanced graph interactions
 
 ### Phase 3: Analysis
 - [ ] Stream correlation analysis
@@ -340,17 +321,12 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - [ ] Export analysis results
 
 ### Phase 4: Tracker Comparison
-- [ ] Device identification
-- [ ] Multi-tracker overlay
-- [ ] Accuracy assessment
-- [ ] Tracker quality metrics
+- [x] Multi-tracker overlay (via Activity Comparison)
+- [x] Measurement differences and accuracy evaluation (via statistics delta table)
 
 ### Phase 5: Enhancements
 - [x] Authentication and multi-user support (OAuth + session; user-scoped data; account export and deletion; account linking by verified email)
 - [ ] Additional file formats
-- [ ] Mobile app
-- [ ] Real-time sync from fitness trackers
-- [ ] Advanced analytics and insights
 
 ---
 
@@ -368,7 +344,7 @@ Provide a privacy-focused, self-hosted solution for fitness enthusiasts to uploa
 - Users want to compare and analyze their own data
 - Privacy and data ownership are priorities
 
-### 8.3 Out of Scope (MVP)
+### 8.3 Out of Scope
 - Mobile app
 - Real-time data sync
 - Social features

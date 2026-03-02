@@ -54,20 +54,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Central error handler for async routes
-app.use((err, req, res, next) => {
-  console.error(err);
-  if (res.headersSent) {
-    return next(err);
-  }
-  const message = err && err.message ? err.message : 'Internal server error';
-  const statusCode =
-    typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600
-      ? err.statusCode
-      : 500;
-  res.status(statusCode).json({ error: message });
-});
-
 async function start() {
   const uploadDir = config.server.uploadDir;
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -94,6 +80,13 @@ async function start() {
   app.use('/api/comparisons', requireAuth, comparisonsRouter);
   app.use('/api/account', requireAuth, accountRouter);
   app.use('/api', requireAuth, metaRouter);
+
+  // Central error handler for async routes
+  const { errorHandler } = require('./middleware/error-handler');
+  app.use((err, req, res, next) => {
+    console.error(err);
+    errorHandler(err, req, res, next);
+  });
 
   app.listen(config.server.port, '0.0.0.0', () => {
     console.log(`API listening on http://0.0.0.0:${config.server.port}`);

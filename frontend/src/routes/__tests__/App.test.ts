@@ -2,22 +2,31 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import App from '../../App.svelte';
 import type { Writable } from 'svelte/store';
-import { user, authLoading, checkAuth } from '../../lib/stores/auth';
 
-vi.mock('../../lib/stores/auth', async () => {
-  const { writable } = await import('svelte/store');
-  type AuthUser = import('../../lib/stores/auth').AuthUser;
-  const userStore = writable<AuthUser | null>(null);
-  const authLoadingStore = writable(true);
-  return {
-    user: userStore,
-    authLoading: authLoadingStore,
-    authChecked: writable(false),
-    checkAuth: vi.fn(), // no-op so tests control auth state via stores
-    logout: vi.fn(),
-    setCurrentUser: (u: AuthUser | null) => userStore.set(u),
+interface AuthUser {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+const { mockAuthState, mockCheckAuth } = vi.hoisted(() => {
+  const mockAuthState = {
+    user: null as AuthUser | null,
+    authChecked: false,
+    authLoading: true,
   };
+  const mockCheckAuth = vi.fn();
+  return { mockAuthState, mockCheckAuth };
 });
+
+vi.mock('../../lib/stores/auth.svelte', () => ({
+  state: mockAuthState,
+  checkAuth: (...args: unknown[]) => mockCheckAuth(...args),
+  logout: vi.fn(),
+  setCurrentUser: (u: AuthUser | null) => {
+    mockAuthState.user = u;
+  },
+}));
 
 // Router stub + location store; tests control location via globalThis
 declare global {
@@ -45,9 +54,10 @@ describe('App', () => {
   const storage: Record<string, string> = {};
 
   beforeEach(() => {
-    vi.mocked(checkAuth).mockClear();
-    user.set(null);
-    authLoading.set(true);
+    mockCheckAuth.mockClear();
+    mockAuthState.user = null;
+    mockAuthState.authLoading = true;
+    mockAuthState.authChecked = false;
     getLocationStore()?.set('/');
     storage['sidebarCollapsed'] = '';
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
@@ -64,8 +74,8 @@ describe('App', () => {
 
   describe('auth state', () => {
     it('shows loading spinner in sidebar and main when auth is loading', async () => {
-      authLoading.set(true);
-      user.set(null);
+      mockAuthState.authLoading = true;
+      mockAuthState.user = null;
       render(App);
       await waitFor(() => {
         const spinners = document.querySelectorAll('svg.animate-spin');
@@ -76,8 +86,8 @@ describe('App', () => {
     });
 
     it('shows LoginPage when not authenticated', async () => {
-      authLoading.set(false);
-      user.set(null);
+      mockAuthState.authLoading = false;
+      mockAuthState.user = null;
       render(App);
       await waitFor(() => {
         expect(screen.getByText('Continue with Google')).toBeInTheDocument();
@@ -88,8 +98,8 @@ describe('App', () => {
     });
 
     it('shows Router and sidebar nav when authenticated', async () => {
-      authLoading.set(false);
-      user.set({ id: 'u1', displayName: 'Test User', avatarUrl: null });
+      mockAuthState.authLoading = false;
+      mockAuthState.user = { id: 'u1', displayName: 'Test User', avatarUrl: null };
       render(App);
       await waitFor(() => {
         expect(screen.getByTestId('app-router')).toBeInTheDocument();
@@ -103,15 +113,15 @@ describe('App', () => {
     it('calls checkAuth on mount', async () => {
       render(App);
       await waitFor(() => {
-        expect(checkAuth).toHaveBeenCalled();
+        expect(mockCheckAuth).toHaveBeenCalled();
       });
     });
   });
 
   describe('sidebar collapse and localStorage', () => {
     beforeEach(() => {
-      authLoading.set(false);
-      user.set({ id: 'u1', displayName: 'Test User', avatarUrl: null });
+      mockAuthState.authLoading = false;
+      mockAuthState.user = { id: 'u1', displayName: 'Test User', avatarUrl: null };
     });
 
     it('shows sidebar expanded by default with OpenFitLab and Collapse button', async () => {
@@ -179,8 +189,8 @@ describe('App', () => {
 
   describe('route and nav active state', () => {
     beforeEach(() => {
-      authLoading.set(false);
-      user.set({ id: 'u1', displayName: 'Test User', avatarUrl: null });
+      mockAuthState.authLoading = false;
+      mockAuthState.user = { id: 'u1', displayName: 'Test User', avatarUrl: null };
     });
 
     it('highlights Dashboard link when location is /', async () => {
@@ -235,11 +245,11 @@ describe('App', () => {
 
   describe('UserMenu', () => {
     beforeEach(() => {
-      authLoading.set(false);
+      mockAuthState.authLoading = false;
     });
 
     it('shows UserMenu with displayName when authenticated', async () => {
-      user.set({ id: 'u1', displayName: 'Alice', avatarUrl: null });
+      mockAuthState.user = { id: 'u1', displayName: 'Alice', avatarUrl: null };
       render(App);
       await waitFor(() => {
         expect(screen.getByText('Alice')).toBeInTheDocument();
@@ -249,7 +259,7 @@ describe('App', () => {
     });
 
     it('shows UserMenu when displayName is null (initials fallback)', async () => {
-      user.set({ id: 'u2', displayName: null, avatarUrl: null });
+      mockAuthState.user = { id: 'u2', displayName: null, avatarUrl: null };
       render(App);
       await waitFor(() => {
         expect(screen.getByTestId('app-router')).toBeInTheDocument();
@@ -258,11 +268,11 @@ describe('App', () => {
     });
 
     it('passes avatarUrl to UserMenu when set', async () => {
-      user.set({
+      mockAuthState.user = {
         id: 'u3',
         displayName: 'Bob',
         avatarUrl: 'https://example.com/avatar.png',
-      });
+      };
       render(App);
       await waitFor(() => {
         const img = document.querySelector('img[alt="avatar"]');

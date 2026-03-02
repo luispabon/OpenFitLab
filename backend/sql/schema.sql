@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url VARCHAR(2048) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_identities (
   id VARCHAR(36) PRIMARY KEY,
@@ -24,14 +26,18 @@ CREATE TABLE IF NOT EXISTS user_identities (
   UNIQUE KEY uk_provider_identity (provider, provider_user_id),
   INDEX idx_user_id (user_id),
   CONSTRAINT fk_identity_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS sessions (
   session_id VARCHAR(128) PRIMARY KEY,
   expires BIGINT UNSIGNED NOT NULL,
   data MEDIUMTEXT,
   INDEX idx_expires (expires)
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS events (
   id VARCHAR(36) PRIMARY KEY,
@@ -47,16 +53,19 @@ CREATE TABLE IF NOT EXISTS events (
   INDEX idx_user_id (user_id),
   INDEX idx_user_start_date (user_id, start_date),
   CONSTRAINT fk_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS event_stats (
   event_id VARCHAR(36) NOT NULL,
   stat_type VARCHAR(128) NOT NULL,
   value JSON NOT NULL,
   PRIMARY KEY (event_id, stat_type),
-  INDEX idx_event_id (event_id),
   CONSTRAINT fk_event_stats_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS activities (
   id VARCHAR(36) PRIMARY KEY,
@@ -73,7 +82,9 @@ CREATE TABLE IF NOT EXISTS activities (
   INDEX idx_device_name (device_name),
   INDEX idx_start_date (start_date),
   CONSTRAINT fk_activities_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 -- idx_start_date: supports getActivityRows ORDER BY COALESCE(a.start_date, e.start_date) and date filters
 
 CREATE TABLE IF NOT EXISTS activity_stats (
@@ -81,9 +92,10 @@ CREATE TABLE IF NOT EXISTS activity_stats (
   stat_type VARCHAR(128) NOT NULL,
   value JSON NOT NULL,
   PRIMARY KEY (activity_id, stat_type),
-  INDEX idx_activity_id (activity_id),
   CONSTRAINT fk_activity_stats_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS streams (
   id VARCHAR(128) PRIMARY KEY,
@@ -97,7 +109,9 @@ CREATE TABLE IF NOT EXISTS streams (
   UNIQUE KEY unique_activity_stream_type (activity_id, type),
   CONSTRAINT fk_streams_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE,
   CONSTRAINT fk_streams_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS stream_data_points (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -108,10 +122,10 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stream_time (stream_id, time_ms),
   INDEX idx_stream_sequence (stream_id, sequence_index, time_ms),
-  INDEX idx_stream_id (stream_id),
-  INDEX idx_time_range (time_ms),
   CONSTRAINT fk_stream_data_points_stream FOREIGN KEY (stream_id) REFERENCES streams (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 -- idx_stream_sequence: supports getStreamsForActivity ORDER BY stream_id, sequence_index ASC, time_ms ASC
 
 CREATE TABLE IF NOT EXISTS comparisons (
@@ -124,7 +138,9 @@ CREATE TABLE IF NOT EXISTS comparisons (
   INDEX idx_user_id (user_id),
   INDEX idx_user_created_at (user_id, created_at),
   CONSTRAINT fk_comparisons_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comparison_events (
   comparison_id VARCHAR(36) NOT NULL,
@@ -133,4 +149,6 @@ CREATE TABLE IF NOT EXISTS comparison_events (
   INDEX idx_event_id (event_id),
   CONSTRAINT fk_ce_comparison FOREIGN KEY (comparison_id) REFERENCES comparisons(id) ON DELETE CASCADE,
   CONSTRAINT fk_ce_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
-);
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;

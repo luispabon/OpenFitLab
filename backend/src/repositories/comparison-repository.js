@@ -8,10 +8,12 @@ async function create(id, name, eventIds, settings, opts = {}) {
     [id, opts.userId, name, settings ? JSON.stringify(settings) : null],
     opts
   );
-  for (const eventId of eventIds) {
+  if (eventIds.length > 0) {
+    const placeholdersList = eventIds.map(() => '(?, ?)').join(', ');
+    const values = eventIds.flatMap((eventId) => [id, eventId]);
     await runQuery(
-      'INSERT INTO comparison_events (comparison_id, event_id) VALUES (?, ?)',
-      [id, eventId],
+      `INSERT INTO comparison_events (comparison_id, event_id) VALUES ${placeholdersList}`,
+      values,
       opts
     );
   }

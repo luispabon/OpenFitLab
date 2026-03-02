@@ -309,6 +309,10 @@ Link table between comparisons and events (many-to-many).
 - **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the current user's account and all their data (cascades), clears the session cookie; 204 on success, 404 if user not found.
 - **Protected routes:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session. Unauthenticated requests receive 401. All data is scoped by the authenticated user; ownership is enforced (e.g. `WHERE user_id = ?`), and 404 is returned when a resource by ID is not found or not owned.
 
+### Health (no auth)
+
+- **GET /** and **GET /health** – Return `{ ok: true }` for liveness/readiness checks. No authentication required.
+
 ### REST Endpoints (data; all require auth and are user-scoped)
 
 #### GET /api/events
@@ -559,7 +563,9 @@ frontend/src/
 │   ├── dashboard.svelte       # List + upload + bulk actions
 │   ├── event-detail.svelte   # Event header, stats, map, stream charts
 │   ├── comparisons.svelte     # Saved comparisons list
-│   └── comparison-view.svelte # Compare N events (charts, map, stats)
+│   ├── comparison-view.svelte # Compare N events (charts, map, stats)
+│   ├── account.svelte         # Export data, delete account
+│   └── not-found.svelte       # 404 fallback
 ├── App.svelte                 # Layout, sidebar, router, auth guard, user menu
 └── main.ts                   # Entry point
 ```

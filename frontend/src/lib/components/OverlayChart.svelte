@@ -267,7 +267,7 @@
     animation: fade-in 0.3s ease-out;
   }
   :global(.uplot .u-legend) {
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     margin-bottom: 0.75rem;
   }
   /* Hide the "Value: --" row (series 0) in live legend */

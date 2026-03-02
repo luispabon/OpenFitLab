@@ -1,6 +1,7 @@
 const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
 const comparisonRepository = require('../repositories/comparison-repository');
+const eventRepository = require('../repositories/event-repository');
 const { parseJSONField } = require('../utils/transforms');
 
 /**
@@ -19,8 +20,7 @@ async function createComparison(name, eventIds, settings, opts = {}) {
   await db.transaction(async (conn) => {
     const txOpts = { ...opts, db, conn };
     // Verify all events belong to the user
-    const eventRepo = require('../repositories/event-repository');
-    const events = await eventRepo.findManyByIds(eventIds, { ...txOpts });
+    const events = await eventRepository.findManyByIds(eventIds, txOpts);
     const ownedIds = new Set(events.map((e) => e.id));
     if (ownedIds.size !== eventIds.length) {
       const err = new Error('One or more events not found');
