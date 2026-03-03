@@ -1,5 +1,5 @@
 const zlib = require('zlib');
-const { DOMParser } = require('xmldom');
+const { DOMParser } = require('@xmldom/xmldom');
 const {
   EventImporterFIT,
   EventImporterTCX,

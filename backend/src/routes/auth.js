@@ -105,6 +105,7 @@ router.get(
       id: user.id,
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
+      csrfToken: req.csrfToken(),
     });
   })
 );

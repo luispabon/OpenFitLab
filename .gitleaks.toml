@@ -1,0 +1,9 @@
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''node_modules''',
+    '''\.gitleaks\.toml''',
+  ]
+  regexes = [
+    '''test-secret-at-least-32-characters-long''',
+  ]

@@ -210,6 +210,16 @@ describe('CompareCandidatesModal', () => {
       expect(onCancel).toHaveBeenCalledTimes(1);
     });
 
+    it('calls onCancel when Escape is pressed from inside the content', async () => {
+      const onCancel = vi.fn();
+      render(CompareCandidatesModal, {
+        props: { ...defaultProps, onCancel },
+      });
+      const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+      await fireEvent.keyDown(cancelButton, { key: 'Escape' });
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
     it('calls onCancel when backdrop is clicked', async () => {
       const onCancel = vi.fn();
       render(CompareCandidatesModal, {

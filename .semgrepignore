@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+coverage/
+*.min.js
+frontend/src/test/
+backend/test/
+# Session cookie: secure and maxAge set via config; domain omitted by design (same-origin)
+backend/src/middleware/session.js

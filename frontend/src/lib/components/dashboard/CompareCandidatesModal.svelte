@@ -23,10 +23,21 @@
     onCompare,
     onCancel,
   }: Props = $props();
+
+  let dialogRef: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    if (!open || !dialogRef) return;
+    const id = requestAnimationFrame(() => {
+      dialogRef?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  });
 </script>
 
 {#if open}
   <div
+    bind:this={dialogRef}
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     role="dialog"
     aria-modal="true"
@@ -40,7 +51,15 @@
       class="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === 'Escape') {
+          onCancel();
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        e.stopPropagation();
+      }}
     >
       <div class="flex items-center justify-between border-b border-border p-6">
         <div class="flex-1">

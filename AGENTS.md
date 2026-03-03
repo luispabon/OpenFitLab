@@ -31,11 +31,12 @@ This file provides operational instructions for AI coding agents working in this
   - Requires Node 24+ (from backend/package.json engines)
 
 - **Dependencies:**
-  - Main: `@sports-alliance/sports-lib`, `express`, `mysql2`, `multer`, `cors`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `express-mysql-session`, `helmet`, `express-rate-limit`
+  - Main: `@sports-alliance/sports-lib`, `@dr.pogodin/csurf`, `express`, `mysql2`, `multer`, `cors`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `express-mysql-session`, `helmet`, `express-rate-limit`
+  - Dev: `eslint`, `eslint-plugin-security`, `prettier`, `supertest`, etc.
   - Install: `cd backend && npm install`
 
 - **Lint and test:**
-  - `npm run lint` - Lint src/
+  - `npm run lint` - Lint src/ (includes eslint-plugin-security rules; detect-object-injection disabled)
   - `npm run lint:fix` - Fix lint issues
   - `npm run format` - Check formatting (Prettier)
   - `npm run format:fix` - Fix formatting
@@ -71,8 +72,11 @@ This file provides operational instructions for AI coding agents working in this
 
 On **push to main** and **pull_request** targeting main:
 
-- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, test:unit with `NODE_OPTIONS='--throw-deprecation'`, and test:coverage. See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
-- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): format, lint, check, test with coverage, build. See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, test:unit with `NODE_OPTIONS='--throw-deprecation'`, and test:coverage. Includes `npm audit --omit=dev --audit-level=high` (warn-only). See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
+- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): format, lint, check, test with coverage, build. Includes `npm audit --omit=dev --audit-level=high` (warn-only). See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+- **Security checks** (on every pull_request to main): Gitleaks secrets scan on PR diff (fails if secrets detected); dependency-review-action (fails if PR introduces HIGH/CRITICAL vulnerable dependencies); Semgrep SAST (Node.js/JavaScript/TypeScript rules); Trivy config scan (Dockerfile and docker-compose misconfigurations). See [.github/workflows/security-checks.yml](.github/workflows/security-checks.yml).
+- **Scheduled security** (weekly, Mondays 06:00 UTC): [.github/workflows/security-scheduled.yml](.github/workflows/security-scheduled.yml) runs Gitleaks full-history scan (warn-only).
+- **Dependabot**: [.github/dependabot.yml](.github/dependabot.yml) for npm (backend, frontend) and github-actions. Enable Dependabot alerts and security updates in GitHub Settings. Security-related config: [.gitleaks.toml](.gitleaks.toml), [.semgrepignore](.semgrepignore).
 
 ## Project layout and architecture
 
@@ -81,6 +85,7 @@ On **push to main** and **pull_request** targeting main:
   - `frontend/` - Svelte 5 + Vite + Tailwind SPA
   - `docs/` - Documentation files (including `docs/HOSTING.md` for AWS/GCP cloud hosting)
   - `docker-compose.yaml` - Docker Compose configuration
+  - `.gitleaks.toml`, `.semgrepignore` - Security CI allowlist/ignore config
 
 - **Backend structure:**
   - `backend/src/index.js` - Express app entry point (session, passport, auth routes public; events/comparisons/meta/account behind requireAuth)
@@ -93,6 +98,7 @@ On **push to main** and **pull_request** targeting main:
   - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service, account-service)
   - `backend/src/repositories/user-repository.js` - User and identity CRUD; findOrCreateByIdentity for OAuth
   - `backend/src/middleware/session.js` - express-session + MySQL store
+  - `backend/src/middleware/csrf.js` - CSRF protection (session-based token; validates on state-changing methods)
   - `backend/src/middleware/require-auth.js` - Require valid session; set req.userId
   - `backend/src/middleware/passport.js` - Passport strategies (Google, GitHub)
   - `backend/src/parsers/file-parser.js` - File parsing (TCX, FIT, GPX, JSON, SML)
@@ -132,14 +138,14 @@ On **push to main** and **pull_request** targeting main:
 
 Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Authentication:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session (cookie set after OAuth login). Unauthenticated requests return 401. Data is scoped to the authenticated user (`req.userId`).
+**Authentication:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session (cookie set after OAuth login). Unauthenticated requests return 401. Data is scoped to the authenticated user (`req.userId`). **CSRF:** State-changing requests (POST, PATCH, PUT, DELETE) require the `CSRF-Token` or `X-CSRF-Token` header with the value from GET /api/auth/me; otherwise 403.
 
 **Auth and account (public or session):**
 - **GET /api/auth/google** - Redirect to Google OAuth consent (no auth)
 - **GET /api/auth/google/callback** - Google OAuth callback → create/find user, set session, redirect to SPA (no auth)
 - **GET /api/auth/github** - Redirect to GitHub OAuth consent (no auth)
 - **GET /api/auth/github/callback** - GitHub OAuth callback (no auth)
-- **GET /api/auth/me** - Return current user `{ id, displayName, avatarUrl }` or 401
+- **GET /api/auth/me** - Return current user `{ id, displayName, avatarUrl, csrfToken }` or 401. Client must send `CSRF-Token` (or `X-CSRF-Token`) header with the token for all state-changing requests (POST, PATCH, PUT, DELETE).
 - **POST /api/auth/logout** - Destroy session, clear cookie
 - **GET /api/account/export** - Export all user data as JSON (query `?includeStreams=true` optional)
 - **DELETE /api/account** - Delete the current user's account and all data; clears session; 204 on success, 404 if user not found
@@ -310,11 +316,11 @@ Run this checklist after each refactoring stage to confirm the app still works.
 
 ## Frontend API surface
 
-- **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Handles 401 by clearing auth state so user is shown login page.
+- **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Sends `CSRF-Token` header for POST/PUT/PATCH/DELETE from auth store. Handles 401 by clearing auth state; clears stored CSRF token on 403.
 - **`frontend/src/lib/api/account.ts`**: `deleteAccount()` for DELETE /api/account. Used by account.svelte. Uses apiFetch.
 - **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFiles, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
 - **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates, getComparisonsByEventIds), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison). Uses apiFetch.
-- **`frontend/src/lib/stores/auth.ts`**: Auth state (currentUser, authChecked, authLoading, checkAuth, logout). Consumed by App.svelte for route guard and user menu.
+- **`frontend/src/lib/stores/auth.svelte.ts`**: Auth state (user, csrfToken, authChecked, authLoading, checkAuth, logout). csrfToken from GET /api/auth/me; consumed by apiFetch for state-changing requests. Consumed by App.svelte for route guard and user menu.
 - Types: `frontend/src/lib/types/event.ts` (and re-exported from `lib/types/index.ts`).
 
 ## When unsure (how to confirm unknowns; which files to read)
@@ -342,5 +348,6 @@ Run this checklist after each refactoring stage to confirm the app still works.
 | Frontend build | `frontend/vite.config.ts` |
 | Frontend lint, test, quality gate | `.cursor/rules/frontend-lint-test.mdc`, `frontend/package.json` |
 | Cloud hosting (AWS/GCP) | `docs/HOSTING.md` |
+| Security CI | `.github/workflows/security-checks.yml`, `.github/workflows/security-scheduled.yml`, `.github/dependabot.yml`, `.gitleaks.toml`, `.semgrepignore` |
 
 Read relevant source files before making assumptions.

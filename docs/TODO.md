@@ -1,41 +1,25 @@
 # TODO - Unimplemented Features
 
-This document lists features from the PRD that are not yet implemented. Features are organized by priority and phase as defined in the PRD.
+This document lists **remaining** work from the PRD. Completed features (MVP, comparison, tracker comparison, auth, export, security CI) are summarized below for reference; details are in [PRD](PRD.md) and [ARCHITECTURE](ARCHITECTURE.md).
 
-**Last Updated:** 2026-02-22
-
----
-
-## Phase 1: MVP (Current)
-
-### 3.3 Activity Visualization
-
-**Status:** Complete (one optional enhancement open)  
-**Priority:** High (MVP requirement)
-
-**Remaining (future):**
-- [ ] Export graphs as images
-
-**Related User Stories:** US-3: Visualize Workout Metrics
+**Last Updated:** 2026-03-02
 
 ---
 
-## Phase 2: Visualization & Comparison
+## Completed (reference)
 
-### 3.4 Activity Comparison
-
-**Status:** Complete (optional enhancements deferred)  
-**Priority:** High
-
-**Description:** Compare two or more activities side-by-side. Implemented: multi-select from dashboard, comparison view `/compare/:id`, time-synchronized overlay charts, statistics comparison table with delta column.
-
-**Related User Stories:** US-4: Compare Activities
+- **MVP**: File upload (TCX, FIT, GPX, JSON, SML), activity dashboard (filters, pagination), activity visualization (time-series graphs, overlay, tooltips). See PRD 3.1–3.3.
+- **Activity Comparison**: Multi-select from dashboard, comparison view `/compare/:id`, time-synchronized overlay charts, statistics comparison table with delta. See PRD 3.4.
+- **Tracker Comparison**: Served by Activity Comparison (Section 3.4); multi-device overlay and statistics delta. See PRD 3.6.
+- **Auth & multi-user**: OAuth (Google, GitHub), server-side sessions, user-scoped data, account linking by verified email. See [AGENTS.md](../AGENTS.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+- **Account export & deletion**: `GET /api/account/export`, `DELETE /api/account`. See PRD 4.4 and ARCHITECTURE.
+- **Security / DevSecOps CI**: Dependency scanning (Dependabot, npm audit, dependency-review-action), secrets (Gitleaks), SAST (Semgrep, eslint-plugin-security), Docker config (Trivy). See ARCHITECTURE and `.github/workflows/security-checks.yml`.
 
 ---
 
-## Phase 3: Analysis
+## Remaining work
 
-### 3.5 Stream Analysis (Planned)
+### 3.5 Stream Analysis (PRD 3.5)
 
 **Status:** Not Started  
 **Priority:** Medium
@@ -78,73 +62,38 @@ This document lists features from the PRD that are not yet implemented. Features
 - [ ] Add correlation strength indicators (color coding, thresholds)
 - [ ] Implement data export functionality (CSV, JSON)
 
-**Related User Stories:**
-- US-5: Analyze Stream Correlations
+**Related User Stories:** US-5: Analyze Stream Correlations
 
 ---
 
-## Phase 4: Tracker Comparison
+### Optional / Phase 5
 
-### 3.6 Tracker Comparison (Complete - via Activity Comparison)
+- [ ] **Export graphs as images** (PRD 3.3)
+- [ ] **Additional file formats** (PRD Phase 5)
+- [ ] **WCAG accessibility compliance** (PRD 5.3)
+- [ ] **Docker image scanning** — Deferred until the project builds its own production images; add Trivy image scan to security-scheduled.yml when applicable
 
-**Status:** Complete (served by Activity Comparison)  
-**Priority:** N/A
-
-**Description:** Compare data from different fitness trackers for the same activity. This use case is served by the Activity Comparison feature (Section 3.4). Users upload files from different devices, create a comparison, and view time-synchronized overlay charts with a statistics delta table.
-
-**Related User Stories:** US-6: Compare Fitness Trackers
+*Out of scope per PRD 8.3: mobile app, real-time sync, cloud hosting, advanced ML analytics.*
 
 ---
 
-## Phase 5: Enhancements (Future)
+## Implementation Notes (remaining work)
 
-### Additional Features (Out of Scope for MVP)
+### Dependencies to Consider (Analysis 3.5)
 
-**Status:** Future  
-**Priority:** Low
-
-- [x] **Authentication and multi-user support** — Implemented: OAuth (Google, GitHub), server-side sessions, user-scoped data, account export and deletion, account linking (automatic by verified email). See [implementation_plans/authentication.md](../implementation_plans/authentication.md).
-- [ ] Additional file formats support
-- [x] Export data capability — Implemented: `GET /api/account/export` (PRD section 4.4)
-- [ ] Graph export as images (mentioned in 3.3)
-- [ ] WCAG accessibility compliance (mentioned in 5.3)
-
----
-
-## Implementation Notes
-
-### Dependencies to Consider
-
-**For Comparison (3.4):**
-- May reuse visualization components from 3.3
-- Need efficient data loading for multiple activities
-- Consider memory management for large comparisons
-
-**For Analysis (3.5):**
 - Statistical calculation library (e.g., simple-statistics, ml-matrix)
 - May need backend API endpoints for heavy calculations
 - Consider caching correlation results
 
-**For Tracker Comparison (3.6):**
-- Served by Activity Comparison (3.4); no additional dependencies needed
-
 ### API Endpoints Needed
 
-**For Comparison (optional):**
-- [ ] Consider batch endpoint for multiple activities: `GET /api/events/batch?ids=...` (or keep using existing endpoints)
-
-**For Analysis:**
-- [ ] `POST /api/activities/:activityId/analyze` - Calculate correlations
-- [ ] Or calculate client-side (may be slow for large datasets)
-
-**For Tracker Comparison:**
-- No additional endpoints needed; served by Activity Comparison
+- **Comparison (optional):** Consider batch endpoint for multiple activities: `GET /api/events/batch?ids=...` (or keep using existing endpoints)
+- **Analysis:** `POST /api/activities/:activityId/analyze` for correlations, or calculate client-side (may be slow for large datasets)
 
 ### Database Considerations
 
 - Current schema supports all required data
 - Consider materialized views for correlation calculations (future optimization)
-
 
 ---
 
@@ -166,6 +115,6 @@ This document lists features from the PRD that are not yet implemented. Features
 
 ## Related Documentation
 
-- [PRD.md](./PRD.md) - Full Product Requirements Document
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - System Architecture
+- [PRD.md](PRD.md) - Full Product Requirements Document
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System Architecture
 - [AGENTS.md](../AGENTS.md) - Development guidelines
