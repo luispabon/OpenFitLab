@@ -2,7 +2,7 @@ const { describe, it } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { DOMParser } = require('xmldom');
+const { DOMParser } = require('@xmldom/xmldom');
 const { normalizeTcxLapStartTimes } = require('../../../src/parsers/tcx-normalizer');
 const { ParseError } = require('../../../src/errors');
 
