@@ -285,8 +285,8 @@ describe('updateActivity', () => {
       '/api/events/evt-1/activities/act-1',
       expect.objectContaining({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'cycling' }),
+        credentials: 'include',
       })
     );
   });
