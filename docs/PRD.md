@@ -276,7 +276,7 @@ This use case is served by the Activity Comparison feature (Section 3.4). Users 
 3. **Upload**: File upload interface
 4. **Activity Detail**: Single activity view with graphs
 5. **Comparison View**: Side-by-side activity comparison
-5. **Analysis View**: Correlation and statistical analysis
+6. **Analysis View**: Correlation and statistical analysis
 
 ### 5.3 Design Principles
 - **Simplicity**: Clean, uncluttered interface
