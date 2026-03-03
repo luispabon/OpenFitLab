@@ -21,7 +21,7 @@
     "@dr.pogodin/csurf": "^1.16.8",
     "@sports-alliance/sports-lib": "^6.1.14",
     "cors": "^2.8.5",
-    "express": "^4.21.0",
+    "express": "^5.2.1",
     "express-mysql-session": "^3.0.3",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.19.0",
