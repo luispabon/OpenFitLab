@@ -228,10 +228,16 @@ export async function uploadFiles(
           if (typeof body?.error === 'string') {
             message = body.error;
           } else {
-            message = xhr.status === 403 ? 'Invalid or missing CSRF token' : `Failed to upload: ${xhr.statusText}`;
+            message =
+              xhr.status === 403
+                ? 'Invalid or missing CSRF token'
+                : `Failed to upload: ${xhr.statusText}`;
           }
         } catch {
-          message = xhr.status === 403 ? 'Invalid or missing CSRF token' : `Failed to upload: ${xhr.statusText}`;
+          message =
+            xhr.status === 403
+              ? 'Invalid or missing CSRF token'
+              : `Failed to upload: ${xhr.statusText}`;
         }
         reject(new Error(message));
       }
