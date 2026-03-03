@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && chown appuser:appgroup /app
 
 COPY --chown=appuser:appgroup package.json package-lock.json* ./
 USER appuser
