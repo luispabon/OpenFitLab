@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@dr.pogodin/csurf": "^1.16.8",
-    "@sports-alliance/sports-lib": "^6.1.14",
+    "@sports-alliance/sports-lib": "^9.0.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "express-mysql-session": "^3.0.3",
