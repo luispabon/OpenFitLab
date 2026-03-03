@@ -32,10 +32,11 @@ This file provides operational instructions for AI coding agents working in this
 
 - **Dependencies:**
   - Main: `@sports-alliance/sports-lib`, `express`, `mysql2`, `multer`, `cors`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `express-mysql-session`, `helmet`, `express-rate-limit`
+  - Dev: `eslint`, `eslint-plugin-security`, `prettier`, `supertest`, etc.
   - Install: `cd backend && npm install`
 
 - **Lint and test:**
-  - `npm run lint` - Lint src/
+  - `npm run lint` - Lint src/ (includes eslint-plugin-security rules; detect-object-injection disabled)
   - `npm run lint:fix` - Fix lint issues
   - `npm run format` - Check formatting (Prettier)
   - `npm run format:fix` - Fix formatting
@@ -71,8 +72,11 @@ This file provides operational instructions for AI coding agents working in this
 
 On **push to main** and **pull_request** targeting main:
 
-- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, test:unit with `NODE_OPTIONS='--throw-deprecation'`, and test:coverage. See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
-- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): format, lint, check, test with coverage, build. See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+- **Backend checks** (when `backend/**` or `.github/workflows/backend-checks.yml` change): lint, format, test:unit, test:unit with `NODE_OPTIONS='--throw-deprecation'`, and test:coverage. Includes `npm audit --omit=dev --audit-level=high` (warn-only). See [.github/workflows/backend-checks.yml](.github/workflows/backend-checks.yml).
+- **Frontend checks** (when `frontend/**` or `.github/workflows/frontend-checks.yml` change): format, lint, check, test with coverage, build. Includes `npm audit --omit=dev --audit-level=high` (warn-only). See [.github/workflows/frontend-checks.yml](.github/workflows/frontend-checks.yml).
+- **Security checks** (on every pull_request to main): Gitleaks secrets scan on PR diff (fails if secrets detected); dependency-review-action (fails if PR introduces HIGH/CRITICAL vulnerable dependencies); Semgrep SAST (Node.js/JavaScript/TypeScript rules); Trivy config scan (Dockerfile and docker-compose misconfigurations). See [.github/workflows/security-checks.yml](.github/workflows/security-checks.yml).
+- **Scheduled security** (weekly, Mondays 06:00 UTC): [.github/workflows/security-scheduled.yml](.github/workflows/security-scheduled.yml) runs Gitleaks full-history scan (warn-only).
+- **Dependabot**: [.github/dependabot.yml](.github/dependabot.yml) for npm (backend, frontend) and github-actions. Enable Dependabot alerts and security updates in GitHub Settings. Security-related config: [.gitleaks.toml](.gitleaks.toml), [.semgrepignore](.semgrepignore).
 
 ## Project layout and architecture
 
@@ -81,6 +85,7 @@ On **push to main** and **pull_request** targeting main:
   - `frontend/` - Svelte 5 + Vite + Tailwind SPA
   - `docs/` - Documentation files (including `docs/HOSTING.md` for AWS/GCP cloud hosting)
   - `docker-compose.yaml` - Docker Compose configuration
+  - `.gitleaks.toml`, `.semgrepignore` - Security CI allowlist/ignore config
 
 - **Backend structure:**
   - `backend/src/index.js` - Express app entry point (session, passport, auth routes public; events/comparisons/meta/account behind requireAuth)
@@ -342,5 +347,6 @@ Run this checklist after each refactoring stage to confirm the app still works.
 | Frontend build | `frontend/vite.config.ts` |
 | Frontend lint, test, quality gate | `.cursor/rules/frontend-lint-test.mdc`, `frontend/package.json` |
 | Cloud hosting (AWS/GCP) | `docs/HOSTING.md` |
+| Security CI | `.github/workflows/security-checks.yml`, `.github/workflows/security-scheduled.yml`, `.github/dependabot.yml`, `.gitleaks.toml`, `.semgrepignore` |
 
 Read relevant source files before making assumptions.
