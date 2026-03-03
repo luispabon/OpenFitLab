@@ -9,7 +9,7 @@ import type {
 
 const API_BASE = '/api';
 import { apiFetch } from './client';
-import { setCurrentUser } from '../stores/auth.svelte';
+import { setCurrentUser, state as authState } from '../stores/auth.svelte';
 
 function assertEventDetail(data: unknown): asserts data is EventDetail {
   const d = data as Record<string, unknown>;
@@ -208,6 +208,9 @@ export async function uploadFiles(
       if (xhr.status === 401) {
         setCurrentUser(null);
       }
+      if (xhr.status === 403) {
+        authState.csrfToken = null;
+      }
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText) as BatchUploadResponse;
@@ -219,12 +222,24 @@ export async function uploadFiles(
           reject(new Error('Failed to parse response'));
         }
       } else {
+        let message: string;
         try {
-          const error = JSON.parse(xhr.responseText) as { error?: string };
-          reject(new Error(error.error || `Failed to upload: ${xhr.statusText}`));
+          const body = JSON.parse(xhr.responseText) as { error?: string };
+          if (typeof body?.error === 'string') {
+            message = body.error;
+          } else {
+            message =
+              xhr.status === 403
+                ? 'Invalid or missing CSRF token'
+                : `Failed to upload: ${xhr.statusText}`;
+          }
         } catch {
-          reject(new Error(`Failed to upload: ${xhr.statusText}`));
+          message =
+            xhr.status === 403
+              ? 'Invalid or missing CSRF token'
+              : `Failed to upload: ${xhr.statusText}`;
         }
+        reject(new Error(message));
       }
     });
 
@@ -238,6 +253,9 @@ export async function uploadFiles(
 
     xhr.open('POST', `${API_BASE}/events`);
     xhr.withCredentials = true;
+    if (authState.csrfToken) {
+      xhr.setRequestHeader('CSRF-Token', authState.csrfToken);
+    }
     xhr.send(formData);
   });
 }

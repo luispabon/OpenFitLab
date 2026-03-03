@@ -626,7 +626,7 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 
 ## Security Considerations
 
-- **Authentication**: OAuth (Google, GitHub) with server-side session cookies. Session is HttpOnly, Secure in production, SameSite=Lax. No tokens in localStorage; XSS cannot steal session. CSRF mitigated by SameSite and JSON APIs.
+- **Authentication**: OAuth (Google, GitHub) with server-side session cookies. Session is HttpOnly, Secure in production, SameSite=Lax. No tokens in localStorage; XSS cannot steal session. **CSRF protection**: session-based CSRF tokens via @dr.pogodin/csurf; token is returned in GET /api/auth/me and must be sent in the `CSRF-Token` (or `X-CSRF-Token`) header for all state-changing requests (POST, PATCH, PUT, DELETE).
 - **Authorization**: Every request to data endpoints is scoped by `req.userId`; repositories filter by `user_id`. Access by ID returns 404 when resource is not owned (no 403 to avoid leaking existence).
 - **CORS**: Restricted to configured origin in production; dev may allow localhost. Same-origin deployment (frontend and API on one domain) is recommended so cookies work without CORS.
 - **Rate limiting**: Applied to auth routes (login initiation and callbacks), uploads, and global API to limit abuse.

@@ -18,6 +18,7 @@
     "test:coverage:lcov": "mkdir -p coverage && SESSION_SECRET=test-secret-at-least-32-characters-long node --experimental-test-coverage --test 'test/unit/**/*.test.js' --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
+    "@dr.pogodin/csurf": "^1.16.8",
     "@sports-alliance/sports-lib": "^6.1.14",
     "cors": "^2.8.5",
     "express": "^4.21.0",

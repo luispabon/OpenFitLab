@@ -5,6 +5,7 @@ const fs = require('fs');
 const db = require('./db');
 const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
+const { csrfProtection } = require('./middleware/csrf');
 const { apiLimiter, authLimiter, callbackLimiter } = require('./middleware/rate-limit');
 const authRouter = require('./routes/auth');
 const accountRouter = require('./routes/account');
@@ -69,6 +70,7 @@ async function start() {
   const passport = configurePassport();
   app.use(passport.initialize());
   app.use(passport.session());
+  app.use(csrfProtection);
 
   // Auth routes (public — session middleware is applied above)
   app.use('/api/auth/google', authLimiter);

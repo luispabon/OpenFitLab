@@ -10,6 +10,7 @@ import {
   deleteEvent,
   uploadFiles,
 } from '../events';
+import { state as authState } from '../../stores/auth.svelte';
 import { eventDetailFixture } from '../../../test/fixtures/event-detail';
 import { activityRowsFixture } from '../../../test/fixtures/activity-rows';
 import { streamsLatLngFixture } from '../../../test/fixtures/streams';
@@ -285,8 +286,8 @@ describe('updateActivity', () => {
       '/api/events/evt-1/activities/act-1',
       expect.objectContaining({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'cycling' }),
+        credentials: 'include',
       })
     );
   });
@@ -403,6 +404,10 @@ describe('getStreams', () => {
 });
 
 describe('uploadFiles', () => {
+  beforeEach(() => {
+    authState.csrfToken = null;
+  });
+
   function createXHRMock() {
     const loadListeners: (() => void)[] = [];
     const errorListeners: (() => void)[] = [];
@@ -411,6 +416,7 @@ describe('uploadFiles', () => {
     const xhr = {
       open: vi.fn(),
       send: vi.fn(),
+      setRequestHeader: vi.fn(),
       withCredentials: false,
       status: 200,
       statusText: 'OK',
@@ -500,7 +506,7 @@ describe('uploadFiles', () => {
     await expect(p).rejects.toThrow('Invalid file type');
   });
 
-  it('rejects with statusText when error response has non-JSON body', async () => {
+  it('rejects with status message when error response has non-JSON body', async () => {
     const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
     vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
       const xhr = createXHRMock();
@@ -517,7 +523,67 @@ describe('uploadFiles', () => {
     xhr.responseText = 'plain text error';
     xhr._fireLoad();
 
-    await expect(p).rejects.toThrow('Internal Server Error');
+    await expect(p).rejects.toThrow('Failed to upload: Internal Server Error');
+  });
+
+  it('sends CSRF-Token header when auth store has token', async () => {
+    authState.csrfToken = 'secret-token';
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    expect(xhr.setRequestHeader).toHaveBeenCalledWith('CSRF-Token', 'secret-token');
+    xhr.status = 200;
+    xhr.responseText = JSON.stringify({ results: [] });
+    xhr._fireLoad();
+    await p;
+  });
+
+  it('rejects with "Invalid or missing CSRF token" on 403 with invalid response body', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 403;
+    xhr.statusText = 'Forbidden';
+    xhr.responseText = 'truncated or invalid';
+    xhr._fireLoad();
+
+    await expect(p).rejects.toThrow('Invalid or missing CSRF token');
+  });
+
+  it('rejects with error message from JSON body on 403 when valid', async () => {
+    const xhrInstances: ReturnType<typeof createXHRMock>[] = [];
+    vi.stubGlobal('XMLHttpRequest', function (this: ReturnType<typeof createXHRMock>) {
+      const xhr = createXHRMock();
+      xhrInstances.push(xhr);
+      return xhr;
+    });
+
+    const p = uploadFiles([new File(['x'], 'a.gpx')]);
+
+    await vi.waitFor(() => expect(xhrInstances.length).toBe(1));
+    const xhr = xhrInstances[0];
+    xhr.status = 403;
+    xhr.statusText = 'Forbidden';
+    xhr.responseText = JSON.stringify({ error: 'Invalid or missing CSRF token' });
+    xhr._fireLoad();
+
+    await expect(p).rejects.toThrow('Invalid or missing CSRF token');
   });
 
   it('rejects with "Failed to parse response" when success response is invalid JSON', async () => {
