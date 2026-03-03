@@ -179,7 +179,6 @@ describe('getComparisonsByEventIds', () => {
       '/api/comparisons/by-events',
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ eventIds: ['evt-1', 'evt-2'] }),
         credentials: 'include',
       })
@@ -217,7 +216,6 @@ describe('createComparison', () => {
       '/api/comparisons',
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Run vs Ride',
           eventIds: ['evt-1', 'evt-2'],

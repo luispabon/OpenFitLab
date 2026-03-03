@@ -26,12 +26,15 @@ describe('user-menu', () => {
 
     const spy = vi
       .spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch')
-      .mockResolvedValueOnce(new Response(null, { status: 200 }) as unknown as Response);
+      .mockResolvedValue(new Response(null, { status: 200 }) as unknown as Response);
     const btn = getByText('Logout');
     await fireEvent.click(btn);
-    expect(spy).toHaveBeenCalledWith('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
+    await vi.waitFor(() => {
+      expect(spy).toHaveBeenCalled();
     });
+    expect(spy).toHaveBeenCalledWith(
+      '/api/auth/logout',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    );
   });
 });

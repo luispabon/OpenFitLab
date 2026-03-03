@@ -626,7 +626,7 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 
 ## Security Considerations
 
-- **Authentication**: OAuth (Google, GitHub) with server-side session cookies. Session is HttpOnly, Secure in production, SameSite=Lax. No tokens in localStorage; XSS cannot steal session. CSRF mitigated by SameSite and JSON APIs.
+- **Authentication**: OAuth (Google, GitHub) with server-side session cookies. Session is HttpOnly, Secure in production, SameSite=Lax. No tokens in localStorage; XSS cannot steal session. **CSRF protection**: session-based CSRF tokens via @dr.pogodin/csurf; token is returned in GET /api/auth/me and must be sent in the `CSRF-Token` (or `X-CSRF-Token`) header for all state-changing requests (POST, PATCH, PUT, DELETE).
 - **Authorization**: Every request to data endpoints is scoped by `req.userId`; repositories filter by `user_id`. Access by ID returns 404 when resource is not owned (no 403 to avoid leaking existence).
 - **CORS**: Restricted to configured origin in production; dev may allow localhost. Same-origin deployment (frontend and API on one domain) is recommended so cookies work without CORS.
 - **Rate limiting**: Applied to auth routes (login initiation and callbacks), uploads, and global API to limit abuse.
@@ -634,6 +634,16 @@ See [docs/HOSTING.md](HOSTING.md) for detailed AWS and GCP plans, cost estimates
 - **File upload**: Limited to supported formats (TCX, FIT, GPX, JSON, SML); multer file size limit (e.g. 50 MB). Files parsed and discarded.
 - **SQL injection**: Parameterized queries via mysql2.
 - **Secrets**: SESSION_SECRET required (no default); OAuth client ID/secret and callback URL from environment. No secrets in logs.
+- **CI security checks:**
+  - Dependabot: automated dependency vulnerability alerts and PRs
+  - npm audit: run in CI for both backend and frontend (warn-only)
+  - dependency-review-action: fails PRs that introduce new vulnerable dependencies (HIGH/CRITICAL)
+  - Gitleaks: secrets scanning on PR diffs and weekly full-history
+  - GitHub push protection: blocks pushes containing known secret patterns
+  - Semgrep: SAST with Node.js/JavaScript/TypeScript rulesets on every PR
+  - eslint-plugin-security: security-focused lint rules in backend ESLint
+  - Trivy: Dockerfile and docker-compose misconfiguration scanning
+  - Docker image scanning: deferred until the project builds its own production images
 
 ## Performance Considerations
 

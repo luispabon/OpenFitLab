@@ -2,10 +2,13 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && chown appuser:appgroup /app
+
+COPY --chown=appuser:appgroup package.json package-lock.json* ./
+USER appuser
 RUN npm install
 
-COPY . .
+COPY --chown=appuser:appgroup . .
 
 EXPOSE 3000
 

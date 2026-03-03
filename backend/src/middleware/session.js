@@ -23,6 +23,7 @@ function createSessionMiddleware(pool) {
     pool
   );
 
+  // secure and maxAge set; domain omitted by design (same-origin). See AGENTS.md Security.
   return session({
     secret: config.session.secret,
     store,

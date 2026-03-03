@@ -5,6 +5,7 @@ const fs = require('fs');
 const db = require('./db');
 const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
+const { csrfProtection } = require('./middleware/csrf');
 const { apiLimiter, authLimiter, callbackLimiter } = require('./middleware/rate-limit');
 const authRouter = require('./routes/auth');
 const accountRouter = require('./routes/account');
@@ -56,6 +57,8 @@ app.get('/health', async (req, res) => {
 
 async function start() {
   const uploadDir = config.server.uploadDir;
+  // uploadDir from config (env), not user input
+  /* eslint-disable-next-line security/detect-non-literal-fs-filename */
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
 
@@ -67,6 +70,7 @@ async function start() {
   const passport = configurePassport();
   app.use(passport.initialize());
   app.use(passport.session());
+  app.use(csrfProtection);
 
   // Auth routes (public — session middleware is applied above)
   app.use('/api/auth/google', authLimiter);
