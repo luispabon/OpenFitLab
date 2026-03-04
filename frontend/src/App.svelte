@@ -10,6 +10,7 @@
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import UserMenu from './lib/components/user-menu.svelte';
   import { checkAuth, state as authState } from './lib/stores/auth.svelte';
+  import { trackPageView } from './lib/analytics/gtag.js';
 
   const routes = {
     '/': Dashboard,
@@ -39,6 +40,12 @@
   const currentLocation = $derived($location);
   const isDashboardActive = $derived(currentLocation === '/' || currentLocation === '');
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
+
+  // Track page views when route changes (SPA)
+  $effect(() => {
+    const path = '/' + (currentLocation || '');
+    trackPageView(path);
+  });
 
   const sidebarWidth = $derived(sidebarCollapsed ? '4rem' : '16rem');
 </script>

@@ -43,6 +43,16 @@ graph TB
 - **Router**: svelte-spa-router
 - **API Client**: `apiFetch()` wrapper (credentials, 401 handling) over native `fetch()`
 
+## Environment Variables
+
+### Frontend (Vite build-time)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `VITE_UPLOAD_CHUNK_SIZE` | No | 5 | Files per upload batch (1-10) |
+| `VITE_GA_ENABLED` | No | false | Enable Google Analytics tracking |
+| `VITE_GA_MEASUREMENT_ID` | No | (empty) | GA4 Measurement ID (G-XXXXXXXXXX) |
+
 ## Database Schema
 
 ### Entity Relationship Diagram
