@@ -1,5 +1,5 @@
 import type { PrivacyInfo } from '../types';
-import { analyticsConfig } from './analytics.js';
+import { getAnalyticsConfig } from './analytics.js';
 
 function getStringEnv(key: string, defaultValue: string, env: Record<string, unknown>): string {
   const value = env[key];
@@ -14,7 +14,8 @@ export function getPrivacyConfig(
     getStringEnv('VITE_PRIVACY_REGION', 'United Kingdom', env).trim() || 'United Kingdom';
   const lastUpdated = getStringEnv('VITE_PRIVACY_LAST_UPDATED', '', env).trim() || '2026-03-04';
 
-  const hasAnalytics = analyticsConfig.isValid;
+  const analyticsEnvConfig = getAnalyticsConfig(env);
+  const hasAnalytics = analyticsEnvConfig.isValid;
 
   return {
     email: emailRaw === '' ? null : emailRaw,

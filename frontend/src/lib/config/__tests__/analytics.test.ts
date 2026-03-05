@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getAnalyticsConfig } from '../analytics.js';
 
 describe('getAnalyticsConfig', () => {
@@ -6,10 +6,6 @@ describe('getAnalyticsConfig', () => {
 
   beforeEach(() => {
     consoleWarnSpy.mockClear();
-  });
-
-  afterEach(() => {
-    consoleWarnSpy.mockRestore();
   });
 
   it('should be disabled by default when env is empty', () => {

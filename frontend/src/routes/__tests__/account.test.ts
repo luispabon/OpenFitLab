@@ -3,11 +3,17 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import Account from '../account.svelte';
 
 const mockDeleteAccount = vi.fn();
+const mockGetAnalyticsEnabled = vi.fn(() => true);
+const mockExportUserData = vi.fn();
+const mockSetAnalyticsEnabled = vi.fn();
 const mockSetCurrentUser = vi.fn();
 const mockPush = vi.fn();
 
 vi.mock('../../lib/api', () => ({
   deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
+  getAnalyticsEnabled: (...args: unknown[]) => mockGetAnalyticsEnabled(...args),
+  exportUserData: (...args: unknown[]) => mockExportUserData(...args),
+  setAnalyticsEnabled: (...args: unknown[]) => mockSetAnalyticsEnabled(...args),
 }));
 
 vi.mock('../../lib/stores/auth.svelte', () => ({
@@ -26,10 +32,10 @@ describe('Account', () => {
   it('renders static content', () => {
     render(Account);
     expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
+    expect(screen.getByText('Manage your privacy settings, export your data, or delete your account.'))
+      .toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Privacy Settings' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Delete my account' })).toBeInTheDocument();
-    expect(
-      screen.getByText('This page is for account deletion only. Data export may be added later.')
-    ).toBeInTheDocument();
     expect(
       screen.getByText(/I understand that all my data will be permanently deleted/)
     ).toBeInTheDocument();
@@ -116,8 +122,14 @@ describe('Account', () => {
     await waitFor(() => {
       expect(screen.getByText('Deleting…')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button')).toBeDisabled();
-    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /Permanently delete my account|Deleting…/ })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('checkbox', {
+        name: /I understand that all my data will be permanently deleted/,
+      })
+    ).toBeDisabled();
 
     holder.resolve({ ok: true });
   });
