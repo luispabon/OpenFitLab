@@ -43,6 +43,19 @@ graph TB
 - **Router**: svelte-spa-router
 - **API Client**: `apiFetch()` wrapper (credentials, 401 handling) over native `fetch()`
 
+## Environment Variables
+
+### Frontend (Vite build-time)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `VITE_UPLOAD_CHUNK_SIZE` | No | 5 | Files per upload batch (1-10) |
+| `VITE_GA_ENABLED` | No | false | Enable Google Analytics tracking |
+| `VITE_GA_MEASUREMENT_ID` | No | (empty) | GA4 Measurement ID (G-XXXXXXXXXX) |
+| `VITE_PRIVACY_EMAIL` | For public instances | (empty) | Contact email shown in the in-app privacy policy (when unset, page shows “Contact email not configured”) |
+| `VITE_PRIVACY_REGION` | No | United Kingdom | Geographic region of the data controller as displayed in the privacy policy |
+| `VITE_PRIVACY_LAST_UPDATED` | No | (build-time default) | Last update date shown in the privacy policy; set at build time per deployment |
+
 ## Database Schema
 
 ### Entity Relationship Diagram

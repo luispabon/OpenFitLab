@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { deleteAccount } from '../account';
+import {
+  deleteAccount,
+  exportUserData,
+  getAnalyticsEnabled,
+  setAnalyticsEnabled,
+} from '../account';
 import * as auth from '../../stores/auth.svelte';
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe('deleteAccount', () => {
@@ -106,6 +112,76 @@ describe('deleteAccount', () => {
       ok: false,
       status: 500,
       error: 'Internal Server Error',
+    });
+  });
+});
+
+describe('getAnalyticsEnabled / setAnalyticsEnabled', () => {
+  it('defaults to true when localStorage is unset', () => {
+    expect(getAnalyticsEnabled()).toBe(true);
+  });
+
+  it('returns false when user has opted out', () => {
+    setAnalyticsEnabled(false);
+    expect(getAnalyticsEnabled()).toBe(false);
+  });
+
+  it('returns true when user has allowed analytics', () => {
+    setAnalyticsEnabled(true);
+    expect(getAnalyticsEnabled()).toBe(true);
+  });
+});
+
+describe('exportUserData', () => {
+  it('returns { ok: true, data } on 200 with JSON body', async () => {
+    const mockData = { user: {}, events: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockData),
+      })
+    );
+
+    const result = await exportUserData(false);
+
+    expect(result).toEqual({ ok: true, data: mockData });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/account/export',
+      expect.objectContaining({ credentials: 'include' })
+    );
+  });
+
+  it('calls with includeStreams=true when requested', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    );
+
+    await exportUserData(true);
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/account/export?includeStreams=true',
+      expect.any(Object)
+    );
+  });
+
+  it('returns { ok: false, status, error } on 4xx', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: () => Promise.resolve(JSON.stringify({ error: 'User not found' })),
+      })
+    );
+
+    const result = await exportUserData(false);
+
+    expect(result).toEqual({
+      ok: false,
+      status: 404,
+      error: 'User not found',
     });
   });
 });

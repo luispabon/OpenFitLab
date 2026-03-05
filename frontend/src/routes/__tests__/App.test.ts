@@ -93,7 +93,7 @@ describe('App', () => {
         expect(screen.getByText('Continue with Google')).toBeInTheDocument();
       });
       expect(screen.getByText('Continue with GitHub')).toBeInTheDocument();
-      expect(screen.queryByTestId('app-router')).not.toBeInTheDocument();
+      expect(screen.getByTestId('app-router')).toBeInTheDocument();
       expect(document.querySelectorAll('svg.animate-spin').length).toBe(0);
     });
 
