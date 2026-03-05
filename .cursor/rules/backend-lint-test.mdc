@@ -1,14 +1,58 @@
 ---
-description: Backend lint, format, and tests must pass; new code must be covered by tests
+description: ⚠️ MANDATORY - Run format+lint+test before/after changes. Backend checks must ALL pass. New behavior needs tests.
 globs: backend/**
 ---
 
-# Backend lint, format, and tests
+# ⚠️ MANDATORY: Read Before Starting Backend Work
+
+**Before you write any backend code, you MUST:**
+1. Read this entire file
+2. Run `npm run format && npm run lint && npm run test` in `backend/` to establish baseline
+3. After your changes, run the same commands — all MUST pass
+
+**Task is NOT done until:** All three commands exit with code 0.
+
+---
+
+# Backend format, lint, and tests
 
 - **All checks are mandatory.** Before considering backend work done, run from `backend/`:
-  - `npm run lint` — must exit with zero and report no errors or warnings.
-  - `npm run format` — must pass (all files match Prettier style).
-  - `npm run test` (or `npm run test:unit`) — must pass with no failures.
-- **Fix before committing.** If any check fails, fix the issues (e.g. `npm run lint:fix`, `npm run format:fix`, add or fix tests) so that lint, format, and tests all pass.
-- **New code must be covered by tests.** When adding or changing code under `backend/src/`, add or update tests so that the new or changed behavior is covered. Place unit tests in `backend/test/unit/` (and `test/unit/services/`, `test/unit/parsers/`, etc. as per the plan). Do not leave new logic untested.
-- Do not introduce or leave ESLint errors/warnings, Prettier violations, or failing tests in the backend.
+
+  - `npm run format` — must pass (Prettier check; backend sources match the canonical style).
+  - `npm run lint` — must exit with zero and report no errors or warnings (ESLint on `src/`).
+  - `npm run test` — must pass with no failures (Node test runner; unit and other tests).
+  - Optionally, run `npm run test:unit` and `npm run test:coverage` when you touch service/repository code or change DB behavior.
+
+- **BLOCKER: Fix before marking task done.** If ANY check fails, the task is INCOMPLETE. Fix issues (e.g. `npm run lint:fix`, `npm run format:fix`, add or fix tests, fix types or runtime errors) and re-run the full check suite until everything passes. Do not commit or consider the task finished with failing checks.
+
+- **New or changed backend behavior must be covered by tests.**
+
+  - When adding or changing logic under `backend/src/`, add or update unit tests under `backend/test/unit/` so that the new behavior (and important edge cases) is covered.
+  - Services and repositories should stay unit-testable via dependency injection (`opts.db`, `opts.conn`), as described in `.cursor/rules/backend-architecture.mdc`.
+
+- **Do not leave the backend in a broken state.**
+
+  - Do not introduce or leave ESLint errors/warnings, Prettier violations, or failing tests in the backend.
+
+- **CI alignment.**
+
+  - Backend CI runs lint, format, unit tests (including Node 24 deprecation checks), and coverage as documented in `AGENTS.md` and `.github/workflows/backend-checks.yml`.
+  - Local checks should match CI: if it would fail in CI, treat the task as **not done** until you fix it.
+
+- **Common pitfalls that violate this rule:**
+  - Running only the new test file, not `npm run test` (full suite)
+  - Assuming "simple" repository changes don't need tests (they do)
+  - Fixing lint issues but not re-running the full check suite
+  - Not testing error branches or edge cases in new logic
+
+---
+
+## Agent Acknowledgment
+
+Before marking any backend task complete, confirm:
+- [ ] I ran the full check suite (`npm run format && npm run lint && npm run test` from `backend/`)
+- [ ] All checks passed with exit code 0
+- [ ] I did not skip or ignore any failures
+- [ ] New/changed behavior has test coverage
+
+**If checks failed and I couldn't fix them:** I must report this to the user and NOT mark the task done.

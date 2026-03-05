@@ -1,9 +1,20 @@
 ---
-description: Frontend lint, format, check, tests, and build must pass; new code must be covered by tests
+description: ⚠️ MANDATORY - Run `npm run ci` before/after changes. Frontend lint/format/check/test/build must ALL pass. New code needs tests.
 globs: frontend/**
 ---
 
-# Frontend lint, format, check, tests, and build
+# ⚠️ MANDATORY: Read Before Starting Frontend Work
+
+**Before you write any frontend code, you MUST:**
+1. Read this entire file
+2. Run `npm run ci` in `frontend/` to establish baseline (should pass)
+3. After your changes, run `npm run ci` again — all checks MUST pass
+
+**Task is NOT done until:** `npm run ci` exits with code 0.
+
+---
+
+# Frontend format, lint, check, tests, and build
 
 - **All checks are mandatory.** Before considering frontend work done, run from `frontend/`:
   - `npm run format` — must pass (Prettier; all files under `src/**/*.{ts,svelte,css,json}` match style).
@@ -11,7 +22,25 @@ globs: frontend/**
   - `npm run check` — must pass (svelte-check with `tsconfig.app.json` and `tsc -p tsconfig.node.json`).
   - `npm run test` — must pass with no failures (Vitest; includes `src/**/*.test.ts`, jsdom, `src/test/setup.ts`).
   - `npm run build` — must succeed (Vite production build).
-- **Single command:** `npm run ci` runs format → lint → check → test → build in order (use for pre-commit or CI).
-- **Fix before committing.** If any check fails, fix the issues (e.g. `npm run lint:fix`, `npm run format:fix`, add or fix tests, fix types) so that format, lint, check, tests, and build all pass.
+- **USE THIS:** `npm run ci` is the ONE command that runs format → lint → check → test → build. Run it before starting and after finishing. If it passes, you're done. If it fails, fix and re-run until it passes.
+- **BLOCKER: Fix before marking task done.** If ANY check fails, the task is INCOMPLETE. Fix issues (e.g. `npm run lint:fix`, `npm run format:fix`, add or fix tests, fix types) and re-run the full check suite until everything passes. Do not commit or consider the task finished with failing checks.
 - **New code must be covered by tests.** When adding or changing code under `frontend/src/`, add or update tests so that the new or changed behavior is covered. Place tests as `*.test.ts` under `src/` (convention: `__tests__/` next to the module, e.g. `src/lib/utils/__tests__/`, `src/lib/components/__tests__/`, `src/lib/api/__tests__/`). Do not leave new logic untested.
 - Do not introduce or leave ESLint errors/warnings, Prettier violations, svelte-check/tsc errors, failing tests, or a broken build in the frontend.
+
+- **Common pitfalls that violate this rule:**
+  - Running only `npm run test` but not `npm run check` (TypeScript errors hide here)
+  - Running tests for only the new file, not the full suite (existing tests may break)
+  - Assuming "simple" changes don't need the full gate (they do)
+  - Fixing lint/format issues but not re-running tests to verify
+
+---
+
+## Agent Acknowledgment
+
+Before marking any frontend task complete, confirm:
+- [ ] I ran the full check suite (`npm run ci` from `frontend/`)
+- [ ] All checks passed with exit code 0
+- [ ] I did not skip or ignore any failures
+- [ ] New/changed behavior has test coverage
+
+**If checks failed and I couldn't fix them:** I must report this to the user and NOT mark the task done.
