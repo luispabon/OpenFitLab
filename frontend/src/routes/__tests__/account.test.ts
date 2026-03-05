@@ -10,18 +10,18 @@ const mockSetCurrentUser = vi.fn();
 const mockPush = vi.fn();
 
 vi.mock('../../lib/api', () => ({
-  deleteAccount: (...args: unknown[]) => mockDeleteAccount(...args),
-  getAnalyticsEnabled: (...args: unknown[]) => mockGetAnalyticsEnabled(...args),
-  exportUserData: (...args: unknown[]) => mockExportUserData(...args),
-  setAnalyticsEnabled: (...args: unknown[]) => mockSetAnalyticsEnabled(...args),
+  deleteAccount: () => mockDeleteAccount(),
+  getAnalyticsEnabled: () => mockGetAnalyticsEnabled(),
+  exportUserData: () => mockExportUserData(),
+  setAnalyticsEnabled: (enabled: boolean) => mockSetAnalyticsEnabled(enabled),
 }));
 
 vi.mock('../../lib/stores/auth.svelte', () => ({
-  setCurrentUser: (...args: unknown[]) => mockSetCurrentUser(...args),
+  setCurrentUser: (user: unknown) => mockSetCurrentUser(user),
 }));
 
 vi.mock('svelte-spa-router', () => ({
-  push: (...args: unknown[]) => mockPush(...args),
+  push: (path: string) => mockPush(path),
 }));
 
 describe('Account', () => {
