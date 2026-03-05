@@ -295,6 +295,10 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 - **Frontend (Vite build-time; optional):**
   - `VITE_UPLOAD_CHUNK_SIZE` - Files per upload batch (1–10; default 5). Backend accepts up to 10 per request.
+  - `VITE_GA_ENABLED`, `VITE_GA_MEASUREMENT_ID` - Enable Google Analytics and set GA4 Measurement ID (G-XXXXXXXXXX). Analytics is only sent when enabled, Do Not Track is off, and the user has not opted out in Account → Privacy.
+  - `VITE_PRIVACY_EMAIL` (recommended for public instances) - Contact email shown in the in-app privacy policy (`#/privacy`); when unset, the page shows “Contact email not configured for this instance.”
+  - `VITE_PRIVACY_REGION` - Region label for the data controller in the privacy policy (default: United Kingdom).
+  - `VITE_PRIVACY_LAST_UPDATED` - Last updated date string shown in the privacy policy.
 
 - **Docker Compose:**
   - `MARIADB_ROOT_PASSWORD` - MariaDB root password (default: qsroot)
@@ -317,7 +321,7 @@ Run this checklist after each refactoring stage to confirm the app still works.
 ## Frontend API surface
 
 - **`frontend/src/lib/api/client.ts`**: `apiFetch()` wrapper; all API calls use it (or equivalent with `credentials: 'include'`). Sends `CSRF-Token` header for POST/PUT/PATCH/DELETE from auth store. Handles 401 by clearing auth state; clears stored CSRF token on 403.
-- **`frontend/src/lib/api/account.ts`**: `deleteAccount()` for DELETE /api/account. Used by account.svelte. Uses apiFetch.
+- **`frontend/src/lib/api/account.ts`**: `deleteAccount()` for DELETE /api/account; `exportUserData(includeStreams?)` for GET /api/account/export; `getAnalyticsEnabled()` / `setAnalyticsEnabled()` for analytics opt-out (localStorage). Used by account.svelte. Uses apiFetch.
 - **`frontend/src/lib/api/events.ts`**: Used by dashboard (getActivityRows, getActivityTypes, getDevices, uploadFiles, deleteEvent), event-detail (getEvent, getStreams, getActivityTypes, getDevices, updateActivity), comparison-view (getEvent, getStreams). Uses apiFetch.
 - **`frontend/src/lib/api/comparisons.ts`**: Used by dashboard (getComparisonCandidates, getComparisonsByEventIds), comparisons.svelte (getComparisons, deleteComparison), comparison-view (getComparison, createComparison, deleteComparison). Uses apiFetch.
 - **`frontend/src/lib/stores/auth.svelte.ts`**: Auth state (user, csrfToken, authChecked, authLoading, checkAuth, logout). csrfToken from GET /api/auth/me; consumed by apiFetch for state-changing requests. Consumed by App.svelte for route guard and user menu.

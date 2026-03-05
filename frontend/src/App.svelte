@@ -6,9 +6,11 @@
   import ComparisonView from './routes/comparison-view.svelte';
   import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
+  import Privacy from './routes/privacy.svelte';
   import NotFound from './routes/not-found.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import UserMenu from './lib/components/user-menu.svelte';
+  import Footer from './lib/components/Footer.svelte';
   import { checkAuth, state as authState } from './lib/stores/auth.svelte';
   import { trackPageView } from './lib/analytics/gtag.js';
 
@@ -18,6 +20,13 @@
     '/comparisons': Comparisons,
     '/compare/:id': ComparisonView,
     '/account': Account,
+    '/privacy': Privacy,
+    '*': NotFound,
+  };
+
+  const unauthenticatedRoutes = {
+    '/': LoginPage,
+    '/privacy': Privacy,
     '*': NotFound,
   };
 
@@ -127,15 +136,21 @@
   </nav>
 
   <!-- Main Content -->
-  <main class="flex-1 transition-all duration-300" style="margin-left: {sidebarWidth};">
-    {#if authState.authLoading}
-      <div class="grid place-items-center p-8">
-        <LoadingSpinner />
-      </div>
-    {:else if !authState.user}
-      <LoginPage />
-    {:else}
-      <Router {routes} />
-    {/if}
+  <main
+    class="flex flex-1 flex-col transition-all duration-300"
+    style="margin-left: {sidebarWidth};"
+  >
+    <div class="flex-1">
+      {#if authState.authLoading}
+        <div class="grid place-items-center p-8">
+          <LoadingSpinner />
+        </div>
+      {:else if !authState.user}
+        <Router routes={unauthenticatedRoutes} />
+      {:else}
+        <Router {routes} />
+      {/if}
+    </div>
+    <Footer />
   </main>
 </div>

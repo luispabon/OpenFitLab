@@ -78,13 +78,23 @@ The plans below use these no–load-balancer options as the default. Alternative
 
 ---
 
+## Privacy policy setup
+
+When you host OpenFitLab (Docker Compose or cloud), you are responsible for your own privacy policy and data controller obligations.
+
+- **Built-in privacy page:** The app serves a privacy policy page at `#/privacy` that is populated from **frontend build-time configuration**. Set **`VITE_PRIVACY_EMAIL`** to the contact email you want to display (e.g. `privacy@your-domain.com`). Set **`VITE_PRIVACY_REGION`** if you are not in the United Kingdom. Optionally set **`VITE_PRIVACY_LAST_UPDATED`** to the policy’s last-updated date.
+- **Analytics:** If you enable Google Analytics (frontend `VITE_GA_ENABLED` and `VITE_GA_MEASUREMENT_ID`), the privacy page will indicate that analytics is in use and describe the safeguards (IP anonymization, limited retention, no advertising). Users can opt out via Account → Privacy Settings.
+- **Self-hosted instances:** If you do not set `VITE_PRIVACY_EMAIL`, the privacy page will show “Contact email not configured for this instance.” Consider consulting a lawyer for your jurisdiction’s requirements (e.g. GDPR, UK DPA).
+
+---
+
 ## Production checklist
 
 Before going live on any cloud setup:
 
 1. **Environment variables / secrets**
    - Backend: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE`. Use the managed DB endpoint and credentials. **Authentication (required):** `SESSION_SECRET` (e.g. `openssl rand -hex 32`). **OAuth (at least one provider):** `OAUTH_CALLBACK_URL` (your public app URL, e.g. `https://your-domain.com`), and either `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` or `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`. Prefer secret stores (Secrets Manager, Parameter Store, Secret Manager) over plain env in production.
-   - Frontend: No change needed if you use same-origin `/api`; cookies (session) require same-origin or correct CORS + credentials. If you use a different API origin, add a build-time env (e.g. `VITE_API_BASE`) and ensure the API allows that origin and credentials.
+   - Frontend: Configure `VITE_PRIVACY_EMAIL`, `VITE_PRIVACY_REGION`, `VITE_PRIVACY_LAST_UPDATED` for the in-app privacy page, and `VITE_GA_ENABLED` / `VITE_GA_MEASUREMENT_ID` if you use Google Analytics. If you use a different API origin, add a build-time env (e.g. `VITE_API_BASE`) and ensure the API allows that origin and credentials.
 
 2. **CORS and cookies**
    - Restrict CORS in the API to your frontend origin (e.g. `https://your-domain.com`). Do not allow `*` in production. Session cookies require same-origin or a single domain serving both frontend and API (recommended) so `credentials: 'include'` works without extra CORS configuration.
