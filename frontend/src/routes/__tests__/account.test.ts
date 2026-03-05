@@ -32,8 +32,9 @@ describe('Account', () => {
   it('renders static content', () => {
     render(Account);
     expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
-    expect(screen.getByText('Manage your privacy settings, export your data, or delete your account.'))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText('Manage your privacy settings, export your data, or delete your account.')
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Privacy Settings' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Delete my account' })).toBeInTheDocument();
     expect(
