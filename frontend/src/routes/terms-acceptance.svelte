@@ -58,7 +58,9 @@
     >
       <div
         class="terms-doc [&_h1]:mb-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-text-primary [&_p]:mb-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mb-1 [&_a]:text-accent [&_a]:underline [&_a]:hover:opacity-90"
-      >{@html termsOfServiceContent}</div>
+      >
+        {@html termsOfServiceContent}
+      </div>
     </div>
 
     <!-- Privacy Policy Link -->
