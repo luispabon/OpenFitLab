@@ -17,6 +17,17 @@ services:
       retries: 5
       start_period: 30s
 
+  valkey:
+    image: valkey/valkey:8-alpine
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   api:
     image: node:24-alpine
     working_dir: /app
@@ -29,6 +40,8 @@ services:
       DB_PASSWORD: ${MARIADB_PASSWORD:-qspass}
       DB_DATABASE: ${MARIADB_DATABASE:-openfitlab}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
@@ -36,6 +49,8 @@ services:
       OAUTH_CALLBACK_URL: ${OAUTH_CALLBACK_URL:-http://localhost:3000}
     depends_on:
       db:
+        condition: service_healthy
+      valkey:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -71,3 +86,4 @@ services:
 
 volumes:
   db_data:
+  valkey_data:
