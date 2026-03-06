@@ -248,13 +248,16 @@
 
     isSaving = true;
     try {
+      const activityIds = eventIds
+        .map((id) => loaderState.selectedActivities[id])
+        .filter((id): id is string => Boolean(id));
+
       const settings: ComparisonSettings = {
         selectedStreams: Array.from(loaderState.selectedStreamTypes),
         xAxisMode: loaderState.xAxisMode,
-        selectedActivities: { ...loaderState.selectedActivities },
       };
 
-      const saved = await createComparison(saveName.trim(), eventIds, settings);
+      const saved = await createComparison(saveName.trim(), activityIds, settings);
       setComparison(saved);
       showSaveDialog = false;
       saveName = '';

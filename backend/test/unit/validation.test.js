@@ -308,7 +308,7 @@ describe('validateComparisonBody', () => {
     const req = {
       body: {
         name: 'My Comparison',
-        eventIds: [
+        activityIds: [
           'a1b2c3d4-e5f6-4789-a012-3456789abcde',
           'b2c3d4e5-f6a7-4890-b123-456789abcdef',
         ],
@@ -324,7 +324,10 @@ describe('validateComparisonBody', () => {
     const req = {
       body: {
         name: '',
-        eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde', 'b2c3d4e5-f6a7-4890-b123-456789abcdef'],
+        activityIds: [
+          'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+          'b2c3d4e5-f6a7-4890-b123-456789abcdef',
+        ],
       },
     };
     const res = mockRes();
@@ -336,12 +339,14 @@ describe('validateComparisonBody', () => {
   });
 
   it('returns 400 when eventIds has fewer than 2 elements', () => {
-    const req = { body: { name: 'Compare', eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde'] } };
+    const req = { body: { name: 'Compare', activityIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde'] } };
     const res = mockRes();
     const next = mockNext();
     validateComparisonBody(req, res, next);
     strictEqual(res.statusCode, 400);
-    deepStrictEqual(res.body, { error: 'eventIds must be an array with at least 2 event IDs' });
+    deepStrictEqual(res.body, {
+      error: 'activityIds must be an array with at least 2 activity IDs',
+    });
     strictEqual(next.called(), false);
   });
 
@@ -349,14 +354,14 @@ describe('validateComparisonBody', () => {
     const req = {
       body: {
         name: 'Compare',
-        eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde', 'not-a-uuid'],
+        activityIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde', 'not-a-uuid'],
       },
     };
     const res = mockRes();
     const next = mockNext();
     validateComparisonBody(req, res, next);
     strictEqual(res.statusCode, 400);
-    deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
+    deepStrictEqual(res.body, { error: 'All activityIds must be valid UUIDs' });
     strictEqual(next.called(), false);
   });
 });

@@ -209,7 +209,7 @@ describe('createComparison', () => {
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    const result = await createComparison('Run vs Ride', ['evt-1', 'evt-2']);
+    const result = await createComparison('Run vs Ride', ['act-1', 'act-2']);
 
     expect(result).toEqual(comparisonFixture);
     expect(mockFetch).toHaveBeenCalledWith(
@@ -218,7 +218,7 @@ describe('createComparison', () => {
         method: 'POST',
         body: JSON.stringify({
           name: 'Run vs Ride',
-          eventIds: ['evt-1', 'evt-2'],
+          activityIds: ['act-1', 'act-2'],
           settings: undefined,
         }),
         credentials: 'include',
@@ -233,7 +233,7 @@ describe('createComparison', () => {
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    await createComparison('Detailed', ['evt-1'], {
+    await createComparison('Detailed', ['act-1'], {
       selectedStreams: ['Heart Rate'],
     });
 
@@ -251,7 +251,7 @@ describe('createComparison', () => {
       })
     );
 
-    await expect(createComparison('Duplicate', ['evt-1'])).rejects.toThrow('Duplicate name');
+    await expect(createComparison('Duplicate', ['act-1'])).rejects.toThrow('Duplicate name');
   });
 
   it('throws statusText when body has no error key', async () => {
@@ -265,7 +265,7 @@ describe('createComparison', () => {
       })
     );
 
-    await expect(createComparison('Test', ['evt-1'])).rejects.toThrow(
+    await expect(createComparison('Test', ['act-1'])).rejects.toThrow(
       /Failed to create comparison/
     );
   });

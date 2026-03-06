@@ -21,8 +21,8 @@ router.post(
   '/',
   validateComparisonBody,
   asyncHandler(async (req, res) => {
-    const { name, eventIds, settings } = req.body;
-    const comparison = await createComparison(name, eventIds, settings, { userId: req.userId });
+    const { name, activityIds, settings } = req.body;
+    const comparison = await createComparison(name, activityIds, settings, { userId: req.userId });
     res.status(201).json(comparison);
   })
 );
