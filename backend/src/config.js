@@ -135,6 +135,11 @@ const rateLimit = {
   upload: parseRateLimit(UPLOAD_RATE_LIMIT_MAX, UPLOAD_RATE_LIMIT_WINDOW_MS, 30, 15 * 60_000),
 };
 
+const termsOfService = {
+  pendingSignupExpiryMs: 10 * 60 * 1000, // 10 minutes
+  normalSessionExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 const config = {
   db,
   server: {
@@ -148,6 +153,7 @@ const config = {
   valkey,
   oauth,
   rateLimit,
+  termsOfService,
 };
 
 module.exports = Object.freeze(config);

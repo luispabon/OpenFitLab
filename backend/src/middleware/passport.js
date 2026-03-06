@@ -2,6 +2,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const GitHubStrategy = require('passport-github2').Strategy;
 const userRepository = require('../repositories/user-repository');
+const { normalizeEmail } = require('../utils/email');
 const config = require('../config');
 
 /**
@@ -10,7 +11,14 @@ const config = require('../config');
  */
 function configurePassport() {
   passport.serializeUser((user, done) => {
-    done(null, user.id);
+    // Pending signup: do not serialize a user id; auth route stores pendingSignup in session
+    if (user && user.pendingSignup === true) {
+      return done(null, null);
+    }
+    // user may be { user, pendingSignup: false } or plain user from deserialize
+    const id = user?.user?.id ?? user?.id;
+    if (id) done(null, id);
+    else done(new Error('Cannot serialize user'), null);
   });
 
   passport.deserializeUser(async (id, done) => {
@@ -35,14 +43,44 @@ function configurePassport() {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            const result = await userRepository.findOrCreateByIdentity('google', profile.id, {
-              displayName: profile.displayName || null,
-              avatarUrl: profile.photos?.[0]?.value || null,
-              email: profile.emails?.[0]?.value || null,
-              emailVerified: profile._json?.email_verified === true,
-              profileData: profile._json || null,
+            const existingIdentity = await userRepository.findIdentityByProvider(
+              'google',
+              profile.id
+            );
+            if (existingIdentity) {
+              const user = await userRepository.findById(existingIdentity.user_id);
+              done(null, { user, pendingSignup: false });
+              return;
+            }
+            const normalizedEmail = normalizeEmail(profile.emails?.[0]?.value);
+            const emailVerified = profile._json?.email_verified === true;
+            if (normalizedEmail && emailVerified) {
+              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
+              if (byEmail.length === 1) {
+                const existingUserId = byEmail[0].user_id;
+                await userRepository.linkIdentity(existingUserId, {
+                  provider: 'google',
+                  providerUserId: profile.id,
+                  email: normalizedEmail,
+                  displayName: profile.displayName || null,
+                  avatarUrl: profile.photos?.[0]?.value || null,
+                });
+                const user = await userRepository.findById(existingUserId);
+                done(null, { user, pendingSignup: false });
+                return;
+              }
+            }
+            done(null, {
+              pendingSignup: true,
+              profile: {
+                provider: 'google',
+                providerUserId: profile.id,
+                displayName: profile.displayName || null,
+                avatarUrl: profile.photos?.[0]?.value || null,
+                email: normalizedEmail,
+                emailVerified,
+              },
             });
-            done(null, result.user);
           } catch (err) {
             done(err);
           }
@@ -86,19 +124,48 @@ function configurePassport() {
                   }
                 }
               } catch {
-                // Leave email null, emailVerified false; login still creates/links by provider only
+                // Leave email null, emailVerified false
               }
             } else {
               emailVerified = true;
             }
-            const result = await userRepository.findOrCreateByIdentity('github', profile.id, {
-              displayName: profile.displayName || profile.username || null,
-              avatarUrl: profile.photos?.[0]?.value || null,
-              email,
-              emailVerified,
-              profileData: profile._json || null,
+            const existingIdentity = await userRepository.findIdentityByProvider(
+              'github',
+              profile.id
+            );
+            if (existingIdentity) {
+              const user = await userRepository.findById(existingIdentity.user_id);
+              done(null, { user, pendingSignup: false });
+              return;
+            }
+            const normalizedEmail = normalizeEmail(email);
+            if (normalizedEmail && emailVerified) {
+              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
+              if (byEmail.length === 1) {
+                const existingUserId = byEmail[0].user_id;
+                await userRepository.linkIdentity(existingUserId, {
+                  provider: 'github',
+                  providerUserId: profile.id,
+                  email: normalizedEmail,
+                  displayName: profile.displayName || profile.username || null,
+                  avatarUrl: profile.photos?.[0]?.value || null,
+                });
+                const user = await userRepository.findById(existingUserId);
+                done(null, { user, pendingSignup: false });
+                return;
+              }
+            }
+            done(null, {
+              pendingSignup: true,
+              profile: {
+                provider: 'github',
+                providerUserId: profile.id,
+                displayName: profile.displayName || profile.username || null,
+                avatarUrl: profile.photos?.[0]?.value || null,
+                email: normalizedEmail,
+                emailVerified,
+              },
             });
-            done(null, result.user);
           } catch (err) {
             done(err);
           }

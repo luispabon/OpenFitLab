@@ -138,7 +138,8 @@ async function exportUserData(userId, opts = {}) {
 /**
  * Delete a user account and all associated data.
  * Cascade delete handles child rows via FK constraints.
- * Sessions are cleared separately since they use a different FK pattern.
+ * Sessions are stored in Valkey (not in DB); the account route destroys the current
+ * session after delete. Other sessions for this user expire naturally.
  *
  * @param {string} userId
  * @param {{ db?: object }} opts
@@ -146,9 +147,6 @@ async function exportUserData(userId, opts = {}) {
  */
 async function deleteAccount(userId, opts = {}) {
   const dbOpts = { db: opts.db ?? defaultDb };
-
-  // Clear sessions for this user (sessions store userId in JSON data, not via FK)
-  await runQuery("DELETE FROM sessions WHERE data LIKE CONCAT('%', ?, '%')", [userId], dbOpts);
 
   // Delete user — cascades to identities, events, comparisons, and all child rows
   return userRepository.deleteById(userId, dbOpts);
