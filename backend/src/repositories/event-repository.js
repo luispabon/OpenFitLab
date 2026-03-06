@@ -1,11 +1,12 @@
 const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
-const EVENT_COLUMNS = 'id, start_date, name, end_date, description, is_merge, src_file_type';
+const EVENT_COLUMNS =
+  'id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone';
 
 async function insertEvent(row, opts = {}) {
   if (!opts.userId) throw new Error('insertEvent requires opts.userId');
-  const sql = `INSERT INTO events (id, user_id, start_date, name, end_date, description, is_merge, src_file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO events (id, user_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   await runQuery(
     sql,
     [
@@ -17,6 +18,8 @@ async function insertEvent(row, opts = {}) {
       row.description,
       row.is_merge,
       row.src_file_type,
+      row.start_timezone,
+      row.end_timezone,
     ],
     opts
   );

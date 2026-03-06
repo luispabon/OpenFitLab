@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
 const FileParser = require('../parsers/file-parser');
 const { extractStreamDataPointsFromJSON } = require('../utils/stream-extractor');
+const { extractActivityTimezones } = require('../utils/timezone-extractor');
 const { toTimestamp } = require('../utils/transforms');
 const eventRepository = require('../repositories/event-repository');
 const activityRepository = require('../repositories/activity-repository');
@@ -32,6 +33,7 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
   const srcFileType = extension || null;
 
   const activities = event.getActivities();
+  const eventTimezone = FileParser.extractEventTimezone(event);
 
   await db.transaction(async (conn) => {
     const tOpts = { ...opts, db, conn };
@@ -44,6 +46,8 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
         description: eventDescription,
         is_merge: eventIsMerge,
         src_file_type: srcFileType,
+        start_timezone: eventTimezone,
+        end_timezone: eventTimezone,
       },
       tOpts
     );
@@ -65,6 +69,7 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
         activityJson.creator.name != null
           ? String(activityJson.creator.name).trim()
           : null;
+      const { startTimezone, endTimezone } = extractActivityTimezones(activityJson);
 
       await activityRepository.insertActivity(
         {
@@ -76,6 +81,8 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
           type: aType,
           event_start_date: startDate,
           device_name: deviceName || null,
+          start_timezone: startTimezone,
+          end_timezone: endTimezone,
         },
         tOpts
       );

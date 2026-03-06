@@ -8,6 +8,8 @@ export interface EventSummary {
   stats: Record<string, number | string | number[] | string[] | Record<string, unknown>>;
   activities?: Activity[];
   srcFileType?: string;
+  startTimezone?: string;
+  endTimezone?: string;
 }
 
 export interface EventDetail {
@@ -25,6 +27,8 @@ export interface Activity {
   type?: string;
   stats: Record<string, number | string | number[] | string[] | Record<string, unknown>>;
   deviceName?: string;
+  startTimezone?: string;
+  endTimezone?: string;
 }
 
 export interface ActivityRow {

@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { ActivityRow } from '../../types';
-  import { getActivityIcon, getActivityDeviceName, formatDateWithTime } from '../../utils';
+  import {
+    getActivityIcon,
+    getActivityDeviceName,
+    formatDateWithOriginalTimezone,
+  } from '../../utils';
 
   interface Props {
     rows: ActivityRow[];
@@ -168,7 +172,10 @@
               {formatDistanceCell(row.activity.stats)}
             </td>
             <td class="whitespace-nowrap px-3 py-4 text-sm text-text-secondary">
-              {formatDateWithTime(row.activity.startDate ?? row.event.startDate)}
+              {formatDateWithOriginalTimezone(
+                row.activity.startDate ?? row.event.startDate,
+                row.activity.startTimezone ?? row.event.startTimezone
+              )}
             </td>
             <td class="px-3 py-4 text-right font-medium">
               <div class="flex flex-wrap items-center justify-end gap-1.5">

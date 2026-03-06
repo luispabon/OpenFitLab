@@ -9,6 +9,7 @@ const {
   ActivityParsingOptions,
 } = require('@sports-alliance/sports-lib');
 const JSONSanitizer = require('../utils/json-sanitizer');
+const { extractTimezoneFromValue } = require('../utils/timezone-extractor');
 const { ParseError } = require('../errors');
 const { normalizeTcxLapStartTimes } = require('./tcx-normalizer');
 
@@ -134,6 +135,20 @@ class FileParser {
       ext = parts.pop().toLowerCase();
     }
     return ext;
+  }
+
+  /**
+   * Extract timezone from parsed event (from event.toJSON() startDate/endDate).
+   * @param {Object} event - Parsed event from sports-lib
+   * @returns {string|null} IANA timezone identifier or null
+   */
+  static extractEventTimezone(event) {
+    if (!event) return null;
+    const json = typeof event.toJSON === 'function' ? event.toJSON() : event;
+    if (!json || typeof json !== 'object') return null;
+    return (
+      extractTimezoneFromValue(json.startDate) ?? extractTimezoneFromValue(json.endDate) ?? null
+    );
   }
 }
 
