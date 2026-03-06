@@ -1,9 +1,8 @@
 <script lang="ts">
   import Router, { location } from 'svelte-spa-router';
+  import { wrap } from 'svelte-spa-router/wrap';
   import Dashboard from './routes/dashboard.svelte';
-  import EventDetail from './routes/event-detail.svelte';
   import Comparisons from './routes/comparisons.svelte';
-  import ComparisonView from './routes/comparison-view.svelte';
   import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
   import Privacy from './routes/privacy.svelte';
@@ -17,9 +16,16 @@
 
   const routes = {
     '/': Dashboard,
-    '/event/:id': EventDetail,
+    // svelte-spa-router wrap() expects Svelte 4 ComponentType; we use Svelte 5. Cast to satisfy typecheck.
+    '/event/:id': wrap({
+      asyncComponent: () => import('./routes/event-detail.svelte'),
+      loadingComponent: LoadingSpinner,
+    } as never),
     '/comparisons': Comparisons,
-    '/compare/:id': ComparisonView,
+    '/compare/:id': wrap({
+      asyncComponent: () => import('./routes/comparison-view.svelte'),
+      loadingComponent: LoadingSpinner,
+    } as never),
     '/account': Account,
     '/privacy': Privacy,
     '*': NotFound,
