@@ -90,8 +90,8 @@ describe('RouteMap', () => {
         },
       });
       expect(screen.getByTestId('maplibre-stub')).toBeInTheDocument();
-      expect(screen.getByText('Morning:')).toBeInTheDocument();
-      expect(screen.getByText('Evening:')).toBeInTheDocument();
+      expect(screen.getByText('Morning')).toBeInTheDocument();
+      expect(screen.getByText('Evening')).toBeInTheDocument();
     });
 
     it('each route label appears in the legend', () => {
@@ -103,8 +103,8 @@ describe('RouteMap', () => {
           ],
         },
       });
-      expect(screen.getByText('Route A:')).toBeInTheDocument();
-      expect(screen.getByText('Route B:')).toBeInTheDocument();
+      expect(screen.getByText('Route A')).toBeInTheDocument();
+      expect(screen.getByText('Route B')).toBeInTheDocument();
     });
   });
 

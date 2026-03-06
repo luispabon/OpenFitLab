@@ -6,6 +6,7 @@
     SymbolLayer,
     NavigationControl,
     FullScreenControl,
+    CustomControl,
   } from 'svelte-maplibre-gl';
   import type { Map as MapLibreMap } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
@@ -116,8 +117,6 @@
     return [];
   });
 
-  const showLegend = $derived(Boolean(routes?.length && routesWithData.length > 0));
-
   const mergedBounds = $derived.by(() => {
     if (routesWithData.length === 0) return null;
     return mergeBounds(routesWithData.map((r) => r.route!.bounds));
@@ -151,10 +150,12 @@
 {#if routesWithData.length > 0 && center}
   <div class="relative">
     <div class="absolute top-2 left-2 z-10 flex gap-2">
-      <div class="rounded-lg border border-border bg-card shadow-sm">
+      <div
+        class="rounded-lg border border-border bg-surface/85 px-3 py-1.5 shadow-sm backdrop-blur"
+      >
         <select
           bind:value={selectedTheme}
-          class="rounded-lg border-0 bg-transparent px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          class="border-0 bg-transparent text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           {#each THEME_OPTIONS as option}
             <option value={option.value}>{option.label}</option>
@@ -164,7 +165,7 @@
       <button
         type="button"
         onclick={() => (showLabels = !showLabels)}
-        class="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-text-primary shadow-sm transition-colors hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
+        class="rounded-lg border border-border bg-surface/85 px-3 py-1.5 text-sm text-text-primary shadow-sm backdrop-blur transition-colors hover:bg-surface/95 focus:outline-none focus:ring-2 focus:ring-accent"
         title={showLabels ? 'Hide labels' : 'Show labels'}
       >
         <span class="material-icons text-base">{showLabels ? 'label' : 'label_off'}</span>
@@ -182,6 +183,26 @@
       >
         <NavigationControl position="top-right" />
         <FullScreenControl position="top-right" />
+        {#if routes?.length && routesWithData.length > 0}
+          <CustomControl position="bottom-left" group={false}>
+            <div
+              class="m-2 rounded-lg border border-border bg-surface/85 px-3 py-2 shadow-sm backdrop-blur"
+            >
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
+                {#each routesWithData as item}
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="h-3 w-3 shrink-0 rounded-sm"
+                      style="background-color: {item.color};"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="text-text-primary">{item.label}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </CustomControl>
+        {/if}
         {#each routesWithData as item, i}
           {@const sourceId = `route-source-${i}`}
           {@const layerId = `route-layer-${i}`}
@@ -209,19 +230,5 @@
         {/each}
       </MapLibre>
     </div>
-    {#if showLegend}
-      <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
-        {#each routesWithData as item}
-          <div class="flex items-center gap-2">
-            <span
-              class="h-3 w-3 shrink-0 rounded-sm"
-              style="background-color: {item.color};"
-              aria-hidden="true"
-            ></span>
-            <span class="text-text-primary">{item.label}:</span>
-          </div>
-        {/each}
-      </div>
-    {/if}
   </div>
 {/if}
