@@ -39,5 +39,17 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
-      - name: Format, lint, check, test with coverage, and build
-        run: npm run format && npm run lint && npm run check && npm run test:coverage && npm run build
+      - name: Format check
+        run: npm run format
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Svelte check
+        run: npm run check
+
+      - name: Tests with coverage
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build

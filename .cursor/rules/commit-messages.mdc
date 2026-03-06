@@ -7,7 +7,7 @@ alwaysApply: true
 
 When you generate commit messages:
 
-1. **Do not** add a "Made-with: Cursor" (or similar) signature or footer.
+1. **Do not** add a "Made-with: Cursor" (or similar) signature, git trailer, or footer.
 2. **Use stars** for list items: `*` not `-`.
 3. **Prefix the list** with `**Changes:**` on its own line (bold), then list items with leading ` * `.
 
