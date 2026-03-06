@@ -2,10 +2,10 @@ const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
 const ACTIVITY_COLUMNS =
-  'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.event_start_date, a.device_name, a.start_timezone, a.end_timezone';
+  'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.device_name, a.start_timezone, a.end_timezone';
 
 async function insertActivity(row, opts = {}) {
-  const sql = `INSERT INTO activities (id, event_id, name, start_date, end_date, type, event_start_date, device_name, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO activities (id, event_id, name, start_date, end_date, type, device_name, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   await runQuery(
     sql,
     [
@@ -15,7 +15,6 @@ async function insertActivity(row, opts = {}) {
       row.start_date,
       row.end_date,
       row.type,
-      row.event_start_date,
       row.device_name,
       row.start_timezone,
       row.end_timezone,

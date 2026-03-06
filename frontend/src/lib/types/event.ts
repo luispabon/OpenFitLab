@@ -20,7 +20,6 @@ export interface EventDetail {
 export interface Activity {
   id: string;
   eventID: string;
-  eventStartDate?: number;
   name?: string;
   startDate?: number;
   endDate?: number;

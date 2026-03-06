@@ -79,7 +79,6 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
           start_date: aStartDate,
           end_date: aEndDate,
           type: aType,
-          event_start_date: startDate,
           device_name: deviceName || null,
           start_timezone: startTimezone,
           end_timezone: endTimezone,

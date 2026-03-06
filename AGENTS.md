@@ -124,7 +124,7 @@ On **push to main** and **pull_request** targeting main:
   - `sessions` - express-session store (session_id, expires, data). Managed by express-mysql-session.
   - `events` - Event metadata (id, user_id, start_date, name, end_date, description, is_merge, src_file_type, created_at). FK to users ON DELETE CASCADE.
   - `event_stats` - Event-level statistics (event_id, stat_type, value JSON)
-  - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, event_start_date, device_name, created_at)
+  - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, device_name, created_at)
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
   - `streams` - Stream metadata (id, activity_id, event_id, type)
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)

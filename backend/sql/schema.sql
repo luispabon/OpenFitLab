@@ -76,7 +76,6 @@ CREATE TABLE IF NOT EXISTS activities (
   start_date BIGINT NULL,
   end_date BIGINT NULL,
   type VARCHAR(128) NULL,
-  event_start_date BIGINT NULL,
   device_name VARCHAR(255) NULL,
   start_timezone VARCHAR(64) NULL,
   end_timezone VARCHAR(64) NULL,
@@ -123,7 +122,6 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
   time_ms BIGINT NOT NULL,
   value JSON NOT NULL,
   sequence_index INT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_stream_time (stream_id, time_ms),
   INDEX idx_stream_sequence (stream_id, sequence_index, time_ms),
   CONSTRAINT fk_stream_data_points_stream FOREIGN KEY (stream_id) REFERENCES streams (id) ON DELETE CASCADE

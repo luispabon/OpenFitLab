@@ -21,7 +21,6 @@ describe('updateActivity', () => {
       start_date: 1000,
       end_date: 2000,
       type: 'Running',
-      event_start_date: 1000,
       device_name: 'Garmin',
     };
     const conn = {
@@ -50,7 +49,6 @@ describe('updateActivity', () => {
       start_date: 1000,
       end_date: null,
       type: 'Running',
-      event_start_date: 1000,
       device_name: null,
     };
     const executed = [];

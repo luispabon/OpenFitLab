@@ -116,7 +116,6 @@ erDiagram
         bigint start_date
         bigint end_date
         varchar type
-        bigint event_start_date
         varchar device_name
         timestamp created_at
     }
@@ -264,7 +263,6 @@ Individual activities within an event. An event can contain multiple activities 
 - `start_date`: Activity start timestamp
 - `end_date`: Activity end timestamp
 - `type`: Activity type (e.g., "Running", "Cycling", "Swimming")
-- `event_start_date`: Denormalized event start date for convenience
 - `device_name`: Device or tracker name (e.g. "Garmin Forerunner 945") (VARCHAR(255), nullable)
 - `created_at`: Row creation timestamp
 
@@ -394,7 +392,6 @@ Get a single event with all activities.
     {
       "id": "uuid",
       "eventID": "uuid",
-      "eventStartDate": 1771317117000,
       "name": "Running",
       "startDate": 1771317117000,
       "type": "Running",

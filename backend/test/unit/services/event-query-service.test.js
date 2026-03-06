@@ -46,7 +46,6 @@ describe('enrichEventsWithStatsAndActivities', () => {
               start_date: 1000,
               end_date: 2000,
               type: 'Running',
-              event_start_date: 1000,
               device_name: 'Garmin',
             },
           ];
@@ -114,7 +113,6 @@ describe('getEventById', () => {
         start_date: 1000,
         end_date: 2000,
         type: 'Running',
-        event_start_date: 1000,
         device_name: 'Garmin',
       },
     ];
@@ -205,8 +203,8 @@ describe('getActivityRows', () => {
         }
         if (sql.includes('FROM activities a') && sql.includes('WHERE a.id IN')) {
           return [
-            { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', event_start_date: 1000, device_name: null },
-            { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', event_start_date: 2000, device_name: null },
+            { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', device_name: null },
+            { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', device_name: null },
           ];
         }
         if (sql.includes('event_stats')) return [];
