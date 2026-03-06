@@ -96,7 +96,7 @@ On **push to main** and **pull_request** targeting main:
   - `backend/src/routes/auth.js` - Auth routes (OAuth init/callback, GET /api/auth/me, POST /api/auth/logout)
   - `backend/src/routes/account.js` - Account routes (GET /api/account/export, DELETE /api/account)
   - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service, account-service)
-  - `backend/src/repositories/user-repository.js` - User and identity CRUD; findOrCreateByIdentity for OAuth
+  - `backend/src/repositories/user-repository.js` - User and identity CRUD (findById, deleteById, findIdentityByProvider, findIdentitiesByEmail, linkIdentity, createFromPendingProfile)
   - `backend/src/middleware/session.js` - express-session + Valkey store (connect-redis)
   - `backend/src/middleware/csrf.js` - CSRF protection (session-based token; validates on state-changing methods)
   - `backend/src/middleware/require-auth.js` - Require valid session; set req.userId
