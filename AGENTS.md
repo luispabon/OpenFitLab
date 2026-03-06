@@ -31,7 +31,7 @@ This file provides operational instructions for AI coding agents working in this
   - Requires Node 24+ (from backend/package.json engines)
 
 - **Dependencies:**
-  - Main: `@sports-alliance/sports-lib`, `@dr.pogodin/csurf`, `express`, `mysql2`, `multer`, `cors`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `express-mysql-session`, `helmet`, `express-rate-limit`
+  - Main: `@sports-alliance/sports-lib`, `@dr.pogodin/csurf`, `connect-redis`, `express`, `mysql2`, `multer`, `cors`, `redis`, `xmldom`, `passport`, `passport-google-oauth20`, `passport-github2`, `express-session`, `helmet`, `express-rate-limit`
   - Dev: `eslint`, `eslint-plugin-security`, `prettier`, `supertest`, etc.
   - Install: `cd backend && npm install`
 
@@ -97,7 +97,7 @@ On **push to main** and **pull_request** targeting main:
   - `backend/src/routes/account.js` - Account routes (GET /api/account/export, DELETE /api/account)
   - `backend/src/services/` - Business logic (event-query-service, event-upload-service, event-delete-service, comparison-service, stream-service, activity-service, meta-service, account-service)
   - `backend/src/repositories/user-repository.js` - User and identity CRUD; findOrCreateByIdentity for OAuth
-  - `backend/src/middleware/session.js` - express-session + MySQL store
+  - `backend/src/middleware/session.js` - express-session + Valkey store (connect-redis)
   - `backend/src/middleware/csrf.js` - CSRF protection (session-based token; validates on state-changing methods)
   - `backend/src/middleware/require-auth.js` - Require valid session; set req.userId
   - `backend/src/middleware/passport.js` - Passport strategies (Google, GitHub)
@@ -121,7 +121,7 @@ On **push to main** and **pull_request** targeting main:
 - **Database schema:**
   - `users` - User profile (id UUID, display_name, avatar_url, created_at, updated_at). No email on users; email lives in user_identities.
   - `user_identities` - OAuth identities (id, user_id, provider, provider_user_id, email, profile_data JSON). Unique (provider, provider_user_id). FK to users ON DELETE CASCADE.
-  - `sessions` - express-session store (session_id, expires, data). Managed by express-mysql-session.
+  - Sessions are stored in Valkey (not in DB). See `backend/src/middleware/session.js` and config `valkey`.
   - `events` - Event metadata (id, user_id, start_date, name, end_date, description, is_merge, src_file_type, created_at). FK to users ON DELETE CASCADE.
   - `event_stats` - Event-level statistics (event_id, stat_type, value JSON)
   - `activities` - Activity metadata (id, event_id, name, start_date, end_date, type, device_name, created_at)
@@ -131,7 +131,7 @@ On **push to main** and **pull_request** targeting main:
   - `comparisons` - Saved comparison definitions (id, user_id, name, settings JSON, created_at). Per-event activity membership is in `comparison_event_activities`. FK to users ON DELETE CASCADE.
   - `comparison_event_activities` - Link table (comparison_id, event_id, activity_id) with FK to comparisons, events, and activities ON DELETE CASCADE. Each comparison can reference one activity per event (PK is (comparison_id, event_id)).
   - Foreign keys with ON DELETE CASCADE: user_identities → users; event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams; comparison_event_activities → comparisons, events, activities; events → users; comparisons → users. Deleting a user cascades to identities, events (and their stats, activities, streams, stream_data_points), and comparisons (and comparison_event_activities). Deleting an event: event-delete-service deletes comparisons that reference it (in a transaction), then deletes the event; CASCADE removes related rows.
-  - Indexes: foreign keys; users (id); user_identities (user_id, uk_provider_identity); sessions (expires); events (user_id, start_date, idx_user_start_date); activities (event_id, type, device_name, start_date); stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms); comparisons (user_id, created_at); comparison_event_activities (event_id, activity_id).
+  - Indexes: foreign keys; users (id); user_identities (user_id, uk_provider_identity); events (user_id, start_date, idx_user_start_date); activities (event_id, type, device_name, start_date); stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms); comparisons (user_id, created_at); comparison_event_activities (event_id, activity_id).
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
 ## API endpoints
@@ -214,7 +214,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Key architectural decisions
 
-- **Authentication:** Backend-managed OAuth (Google, GitHub) with server-side session cookies (express-session, MySQL store). Session is HttpOnly, Secure in production, SameSite=Lax. No JWTs in localStorage. SPA calls `GET /api/auth/me` on load; all data endpoints require auth and are scoped by `req.userId`. Implementation plan: [implementation_plans/authentication.md](implementation_plans/authentication.md).
+- **Authentication:** Backend-managed OAuth (Google, GitHub) with server-side session cookies (express-session, Valkey store via connect-redis). Session is HttpOnly, Secure in production, SameSite=Lax. No JWTs in localStorage. SPA calls `GET /api/auth/me` on load; all data endpoints require auth and are scoped by `req.userId`. Implementation plan: [implementation_plans/authentication.md](implementation_plans/authentication.md).
 - **File parsing on backend:** Files are uploaded raw, parsed server-side using `@sports-alliance/sports-lib`, then discarded. No file storage.
 - **Relational stats storage:** Event and activity statistics stored in separate tables (`event_stats`, `activity_stats`) with one row per stat type, not as JSON blobs.
 - **Timestamped stream data:** Stream data stored relationally in `stream_data_points` with `time_ms` (BIGINT UTC milliseconds) and `sequence_index` for ordering.
@@ -287,6 +287,9 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - `DB_DATABASE` - Database name (default: openfitlab)
   - `UPLOAD_DIR` - Upload directory (default: `backend/uploads/`)
   - `SESSION_SECRET` - **Required** for session signing. Generate with `openssl rand -hex 32`. No default; server refuses to start if missing or too short.
+  - `VALKEY_HOST` - Valkey hostname (default: localhost, or `valkey` in Docker). Sessions stored in Valkey.
+  - `VALKEY_PORT` - Valkey port (default: 6379)
+  - `VALKEY_URL` - Optional full Valkey URL (overrides host/port)
   - `OAUTH_CALLBACK_URL` - Base URL for OAuth callbacks (e.g. `http://localhost:3000` in dev or `https://your-domain.com` in production). Used to build redirect_uri for providers.
   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth (optional; if set, Google sign-in is enabled)
   - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` - GitHub OAuth (optional; if set, GitHub sign-in is enabled)

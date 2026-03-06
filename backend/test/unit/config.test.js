@@ -34,6 +34,7 @@ describe('config', () => {
     ok(config.db);
     ok(config.server);
     ok(config.session);
+    ok(config.valkey);
     ok(config.oauth);
     ok(config.rateLimit);
   });
@@ -57,6 +58,12 @@ describe('config', () => {
     strictEqual(typeof config.session.secret, 'string');
     strictEqual(config.session.secret.length >= 32, true);
     strictEqual(typeof config.session.cookieSecure, 'boolean');
+  });
+
+  it('valkey has host, port, and url', () => {
+    strictEqual(typeof config.valkey.host, 'string');
+    strictEqual(typeof config.valkey.port, 'number');
+    strictEqual(config.valkey.url === null || typeof config.valkey.url === 'string', true);
   });
 
   it('rateLimit.api has default max and windowMs', () => {

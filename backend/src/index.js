@@ -62,11 +62,11 @@ async function start() {
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   await db.initializeSchema();
 
-  // Session + Passport (needs DB pool for session store)
+  // Session + Passport (session store: Valkey via connect-redis)
   const { createSessionMiddleware } = require('./middleware/session');
   const { configurePassport } = require('./middleware/passport');
-  const pool = await db.getPool();
-  app.use(createSessionMiddleware(pool));
+  const sessionMiddleware = await createSessionMiddleware();
+  app.use(sessionMiddleware);
   const passport = configurePassport();
   app.use(passport.initialize());
   app.use(passport.session());

@@ -15,6 +15,9 @@ const {
   DB_PASSWORD,
   DB_DATABASE,
   SESSION_SECRET,
+  VALKEY_HOST,
+  VALKEY_PORT,
+  VALKEY_URL,
   OAUTH_CALLBACK_URL,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
@@ -83,6 +86,22 @@ const session = {
   cookieSecure: isProduction,
 };
 
+const valkeyHost = VALKEY_HOST != null && VALKEY_HOST !== '' ? String(VALKEY_HOST) : 'localhost';
+const valkeyPort =
+  VALKEY_PORT != null && VALKEY_PORT !== ''
+    ? (() => {
+        const n = parseInt(String(VALKEY_PORT), 10);
+        return Number.isNaN(n) ? 6379 : Math.max(1, Math.min(65535, n));
+      })()
+    : 6379;
+const valkeyUrl = VALKEY_URL != null && VALKEY_URL !== '' ? String(VALKEY_URL) : null;
+
+const valkey = {
+  url: valkeyUrl,
+  host: valkeyHost,
+  port: valkeyPort,
+};
+
 const oauthCallbackUrl = OAUTH_CALLBACK_URL || 'http://localhost:3000';
 
 const googleClientId = GOOGLE_CLIENT_ID != null ? String(GOOGLE_CLIENT_ID) : '';
@@ -126,6 +145,7 @@ const config = {
     oauthRedirectBase,
   },
   session,
+  valkey,
   oauth,
   rateLimit,
 };

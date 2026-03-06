@@ -1,27 +1,26 @@
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
+const RedisStore = require('connect-redis').default;
+const { createClient } = require('redis');
 const config = require('../config');
 
 /**
- * Creates the session middleware backed by the existing MariaDB pool.
- * @param {object} pool - mysql2/promise pool instance
- * @returns {function} Express session middleware
+ * Creates the session middleware backed by Valkey (Redis-protocol compatible).
+ * Connects to Valkey using config.valkey (url or host/port).
+ * @returns {Promise<function>} Promise that resolves to Express session middleware
  */
-function createSessionMiddleware(pool) {
-  const store = new MySQLStore(
-    {
-      createDatabaseTable: false,
-      schema: {
-        tableName: 'sessions',
-        columnNames: {
-          session_id: 'session_id',
-          expires: 'expires',
-          data: 'data',
-        },
-      },
-    },
-    pool
-  );
+async function createSessionMiddleware() {
+  const { valkey: valkeyConfig } = config;
+  const clientOptions = valkeyConfig.url
+    ? { url: valkeyConfig.url }
+    : { socket: { host: valkeyConfig.host, port: valkeyConfig.port } };
+
+  const client = createClient(clientOptions);
+  await client.connect();
+
+  const store = new RedisStore({
+    client,
+    prefix: 'ofl:sess:',
+  });
 
   // secure and maxAge set; domain omitted by design (same-origin). See AGENTS.md Security.
   return session({

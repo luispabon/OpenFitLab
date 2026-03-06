@@ -1,8 +1,9 @@
 -- OpenFitLab database schema
 --
--- Tables: users, user_identities, sessions, events, event_stats, activities, activity_stats,
---         streams, stream_data_points, comparisons, comparison_events
--- Applied on API startup via db.initializeSchema(). No migrations; schema changes require DB recreate.
+-- Tables: users, user_identities, events, event_stats, activities, activity_stats,
+--         streams, stream_data_points, comparisons, comparison_event_activities
+-- Sessions are stored in Valkey (not in DB). Applied on API startup via db.initializeSchema().
+-- No migrations; schema changes require DB recreate.
 -- Foreign keys with ON DELETE CASCADE so deleting a user or event removes all related rows.
 
 CREATE TABLE IF NOT EXISTS users (
@@ -26,15 +27,6 @@ CREATE TABLE IF NOT EXISTS user_identities (
   UNIQUE KEY uk_provider_identity (provider, provider_user_id),
   INDEX idx_user_id (user_id),
   CONSTRAINT fk_identity_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-)
-DEFAULT CHARSET = utf8mb4
-COLLATE = utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS sessions (
-  session_id VARCHAR(128) PRIMARY KEY,
-  expires BIGINT UNSIGNED NOT NULL,
-  data MEDIUMTEXT,
-  INDEX idx_expires (expires)
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
