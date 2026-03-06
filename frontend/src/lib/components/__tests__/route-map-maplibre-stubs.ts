@@ -7,3 +7,4 @@ export const LineLayer = SlotStub;
 export const SymbolLayer = SlotStub;
 export const NavigationControl = SlotStub;
 export const FullScreenControl = SlotStub;
+export const CustomControl = SlotStub;
