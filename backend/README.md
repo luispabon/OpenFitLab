@@ -45,7 +45,6 @@ See `sql/schema.sql`. Key indexes:
 
 - **`users`**: primary key on `id`.
 - **`user_identities`**: unique (provider, provider_user_id); index on `user_id`.
-- **`sessions`**: primary key on `session_id`; index on `expires`.
 - **`events`**: `start_date`; `user_id`; composite (user_id, start_date).
 - **`activities`**: indexes on `event_id`, `type`, `device_name`, `start_date`.
 - **`stream_data_points`**: (stream_id, time_ms) and (stream_id, sequence_index, time_ms) for stream fetch order.

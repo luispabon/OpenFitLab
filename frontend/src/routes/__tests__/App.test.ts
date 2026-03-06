@@ -14,6 +14,7 @@ const { mockAuthState, mockCheckAuth } = vi.hoisted(() => {
     user: null as AuthUser | null,
     authChecked: false,
     authLoading: true,
+    pendingSignup: false,
   };
   const mockCheckAuth = vi.fn();
   return { mockAuthState, mockCheckAuth };

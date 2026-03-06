@@ -7,6 +7,7 @@
   import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
   import Privacy from './routes/privacy.svelte';
+  import TermsAcceptance from './routes/terms-acceptance.svelte';
   import NotFound from './routes/not-found.svelte';
   import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
   import UserMenu from './lib/components/user-menu.svelte';
@@ -145,6 +146,8 @@
         <div class="grid place-items-center p-8">
           <LoadingSpinner />
         </div>
+      {:else if authState.pendingSignup}
+        <TermsAcceptance />
       {:else if !authState.user}
         <Router routes={unauthenticatedRoutes} />
       {:else}

@@ -140,11 +140,10 @@ describe('account-service', () => {
   });
 
   describe('deleteAccount', () => {
-    it('clears sessions and deletes user, returns true on success', async () => {
+    it('deletes user and returns true on success', async () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('DELETE FROM sessions')) return { affectedRows: 2 };
         if (sql.includes('DELETE FROM users')) return { affectedRows: 1 };
         return [];
       });
@@ -152,13 +151,11 @@ describe('account-service', () => {
       const result = await deleteAccount('u1', { db });
 
       strictEqual(result, true);
-      ok(queries.some((q) => q.sql.includes('DELETE FROM sessions')));
       ok(queries.some((q) => q.sql.includes('DELETE FROM users')));
     });
 
     it('returns false when user does not exist', async () => {
       const db = makeFakeDb(async (sql) => {
-        if (sql.includes('DELETE FROM sessions')) return { affectedRows: 0 };
         if (sql.includes('DELETE FROM users')) return { affectedRows: 0 };
         return [];
       });
@@ -166,20 +163,6 @@ describe('account-service', () => {
       const result = await deleteAccount('missing', { db });
 
       strictEqual(result, false);
-    });
-
-    it('passes userId to session cleanup query', async () => {
-      const queries = [];
-      const db = makeFakeDb(async (sql, params) => {
-        queries.push({ sql, params });
-        return { affectedRows: 1 };
-      });
-
-      await deleteAccount('user-xyz', { db });
-
-      const sessionQuery = queries.find((q) => q.sql.includes('DELETE FROM sessions'));
-      ok(sessionQuery);
-      strictEqual(sessionQuery.params[0], 'user-xyz');
     });
   });
 });

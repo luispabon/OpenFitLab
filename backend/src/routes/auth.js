@@ -30,10 +30,31 @@ router.get(
   '/google/callback',
   (req, res, next) => {
     if (!isEnabled('google')) return res.status(404).end();
-    passport.authenticate('google', { failureRedirect: '/#/login?error=google' })(req, res, next);
+    passport.authenticate('google', {
+      failureRedirect: '/#/login?error=google',
+      session: false,
+    })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    if (req.user.pendingSignup) {
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      req.session.pendingSignup = req.user.profile;
+      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
+      return;
+    }
+    const userId = req.user.user.id;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) return reject(err);
@@ -47,8 +68,6 @@ router.get(
         resolve();
       });
     });
-
-    // In development, redirect back to port 4200 if we started there
     res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
   })
 );
@@ -67,10 +86,31 @@ router.get(
   '/github/callback',
   (req, res, next) => {
     if (!isEnabled('github')) return res.status(404).end();
-    passport.authenticate('github', { failureRedirect: '/#/login?error=github' })(req, res, next);
+    passport.authenticate('github', {
+      failureRedirect: '/#/login?error=github',
+      session: false,
+    })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    const userId = req.user.id;
+    if (req.user.pendingSignup) {
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      req.session.pendingSignup = req.user.profile;
+      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
+      return;
+    }
+    const userId = req.user.user.id;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) return reject(err);
@@ -84,15 +124,24 @@ router.get(
         resolve();
       });
     });
-
     res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
   })
 );
 
-// GET /api/auth/me — return current user or 401
+// GET /api/auth/me — return current user, pending signup, or 401
 router.get(
   '/me',
   asyncHandler(async (req, res) => {
+    if (req.session?.pendingSignup) {
+      return res.json({
+        pendingSignup: true,
+        profile: {
+          displayName: req.session.pendingSignup.displayName ?? null,
+          avatarUrl: req.session.pendingSignup.avatarUrl ?? null,
+        },
+        csrfToken: req.csrfToken(),
+      });
+    }
     if (!req.session?.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -113,6 +162,49 @@ router.get(
 // POST /api/auth/logout — destroy session
 router.post(
   '/logout',
+  asyncHandler(async (req, res) => {
+    await new Promise((resolve, reject) => {
+      req.session.destroy((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    res.clearCookie('ofl.sid', { path: '/' });
+    res.json({ ok: true });
+  })
+);
+
+// POST /api/auth/complete-signup — accept ToS and create user from pending profile
+router.post(
+  '/complete-signup',
+  asyncHandler(async (req, res) => {
+    const pendingProfile = req.session?.pendingSignup;
+    if (!pendingProfile) {
+      return res.status(400).json({ error: 'No pending signup found. Please sign in again.' });
+    }
+    const db = require('../db');
+    const result = await userRepository.createFromPendingProfile(pendingProfile, { db });
+    delete req.session.pendingSignup;
+    req.session.userId = result.user.id;
+    req.session.cookie.maxAge = config.termsOfService.normalSessionExpiryMs;
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    res.status(201).json({
+      id: result.user.id,
+      displayName: result.user.display_name,
+      avatarUrl: result.user.avatar_url,
+      csrfToken: req.csrfToken(),
+    });
+  })
+);
+
+// POST /api/auth/decline-signup — decline ToS, destroy session
+router.post(
+  '/decline-signup',
   asyncHandler(async (req, res) => {
     await new Promise((resolve, reject) => {
       req.session.destroy((err) => {
