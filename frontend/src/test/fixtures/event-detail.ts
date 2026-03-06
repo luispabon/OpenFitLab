@@ -3,7 +3,6 @@ import type { EventDetail, EventSummary, Activity } from '../../lib/types/event'
 const activityFixture = {
   id: 'act-1',
   eventID: 'evt-1',
-  eventStartDate: 1700000000000,
   name: 'Morning Run',
   startDate: 1700000000000,
   endDate: 1700003600000,

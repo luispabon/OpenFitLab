@@ -49,7 +49,6 @@ function mapActivityRow(row, statsForActivity = {}) {
   return {
     id: row.id,
     eventID: row.event_id,
-    eventStartDate: row.event_start_date != null ? Number(row.event_start_date) : undefined,
     ...(row.name != null ? { name: row.name } : {}),
     ...(row.start_date != null ? { startDate: Number(row.start_date) } : {}),
     ...(row.end_date != null ? { endDate: Number(row.end_date) } : {}),

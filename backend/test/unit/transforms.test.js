@@ -184,7 +184,6 @@ describe('mapActivityRow', () => {
     deepStrictEqual(result, {
       id: 'a1',
       eventID: 'e1',
-      eventStartDate: undefined,
       stats: {},
     });
   });
@@ -197,7 +196,6 @@ describe('mapActivityRow', () => {
       start_date: 1609459200000,
       end_date: 1609462800000,
       type: 'Running',
-      event_start_date: 1609459200000,
       device_name: 'Garmin',
       start_timezone: 'America/New_York',
       end_timezone: 'America/New_York',
@@ -206,7 +204,6 @@ describe('mapActivityRow', () => {
     deepStrictEqual(mapActivityRow(row, stats), {
       id: 'a1',
       eventID: 'e1',
-      eventStartDate: 1609459200000,
       name: 'Lap 1',
       startDate: 1609459200000,
       endDate: 1609462800000,
