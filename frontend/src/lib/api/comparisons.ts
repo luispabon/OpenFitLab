@@ -14,6 +14,9 @@ function assertComparison(data: unknown): asserts data is Comparison {
   if (!Array.isArray(d.eventIds)) {
     throw new Error('Invalid comparison response: missing eventIds array');
   }
+  if (!Array.isArray(d.activityIds)) {
+    throw new Error('Invalid comparison response: missing activityIds array');
+  }
 }
 
 export async function getComparisonCandidates(eventId: string): Promise<EventSummary[]> {
@@ -85,7 +88,7 @@ export async function getComparisonsByEventIds(eventIds: string[]): Promise<Comp
 
 export async function createComparison(
   name: string,
-  eventIds: string[],
+  activityIds: string[],
   settings?: ComparisonSettings
 ): Promise<Comparison> {
   const response = await apiFetch(`${API_BASE}/comparisons`, {
@@ -93,7 +96,7 @@ export async function createComparison(
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ name, eventIds, settings }),
+    body: JSON.stringify({ name, activityIds, settings }),
   });
 
   if (!response.ok) {

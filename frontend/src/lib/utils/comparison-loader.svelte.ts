@@ -82,15 +82,22 @@ async function loadEventsAndStreams(
   state.events = loadedEvents;
 
   let activitiesChanged = false;
-  const nextActivities = { ...state.selectedActivities };
+  const nextActivities: Record<string, string> = {};
   for (const eventDetail of loadedEvents) {
     const eventId = eventDetail.event.id;
-    if (!nextActivities[eventId] && eventDetail.activities.length > 0) {
+    const existingActivityId = state.selectedActivities[eventId];
+    const hasExistingActivity =
+      !!existingActivityId &&
+      eventDetail.activities.some((activity) => activity.id === existingActivityId);
+
+    if (hasExistingActivity) {
+      nextActivities[eventId] = existingActivityId;
+    } else if (eventDetail.activities.length > 0) {
       nextActivities[eventId] = eventDetail.activities[0].id;
       activitiesChanged = true;
     }
   }
-  if (activitiesChanged && myGen === loadGeneration) {
+  if (myGen === loadGeneration) {
     state.selectedActivities = nextActivities;
   }
 
@@ -167,6 +174,9 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
   state.error = null;
   if (comparisonId === 'new') {
     state.comparison = null;
+    state.selectedActivities = {};
+    state.selectedStreamTypes = new Set();
+    state.xAxisMode = 'elapsed';
   }
 
   if (abortController) abortController.abort();
@@ -208,7 +218,14 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
       if (comp.settings) {
         state.xAxisMode = comp.settings.xAxisMode ?? 'elapsed';
         state.selectedStreamTypes = new Set(comp.settings.selectedStreams ?? []);
-        state.selectedActivities = comp.settings.selectedActivities ?? {};
+      }
+      if (Array.isArray(comp.eventIds) && Array.isArray(comp.activityIds)) {
+        const nextSelectedActivities: Record<string, string> = {};
+        const len = Math.min(comp.eventIds.length, comp.activityIds.length);
+        for (let i = 0; i < len; i += 1) {
+          nextSelectedActivities[comp.eventIds[i]] = comp.activityIds[i];
+        }
+        state.selectedActivities = nextSelectedActivities;
       }
       const ids = comp.eventIds;
       if (ids.length < 2) {

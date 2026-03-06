@@ -16,16 +16,16 @@ describe('comparison-service', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM events')) {
+        if (sql.includes('FROM activities a')) {
           return [
-            { id: 'e1' },
-            { id: 'e2' },
+            { id: 'a1', event_id: 'e1' },
+            { id: 'a2', event_id: 'e2' },
           ];
         }
         return { affectedRows: 1 };
       });
 
-      const result = await createComparison(' My Compare ', ['e1', 'e2'], { x: 1 }, { db, userId: 'u1' });
+      const result = await createComparison(' My Compare ', ['a1', 'a2'], { x: 1 }, { db, userId: 'u1' });
 
       strictEqual(queries.length, 3);
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
@@ -33,12 +33,15 @@ describe('comparison-service', () => {
       strictEqual(insertComp.params[2], 'My Compare');
       deepStrictEqual(JSON.parse(insertComp.params[3]), { x: 1 });
 
-      const linkInsert = queries.find((q) => q.sql.includes('INSERT INTO comparison_events'));
+      const linkInsert = queries.find((q) =>
+        q.sql.includes('INSERT INTO comparison_event_activities')
+      );
       strictEqual(Boolean(linkInsert), true);
 
       strictEqual(typeof result.id, 'string');
       strictEqual(result.name, 'My Compare');
       deepStrictEqual(result.eventIds, ['e1', 'e2']);
+      deepStrictEqual(result.activityIds, ['a1', 'a2']);
       deepStrictEqual(result.settings, { x: 1 });
       strictEqual(typeof result.createdAt, 'number');
     });
@@ -47,16 +50,16 @@ describe('comparison-service', () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM events')) {
+        if (sql.includes('FROM activities a')) {
           return [
-            { id: 'e1' },
-            { id: 'e2' },
+            { id: 'a1', event_id: 'e1' },
+            { id: 'a2', event_id: 'e2' },
           ];
         }
         return { affectedRows: 1 };
       });
 
-      const result = await createComparison('Test', ['e1', 'e2'], null, { db, userId: 'u1' });
+      const result = await createComparison('Test', ['a1', 'a2'], null, { db, userId: 'u1' });
 
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
       strictEqual(Boolean(insertComp), true);
@@ -64,23 +67,23 @@ describe('comparison-service', () => {
       strictEqual(result.settings, null);
     });
 
-    it('rejects with statusCode 404 when fewer events found than requested (transaction rolls back)', async () => {
+    it('rejects with statusCode 404 when fewer activities found than requested (transaction rolls back)', async () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
         queries.push({ sql, params });
-        if (sql.includes('FROM events')) {
-          return [{ id: 'e1' }];
+        if (sql.includes('FROM activities a')) {
+          return [{ id: 'a1', event_id: 'e1' }];
         }
         return { affectedRows: 1 };
       });
 
       await assert.rejects(
         async () => {
-          await createComparison('Test', ['e1', 'e2', 'e3'], null, { db, userId: 'u1' });
+          await createComparison('Test', ['a1', 'a2', 'a3'], null, { db, userId: 'u1' });
         },
         (err) => {
           strictEqual(err.statusCode, 404);
-          strictEqual(err.message, 'One or more events not found');
+          strictEqual(err.message, 'One or more activities not found');
           return true;
         }
       );
@@ -104,10 +107,10 @@ describe('comparison-service', () => {
               },
             ];
           }
-          if (sql.includes('FROM comparison_events')) {
+          if (sql.includes('FROM comparison_event_activities')) {
             return [
-              { comparison_id: 'c1', event_id: 'e1' },
-              { comparison_id: 'c1', event_id: 'e2' },
+              { comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' },
+              { comparison_id: 'c1', event_id: 'e2', activity_id: 'a2' },
             ];
           }
           return [];
@@ -120,6 +123,7 @@ describe('comparison-service', () => {
       strictEqual(result[0].id, 'c1');
       strictEqual(result[0].name, 'C1');
       deepStrictEqual(result[0].eventIds, ['e1', 'e2']);
+      deepStrictEqual(result[0].activityIds, ['a1', 'a2']);
       deepStrictEqual(result[0].settings, {});
       strictEqual(result[0].createdAt, new Date('2025-01-01T00:00:00Z').getTime());
     });
@@ -151,8 +155,11 @@ describe('comparison-service', () => {
               },
             ];
           }
-          if (sql.includes('FROM comparison_events')) {
-            return [{ event_id: 'e1' }, { event_id: 'e2' }];
+          if (sql.includes('FROM comparison_event_activities')) {
+            return [
+              { event_id: 'e1', activity_id: 'a1' },
+              { event_id: 'e2', activity_id: 'a2' },
+            ];
           }
           return [];
         },
@@ -162,6 +169,7 @@ describe('comparison-service', () => {
 
       strictEqual(result.id, 'c1');
       deepStrictEqual(result.eventIds, ['e1', 'e2']);
+      deepStrictEqual(result.activityIds, ['a1', 'a2']);
       strictEqual(result.settings, null);
     });
   });

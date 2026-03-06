@@ -34,7 +34,7 @@ describe('account-service', () => {
       deepStrictEqual(result.activities, []);
       deepStrictEqual(result.activityStats, []);
       deepStrictEqual(result.comparisons, []);
-      deepStrictEqual(result.comparisonEvents, []);
+      deepStrictEqual(result.comparisonEventActivities, []);
       deepStrictEqual(result.streams, []);
       deepStrictEqual(result.streamDataPoints, []);
     });
@@ -60,8 +60,8 @@ describe('account-service', () => {
         if (sql.includes('FROM comparisons WHERE')) {
           return [{ id: 'c1', name: 'Comp', settings: '{}', created_at: new Date('2025-01-01') }];
         }
-        if (sql.includes('FROM comparison_events')) {
-          return [{ comparison_id: 'c1', event_id: 'e1' }];
+        if (sql.includes('FROM comparison_event_activities')) {
+          return [{ comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' }];
         }
         if (sql.includes('FROM streams WHERE')) {
           return [{ id: 's1', activity_id: 'a1', event_id: 'e1', type: 'heartrate', created_at: new Date('2025-01-01') }];
@@ -77,7 +77,7 @@ describe('account-service', () => {
       strictEqual(result.activities.length, 1);
       strictEqual(result.activityStats.length, 1);
       strictEqual(result.comparisons.length, 1);
-      strictEqual(result.comparisonEvents.length, 1);
+      strictEqual(result.comparisonEventActivities.length, 1);
       strictEqual(result.streams.length, 1);
       deepStrictEqual(result.streamDataPoints, []);
     });

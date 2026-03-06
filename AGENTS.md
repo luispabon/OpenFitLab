@@ -128,10 +128,10 @@ On **push to main** and **pull_request** targeting main:
   - `activity_stats` - Activity-level statistics (activity_id, stat_type, value JSON)
   - `streams` - Stream metadata (id, activity_id, event_id, type)
   - `stream_data_points` - Timestamped stream data (id, stream_id, time_ms BIGINT, value JSON, sequence_index)
-  - `comparisons` - Saved comparison definitions (id, user_id, name, settings JSON, created_at). Event membership is in `comparison_events`. FK to users ON DELETE CASCADE.
-  - `comparison_events` - Link table (comparison_id, event_id) with FK to comparisons ON DELETE CASCADE and FK to events ON DELETE CASCADE. Event IDs for a comparison are stored here, not as JSON.
-  - Foreign keys with ON DELETE CASCADE: user_identities → users; event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams; comparison_events → comparisons, events; events → users; comparisons → users. Deleting a user cascades to identities, events (and their stats, activities, streams, stream_data_points), and comparisons (and comparison_events). Deleting an event: event-delete-service deletes comparisons that reference it (in a transaction), then deletes the event; CASCADE removes related rows.
-  - Indexes: foreign keys; users (id); user_identities (user_id, uk_provider_identity); sessions (expires); events (user_id, start_date, idx_user_start_date); activities (event_id, type, device_name, start_date); stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms); comparisons (user_id, created_at); comparison_events (event_id).
+  - `comparisons` - Saved comparison definitions (id, user_id, name, settings JSON, created_at). Per-event activity membership is in `comparison_event_activities`. FK to users ON DELETE CASCADE.
+  - `comparison_event_activities` - Link table (comparison_id, event_id, activity_id) with FK to comparisons, events, and activities ON DELETE CASCADE. Each comparison can reference one activity per event (PK is (comparison_id, event_id)).
+  - Foreign keys with ON DELETE CASCADE: user_identities → users; event_stats → events; activities → events; activity_stats → activities; streams → activities, events; stream_data_points → streams; comparison_event_activities → comparisons, events, activities; events → users; comparisons → users. Deleting a user cascades to identities, events (and their stats, activities, streams, stream_data_points), and comparisons (and comparison_event_activities). Deleting an event: event-delete-service deletes comparisons that reference it (in a transaction), then deletes the event; CASCADE removes related rows.
+  - Indexes: foreign keys; users (id); user_identities (user_id, uk_provider_identity); sessions (expires); events (user_id, start_date, idx_user_start_date); activities (event_id, type, device_name, start_date); stream_data_points (stream_id, time_ms; stream_id, sequence_index, time_ms); comparisons (user_id, created_at); comparison_event_activities (event_id, activity_id).
   - Schema auto-initializes on API startup via `db.initializeSchema()`
 
 ## API endpoints
@@ -186,7 +186,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Files are parsed and discarded (not stored)
 
 - **DELETE /api/events/:id** - Delete event
-  - In a transaction: deletes any comparisons that reference this event (via comparison_events), then deletes the event. Database ON DELETE CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_events rows.
+- In a transaction: deletes any comparisons that reference this event (via comparison_event_activities), then deletes the event. Database ON DELETE CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_event_activities rows.
   - Returns: 204 No Content or 404 Not Found
 
 - **GET /api/activity-types** - Distinct activity types from current user's activities (for filters/editors)
@@ -196,7 +196,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Returns: Array of strings
 
 - **GET /api/comparisons** - List saved comparisons
-  - Returns: Array of `{ id, name, eventIds, settings?, createdAt? }` (createdAt in ms; eventIds from comparison_events)
+- Returns: Array of `{ id, name, eventIds, activityIds, settings?, createdAt? }` (createdAt in ms; eventIds/activityIds from `comparison_event_activities`).
 
 - **POST /api/comparisons/by-events** - Find comparisons linked to any of the given event IDs (e.g. for delete warnings)
   - Body: `{ eventIds: string[] }` (non-empty array of UUIDs)
@@ -232,8 +232,8 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - MariaDB/MySQL compatible
   - UUIDs stored as VARCHAR(36)
   - Timestamps stored as BIGINT (milliseconds since epoch)
-  - JSON columns for flexible data (`value` in event_stats/activity_stats; comparisons.settings). Comparison–event links are relational in `comparison_events`, not JSON.
-  - Foreign keys with ON DELETE CASCADE for event→event_stats, event→activities, activity→activity_stats, activity→streams, event→streams, stream→stream_data_points, comparison_events→comparisons and →events
+- JSON columns for flexible data (`value` in event_stats/activity_stats; comparisons.settings). Comparison–event/activity links are relational in `comparison_event_activities`, not JSON.
+- Foreign keys with ON DELETE CASCADE for event→event_stats, event→activities, activity→activity_stats, activity→streams, event→streams, stream→stream_data_points, comparison_event_activities→comparisons/events/activities
   - Indexes on foreign key columns and time ranges
 
 - **API responses:**
@@ -255,7 +255,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Store original files after parsing (they should be discarded)
   - Change API response format without updating frontend
   - Break the relational stats structure (use `event_stats`/`activity_stats` tables, not JSON blobs)
-  - Store comparison event membership as JSON; use the `comparison_events` link table
+- Store comparison event/activity membership relationally; use the `comparison_event_activities` link table
   - Modify stream data structure without updating `stream-extractor.js` and API endpoints
   - Omit `user_id` (or `userId` in opts) from any query that reads or writes events or comparisons; every such query must scope by the authenticated user to prevent IDOR/data leak
   - Trust `user_id` or resource ownership from request body or URL params; use only `req.userId` from requireAuth middleware
@@ -268,7 +268,7 @@ Full request/response details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
   - Use UUIDs for event/activity IDs (generated via `randomUUID()`)
   - Return stats nested under `stats` key in API responses
   - Handle JSON parsing for database JSON columns (may be objects or strings)
-  - When deleting an event: delete comparisons that reference it first (event-delete-service does this in a transaction), then delete the event; CASCADE removes related rows (event_stats, activities, streams, comparison_events, etc.)
+- When deleting an event: delete comparisons that reference it first (event-delete-service does this in a transaction), then delete the event; CASCADE removes related rows (event_stats, activities, streams, comparison_event_activities, etc.)
   - Pass `userId` from `req.userId` into all services/repositories that list, create, or access events or comparisons; enforce ownership (e.g. `WHERE user_id = ?`) so users only see their own data
   - Return 404 (not 403) when a resource by ID is not found or not owned, to avoid leaking existence
 

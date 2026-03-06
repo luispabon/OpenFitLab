@@ -158,7 +158,7 @@ erDiagram
     }
 ```
 
-All relationships use foreign keys with **ON DELETE CASCADE**. Deleting a **user** cascades to user_identities, events (and their event_stats, activities, activity_stats, streams, stream_data_points), and comparisons (and comparison_events). Deleting an **event**: the event-delete-service first deletes any comparisons that reference the event (in a transaction), then `DELETE FROM events WHERE id = ?`; CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_events. Deleting an activity or stream cascades to their stats and stream_data_points respectively.
+All relationships use foreign keys with **ON DELETE CASCADE**. Deleting a **user** cascades to user_identities, events (and their event_stats, activities, activity_stats, streams, stream_data_points), and comparisons (and comparison_event_activities). Deleting an **event**: the event-delete-service first deletes any comparisons that reference the event (in a transaction), then `DELETE FROM events WHERE id = ?`; CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_event_activities. Deleting an activity or stream cascades to their stats and stream_data_points respectively.
 
 ### Event vs Activity: Core Concepts
 
@@ -296,20 +296,21 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
 #### comparisons
-Saved comparison definitions (optional feature). Owned by a user; event membership is stored in `comparison_events`, not as JSON.
+Saved comparison definitions (optional feature). Owned by a user; per-event activity membership is stored in `comparison_event_activities`, not as JSON.
 
 - `id`: UUID primary key
 - `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
 - `name`: User-defined name
-- `settings`: JSON (e.g. selectedStreams, xAxisMode, selectedActivities)
+- `settings`: JSON (e.g. selectedStreams, xAxisMode)
 - `created_at`: Row creation timestamp
 
-#### comparison_events
-Link table between comparisons and events (many-to-many).
+#### comparison_event_activities
+Link table between comparisons, events, and activities. Each comparison can reference one activity per event.
 
 - `comparison_id`: FK to comparisons(id) ON DELETE CASCADE
 - `event_id`: FK to events(id) ON DELETE CASCADE
-- Primary key (comparison_id, event_id). Index on event_id for “comparisons by event” queries.
+- `activity_id`: FK to activities(id) ON DELETE CASCADE
+- Primary key (comparison_id, event_id). Indexes on `event_id` (for “comparisons by event” queries) and `activity_id`.
 
 ## API Design
 
@@ -471,8 +472,8 @@ Delete an event and all related data.
 - 404 Not Found (event doesn't exist)
 
 **Deletion (in a single transaction):**
-1. Find comparisons that reference this event (via comparison_events) and delete those comparisons (CASCADE removes their comparison_events rows).
-2. Delete the event; CASCADE then removes event_stats, activities, activity_stats, streams, stream_data_points, and any remaining comparison_events rows.
+1. Find comparisons that reference this event (via comparison_event_activities) and delete those comparisons (CASCADE removes their comparison_event_activities rows).
+2. Delete the event; CASCADE then removes event_stats, activities, activity_stats, streams, stream_data_points, and any remaining comparison_event_activities rows.
 
 #### GET /api/activity-types
 Returns distinct activity types from the current user's activities. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).
@@ -482,9 +483,9 @@ Returns distinct device names from the current user's activities. **Response:** 
 
 #### Comparisons API
 
-- **GET /api/comparisons** – List saved comparisons. **Response:** Array of `{ id, name, eventIds, settings?, createdAt? }`. `eventIds` are read from comparison_events; `createdAt` is milliseconds.
+- **GET /api/comparisons** – List saved comparisons. **Response:** Array of `{ id, name, eventIds, activityIds, settings?, createdAt? }`. `eventIds`/`activityIds` are read from `comparison_event_activities`; `createdAt` is milliseconds.
 - **GET /api/comparisons/:id** – Get one comparison. **Response:** Same shape. 404 if not found.
-- **POST /api/comparisons** – Create comparison. **Body:** `{ name: string, eventIds: string[], settings?: { selectedStreams?, xAxisMode?, selectedActivities? } }`. **Response:** 201 with created comparison. Backend stores event links in comparison_events.
+- **POST /api/comparisons** – Create comparison. **Body:** `{ name: string, activityIds: string[], settings?: { selectedStreams?, xAxisMode? } }`. **Response:** 201 with created comparison. Backend stores event/activity links in `comparison_event_activities`.
 - **POST /api/comparisons/by-events** – Find comparisons linked to any of the given event IDs (e.g. for delete warnings). **Body:** `{ eventIds: string[] }` (non-empty, valid UUIDs). **Response:** Array of `{ id, name, createdAt? }`.
 - **DELETE /api/comparisons/:id** – Delete comparison. **Response:** 204 No Content or 404 Not Found.
 

@@ -142,13 +142,16 @@ CREATE TABLE IF NOT EXISTS comparisons (
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS comparison_events (
+CREATE TABLE IF NOT EXISTS comparison_event_activities (
   comparison_id VARCHAR(36) NOT NULL,
   event_id VARCHAR(36) NOT NULL,
+  activity_id VARCHAR(36) NOT NULL,
   PRIMARY KEY (comparison_id, event_id),
   INDEX idx_event_id (event_id),
-  CONSTRAINT fk_ce_comparison FOREIGN KEY (comparison_id) REFERENCES comparisons(id) ON DELETE CASCADE,
-  CONSTRAINT fk_ce_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+  INDEX idx_activity_id (activity_id),
+  CONSTRAINT fk_cea_comparison FOREIGN KEY (comparison_id) REFERENCES comparisons(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cea_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cea_activity FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;

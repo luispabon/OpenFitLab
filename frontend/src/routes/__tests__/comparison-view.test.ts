@@ -154,7 +154,7 @@ describe('ComparisonView', () => {
     await waitFor(() => {
       expect(mockCreateComparison).toHaveBeenCalledWith(
         'My Compare',
-        ['evt-1', 'evt-2'],
+        ['act-1', 'act-2'],
         expect.any(Object)
       );
     });

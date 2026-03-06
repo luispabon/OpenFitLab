@@ -1,18 +1,18 @@
 const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
-async function create(id, name, eventIds, settings, opts = {}) {
+async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');
   await runQuery(
     'INSERT INTO comparisons (id, user_id, name, settings) VALUES (?, ?, ?, ?)',
     [id, opts.userId, name, settings ? JSON.stringify(settings) : null],
     opts
   );
-  if (eventIds.length > 0) {
-    const placeholdersList = eventIds.map(() => '(?, ?)').join(', ');
-    const values = eventIds.flatMap((eventId) => [id, eventId]);
+  if (activityRows.length > 0) {
+    const placeholdersList = activityRows.map(() => '(?, ?, ?)').join(', ');
+    const values = activityRows.flatMap((row) => [id, row.eventId, row.activityId]);
     await runQuery(
-      `INSERT INTO comparison_events (comparison_id, event_id) VALUES ${placeholdersList}`,
+      `INSERT INTO comparison_event_activities (comparison_id, event_id, activity_id) VALUES ${placeholdersList}`,
       values,
       opts
     );
@@ -31,23 +31,31 @@ async function findAll(limit, opts = {}) {
 
   const ids = comparisons.map((r) => r.id);
   const linkRows = await runQuery(
-    `SELECT comparison_id, event_id FROM comparison_events WHERE comparison_id IN (${placeholders(ids.length)})`,
+    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
+      ids.length
+    )})`,
     ids,
     opts
   );
   const linkArr = Array.isArray(linkRows) ? linkRows : [];
 
   const eventIdsByComparison = {};
+  const activityIdsByComparison = {};
   for (const link of linkArr) {
     if (!eventIdsByComparison[link.comparison_id]) {
       eventIdsByComparison[link.comparison_id] = [];
     }
     eventIdsByComparison[link.comparison_id].push(link.event_id);
+    if (!activityIdsByComparison[link.comparison_id]) {
+      activityIdsByComparison[link.comparison_id] = [];
+    }
+    activityIdsByComparison[link.comparison_id].push(link.activity_id);
   }
 
   return comparisons.map((row) => ({
     ...row,
     event_ids: eventIdsByComparison[row.id] || [],
+    activity_ids: activityIdsByComparison[row.id] || [],
   }));
 }
 
@@ -62,11 +70,17 @@ async function findById(id, opts = {}) {
   if (!row) return null;
 
   const linkRows = await runQuery(
-    'SELECT event_id FROM comparison_events WHERE comparison_id = ?',
+    'SELECT event_id, activity_id FROM comparison_event_activities WHERE comparison_id = ?',
     [id],
     opts
   );
-  row.event_ids = Array.isArray(linkRows) ? linkRows.map((r) => r.event_id) : [];
+  if (Array.isArray(linkRows)) {
+    row.event_ids = linkRows.map((r) => r.event_id);
+    row.activity_ids = linkRows.map((r) => r.activity_id);
+  } else {
+    row.event_ids = [];
+    row.activity_ids = [];
+  }
   return row;
 }
 
@@ -80,8 +94,8 @@ async function findByEventIds(eventIds, opts = {}) {
   const rows = await runQuery(
     `SELECT DISTINCT c.id, c.name, c.created_at
      FROM comparisons c
-     JOIN comparison_events ce ON ce.comparison_id = c.id
-     WHERE ce.event_id IN (${placeholders(eventIds.length)}) AND c.user_id = ?`,
+     JOIN comparison_event_activities cea ON cea.comparison_id = c.id
+     WHERE cea.event_id IN (${placeholders(eventIds.length)}) AND c.user_id = ?`,
     [...eventIds, opts.userId],
     opts
   );

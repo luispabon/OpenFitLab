@@ -160,19 +160,21 @@ function validateComparisonId(req, res, next) {
  * Validates comparison body for POST /api/comparisons
  */
 function validateComparisonBody(req, res, next) {
-  const { name, eventIds } = req.body;
+  const { name, activityIds } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return res.status(400).json({ error: 'name must be a non-empty string' });
   }
 
-  if (!Array.isArray(eventIds) || eventIds.length < 2) {
-    return res.status(400).json({ error: 'eventIds must be an array with at least 2 event IDs' });
+  if (!Array.isArray(activityIds) || activityIds.length < 2) {
+    return res
+      .status(400)
+      .json({ error: 'activityIds must be an array with at least 2 activity IDs' });
   }
 
-  for (const eventId of eventIds) {
-    if (!isValidUUID(eventId)) {
-      return res.status(400).json({ error: 'All eventIds must be valid UUIDs' });
+  for (const activityId of activityIds) {
+    if (!isValidUUID(activityId)) {
+      return res.status(400).json({ error: 'All activityIds must be valid UUIDs' });
     }
   }
 

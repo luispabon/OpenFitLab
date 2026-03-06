@@ -81,15 +81,17 @@ async function exportUserData(userId, opts = {}) {
   const comparisonRows = Array.isArray(comparisons) ? comparisons : [];
   const comparisonIds = comparisonRows.map((c) => c.id);
 
-  // Comparison events (batched)
-  let comparisonEventRows = [];
+  // Comparison events/activities (batched)
+  let comparisonEventActivityRows = [];
   if (comparisonIds.length > 0) {
     const links = await runQuery(
-      `SELECT comparison_id, event_id FROM comparison_events WHERE comparison_id IN (${placeholders(comparisonIds.length)})`,
+      `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
+        comparisonIds.length
+      )})`,
       comparisonIds,
       dbOpts
     );
-    comparisonEventRows = Array.isArray(links) ? links : [];
+    comparisonEventActivityRows = Array.isArray(links) ? links : [];
   }
 
   // Streams metadata (batched) — always included; data points only if includeStreams
@@ -127,7 +129,7 @@ async function exportUserData(userId, opts = {}) {
     activities: activityRows,
     activityStats: activityStatRows,
     comparisons: comparisonRows,
-    comparisonEvents: comparisonEventRows,
+    comparisonEventActivities: comparisonEventActivityRows,
     streams: streamRows,
     streamDataPoints: includeStreams ? streamDataPointRows : [],
   };

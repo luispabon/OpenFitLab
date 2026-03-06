@@ -63,13 +63,14 @@ export interface BatchUploadResponse {
 export interface ComparisonSettings {
   selectedStreams?: string[];
   xAxisMode?: 'elapsed' | 'wall-clock';
-  selectedActivities?: Record<string, string>; // eventId -> activityId
 }
 
 export interface Comparison {
   id: string;
   name: string;
   eventIds: string[];
+  /** Activity IDs for the comparison, parallel to eventIds (same order). */
+  activityIds?: string[];
   settings?: ComparisonSettings;
   createdAt?: number;
 }

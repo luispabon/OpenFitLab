@@ -1,39 +1,51 @@
 const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
 const comparisonRepository = require('../repositories/comparison-repository');
-const eventRepository = require('../repositories/event-repository');
+const activityRepository = require('../repositories/activity-repository');
 const { parseJSONField } = require('../utils/transforms');
 
 /**
  * @param {string} name
- * @param {string[]} eventIds
+ * @param {string[]} activityIds
  * @param {object | null} settings
  * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
- * @returns {Promise<object>} { id, name, eventIds, settings, createdAt }
+ * @returns {Promise<object>} { id, name, eventIds, activityIds, settings, createdAt }
  */
-async function createComparison(name, eventIds, settings, opts = {}) {
+async function createComparison(name, activityIds, settings, opts = {}) {
   if (!opts.userId) throw new Error('createComparison requires opts.userId');
   const db = opts.db ?? defaultDb;
   const id = randomUUID();
   const trimmedName = name.trim();
+  let eventIds = [];
+  let activityIdsOut = [];
 
   await db.transaction(async (conn) => {
     const txOpts = { ...opts, db, conn };
-    // Verify all events belong to the user
-    const events = await eventRepository.findManyByIds(eventIds, txOpts);
-    const ownedIds = new Set(events.map((e) => e.id));
-    if (ownedIds.size !== eventIds.length) {
-      const err = new Error('One or more events not found');
+    // Verify all activities (and their parent events) belong to the user
+    const activities = await activityRepository.findManyByIds(activityIds, txOpts);
+    const ownedActivityIds = new Set(activities.map((a) => a.id));
+    if (ownedActivityIds.size !== activityIds.length) {
+      const err = new Error('One or more activities not found');
       err.statusCode = 404;
       throw err;
     }
-    await comparisonRepository.create(id, trimmedName, eventIds, settings, txOpts);
+
+    const activityRows = activities.map((a) => ({
+      eventId: a.event_id,
+      activityId: a.id,
+    }));
+
+    eventIds = activityRows.map((row) => row.eventId);
+    activityIdsOut = activityRows.map((row) => row.activityId);
+
+    await comparisonRepository.create(id, trimmedName, activityRows, settings, txOpts);
   });
 
   return {
     id,
     name: trimmedName,
     eventIds,
+    activityIds: activityIdsOut,
     settings: settings || null,
     createdAt: Date.now(),
   };
@@ -53,6 +65,7 @@ async function getComparisons(limit = 100, opts = {}) {
     id: row.id,
     name: row.name,
     eventIds: row.event_ids,
+    activityIds: row.activity_ids,
     settings: parseJSONField(row.settings, null),
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
   }));
@@ -73,6 +86,7 @@ async function getComparisonById(id, opts = {}) {
     id: row.id,
     name: row.name,
     eventIds: row.event_ids,
+    activityIds: row.activity_ids,
     settings: parseJSONField(row.settings, null),
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
   };
