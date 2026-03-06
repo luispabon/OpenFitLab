@@ -147,6 +147,8 @@ describe('mapEventRow', () => {
       description: 'Morning run',
       is_merge: 1,
       src_file_type: 'tcx',
+      start_timezone: 'UTC',
+      end_timezone: 'UTC',
     };
     const stats = { Distance: 5000 };
     deepStrictEqual(mapEventRow(row, stats), {
@@ -158,6 +160,8 @@ describe('mapEventRow', () => {
       isMerge: true,
       stats: { Distance: 5000 },
       srcFileType: 'tcx',
+      startTimezone: 'UTC',
+      endTimezone: 'UTC',
     });
   });
 
@@ -168,6 +172,8 @@ describe('mapEventRow', () => {
     strictEqual('description' in result, false);
     strictEqual('isMerge' in result, false);
     strictEqual('srcFileType' in result, false);
+    strictEqual('startTimezone' in result, false);
+    strictEqual('endTimezone' in result, false);
   });
 });
 
@@ -193,6 +199,8 @@ describe('mapActivityRow', () => {
       type: 'Running',
       event_start_date: 1609459200000,
       device_name: 'Garmin',
+      start_timezone: 'America/New_York',
+      end_timezone: 'America/New_York',
     };
     const stats = { 'Heart Rate': 140 };
     deepStrictEqual(mapActivityRow(row, stats), {
@@ -205,6 +213,8 @@ describe('mapActivityRow', () => {
       type: 'Running',
       stats: { 'Heart Rate': 140 },
       deviceName: 'Garmin',
+      startTimezone: 'America/New_York',
+      endTimezone: 'America/New_York',
     });
   });
 
@@ -215,6 +225,8 @@ describe('mapActivityRow', () => {
     strictEqual('startDate' in result, false);
     strictEqual('type' in result, false);
     strictEqual('deviceName' in result, false);
+    strictEqual('startTimezone' in result, false);
+    strictEqual('endTimezone' in result, false);
   });
 });
 

@@ -40,6 +40,8 @@ function mapEventRow(row, statsForEvent = {}) {
     ...(row.is_merge === 1 ? { isMerge: true } : {}),
     stats: statsForEvent || {},
     ...(row.src_file_type != null ? { srcFileType: row.src_file_type } : {}),
+    ...(row.start_timezone != null ? { startTimezone: row.start_timezone } : {}),
+    ...(row.end_timezone != null ? { endTimezone: row.end_timezone } : {}),
   };
 }
 
@@ -54,6 +56,8 @@ function mapActivityRow(row, statsForActivity = {}) {
     ...(row.type != null ? { type: row.type } : {}),
     stats: statsForActivity || {},
     ...(row.device_name != null ? { deviceName: row.device_name } : {}),
+    ...(row.start_timezone != null ? { startTimezone: row.start_timezone } : {}),
+    ...(row.end_timezone != null ? { endTimezone: row.end_timezone } : {}),
   };
 }
 

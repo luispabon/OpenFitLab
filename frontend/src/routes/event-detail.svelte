@@ -9,7 +9,7 @@
   import { isAbortError } from '../lib/api/client';
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types';
   import {
-    formatDateWithTime,
+    formatDateWithOriginalTimezone,
     getActivityIcon,
     isChartableStream,
     isSmoothVariantToHide,
@@ -122,7 +122,7 @@
   const formattedDateString = $derived.by(() => {
     const ev = event;
     if (!ev?.startDate) return '';
-    return formatDateWithTime(ev.startDate);
+    return formatDateWithOriginalTimezone(ev.startDate, ev.startTimezone);
   });
 
   async function openActivityTypeEditor() {

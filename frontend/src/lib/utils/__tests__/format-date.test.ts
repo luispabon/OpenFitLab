@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, formatDateShort, formatDateWithTime } from '../format-date';
+import {
+  formatDate,
+  formatDateShort,
+  formatDateWithTime,
+  formatDateWithOriginalTimezone,
+} from '../format-date';
 
 describe('formatDate', () => {
   it('returns empty date and time for null', () => {
@@ -53,5 +58,36 @@ describe('formatDateWithTime', () => {
   it('uses 24-hour format (no AM/PM)', () => {
     const result = formatDateWithTime(new Date(2024, 0, 1, 14, 30));
     expect(result).not.toMatch(/\s*(AM|PM)/i);
+  });
+});
+
+describe('formatDateWithOriginalTimezone', () => {
+  it('returns empty string for falsy ms', () => {
+    expect(formatDateWithOriginalTimezone(0)).toBe('');
+    expect(formatDateWithOriginalTimezone(null as unknown as number)).toBe('');
+    expect(formatDateWithOriginalTimezone(undefined as unknown as number)).toBe('');
+  });
+  it('falls back to formatDateWithTime when no originalTimezone', () => {
+    const ms = new Date(2024, 0, 15, 14, 30).getTime();
+    const result = formatDateWithOriginalTimezone(ms);
+    expect(result).toContain(' at ');
+    expect(result).toBe(formatDateWithTime(ms));
+  });
+  it('returns string with " at " when originalTimezone provided', () => {
+    const ms = new Date(Date.UTC(2024, 0, 15, 14, 30)).getTime();
+    const result = formatDateWithOriginalTimezone(ms, 'UTC');
+    expect(result).toContain(' at ');
+    expect(result.length).toBeGreaterThan(0);
+  });
+  it('includes timezone in output when originalTimezone is UTC', () => {
+    const ms = new Date(Date.UTC(2024, 0, 15, 14, 30)).getTime();
+    const result = formatDateWithOriginalTimezone(ms, 'UTC');
+    expect(result).toMatch(/UTC|GMT/i);
+  });
+  it('falls back to formatDateWithTime for invalid timezone', () => {
+    const ms = new Date(2024, 0, 15, 14, 30).getTime();
+    const result = formatDateWithOriginalTimezone(ms, 'Invalid/Timezone__');
+    expect(result).toContain(' at ');
+    expect(result.length).toBeGreaterThan(0);
   });
 });
