@@ -119,7 +119,7 @@
             disabled={isUploading}
           >
             <option value="unfiled">Unfiled</option>
-            {#each folders.sort((a, b) => a.name.localeCompare(b.name)) as folder (folder.id)}
+            {#each [...folders].sort((a, b) => a.name.localeCompare(b.name)) as folder (folder.id)}
               <option value={folder.id}>{folder.name}</option>
             {/each}
           </select>
