@@ -46,6 +46,7 @@
 - Stream points stay relational in `stream_data_points` with `time_ms` and `sequence_index`.
 - Comparison membership stays relational in `comparison_event_activities`.
 - Deleting an event must remove comparisons that reference it before the event delete completes.
+- New foreign keys must use `ON DELETE CASCADE` unless there is a specific reason to unfile rather than delete (like `folder_id` which uses `SET NULL`).
 - Schema is defined in `backend/sql/schema.sql` and applied on startup. There are no migrations; schema changes require DB recreation.
 - Backend configuration must come from `backend/src/config.js`, not direct `process.env` reads elsewhere.
 
