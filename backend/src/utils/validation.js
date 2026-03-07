@@ -278,6 +278,7 @@ function validateFolderDeleteQuery(req, res, next) {
 }
 
 module.exports = {
+  isValidUUID,
   validateGetEventsQuery,
   validateGetActivityRowsQuery,
   validateEventId,
