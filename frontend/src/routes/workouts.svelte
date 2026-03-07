@@ -117,13 +117,6 @@
           })()
   );
 
-  /** Upload target folder: 'unfiled' | folder UUID. Synced from activeFolderId (all -> unfiled); user can override. */
-  let uploadFolderId = $state<string>('unfiled');
-
-  $effect(() => {
-    uploadFolderId = activeFolderId === 'all' ? 'unfiled' : activeFolderId;
-  });
-
   function showToast(message: string) {
     toastMessage = message;
     if (toastTimeout) clearTimeout(toastTimeout);
@@ -184,6 +177,8 @@
   });
 
   async function handleFiles(fileList: File[]) {
+    const folderIdForApi =
+      activeFolderId === 'all' || activeFolderId === 'unfiled' ? null : activeFolderId;
     isUploading = true;
     totalFiles = fileList.length;
     let successful = 0;
@@ -198,7 +193,6 @@
         uploadProgress = totalFiles > 0 ? (i / totalFiles) * 100 : 0;
 
         let firstProgressInChunk = true;
-        const folderIdForApi = uploadFolderId === 'unfiled' ? null : uploadFolderId;
         try {
           const { results } = await uploadFiles(
             chunk,
@@ -353,8 +347,6 @@
     {isUploading}
     onFilesSelected={handleFiles}
     bind:isDraggingOver
-    folders={foldersState.folders}
-    bind:uploadFolderId
     {activeFolderDisplay}
   >
     {#snippet bulkBar()}

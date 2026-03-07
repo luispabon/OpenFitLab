@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { Folder } from '../../types';
   import DropZoneOverlay from '../DropZoneOverlay.svelte';
 
   interface Props {
@@ -8,10 +7,6 @@
     onFilesSelected: (files: File[]) => void;
     accept?: string;
     isDraggingOver?: boolean;
-    /** When provided, show "Upload to" folder dropdown. */
-    folders?: Folder[];
-    /** Current upload target: 'all' | 'unfiled' | folder id. */
-    uploadFolderId?: string;
     /** When provided, show active folder as a pill next to the title. */
     activeFolderDisplay?: { label: string; color: string | null };
     bulkBar?: Snippet;
@@ -22,8 +17,6 @@
     onFilesSelected,
     accept = '.json,.tcx,.fit,.gpx,.sml',
     isDraggingOver = $bindable(false),
-    folders = [],
-    uploadFolderId = $bindable('all'),
     activeFolderDisplay,
     bulkBar,
     children,
@@ -136,21 +129,6 @@
         </svg>
         Upload Activity Files
       </label>
-      {#if folders.length > 0}
-        <label class="flex items-center gap-2 text-sm text-text-secondary">
-          <span>Upload to:</span>
-          <select
-            class="rounded border border-border bg-surface px-2 py-1 text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            bind:value={uploadFolderId}
-            disabled={isUploading}
-          >
-            <option value="unfiled">Unfiled</option>
-            {#each [...folders].sort((a, b) => a.name.localeCompare(b.name)) as folder (folder.id)}
-              <option value={folder.id}>{folder.name}</option>
-            {/each}
-          </select>
-        </label>
-      {/if}
     </div>
     <input
       id="workouts-file-upload"
