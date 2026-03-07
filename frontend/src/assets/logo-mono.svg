@@ -1,0 +1,25 @@
+<svg width="320" height="80" viewBox="0 0 320 80" xmlns="http://www.w3.org/2000/svg">
+
+    <circle cx="40" cy="40" r="26" stroke="#111827" stroke-width="4" fill="none"/>
+    
+    <polyline
+      points="22,42 30,42 36,28 44,52 50,38 58,38"
+      stroke="#111827"
+      stroke-width="3"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    
+    <text
+      x="80"
+      y="48"
+      font-family="Inter, system-ui, sans-serif"
+      font-size="26"
+      fill="#111827"
+      font-weight="600"
+    >
+    OpenFitLab
+    </text>
+    
+    </svg>
