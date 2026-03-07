@@ -51,22 +51,22 @@ describe('account-service', () => {
         if (sql.includes('FROM events WHERE')) {
           return [{ id: 'e1', folder_id: null, start_date: 1000, name: 'Run', end_date: 2000, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date('2025-01-01') }];
         }
-        if (sql.includes('FROM event_stats')) {
+        if (sql.includes('event_stats')) {
           return [{ event_id: 'e1', stat_type: 'distance', value: '100' }];
         }
-        if (sql.includes('FROM activities WHERE')) {
+        if (sql.includes('FROM activities ') && sql.includes('event_id')) {
           return [{ id: 'a1', event_id: 'e1', name: 'Run', start_date: 1000, end_date: 2000, type: 'running', device_name: 'Garmin', created_at: new Date('2025-01-01') }];
         }
-        if (sql.includes('FROM activity_stats')) {
+        if (sql.includes('activity_stats')) {
           return [{ activity_id: 'a1', stat_type: 'hr', value: '150' }];
         }
         if (sql.includes('FROM comparisons WHERE')) {
           return [{ id: 'c1', folder_id: null, name: 'Comp', settings: '{}', created_at: new Date('2025-01-01') }];
         }
-        if (sql.includes('FROM comparison_event_activities')) {
+        if (sql.includes('comparison_event_activities') && sql.includes('comparison_id IN')) {
           return [{ comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' }];
         }
-        if (sql.includes('FROM streams WHERE')) {
+        if (sql.includes('FROM streams ') && sql.includes('activity_id')) {
           return [{ id: 's1', activity_id: 'a1', event_id: 'e1', type: 'heartrate', created_at: new Date('2025-01-01') }];
         }
         return [];
@@ -95,16 +95,16 @@ describe('account-service', () => {
         if (sql.includes('FROM events WHERE')) {
           return [{ id: 'e1', folder_id: null, start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
         }
-        if (sql.includes('FROM event_stats')) return [];
-        if (sql.includes('FROM activities WHERE')) {
+        if (sql.includes('event_stats')) return [];
+        if (sql.includes('FROM activities ') && sql.includes('event_id')) {
           return [{ id: 'a1', event_id: 'e1', name: 'A', start_date: 1, end_date: 2, type: 'run', device_name: null, created_at: new Date() }];
         }
-        if (sql.includes('FROM activity_stats')) return [];
+        if (sql.includes('activity_stats')) return [];
         if (sql.includes('FROM comparisons WHERE')) return [];
-        if (sql.includes('FROM streams WHERE')) {
+        if (sql.includes('FROM streams ') && sql.includes('activity_id')) {
           return [{ id: 's1', activity_id: 'a1', event_id: 'e1', type: 'hr', created_at: new Date() }];
         }
-        if (sql.includes('FROM stream_data_points')) {
+        if (sql.includes('stream_data_points')) {
           return [{ stream_id: 's1', time_ms: 100, value: '72', sequence_index: 0 }];
         }
         return [];
@@ -126,13 +126,13 @@ describe('account-service', () => {
         if (sql.includes('FROM events WHERE')) {
           return [{ id: 'e1', folder_id: null, start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
         }
-        if (sql.includes('FROM event_stats')) return [];
-        if (sql.includes('FROM activities WHERE')) {
+        if (sql.includes('event_stats')) return [];
+        if (sql.includes('FROM activities ') && sql.includes('event_id')) {
           return [{ id: 'a1', event_id: 'e1', name: 'A', start_date: 1, end_date: 2, type: 'run', device_name: null, created_at: new Date() }];
         }
-        if (sql.includes('FROM activity_stats')) return [];
+        if (sql.includes('activity_stats')) return [];
         if (sql.includes('FROM comparisons WHERE')) return [];
-        if (sql.includes('FROM streams WHERE')) {
+        if (sql.includes('FROM streams ') && sql.includes('activity_id')) {
           return [{ id: 's1', activity_id: 'a1', event_id: 'e1', type: 'hr', created_at: new Date() }];
         }
         return [];

@@ -1,6 +1,9 @@
 const userRepository = require('../repositories/user-repository');
-const { runQuery } = require('../repositories/query-helper');
-const { placeholders } = require('../utils/transforms');
+const folderRepository = require('../repositories/folder-repository');
+const eventRepository = require('../repositories/event-repository');
+const activityRepository = require('../repositories/activity-repository');
+const comparisonRepository = require('../repositories/comparison-repository');
+const streamRepository = require('../repositories/stream-repository');
 
 const defaultDb = require('../db');
 
@@ -14,7 +17,7 @@ const defaultDb = require('../db');
  * @returns {Promise<object>}
  */
 async function exportUserData(userId, opts = {}) {
-  const dbOpts = { db: opts.db ?? defaultDb };
+  const dbOpts = { db: opts.db ?? defaultDb, userId };
   const includeStreams = opts.includeStreams === true;
 
   // User profile
@@ -22,105 +25,51 @@ async function exportUserData(userId, opts = {}) {
   if (!user) return null;
 
   // Identities (exclude profile_data for privacy)
-  const identities = await runQuery(
-    'SELECT id, provider, provider_user_id, email, created_at FROM user_identities WHERE user_id = ?',
-    [userId],
-    dbOpts
-  );
-  const identityRows = Array.isArray(identities) ? identities : [];
+  const identityRows = await userRepository.findIdentitiesByUserId(userId, dbOpts);
 
   // Folders
-  const folders = await runQuery(
-    'SELECT id, name, color, pinned, created_at FROM folders WHERE user_id = ? ORDER BY pinned DESC, name ASC',
-    [userId],
-    dbOpts
-  );
-  const folderRows = Array.isArray(folders) ? folders : [];
+  const folderRows = await folderRepository.listAll(userId, dbOpts);
 
   // Events (include folder_id)
-  const events = await runQuery(
-    'SELECT id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, created_at FROM events WHERE user_id = ?',
-    [userId],
-    dbOpts
-  );
-  const eventRows = Array.isArray(events) ? events : [];
+  const eventRows = await eventRepository.findAllByUserId(userId, dbOpts);
   const eventIds = eventRows.map((e) => e.id);
 
   // Event stats (batched)
-  let eventStatRows = [];
-  if (eventIds.length > 0) {
-    const stats = await runQuery(
-      `SELECT event_id, stat_type, value FROM event_stats WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds,
-      dbOpts
-    );
-    eventStatRows = Array.isArray(stats) ? stats : [];
-  }
+  const eventStatRows =
+    eventIds.length > 0 ? await eventRepository.getStatsByEventIds(eventIds, dbOpts) : [];
 
   // Activities (batched)
-  let activityRows = [];
-  if (eventIds.length > 0) {
-    const activities = await runQuery(
-      `SELECT id, event_id, name, start_date, end_date, type, device_name, created_at FROM activities WHERE event_id IN (${placeholders(eventIds.length)})`,
-      eventIds,
-      dbOpts
-    );
-    activityRows = Array.isArray(activities) ? activities : [];
-  }
+  const activityRows =
+    eventIds.length > 0 ? await activityRepository.findManyByEventIds(eventIds, dbOpts) : [];
   const activityIds = activityRows.map((a) => a.id);
 
   // Activity stats (batched)
-  let activityStatRows = [];
-  if (activityIds.length > 0) {
-    const stats = await runQuery(
-      `SELECT activity_id, stat_type, value FROM activity_stats WHERE activity_id IN (${placeholders(activityIds.length)})`,
-      activityIds,
-      dbOpts
-    );
-    activityStatRows = Array.isArray(stats) ? stats : [];
-  }
+  const activityStatRows =
+    activityIds.length > 0
+      ? await activityRepository.getStatsByActivityIds(activityIds, dbOpts)
+      : [];
 
   // Comparisons (include folder_id)
-  const comparisons = await runQuery(
-    'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE user_id = ?',
-    [userId],
-    dbOpts
-  );
-  const comparisonRows = Array.isArray(comparisons) ? comparisons : [];
+  const comparisonRows = await comparisonRepository.findAllByUserId(userId, dbOpts);
   const comparisonIds = comparisonRows.map((c) => c.id);
 
   // Comparison events/activities (batched)
-  let comparisonEventActivityRows = [];
-  if (comparisonIds.length > 0) {
-    const links = await runQuery(
-      `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
-        comparisonIds.length
-      )})`,
-      comparisonIds,
-      dbOpts
-    );
-    comparisonEventActivityRows = Array.isArray(links) ? links : [];
-  }
+  const comparisonEventActivityRows =
+    comparisonIds.length > 0
+      ? await comparisonRepository.findEventActivitiesByComparisonIds(comparisonIds, dbOpts)
+      : [];
 
   // Streams metadata (batched) — always included; data points only if includeStreams
   let streamRows = [];
   let streamDataPointRows = [];
   if (activityIds.length > 0) {
-    const streams = await runQuery(
-      `SELECT id, activity_id, event_id, type, created_at FROM streams WHERE activity_id IN (${placeholders(activityIds.length)})`,
-      activityIds,
-      dbOpts
-    );
-    streamRows = Array.isArray(streams) ? streams : [];
-
+    streamRows = await streamRepository.findAllByActivityIds(activityIds, dbOpts);
     if (includeStreams && streamRows.length > 0) {
       const streamIds = streamRows.map((s) => s.id);
-      const points = await runQuery(
-        `SELECT stream_id, time_ms, value, sequence_index FROM stream_data_points WHERE stream_id IN (${placeholders(streamIds.length)}) ORDER BY stream_id, sequence_index ASC, time_ms ASC`,
+      streamDataPointRows = await streamRepository.findDataPointsByStreamIdsOrdered(
         streamIds,
         dbOpts
       );
-      streamDataPointRows = Array.isArray(points) ? points : [];
     }
   }
 

@@ -23,6 +23,21 @@ async function insertStreamDataPointsBatch(streamId, dataPoints, opts = {}) {
   }
 }
 
+async function findAllByActivityIds(activityIds, opts = {}) {
+  if (!activityIds.length) return [];
+  if (!opts.userId) throw new Error('findAllByActivityIds requires opts.userId');
+  const sql = `SELECT s.id, s.activity_id, s.event_id, s.type, s.created_at
+     FROM streams s
+     JOIN events e ON e.id = s.event_id AND e.user_id = ?
+     WHERE s.activity_id IN (${placeholders(activityIds.length)})`;
+  const rows = await runQuery(sql, [opts.userId, ...activityIds], opts);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function findDataPointsByStreamIdsOrdered(streamIds, opts = {}) {
+  return findDataPointsByStreamIds(streamIds, opts);
+}
+
 async function findByActivityAndEvent(activityId, eventId, types, opts = {}) {
   if (!opts.userId) throw new Error('findByActivityAndEvent requires opts.userId');
   let sql =
@@ -53,6 +68,8 @@ async function findDataPointsByStreamIds(streamIds, opts = {}) {
 module.exports = {
   insertStream,
   insertStreamDataPointsBatch,
+  findAllByActivityIds,
+  findDataPointsByStreamIdsOrdered,
   findByActivityAndEvent,
   findDataPointsByStreamIds,
 };

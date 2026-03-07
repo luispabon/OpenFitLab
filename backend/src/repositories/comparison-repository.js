@@ -20,6 +20,27 @@ async function create(id, name, activityRows, settings, opts = {}) {
   }
 }
 
+async function findAllByUserId(userId, opts = {}) {
+  const rows = await runQuery(
+    'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE user_id = ?',
+    [userId],
+    opts
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function findEventActivitiesByComparisonIds(comparisonIds, opts = {}) {
+  if (!comparisonIds.length) return [];
+  const rows = await runQuery(
+    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
+      comparisonIds.length
+    )})`,
+    comparisonIds,
+    opts
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function findAll(limit, opts = {}) {
   if (!opts.userId) throw new Error('findAll comparisons requires opts.userId');
   const rows = await runQuery(
@@ -212,6 +233,8 @@ module.exports = {
   create,
   findAll,
   findAllForFolder,
+  findAllByUserId,
+  findEventActivitiesByComparisonIds,
   findById,
   findByEventIds,
   existsById,
