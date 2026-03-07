@@ -43,7 +43,7 @@ describe('Comparisons', () => {
     render(Comparisons);
     await waitFor(() => {
       expect(screen.getByText('No saved comparisons yet.')).toBeInTheDocument();
-      expect(screen.getByText(/Create a comparison from the dashboard/)).toBeInTheDocument();
+      expect(screen.getByText(/Create a comparison from Workouts/)).toBeInTheDocument();
     });
   });
 

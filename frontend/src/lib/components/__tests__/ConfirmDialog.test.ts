@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import ConfirmDialog from '../dashboard/ConfirmDialog.svelte';
+import ConfirmDialog from '../workouts/ConfirmDialog.svelte';
 
 describe('ConfirmDialog', () => {
   const defaultProps = {

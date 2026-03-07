@@ -80,18 +80,18 @@
   ondragleave={handleDragLeave}
   ondrop={handleDrop}
   role="region"
-  aria-label="Dashboard upload area"
+  aria-label="Workouts upload area"
 >
   {#if isDraggingOver && !isUploading}
     <DropZoneOverlay visible={true} />
   {/if}
 
-  <h1 class="mb-6 text-2xl font-semibold text-text-primary">Dashboard</h1>
+  <h1 class="mb-6 text-2xl font-semibold text-text-primary">Workouts</h1>
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="flex flex-wrap items-center gap-3">
       <label
-        for="dashboard-file-upload"
+        for="workouts-file-upload"
         class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
       >
         <svg
@@ -127,7 +127,7 @@
       {/if}
     </div>
     <input
-      id="dashboard-file-upload"
+      id="workouts-file-upload"
       type="file"
       {accept}
       multiple

@@ -355,7 +355,7 @@
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
     onclick={() => push('/')}
   >
-    ← Back to Dashboard
+    ← Back to Workouts
   </button>
 
   {#if loading}

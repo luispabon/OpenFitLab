@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { push, querystring } from 'svelte-spa-router';
-  import DashboardPaginator from './DashboardPaginator.svelte';
+  import WorkoutsPaginator from './WorkoutsPaginator.svelte';
 
   const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const;
 
@@ -24,7 +24,7 @@
     return { page: p, pageSize: valid ? ps : 20 };
   }
 
-  function buildDashboardPath(p: number, ps: number): string {
+  function buildWorkoutsPath(p: number, ps: number): string {
     const parts: string[] = [];
     parts.push(`page=${p}`);
     if (ps !== 20) parts.push(`pageSize=${ps}`);
@@ -48,7 +48,7 @@
     const p = page;
     const ps = pageSize;
     if (suppressUrlSync) return;
-    const target = buildDashboardPath(p, ps);
+    const target = buildWorkoutsPath(p, ps);
     const currentQs = $querystring ?? '';
     const current = parsePageFromQueryString(currentQs);
     if (current.page !== p || current.pageSize !== ps) {
@@ -98,7 +98,7 @@
 
   function goToPage(p: number) {
     if (p < 1 || p > totalPages) return;
-    const target = buildDashboardPath(p, pageSize);
+    const target = buildWorkoutsPath(p, pageSize);
     const newQs = target.slice(target.indexOf('?') + 1);
     lastQuerystringSynced = newQs;
     push(target);
@@ -116,7 +116,7 @@
 </script>
 
 <div class="mb-3">
-  <DashboardPaginator
+  <WorkoutsPaginator
     {totalRows}
     {pageSize}
     {totalPages}
@@ -133,7 +133,7 @@
 {/if}
 
 <div class="mt-3">
-  <DashboardPaginator
+  <WorkoutsPaginator
     {totalRows}
     {pageSize}
     {totalPages}

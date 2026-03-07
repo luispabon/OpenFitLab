@@ -101,14 +101,14 @@ describe('ComparisonView', () => {
     });
   });
 
-  it('Back button when new comparison pushes to Dashboard', async () => {
+  it('Back button when new comparison pushes to Workouts', async () => {
     render(ComparisonView, {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
     await waitFor(() => {
       expect(screen.getByText('Event Comparison')).toBeInTheDocument();
     });
-    await fireEvent.click(screen.getByRole('button', { name: '← Back to Dashboard' }));
+    await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 

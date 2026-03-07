@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/svelte';
-import Dashboard from '../dashboard.svelte';
+import Workouts from '../workouts.svelte';
 import { activityRowsFixture } from '../../test/fixtures/activity-rows';
 
 const mockGetActivityRows = vi.fn();
@@ -32,7 +32,7 @@ vi.mock('svelte-spa-router', () => ({
   },
 }));
 
-describe('Dashboard', () => {
+describe('Workouts', () => {
   beforeEach(() => {
     mockGetActivityRows.mockReset();
     mockGetActivityRows.mockResolvedValue({
@@ -52,7 +52,7 @@ describe('Dashboard', () => {
 
   it('shows loading state while fetching', async () => {
     mockGetActivityRows.mockReturnValue(new Promise(() => {}));
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       const spinner = document.querySelector('svg.animate-spin');
       expect(spinner).toBeInTheDocument();
@@ -61,14 +61,14 @@ describe('Dashboard', () => {
 
   it('shows empty state when no rows', async () => {
     mockGetActivityRows.mockResolvedValue({ rows: [], total: 0 });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText(/No activities found/)).toBeInTheDocument();
     });
   });
 
   it('shows table with rows when data loaded', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -78,7 +78,7 @@ describe('Dashboard', () => {
   it('shows toast on load error', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetActivityRows.mockRejectedValue(new Error('Load failed'));
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Load failed')).toBeInTheDocument();
     });
@@ -86,7 +86,7 @@ describe('Dashboard', () => {
   });
 
   it('calls getActivityRows with filter params when activity type toggled', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -109,7 +109,7 @@ describe('Dashboard', () => {
   });
 
   it('calls getActivityRows with date range when dates set', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -128,7 +128,7 @@ describe('Dashboard', () => {
   });
 
   it('pushes to event detail when row View is clicked', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('View')).toBeInTheDocument();
     });
@@ -137,7 +137,7 @@ describe('Dashboard', () => {
   });
 
   it('opens single-delete flow when row Delete is clicked', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Delete')).toBeInTheDocument();
     });
@@ -158,7 +158,7 @@ describe('Dashboard', () => {
       rows: [activityRowsFixture[0], row2],
       total: 2,
     });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Evening Run')).toBeInTheDocument();
     });
@@ -172,7 +172,7 @@ describe('Dashboard', () => {
   });
 
   it('row selection shows bulk bar and Clear removes selection', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(
         screen.getByRole('checkbox', { name: 'Select event Morning Run' })
@@ -193,11 +193,11 @@ describe('Dashboard', () => {
     mockUploadFiles.mockResolvedValue({
       results: [{ success: true, filename: 'workout.fit', id: 'evt-1', event: {}, activities: [] }],
     });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const input = document.getElementById('dashboard-file-upload');
+    const input = document.getElementById('workouts-file-upload');
     expect(input).toBeTruthy();
     fireEvent.change(input!, { target: { files: [file] } });
     await waitFor(() => {
@@ -213,7 +213,7 @@ describe('Dashboard', () => {
 
   it('search debounce commits search and refetches with search param', async () => {
     vi.useFakeTimers();
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -231,7 +231,7 @@ describe('Dashboard', () => {
   });
 
   it('calls getActivityRows with devices when device toggled', async () => {
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -257,7 +257,7 @@ describe('Dashboard', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetActivityRows.mockReset();
     mockGetActivityRows.mockRejectedValueOnce(new Error('First error'));
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('First error')).toBeInTheDocument();
     });
@@ -278,11 +278,11 @@ describe('Dashboard', () => {
       });
     });
     const file = new File(['x'], 'a.fit', { type: 'application/octet-stream' });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const input = document.getElementById('dashboard-file-upload');
+    const input = document.getElementById('workouts-file-upload');
     fireEvent.change(input!, { target: { files: [file] } });
     await waitFor(() => {
       expect(progressCb).toBeDefined();
@@ -308,11 +308,11 @@ describe('Dashboard', () => {
       new File(['a'], 'ok.fit', { type: 'application/octet-stream' }),
       new File(['b'], 'fail.fit', { type: 'application/octet-stream' }),
     ];
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const input = document.getElementById('dashboard-file-upload');
+    const input = document.getElementById('workouts-file-upload');
     fireEvent.change(input!, { target: { files } });
     await waitFor(
       () => {
@@ -332,11 +332,11 @@ describe('Dashboard', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockUploadFiles.mockRejectedValue(new Error('Network error'));
     const file = new File(['x'], 'broken.fit', { type: 'application/octet-stream' });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const input = document.getElementById('dashboard-file-upload');
+    const input = document.getElementById('workouts-file-upload');
     fireEvent.change(input!, { target: { files: [file] } });
     await waitFor(
       () => {
@@ -357,7 +357,7 @@ describe('Dashboard', () => {
       rows: [activityRowsFixture[0], row2],
       total: 2,
     });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Evening Run')).toBeInTheDocument();
     });
@@ -381,7 +381,7 @@ describe('Dashboard', () => {
       rows: [activityRowsFixture[0], row2],
       total: 2,
     });
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Evening Run')).toBeInTheDocument();
     });
@@ -407,7 +407,7 @@ describe('Dashboard', () => {
 
   it('single delete confirm calls onDone and onClosed', async () => {
     mockDeleteEvent.mockResolvedValue(true);
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Delete')).toBeInTheDocument();
     });
@@ -427,7 +427,7 @@ describe('Dashboard', () => {
 
   it('single delete error shows toast via onError', async () => {
     mockDeleteEvent.mockResolvedValue(false);
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Delete')).toBeInTheDocument();
     });
@@ -448,7 +448,7 @@ describe('Dashboard', () => {
     mockGetComparisonCandidates.mockResolvedValue([
       { id: 'evt-2', name: 'Other Run', startDate: 0, stats: {} },
     ]);
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -465,7 +465,7 @@ describe('Dashboard', () => {
     mockGetComparisonCandidates.mockResolvedValue([
       { id: 'evt-2', name: 'Other Run', startDate: 0, stats: {} },
     ]);
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
@@ -487,7 +487,7 @@ describe('Dashboard', () => {
   it('CompareCandidatesFlow onError shows toast when candidates fail', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockGetComparisonCandidates.mockRejectedValue(new Error('Candidates failed'));
-    render(Dashboard);
+    render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });

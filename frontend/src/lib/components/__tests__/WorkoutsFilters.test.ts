@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import DashboardFilters from '../dashboard/DashboardFilters.svelte';
+import WorkoutsFilters from '../workouts/WorkoutsFilters.svelte';
 
-describe('DashboardFilters', () => {
+describe('WorkoutsFilters', () => {
   const defaultProps = {
     onSearchInput: vi.fn(),
     activityTypesOptions: ['running', 'cycling'],
@@ -18,14 +18,14 @@ describe('DashboardFilters', () => {
   };
 
   it('renders search input and activity type filter', () => {
-    render(DashboardFilters, { props: defaultProps });
+    render(WorkoutsFilters, { props: defaultProps });
     expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Activity type/ })).toBeInTheDocument();
   });
 
   it('calls onToggleActivityType when activity type checkbox changed', async () => {
     const onToggleActivityType = vi.fn();
-    render(DashboardFilters, {
+    render(WorkoutsFilters, {
       props: {
         ...defaultProps,
         onToggleActivityType,
@@ -40,7 +40,7 @@ describe('DashboardFilters', () => {
 
   it('calls onDateStartChange when start date changed', async () => {
     const onDateStartChange = vi.fn();
-    render(DashboardFilters, {
+    render(WorkoutsFilters, {
       props: { ...defaultProps, onDateStartChange },
     });
     const startInput = screen.getByLabelText('From');

@@ -4,7 +4,7 @@ import {
   formatDistanceCell,
   formatAvgHeartRateCell,
   formatCaloriesCell,
-} from '../dashboard-table-formatters';
+} from '../workouts-table-formatters';
 
 describe('formatDurationCell', () => {
   it('formats Duration stat', () => {

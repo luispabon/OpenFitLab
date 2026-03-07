@@ -371,7 +371,7 @@
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
     onclick={() => push(savedComparison ? '/comparisons' : '/')}
   >
-    ← {savedComparison ? 'Back to comparisons' : 'Back to Dashboard'}
+    ← {savedComparison ? 'Back to comparisons' : 'Back to Workouts'}
   </button>
 
   {#if loading || loadingComparison}

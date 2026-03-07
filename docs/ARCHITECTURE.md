@@ -306,7 +306,7 @@ Important modules:
 
 Primary route usage:
 
-- `dashboard.svelte`: activity rows, uploads, filters, delete flows, folder views
+- `workouts.svelte`: activity rows, uploads, filters, delete flows, folder views
 - `event-detail.svelte`: event detail, stream loading, activity edits
 - `comparisons.svelte`: comparison list and delete flow
 - `comparison-view.svelte`: comparison creation/view flows

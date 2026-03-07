@@ -13,7 +13,7 @@
       class="mt-6 rounded border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent"
       onclick={() => push('/')}
     >
-      Back to Dashboard
+      Back to Workouts
     </button>
   </div>
 </section>

@@ -65,7 +65,7 @@ export function reset(): void {
 
 function deriveKey(comparisonId: string, eventIdsFromQuery: string[]): string {
   if (comparisonId === 'new') {
-    // Preserve URL order so the first event is the "principal" (e.g. from Find on dashboard).
+    // Preserve URL order so the first event is the "principal" (e.g. from Find on workouts).
     const ids = eventIdsFromQuery.filter((id) => id.trim().length > 0);
     return ids.length >= 2 ? `new:${ids.join(',')}` : '';
   }
@@ -184,7 +184,7 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
   const signal = abortController.signal;
 
   if (comparisonId === 'new') {
-    // Use URL order: first event is principal (from "Find" on dashboard).
+    // Use URL order: first event is principal (from "Find" on workouts).
     const ids = eventIdsFromQuery.filter((id) => id.trim().length > 0);
     if (ids.length < 2) {
       state.error = 'At least 2 events are required for comparison';

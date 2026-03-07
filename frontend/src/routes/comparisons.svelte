@@ -6,7 +6,7 @@
   import type { Comparison } from '../lib/types';
   import type { Folder } from '../lib/types/event';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
-  import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte';
+  import ConfirmDialog from '../lib/components/workouts/ConfirmDialog.svelte';
 
   let comparisons = $state<Comparison[]>([]);
   let folders = $state<Folder[]>([]);
@@ -100,7 +100,7 @@
     <div class="rounded-md border border-border bg-card p-8 text-center backdrop-blur">
       <p class="text-sm font-medium text-text-primary">No saved comparisons yet.</p>
       <p class="mt-2 text-xs text-text-secondary">
-        Create a comparison from the dashboard to save it here.
+        Create a comparison from Workouts to save it here.
       </p>
     </div>
   {:else}
