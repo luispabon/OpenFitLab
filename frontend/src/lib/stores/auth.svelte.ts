@@ -63,8 +63,13 @@ export async function checkAuth(): Promise<void> {
 
 export async function logout(): Promise<void> {
   try {
-    const { apiFetch } = await import('../api/client');
-    await apiFetch('/api/auth/logout', { method: 'POST' });
+    const headers: HeadersInit = {};
+    if (state.csrfToken) headers['CSRF-Token'] = state.csrfToken;
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+    });
   } finally {
     state.user = null;
     state.csrfToken = null;
