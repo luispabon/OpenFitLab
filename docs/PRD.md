@@ -281,5 +281,7 @@ Requirements:
 - **Stream:** time-series metric such as heart rate, pace, or cadence
 - **Data Point:** one timestamped value inside a stream
 - **Stat:** aggregated metric derived from an event or activity
+- **Folder:** named, colored grouping for events and comparisons
+- **Comparison:** saved side-by-side selection of activities across events
 
 Technical implementation details for these concepts are documented in [docs/ARCHITECTURE.md](ARCHITECTURE.md).

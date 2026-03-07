@@ -52,8 +52,8 @@ erDiagram
     USERS ||--o{ FOLDERS : owns
     USERS ||--o{ EVENTS : owns
     USERS ||--o{ COMPARISONS : owns
-    FOLDERS ||--o{ EVENTS : contains
-    FOLDERS ||--o{ COMPARISONS : contains
+    FOLDERS |o--o{ EVENTS : contains
+    FOLDERS |o--o{ COMPARISONS : contains
     EVENTS ||--o{ EVENT_STATS : has
     EVENTS ||--o{ ACTIVITIES : contains
     EVENTS ||--o{ STREAMS : has
@@ -169,6 +169,7 @@ erDiagram
 - Most child data is owned through foreign keys and uses `ON DELETE CASCADE`.
 - `events.folder_id` and `comparisons.folder_id` use `ON DELETE SET NULL` so folder deletion can unfile content.
 - Deleting an event is a service-level workflow: comparisons referencing the event are deleted first, then the event delete cascades remaining child rows.
+- Each comparison references at most one activity per event (`comparison_event_activities` PK is `(comparison_id, event_id)`).
 
 ## API design
 
