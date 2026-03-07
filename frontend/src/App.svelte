@@ -111,6 +111,7 @@
   const MAX_PINNED = 5;
 
   let showCreateFolderModal = $state(false);
+  let newFolderBtnEl = $state<HTMLElement | null>(null);
   let folderToRename = $state<Folder | null>(null);
   let folderToRecolor = $state<Folder | null>(null);
   let folderToDelete = $state<Folder | null>(null);
@@ -181,6 +182,7 @@
               {/if}
             </a>
             <button
+              bind:this={newFolderBtnEl}
               type="button"
               class="rounded p-1.5 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary"
               aria-label="New folder"
@@ -346,6 +348,7 @@
         {/if}
         <FolderCreateModal
           open={showCreateFolderModal}
+          anchorEl={newFolderBtnEl}
           existingNames={folderList.map((f) => f.name)}
           maxFolders={MAX_FOLDERS}
           onCreated={() => {

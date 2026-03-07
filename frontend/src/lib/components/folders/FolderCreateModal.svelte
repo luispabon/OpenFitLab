@@ -5,17 +5,32 @@
 
   interface Props {
     open: boolean;
+    anchorEl?: HTMLElement | null;
     onCreated: (folder: Folder) => void;
     onClosed: () => void;
     onError: (message: string) => void;
     existingNames: string[];
     maxFolders: number;
   }
-  let { open, onCreated, onClosed, onError, existingNames = [], maxFolders = 20 }: Props = $props();
+  let { open, anchorEl, onCreated, onClosed, onError, existingNames = [], maxFolders = 20 }: Props = $props();
 
   let name = $state('');
   let color = $state<string>(FOLDER_PRESET_COLORS[0]);
   let submitting = $state(false);
+  let dialogTop = $state(0);
+  let dialogLeft = $state(0);
+
+  $effect(() => {
+    if (open && anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      const PANEL_WIDTH = 320;
+      const GAP = 8;
+      const rawLeft = rect.right + GAP;
+      const rawTop = rect.top;
+      dialogLeft = Math.min(rawLeft, window.innerWidth - PANEL_WIDTH - GAP);
+      dialogTop = Math.min(rawTop, window.innerHeight - 400);
+    }
+  });
 
   const nameTrimmed = $derived(name.trim());
   const nameTaken = $derived(
@@ -42,19 +57,24 @@
 
   function handleCancel() {
     name = '';
+    color = FOLDER_PRESET_COLORS[0];
     onClosed();
   }
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') handleCancel(); }} />
+
 {#if open}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    class="fixed inset-0 z-50 bg-black/50"
     role="dialog"
     aria-modal="true"
     aria-labelledby="folder-create-title"
+    onclick={handleCancel}
   >
     <div
-      class="w-full max-w-sm rounded-lg border border-border bg-surface p-4 shadow-xl"
+      class="fixed w-80 rounded-lg border border-border bg-surface-solid p-4 shadow-xl"
+      style="top: {dialogTop}px; left: {dialogLeft}px;"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
