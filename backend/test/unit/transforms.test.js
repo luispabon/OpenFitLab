@@ -135,6 +135,7 @@ describe('mapEventRow', () => {
       startDate: 1609459200000,
       name: 'Run',
       stats: {},
+      folderId: null,
     });
   });
 
@@ -162,6 +163,7 @@ describe('mapEventRow', () => {
       srcFileType: 'tcx',
       startTimezone: 'UTC',
       endTimezone: 'UTC',
+      folderId: null,
     });
   });
 

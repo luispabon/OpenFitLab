@@ -39,6 +39,7 @@ describe('DashboardActivityTable', () => {
     onToggleEventSelection: vi.fn(),
     onViewClick: vi.fn(),
     onFindComparisonsClick: vi.fn(),
+    onMoveClick: vi.fn(),
     onDeleteClick: vi.fn(),
   };
 

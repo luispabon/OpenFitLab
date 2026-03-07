@@ -19,6 +19,7 @@ describe('account-service', () => {
         if (sql.includes('FROM user_identities')) {
           return [{ id: 'i1', provider: 'google', provider_user_id: 'g1', email: 'a@b.com', created_at: new Date('2025-01-01') }];
         }
+        if (sql.includes('FROM folders')) return [];
         return [];
       });
 
@@ -29,6 +30,7 @@ describe('account-service', () => {
       strictEqual(result.user.displayName, 'Alice');
       strictEqual(result.identities.length, 1);
       strictEqual(result.identities[0].provider, 'google');
+      deepStrictEqual(result.folders, []);
       deepStrictEqual(result.events, []);
       deepStrictEqual(result.eventStats, []);
       deepStrictEqual(result.activities, []);
@@ -45,8 +47,9 @@ describe('account-service', () => {
           return [{ id: 'u1', display_name: 'Bob', avatar_url: 'http://img', created_at: new Date('2025-01-01'), updated_at: new Date('2025-01-01') }];
         }
         if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('FROM folders')) return [];
         if (sql.includes('FROM events WHERE')) {
-          return [{ id: 'e1', start_date: 1000, name: 'Run', end_date: 2000, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date('2025-01-01') }];
+          return [{ id: 'e1', folder_id: null, start_date: 1000, name: 'Run', end_date: 2000, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date('2025-01-01') }];
         }
         if (sql.includes('FROM event_stats')) {
           return [{ event_id: 'e1', stat_type: 'distance', value: '100' }];
@@ -58,7 +61,7 @@ describe('account-service', () => {
           return [{ activity_id: 'a1', stat_type: 'hr', value: '150' }];
         }
         if (sql.includes('FROM comparisons WHERE')) {
-          return [{ id: 'c1', name: 'Comp', settings: '{}', created_at: new Date('2025-01-01') }];
+          return [{ id: 'c1', folder_id: null, name: 'Comp', settings: '{}', created_at: new Date('2025-01-01') }];
         }
         if (sql.includes('FROM comparison_event_activities')) {
           return [{ comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' }];
@@ -88,8 +91,9 @@ describe('account-service', () => {
           return [{ id: 'u1', display_name: 'X', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
         }
         if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('FROM folders')) return [];
         if (sql.includes('FROM events WHERE')) {
-          return [{ id: 'e1', start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
+          return [{ id: 'e1', folder_id: null, start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
         }
         if (sql.includes('FROM event_stats')) return [];
         if (sql.includes('FROM activities WHERE')) {
@@ -118,8 +122,9 @@ describe('account-service', () => {
           return [{ id: 'u1', display_name: 'X', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
         }
         if (sql.includes('FROM user_identities')) return [];
+        if (sql.includes('FROM folders')) return [];
         if (sql.includes('FROM events WHERE')) {
-          return [{ id: 'e1', start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
+          return [{ id: 'e1', folder_id: null, start_date: 1, name: 'E', end_date: 2, description: null, is_merge: 0, src_file_type: 'fit', created_at: new Date() }];
         }
         if (sql.includes('FROM event_stats')) return [];
         if (sql.includes('FROM activities WHERE')) {

@@ -2,16 +2,17 @@ const { runQuery } = require('./query-helper');
 const { placeholders } = require('../utils/transforms');
 
 const EVENT_COLUMNS =
-  'id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone';
+  'id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone';
 
 async function insertEvent(row, opts = {}) {
   if (!opts.userId) throw new Error('insertEvent requires opts.userId');
-  const sql = `INSERT INTO events (id, user_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO events (id, user_id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   await runQuery(
     sql,
     [
       row.id,
       opts.userId,
+      row.folder_id ?? null,
       row.start_date,
       row.name,
       row.end_date,
@@ -52,7 +53,7 @@ async function findById(id, opts = {}) {
 async function getDateRange(id, opts = {}) {
   if (!opts.userId) throw new Error('getDateRange requires opts.userId');
   const rows = await runQuery(
-    'SELECT start_date, end_date FROM events WHERE id = ? AND user_id = ?',
+    'SELECT start_date, end_date, folder_id FROM events WHERE id = ? AND user_id = ?',
     [id, opts.userId],
     opts
   );
@@ -63,6 +64,12 @@ async function findMany(filters, opts = {}) {
   if (!opts.userId) throw new Error('findMany requires opts.userId');
   let sql = `SELECT ${EVENT_COLUMNS} FROM events WHERE user_id = ?`;
   const params = [opts.userId];
+  if (filters.folderId === 'unfiled' || filters.folderId === null) {
+    sql += ' AND folder_id IS NULL';
+  } else if (filters.folderId && filters.folderId !== 'all') {
+    sql += ' AND folder_id = ?';
+    params.push(filters.folderId);
+  }
   if (filters.startDate != null) {
     sql += ' AND start_date >= ?';
     params.push(Number(filters.startDate));
@@ -87,17 +94,26 @@ async function findManyByIds(ids, opts = {}) {
 
 async function findOverlapping(excludeId, startDate, endDate, limit, opts = {}) {
   if (!opts.userId) throw new Error('findOverlapping requires opts.userId');
-  const sql = `
+  let sql = `
     SELECT ${EVENT_COLUMNS}
     FROM events
     WHERE id != ?
       AND user_id = ?
       AND start_date <= ?
       AND COALESCE(end_date, start_date) >= ?
-    ORDER BY start_date DESC
-    LIMIT ?
   `;
-  const rows = await runQuery(sql, [excludeId, opts.userId, endDate, startDate, limit], opts);
+  const params = [excludeId, opts.userId, endDate, startDate];
+  if (opts.sameFolderOnly && opts.sourceFolderId !== undefined) {
+    if (opts.sourceFolderId === null) {
+      sql += ' AND folder_id IS NULL';
+    } else {
+      sql += ' AND folder_id = ?';
+      params.push(opts.sourceFolderId);
+    }
+  }
+  sql += ' ORDER BY start_date DESC LIMIT ?';
+  params.push(limit);
+  const rows = await runQuery(sql, params, opts);
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -130,6 +146,16 @@ async function upsertEventStat(eventId, statType, value, opts = {}) {
   );
 }
 
+async function updateFolderId(eventId, folderId, opts = {}) {
+  if (!opts.userId) throw new Error('updateFolderId requires opts.userId');
+  const result = await runQuery(
+    'UPDATE events SET folder_id = ? WHERE id = ? AND user_id = ?',
+    [folderId || null, eventId, opts.userId],
+    opts
+  );
+  return result && result.affectedRows === 1;
+}
+
 async function deleteById(id, opts = {}) {
   if (!opts.userId) throw new Error('deleteById requires opts.userId');
   const result = await runQuery(
@@ -151,5 +177,6 @@ module.exports = {
   getStatsByEventIds,
   getStatsByEventId,
   upsertEventStat,
+  updateFolderId,
   deleteById,
 };

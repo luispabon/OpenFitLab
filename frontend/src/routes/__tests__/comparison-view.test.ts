@@ -155,7 +155,8 @@ describe('ComparisonView', () => {
       expect(mockCreateComparison).toHaveBeenCalledWith(
         'My Compare',
         ['act-1', 'act-2'],
-        expect.any(Object)
+        expect.any(Object),
+        undefined
       );
     });
     expect(mockReplace).toHaveBeenCalledWith('/compare/cmp-new');

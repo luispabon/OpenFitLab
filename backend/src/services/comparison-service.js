@@ -38,7 +38,10 @@ async function createComparison(name, activityIds, settings, opts = {}) {
     eventIds = activityRows.map((row) => row.eventId);
     activityIdsOut = activityRows.map((row) => row.activityId);
 
-    await comparisonRepository.create(id, trimmedName, activityRows, settings, txOpts);
+    await comparisonRepository.create(id, trimmedName, activityRows, settings, {
+      ...txOpts,
+      folderId: opts.folderId ?? null,
+    });
   });
 
   return {
@@ -47,28 +50,46 @@ async function createComparison(name, activityIds, settings, opts = {}) {
     eventIds,
     activityIds: activityIdsOut,
     settings: settings || null,
+    folderId: opts.folderId ?? null,
     createdAt: Date.now(),
   };
 }
 
 /**
  * @param {number} limit
- * @param {{ db?: object }} [opts] - Optional; opts.db for test injection
+ * @param {{ db?: object, folderId?: string | null }} [opts] - Optional; folderId filters by folder or surfaced
  * @returns {Promise<Array<object>>}
  */
 async function getComparisons(limit = 100, opts = {}) {
   if (!opts.userId) throw new Error('getComparisons requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
-  const rows = await comparisonRepository.findAll(limit, repoOpts);
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    eventIds: row.event_ids,
-    activityIds: row.activity_ids,
-    settings: parseJSONField(row.settings, null),
-    createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
-  }));
+  const folderId =
+    opts.folderId != null && opts.folderId !== '' && opts.folderId !== 'all' ? opts.folderId : null;
+  const rows = folderId
+    ? await comparisonRepository.findAllForFolder(folderId, limit, repoOpts)
+    : await comparisonRepository.findAll(limit, repoOpts);
+
+  const ids = rows.map((r) => r.id);
+  const folderIdsByComparison =
+    ids.length > 0 ? await comparisonRepository.getEventFolderIdsForComparisons(ids, repoOpts) : {};
+
+  return rows.map((row) => {
+    const eventFolderIds = folderIdsByComparison[row.id];
+    const mixed = eventFolderIds ? eventFolderIds.size > 1 : false;
+    const surfaced = Boolean(folderId && row.folder_id !== folderId);
+    return {
+      id: row.id,
+      name: row.name,
+      eventIds: row.event_ids,
+      activityIds: row.activity_ids,
+      settings: parseJSONField(row.settings, null),
+      folderId: row.folder_id ?? null,
+      mixed,
+      surfaced,
+      createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+    };
+  });
 }
 
 /**
@@ -82,12 +103,20 @@ async function getComparisonById(id, opts = {}) {
   const repoOpts = { ...opts, db };
   const row = await comparisonRepository.findById(id, repoOpts);
   if (!row) return null;
+  const folderIdsByComparison = await comparisonRepository.getEventFolderIdsForComparisons(
+    [id],
+    repoOpts
+  );
+  const eventFolderIds = folderIdsByComparison[id];
+  const mixed = eventFolderIds ? eventFolderIds.size > 1 : false;
   return {
     id: row.id,
     name: row.name,
     eventIds: row.event_ids,
     activityIds: row.activity_ids,
     settings: parseJSONField(row.settings, null),
+    folderId: row.folder_id ?? null,
+    mixed,
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
   };
 }

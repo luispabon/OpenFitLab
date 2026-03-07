@@ -42,6 +42,7 @@ function mapEventRow(row, statsForEvent = {}) {
     ...(row.src_file_type != null ? { srcFileType: row.src_file_type } : {}),
     ...(row.start_timezone != null ? { startTimezone: row.start_timezone } : {}),
     ...(row.end_timezone != null ? { endTimezone: row.end_timezone } : {}),
+    folderId: row.folder_id ?? null,
   };
 }
 

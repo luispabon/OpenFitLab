@@ -161,6 +161,12 @@ async function getActivityRowPairs(params, opts = {}) {
 
   let sql = 'FROM events e INNER JOIN activities a ON e.id = a.event_id WHERE e.user_id = ?';
   const queryParams = [opts.userId];
+  if (params.folderId === 'unfiled' || params.folderId === null) {
+    sql += ' AND e.folder_id IS NULL';
+  } else if (params.folderId && params.folderId !== 'all') {
+    sql += ' AND e.folder_id = ?';
+    queryParams.push(params.folderId);
+  }
   if (startDate != null) {
     sql += ' AND COALESCE(a.start_date, e.start_date) >= ?';
     queryParams.push(startDate);

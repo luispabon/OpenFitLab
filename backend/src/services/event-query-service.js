@@ -129,6 +129,7 @@ async function getActivityRows(params = {}, opts = {}) {
 
 /**
  * Returns events that overlap in time with the given source event (for comparison candidates).
+ * When sameFolderOnly is true (default), only returns events in the same folder as the source.
  */
 async function getComparisonCandidates(sourceEventId, opts = {}) {
   if (!opts.userId) throw new Error('getComparisonCandidates requires opts.userId');
@@ -140,16 +141,22 @@ async function getComparisonCandidates(sourceEventId, opts = {}) {
   const sourceStartDate = Number(sourceEvent.start_date);
   const sourceEndDate =
     sourceEvent.end_date != null ? Number(sourceEvent.end_date) : sourceStartDate;
+  const sameFolderOnly = opts.sameFolderOnly !== false;
+  const overlappingOpts = {
+    ...repoOpts,
+    sameFolderOnly,
+    sourceFolderId: sourceEvent.folder_id ?? null,
+  };
 
   const rows = await eventRepository.findOverlapping(
     sourceEventId,
     sourceStartDate,
     sourceEndDate,
     50,
-    repoOpts
+    overlappingOpts
   );
   if (rows.length === 0) return [];
-  return enrichEventsWithStatsAndActivities(rows, opts);
+  return enrichEventsWithStatsAndActivities(rows, repoOpts);
 }
 
 module.exports = {
