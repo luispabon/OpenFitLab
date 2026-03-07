@@ -29,19 +29,44 @@
 - Main quality gate: `npm run ci`
 - Runtime: Node 20+
 
+### CI
+
+- Backend: lint, format, unit tests (including Node 24 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
+- Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
+- Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
+
 ## Agent-critical invariants
 
 - Authentication is server-side session auth with OAuth providers and a Valkey-backed session store. Do not introduce JWT or localStorage auth.
 - State-changing requests require the CSRF token returned by `GET /api/auth/me`.
 - All event, comparison, folder, and derived meta queries must be scoped by authenticated ownership using `req.userId`.
 - Return `404` for missing or not-owned resources by ID to avoid leaking existence.
-- Files are parsed on the backend and discarded. Do not store originals after upload.
+- Files are parsed on the backend (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`) and discarded. Do not store originals after upload.
 - Stats stay relational in `event_stats` and `activity_stats`. Do not collapse them into JSON blobs.
 - Stream points stay relational in `stream_data_points` with `time_ms` and `sequence_index`.
 - Comparison membership stays relational in `comparison_event_activities`.
 - Deleting an event must remove comparisons that reference it before the event delete completes.
 - Schema is defined in `backend/sql/schema.sql` and applied on startup. There are no migrations; schema changes require DB recreation.
 - Backend configuration must come from `backend/src/config.js`, not direct `process.env` reads elsewhere.
+
+## Conventions
+
+### Backend
+
+- All SQL lives in repositories (`backend/src/repositories/`). Services and routes must not contain SQL.
+- Routes are thin: validate input, call a service, return the response. No business logic in route handlers.
+- Input validation is Express middleware in `backend/src/utils/validation.js`.
+- Services accept `opts.db` for dependency injection and use `db.transaction()` for multi-statement writes.
+- Errors use `ParseError`, `ValidationError`, or `NotFoundError` from `backend/src/errors.js`. The central error handler maps `statusCode` to HTTP status; do not send ad-hoc error responses.
+- API error responses use `{ error: string }`.
+- API response shapes are built by helpers in `backend/src/utils/transforms.js` (`mapEventRow`, `mapActivityRow`, `aggregateStats`).
+
+### Frontend
+
+- Svelte 5 runes only: `$state()`, `$derived()`, `$effect()`, `$props()`. Do not use legacy `let` reactivity, `$:`, or `export let`.
+- Tailwind CSS v4 only. No component-level `<style>` blocks for layout or colors.
+- `svelte-spa-router` for routing.
+- Do not use `@sports-alliance/sports-lib` in the frontend.
 
 ## Key entry points
 
@@ -59,6 +84,7 @@
 
 - App shell and route guard: `frontend/src/App.svelte`
 - Auth state and API client: `frontend/src/lib/stores/auth.svelte.ts`, `frontend/src/lib/api/client.ts`
+- Folder state: `frontend/src/lib/stores/folders.svelte.ts`
 - Routes: `frontend/src/routes/`
 - API modules: `frontend/src/lib/api/`
 - Shared types: `frontend/src/lib/types/event.ts`

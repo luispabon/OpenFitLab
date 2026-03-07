@@ -147,6 +147,19 @@ Planned capabilities:
 
 Users can compare data from different trackers for the same workout by importing multiple recordings and viewing them through the comparison flow.
 
+### 3.7 Folder organization
+
+**Status:** Implemented
+
+Users can organize events and comparisons into named, colored folders with optional pinning.
+
+Requirements:
+
+- create, rename, recolor, and delete folders
+- assign events and comparisons to folders
+- filter dashboard and comparison views by folder
+- pinned folders appear first in navigation
+
 ---
 
 ## 4. Product constraints

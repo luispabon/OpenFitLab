@@ -16,7 +16,7 @@ Core flow:
 1. The user signs in with Google or GitHub OAuth.
 2. The API creates a server-side session and returns CSRF tokens from `GET /api/auth/me`.
 3. The user uploads activity files.
-4. The backend parses the files, stores relational event/activity/stream data, and discards the originals.
+4. The backend parses the files (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`), stores relational event/activity/stream data, and discards the originals.
 5. The frontend reads event, stream, comparison, folder, and account data through authenticated API calls.
 
 ## Configuration and runtime
@@ -74,6 +74,8 @@ Core flow:
 - Missing or not-owned resources return `404`.
 - State-changing requests require `CSRF-Token` or `X-CSRF-Token`.
 - JSON responses use millisecond timestamps.
+- Error responses use `{ error: string }` with the appropriate HTTP status code.
+- Backend error classes (`ParseError`, `ValidationError`, `NotFoundError` in `backend/src/errors.js`) set `statusCode`; the central error handler maps it to the HTTP response.
 
 ### Health
 
@@ -93,6 +95,8 @@ OAuth callbacks either:
 
 - create a normal authenticated session and redirect to the SPA, or
 - create a temporary pending-signup session and redirect the SPA to signup completion
+
+**Account linking:** when a user signs in with a new provider whose verified email matches an existing identity, the new identity is linked to the existing user automatically. No separate linking UI exists.
 
 Other auth endpoints:
 
@@ -122,9 +126,11 @@ Account endpoints:
 - `GET /api/events/:id/candidates?sameFolderOnly=true|false`
   - returns comparison candidates for the source event
 - `POST /api/events`
-  - multipart upload field: `files`
+  - multipart upload field: `files` (1-10 files; TCX, FIT, GPX, JSON, SML)
   - optional body field: `folderId`
-  - returns `{ results }` with one success/failure entry per uploaded file
+  - returns `{ results }` where each entry is either:
+    - success: `{ success: true, filename, id, event, activities }`
+    - failure: `{ success: false, filename, error }`
 - `PATCH /api/events/:id`
   - updates event folder assignment via `{ folderId }`
 - `PATCH /api/events/:id/activities/:activityId`
@@ -183,7 +189,13 @@ The frontend consumes API JSON directly.
 Important modules:
 
 - `frontend/src/lib/api/client.ts`: authenticated fetch wrapper with CSRF handling
+- `frontend/src/lib/api/events.ts`: event, activity, stream, and upload API calls
+- `frontend/src/lib/api/comparisons.ts`: comparison CRUD and candidate lookup
+- `frontend/src/lib/api/folders.ts`: folder CRUD
+- `frontend/src/lib/api/account.ts`: export and account deletion
+- `frontend/src/lib/api/auth.ts`: auth check and logout
 - `frontend/src/lib/stores/auth.svelte.ts`: auth state, CSRF token, login state
+- `frontend/src/lib/stores/folders.svelte.ts`: folder list and selection state
 - `frontend/src/lib/types/event.ts`: canonical frontend shapes for events, activities, streams, folders, and comparisons
 
 Primary route usage:
@@ -223,4 +235,7 @@ Primary route usage:
 - Comparison routes: `backend/src/routes/comparisons.js`
 - Folder routes: `backend/src/routes/folders.js`
 - Meta routes: `backend/src/routes/meta.js`
+- Response shaping: `backend/src/utils/transforms.js`
+- Input validation: `backend/src/utils/validation.js`
+- Error classes: `backend/src/errors.js`
 - Frontend types: `frontend/src/lib/types/event.ts`
