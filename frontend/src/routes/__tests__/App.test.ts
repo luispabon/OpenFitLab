@@ -59,6 +59,7 @@ describe('App', () => {
     mockAuthState.user = null;
     mockAuthState.authLoading = true;
     mockAuthState.authChecked = false;
+    mockAuthState.pendingSignup = false;
     getLocationStore()?.set('/');
     storage['sidebarCollapsed'] = '';
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(
@@ -96,6 +97,17 @@ describe('App', () => {
       expect(screen.getByText('Continue with GitHub')).toBeInTheDocument();
       expect(screen.getByTestId('app-router')).toBeInTheDocument();
       expect(document.querySelectorAll('svg.animate-spin').length).toBe(0);
+    });
+
+    it('shows Router when pending signup so privacy page is reachable', async () => {
+      mockAuthState.authLoading = false;
+      mockAuthState.user = null;
+      mockAuthState.pendingSignup = true;
+      render(App);
+      await waitFor(() => {
+        expect(screen.getByTestId('app-router')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Welcome to OpenFitLab')).not.toBeInTheDocument();
     });
 
     it('shows Router and sidebar nav when authenticated', async () => {
