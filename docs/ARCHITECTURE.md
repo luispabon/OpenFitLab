@@ -46,17 +46,122 @@ Core flow:
 
 ### Tables
 
-- `users`: user profile row keyed by UUID.
-- `user_identities`: OAuth identities linked to users by provider/provider user ID.
-- `folders`: user-owned folders with name, color, and pinned state.
-- `events`: uploaded workout sessions, optionally assigned to a folder.
-- `event_stats`: one row per event/stat pair.
-- `activities`: per-event activities with type, device, and timestamps.
-- `activity_stats`: one row per activity/stat pair.
-- `streams`: stream metadata per activity and event.
-- `stream_data_points`: timestamped stream values.
-- `comparisons`: saved comparisons, optionally assigned to a folder.
-- `comparison_event_activities`: mapping from comparison to event/activity pairs.
+```mermaid
+erDiagram
+    USERS ||--o{ USER_IDENTITIES : has
+    USERS ||--o{ FOLDERS : owns
+    USERS ||--o{ EVENTS : owns
+    USERS ||--o{ COMPARISONS : owns
+    FOLDERS ||--o{ EVENTS : contains
+    FOLDERS ||--o{ COMPARISONS : contains
+    EVENTS ||--o{ EVENT_STATS : has
+    EVENTS ||--o{ ACTIVITIES : contains
+    EVENTS ||--o{ STREAMS : has
+    ACTIVITIES ||--o{ ACTIVITY_STATS : has
+    ACTIVITIES ||--o{ STREAMS : has
+    STREAMS ||--o{ STREAM_DATA_POINTS : contains
+    COMPARISONS ||--o{ COMPARISON_EVENT_ACTIVITIES : has
+    EVENTS ||--o{ COMPARISON_EVENT_ACTIVITIES : referenced_by
+    ACTIVITIES ||--o{ COMPARISON_EVENT_ACTIVITIES : referenced_by
+
+    USERS {
+        varchar36 id PK
+        varchar display_name
+        varchar avatar_url
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    USER_IDENTITIES {
+        varchar36 id PK
+        varchar36 user_id FK
+        varchar provider
+        varchar provider_user_id
+        varchar email
+        json profile_data
+        timestamp created_at
+    }
+
+    FOLDERS {
+        varchar36 id PK
+        varchar36 user_id FK
+        varchar name
+        varchar color
+        tinyint pinned
+        timestamp created_at
+    }
+
+    EVENTS {
+        varchar36 id PK
+        varchar36 user_id FK
+        varchar36 folder_id FK
+        bigint start_date
+        varchar name
+        bigint end_date
+        text description
+        tinyint is_merge
+        varchar src_file_type
+        varchar start_timezone
+        varchar end_timezone
+        timestamp created_at
+    }
+
+    EVENT_STATS {
+        varchar36 event_id PK_FK
+        varchar stat_type PK
+        json value
+    }
+
+    ACTIVITIES {
+        varchar36 id PK
+        varchar36 event_id FK
+        varchar name
+        bigint start_date
+        bigint end_date
+        varchar type
+        varchar device_name
+        varchar start_timezone
+        varchar end_timezone
+        timestamp created_at
+    }
+
+    ACTIVITY_STATS {
+        varchar36 activity_id PK_FK
+        varchar stat_type PK
+        json value
+    }
+
+    STREAMS {
+        varchar128 id PK
+        varchar36 activity_id FK
+        varchar36 event_id FK
+        varchar type
+        timestamp created_at
+    }
+
+    STREAM_DATA_POINTS {
+        bigint id PK
+        varchar128 stream_id FK
+        bigint time_ms
+        json value
+        int sequence_index
+    }
+
+    COMPARISONS {
+        varchar36 id PK
+        varchar36 user_id FK
+        varchar36 folder_id FK
+        varchar name
+        json settings
+        timestamp created_at
+    }
+
+    COMPARISON_EVENT_ACTIVITIES {
+        varchar36 comparison_id PK_FK
+        varchar36 event_id PK_FK
+        varchar36 activity_id FK
+    }
+```
 
 ### Ownership and cascade behavior
 
