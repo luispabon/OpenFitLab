@@ -7,8 +7,10 @@
     getDevices,
     uploadFiles,
     deleteEvent,
+    updateEventFolder,
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
+  import { foldersState, getFolderFromHash } from '../lib/stores/folders.svelte';
   import { getEnvNumber } from '../lib/utils/env';
   import {
     formatDurationCell,
@@ -24,6 +26,7 @@
   import DashboardBulkDeleteFlow from '../lib/components/dashboard/DashboardBulkDeleteFlow.svelte';
   import CompareCandidatesFlow from '../lib/components/dashboard/CompareCandidatesFlow.svelte';
   import DashboardSingleDeleteFlow from '../lib/components/dashboard/DashboardSingleDeleteFlow.svelte';
+  import DashboardMoveToFolderFlow from '../lib/components/dashboard/DashboardMoveToFolderFlow.svelte';
   import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte';
   import DashboardPaginationWithUrl from '../lib/components/dashboard/DashboardPaginationWithUrl.svelte';
   import DashboardActivityTable from '../lib/components/dashboard/DashboardActivityTable.svelte';
@@ -94,7 +97,17 @@
   let eventToDelete = $state<string | null>(null);
   let selectedEventIds = $state<Set<string>>(new Set());
   let eventsToBulkDelete = $state<string[]>([]);
+  let eventIdsToMove = $state<string[]>([]);
   let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined);
+
+  const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
+
+  /** Upload target folder: 'unfiled' | folder UUID. Synced from activeFolderId (all -> unfiled); user can override. */
+  let uploadFolderId = $state<string>('unfiled');
+
+  $effect(() => {
+    uploadFolderId = activeFolderId === 'all' ? 'unfiled' : activeFolderId;
+  });
 
   function showToast(message: string) {
     toastMessage = message;
@@ -129,6 +142,7 @@
         activityTypes: selectedActivityTypes.length ? selectedActivityTypes : undefined,
         devices: selectedDevices.length ? selectedDevices : undefined,
         search: search.trim() || undefined,
+        folderId: activeFolderId === 'all' ? undefined : activeFolderId,
       };
       const result = await getActivityRows(params);
       if (myGen !== loadGeneration) return;
@@ -169,18 +183,23 @@
         uploadProgress = totalFiles > 0 ? (i / totalFiles) * 100 : 0;
 
         let firstProgressInChunk = true;
+        const folderIdForApi = uploadFolderId === 'unfiled' ? null : uploadFolderId;
         try {
-          const { results } = await uploadFiles(chunk, (chunkProgress) => {
-            // First event can fire with 100% (loaded===total) before bytes are sent; treat as 0
-            // so the bar stays at chunk-start% until upload actually progresses.
-            let effective = chunkProgress;
-            if (firstProgressInChunk) {
-              firstProgressInChunk = false;
-              if (chunkProgress > 0) effective = 0;
-            }
-            const completed = i + (effective / 100) * chunk.length;
-            uploadProgress = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
-          });
+          const { results } = await uploadFiles(
+            chunk,
+            (chunkProgress) => {
+              // First event can fire with 100% (loaded===total) before bytes are sent; treat as 0
+              // so the bar stays at chunk-start% until upload actually progresses.
+              let effective = chunkProgress;
+              if (firstProgressInChunk) {
+                firstProgressInChunk = false;
+                if (chunkProgress > 0) effective = 0;
+              }
+              const completed = i + (effective / 100) * chunk.length;
+              uploadProgress = totalFiles > 0 ? (completed / totalFiles) * 100 : 0;
+            },
+            { folderId: folderIdForApi }
+          );
           for (const r of results) {
             if (r.success) successful++;
             else failedFilenames.push(r.filename);
@@ -291,6 +310,16 @@
     clearSelection();
   }
 
+  function handleBulkMoveClick() {
+    eventIdsToMove = Array.from(selectedEventIds);
+  }
+
+  function handleMoveDone(movedCount: number) {
+    showToast(`Moved ${movedCount} event${movedCount !== 1 ? 's' : ''} successfully`);
+    loadActivityRows();
+    clearSelection();
+  }
+
   // Reference for select-all checkbox to set indeterminate state
   let selectAllCheckbox = $state<HTMLInputElement | null>(null);
 
@@ -305,17 +334,26 @@
   class="mx-auto w-[85%] max-w-screen-2xl py-6 transition-opacity"
   class:opacity-50={isDraggingOver && !isUploading}
 >
-  <DashboardUploadSection {isUploading} onFilesSelected={handleFiles} bind:isDraggingOver>
+  <DashboardUploadSection
+    {isUploading}
+    onFilesSelected={handleFiles}
+    bind:isDraggingOver
+    folders={foldersState.folders}
+    bind:uploadFolderId
+  >
     {#snippet bulkBar()}
       <DashboardBulkActionBar
         selectedCount={selectedEventIds.size}
-        disabled={eventsToBulkDelete.length > 0 || eventToDelete !== null}
+        disabled={eventsToBulkDelete.length > 0 ||
+          eventToDelete !== null ||
+          eventIdsToMove.length > 0}
         onClear={clearSelection}
         onCompare={() => {
           if (selectedEventIds.size >= 2) {
             push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
           }
         }}
+        onMove={handleBulkMoveClick}
         onDelete={handleBulkDeleteClick}
       />
     {/snippet}
@@ -388,6 +426,10 @@
           push(`/event/${id}`);
         }}
         onFindComparisonsClick={(id) => compareCandidatesFlow?.openForEvent(id)}
+        onMoveClick={(id, e) => {
+          e.stopPropagation();
+          eventIdsToMove = [id];
+        }}
         onDeleteClick={handleDeleteClick}
       />
     </DashboardPaginationWithUrl>
@@ -406,10 +448,26 @@
       confirmDisabledWhen={eventsToBulkDelete.length > 0}
     />
 
+    <DashboardMoveToFolderFlow
+      {eventIdsToMove}
+      folders={foldersState.folders}
+      {updateEventFolder}
+      onDone={handleMoveDone}
+      onClosed={() => {
+        eventIdsToMove = [];
+      }}
+      onError={showToast}
+    />
+
     <CompareCandidatesFlow
       bind:this={compareCandidatesFlow}
       activityRows={activityRowsFromApi}
-      onCompare={(eventIds) => push(`/compare/new?events=${eventIds.join(',')}`)}
+      onCompare={(eventIds, suggestedFolderId) => {
+        const params = new URLSearchParams();
+        params.set('events', eventIds.join(','));
+        if (suggestedFolderId) params.set('folder', suggestedFolderId);
+        push(`/compare/new?${params.toString()}`);
+      }}
       onError={showToast}
     />
   </DashboardUploadSection>

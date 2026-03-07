@@ -19,8 +19,18 @@ function assertComparison(data: unknown): asserts data is Comparison {
   }
 }
 
-export async function getComparisonCandidates(eventId: string): Promise<EventSummary[]> {
-  const response = await apiFetch(`${API_BASE}/events/${eventId}/candidates`);
+export interface GetComparisonCandidatesOptions {
+  /** When true, only return events in the same folder as the source event (default: true). */
+  sameFolderOnly?: boolean;
+}
+
+export async function getComparisonCandidates(
+  eventId: string,
+  options?: GetComparisonCandidatesOptions
+): Promise<EventSummary[]> {
+  const sameFolderOnly = options?.sameFolderOnly !== false;
+  const url = `${API_BASE}/events/${eventId}/candidates?sameFolderOnly=${sameFolderOnly}`;
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -32,8 +42,18 @@ export async function getComparisonCandidates(eventId: string): Promise<EventSum
   return response.json();
 }
 
-export async function getComparisons(): Promise<Comparison[]> {
-  const response = await apiFetch(`${API_BASE}/comparisons`);
+export interface GetComparisonsOptions {
+  /** When set, return comparisons visible in this folder (surfaced + home). */
+  folderId?: string | null;
+}
+
+export async function getComparisons(options?: GetComparisonsOptions): Promise<Comparison[]> {
+  const params = new URLSearchParams();
+  if (options?.folderId != null && options.folderId !== '' && options.folderId !== 'all') {
+    params.set('folderId', options.folderId);
+  }
+  const url = `${API_BASE}/comparisons${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await apiFetch(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch comparisons: ${response.statusText}`);
@@ -86,17 +106,30 @@ export async function getComparisonsByEventIds(eventIds: string[]): Promise<Comp
   return response.json();
 }
 
+export interface CreateComparisonBody {
+  name: string;
+  activityIds: string[];
+  settings?: ComparisonSettings;
+  /** Home folder for the comparison; null = Unfiled. */
+  folderId?: string | null;
+}
+
 export async function createComparison(
   name: string,
   activityIds: string[],
-  settings?: ComparisonSettings
+  settings?: ComparisonSettings,
+  folderId?: string | null
 ): Promise<Comparison> {
+  const body: CreateComparisonBody = { name, activityIds, settings };
+  if (folderId != null && folderId !== '') {
+    body.folderId = folderId;
+  }
   const response = await apiFetch(`${API_BASE}/comparisons`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ name, activityIds, settings }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

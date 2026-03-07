@@ -1,7 +1,7 @@
 <script lang="ts">
   interface Props {
     params?: { id?: string };
-    query?: { events?: string };
+    query?: { events?: string; folder?: string };
   }
   let { params = {}, query = {} }: Props = $props();
 
@@ -45,6 +45,7 @@
 
   // Parse query parameters from URL hash
   let eventIdsFromQueryState = $state<string[]>([]);
+  let folderIdFromQueryState = $state<string | null>(null);
 
   $effect(() => {
     const _loc = locationForEffect;
@@ -56,11 +57,18 @@
       const idsStr = ids.slice().sort().join(',');
       const currentStr = eventIdsFromQueryState.slice().sort().join(',');
       if (idsStr !== currentStr) eventIdsFromQueryState = ids;
+      const folderFromQuery = query?.folder?.trim() || null;
+      if (folderFromQuery !== folderIdFromQueryState) folderIdFromQueryState = folderFromQuery;
       return;
     }
     try {
       const hash = window.location.hash;
       const hashMatch = hash.match(/\?events=([^&]+)/);
+      const folderMatch = hash.match(/[?&]folder=([^&]*)/);
+      const folderFromHash = folderMatch?.[1]
+        ? decodeURIComponent(folderMatch[1]).trim() || null
+        : null;
+      if (folderFromHash !== folderIdFromQueryState) folderIdFromQueryState = folderFromHash;
       if (hashMatch?.[1]) {
         const ids = decodeURIComponent(hashMatch[1])
           .split(',')
@@ -78,6 +86,7 @@
   });
 
   const eventIdsFromQuery = $derived(eventIdsFromQueryState);
+  const folderIdForNewComparison = $derived(folderIdFromQueryState);
 
   // Trigger loader when comparisonId or (for 'new') eventIdsFromQueryState change
   $effect(() => {
@@ -257,7 +266,12 @@
         xAxisMode: loaderState.xAxisMode,
       };
 
-      const saved = await createComparison(saveName.trim(), activityIds, settings);
+      const saved = await createComparison(
+        saveName.trim(),
+        activityIds,
+        settings,
+        folderIdForNewComparison ?? undefined
+      );
       setComparison(saved);
       showSaveDialog = false;
       saveName = '';
@@ -387,6 +401,11 @@
               ? new Date(savedComparison.createdAt).toLocaleDateString()
               : ''}
           </p>
+          {#if savedComparison.mixed}
+            <p class="mt-1 text-sm text-amber-600">
+              This comparison includes events from more than one folder.
+            </p>
+          {/if}
         {/if}
       </div>
       <div class="flex gap-2">

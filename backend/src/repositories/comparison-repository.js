@@ -3,9 +3,10 @@ const { placeholders } = require('../utils/transforms');
 
 async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');
+  const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
   await runQuery(
-    'INSERT INTO comparisons (id, user_id, name, settings) VALUES (?, ?, ?, ?)',
-    [id, opts.userId, name, settings ? JSON.stringify(settings) : null],
+    'INSERT INTO comparisons (id, user_id, folder_id, name, settings) VALUES (?, ?, ?, ?, ?)',
+    [id, opts.userId, folderId, name, settings ? JSON.stringify(settings) : null],
     opts
   );
   if (activityRows.length > 0) {
@@ -22,8 +23,63 @@ async function create(id, name, activityRows, settings, opts = {}) {
 async function findAll(limit, opts = {}) {
   if (!opts.userId) throw new Error('findAll comparisons requires opts.userId');
   const rows = await runQuery(
-    'SELECT id, name, settings, created_at FROM comparisons WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
     [opts.userId, limit],
+    opts
+  );
+  const comparisons = Array.isArray(rows) ? rows : [];
+  if (comparisons.length === 0) return [];
+
+  const ids = comparisons.map((r) => r.id);
+  const linkRows = await runQuery(
+    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
+      ids.length
+    )})`,
+    ids,
+    opts
+  );
+  const linkArr = Array.isArray(linkRows) ? linkRows : [];
+
+  const eventIdsByComparison = {};
+  const activityIdsByComparison = {};
+  for (const link of linkArr) {
+    if (!eventIdsByComparison[link.comparison_id]) {
+      eventIdsByComparison[link.comparison_id] = [];
+    }
+    eventIdsByComparison[link.comparison_id].push(link.event_id);
+    if (!activityIdsByComparison[link.comparison_id]) {
+      activityIdsByComparison[link.comparison_id] = [];
+    }
+    activityIdsByComparison[link.comparison_id].push(link.activity_id);
+  }
+
+  return comparisons.map((row) => ({
+    ...row,
+    event_ids: eventIdsByComparison[row.id] || [],
+    activity_ids: activityIdsByComparison[row.id] || [],
+  }));
+}
+
+/**
+ * Find comparisons for folder view: folder_id = folderId OR comparison references an event in folderId.
+ */
+async function findAllForFolder(folderId, limit, opts = {}) {
+  if (!opts.userId) throw new Error('findAllForFolder requires opts.userId');
+  const rows = await runQuery(
+    `SELECT c.id, c.folder_id, c.name, c.settings, c.created_at
+     FROM comparisons c
+     WHERE c.user_id = ?
+       AND (
+         c.folder_id = ?
+         OR c.id IN (
+           SELECT cea.comparison_id FROM comparison_event_activities cea
+           INNER JOIN events e ON e.id = cea.event_id AND e.user_id = ?
+           WHERE e.folder_id = ?
+         )
+       )
+     ORDER BY c.created_at DESC
+     LIMIT ?`,
+    [opts.userId, folderId, opts.userId, folderId, limit],
     opts
   );
   const comparisons = Array.isArray(rows) ? rows : [];
@@ -62,7 +118,7 @@ async function findAll(limit, opts = {}) {
 async function findById(id, opts = {}) {
   if (!opts.userId) throw new Error('findById comparison requires opts.userId');
   const rows = await runQuery(
-    'SELECT id, name, settings, created_at FROM comparisons WHERE id = ? AND user_id = ?',
+    'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE id = ? AND user_id = ?',
     [id, opts.userId],
     opts
   );
@@ -132,12 +188,34 @@ async function deleteByIds(ids, opts = {}) {
   );
 }
 
+async function getEventFolderIdsForComparisons(comparisonIds, opts = {}) {
+  if (!comparisonIds.length) return {};
+  if (!opts.userId) throw new Error('getEventFolderIdsForComparisons requires opts.userId');
+  const linkRows = await runQuery(
+    `SELECT cea.comparison_id, e.folder_id
+     FROM comparison_event_activities cea
+     INNER JOIN events e ON e.id = cea.event_id AND e.user_id = ?
+     WHERE cea.comparison_id IN (${placeholders(comparisonIds.length)})`,
+    [opts.userId, ...comparisonIds],
+    opts
+  );
+  const arr = Array.isArray(linkRows) ? linkRows : [];
+  const byComparison = {};
+  for (const r of arr) {
+    if (!byComparison[r.comparison_id]) byComparison[r.comparison_id] = new Set();
+    byComparison[r.comparison_id].add(r.folder_id);
+  }
+  return byComparison;
+}
+
 module.exports = {
   create,
   findAll,
+  findAllForFolder,
   findById,
   findByEventIds,
   existsById,
   deleteById,
   deleteByIds,
+  getEventFolderIdsForComparisons,
 };

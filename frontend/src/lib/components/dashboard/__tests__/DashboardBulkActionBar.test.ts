@@ -7,6 +7,7 @@ describe('DashboardBulkActionBar', () => {
     selectedCount: 1,
     onClear: vi.fn(),
     onCompare: vi.fn(),
+    onMove: vi.fn(),
     onDelete: vi.fn(),
   };
 

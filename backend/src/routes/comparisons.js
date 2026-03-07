@@ -21,17 +21,24 @@ router.post(
   '/',
   validateComparisonBody,
   asyncHandler(async (req, res) => {
-    const { name, activityIds, settings } = req.body;
-    const comparison = await createComparison(name, activityIds, settings, { userId: req.userId });
+    const { name, activityIds, settings, folderId } = req.body;
+    const comparison = await createComparison(name, activityIds, settings, {
+      userId: req.userId,
+      folderId: folderId ?? null,
+    });
     res.status(201).json(comparison);
   })
 );
 
-// GET /api/comparisons
+// GET /api/comparisons?folderId=
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const comparisons = await getComparisons(100, { userId: req.userId });
+    const folderId = req.query.folderId;
+    const comparisons = await getComparisons(100, {
+      userId: req.userId,
+      folderId: folderId === 'unfiled' || folderId === '' ? 'unfiled' : folderId,
+    });
     res.json(comparisons);
   })
 );

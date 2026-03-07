@@ -23,6 +23,7 @@
     onToggleEventSelection: (eventId: string) => void;
     onViewClick: (eventId: string, e: MouseEvent) => void;
     onFindComparisonsClick: (eventId: string) => void;
+    onMoveClick: (eventId: string, e: MouseEvent) => void;
     onDeleteClick: (eventId: string, e: MouseEvent) => void;
   }
   let {
@@ -42,6 +43,7 @@
     onToggleEventSelection,
     onViewClick,
     onFindComparisonsClick,
+    onMoveClick,
     onDeleteClick,
   }: Props = $props();
 </script>
@@ -204,6 +206,17 @@
                     >compare_arrows</span
                   >
                   Find
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  onclick={(e) => onMoveClick(row.event.id, e)}
+                  title="Move to folder"
+                >
+                  <span class="material-icons text-base leading-none" aria-hidden="true"
+                    >drive_file_move</span
+                  >
+                  Move
                 </button>
                 <button
                   type="button"

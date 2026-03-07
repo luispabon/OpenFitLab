@@ -29,9 +29,17 @@ async function exportUserData(userId, opts = {}) {
   );
   const identityRows = Array.isArray(identities) ? identities : [];
 
-  // Events
+  // Folders
+  const folders = await runQuery(
+    'SELECT id, name, color, pinned, created_at FROM folders WHERE user_id = ? ORDER BY pinned DESC, name ASC',
+    [userId],
+    dbOpts
+  );
+  const folderRows = Array.isArray(folders) ? folders : [];
+
+  // Events (include folder_id)
   const events = await runQuery(
-    'SELECT id, start_date, name, end_date, description, is_merge, src_file_type, created_at FROM events WHERE user_id = ?',
+    'SELECT id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, created_at FROM events WHERE user_id = ?',
     [userId],
     dbOpts
   );
@@ -72,9 +80,9 @@ async function exportUserData(userId, opts = {}) {
     activityStatRows = Array.isArray(stats) ? stats : [];
   }
 
-  // Comparisons
+  // Comparisons (include folder_id)
   const comparisons = await runQuery(
-    'SELECT id, name, settings, created_at FROM comparisons WHERE user_id = ?',
+    'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE user_id = ?',
     [userId],
     dbOpts
   );
@@ -124,6 +132,7 @@ async function exportUserData(userId, opts = {}) {
       createdAt: user.created_at,
     },
     identities: identityRows,
+    folders: folderRows,
     events: eventRows,
     eventStats: eventStatRows,
     activities: activityRows,

@@ -211,6 +211,72 @@ function validateExportQuery(req, res, next) {
   next();
 }
 
+/**
+ * Validates folder ID parameter
+ */
+function validateFolderId(req, res, next) {
+  const { id } = req.params;
+  if (!isValidUUID(id)) {
+    return res.status(400).json({ error: 'Invalid folder ID format' });
+  }
+  next();
+}
+
+const FOLDER_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
+
+/**
+ * Validates folder create body (POST /api/folders)
+ */
+function validateFolderCreateBody(req, res, next) {
+  const { name, color } = req.body || {};
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return res.status(400).json({ error: 'name must be a non-empty string' });
+  }
+  if (name.length > 255) {
+    return res.status(400).json({ error: 'name must be at most 255 characters' });
+  }
+  if (color != null && (typeof color !== 'string' || !FOLDER_COLOR_REGEX.test(color.trim()))) {
+    return res.status(400).json({ error: 'color must be a 6-digit hex string (e.g. #ff5733)' });
+  }
+  next();
+}
+
+/**
+ * Validates folder update body (PATCH /api/folders/:id)
+ */
+function validateFolderUpdateBody(req, res, next) {
+  const { name, color, pinned } = req.body || {};
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'name must be a non-empty string' });
+    }
+    if (name.length > 255) {
+      return res.status(400).json({ error: 'name must be at most 255 characters' });
+    }
+  }
+  if (
+    color !== undefined &&
+    (typeof color !== 'string' || !FOLDER_COLOR_REGEX.test(color.trim()))
+  ) {
+    return res.status(400).json({ error: 'color must be a 6-digit hex string (e.g. #ff5733)' });
+  }
+  if (pinned !== undefined && typeof pinned !== 'boolean') {
+    return res.status(400).json({ error: 'pinned must be a boolean' });
+  }
+  next();
+}
+
+/**
+ * Validates folder delete query (contents=unfile|delete)
+ */
+function validateFolderDeleteQuery(req, res, next) {
+  const { contents } = req.query;
+  if (contents != null && contents !== 'unfile' && contents !== 'delete') {
+    return res.status(400).json({ error: 'contents must be "unfile" or "delete"' });
+  }
+  next();
+}
+
 module.exports = {
   validateGetEventsQuery,
   validateGetActivityRowsQuery,
@@ -221,4 +287,8 @@ module.exports = {
   validateComparisonBody,
   validateComparisonByEventsBody,
   validateExportQuery,
+  validateFolderId,
+  validateFolderCreateBody,
+  validateFolderUpdateBody,
+  validateFolderDeleteQuery,
 };

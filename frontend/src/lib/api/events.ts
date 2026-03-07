@@ -71,6 +71,8 @@ export interface GetActivityRowsParams {
   activityTypes?: string[];
   devices?: string[];
   search?: string;
+  /** 'all' | 'unfiled' | folder UUID */
+  folderId?: string | null;
 }
 
 export async function getActivityRows(
@@ -89,6 +91,9 @@ export async function getActivityRows(
   }
   if (params.devices?.length) {
     params.devices.forEach((d) => searchParams.append('devices', d));
+  }
+  if (params.folderId != null && params.folderId !== '' && params.folderId !== 'all') {
+    searchParams.set('folderId', params.folderId);
   }
 
   const url = `${API_BASE}/events/activity-rows?${searchParams.toString()}`;
@@ -185,13 +190,21 @@ export async function getStreams(
   return data;
 }
 
+export interface UploadFilesOptions {
+  folderId?: string | null;
+}
+
 export async function uploadFiles(
   files: File[],
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  options?: UploadFilesOptions
 ): Promise<BatchUploadResponse> {
   const formData = new FormData();
   for (const file of files) {
     formData.append('files', file);
+  }
+  if (options?.folderId != null && options.folderId !== '' && options.folderId !== 'all') {
+    formData.append('folderId', options.folderId);
   }
 
   return new Promise((resolve, reject) => {
@@ -274,4 +287,26 @@ export async function deleteEvent(id: string): Promise<boolean> {
   }
 
   return true;
+}
+
+export async function updateEventFolder(
+  eventId: string,
+  folderId: string | null
+): Promise<EventDetail> {
+  const response = await apiFetch(`${API_BASE}/events/${eventId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folderId }),
+  });
+
+  if (response.status === 404) {
+    throw new Error('Event not found');
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to update event folder: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  assertEventDetail(data);
+  return data;
 }

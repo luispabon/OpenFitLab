@@ -2,21 +2,42 @@
   import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
   import { getComparisons, deleteComparison } from '../lib/api';
+  import { getFolders } from '../lib/api/folders';
   import type { Comparison } from '../lib/types';
+  import type { Folder } from '../lib/types/event';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import ConfirmDialog from '../lib/components/dashboard/ConfirmDialog.svelte';
 
   let comparisons = $state<Comparison[]>([]);
+  let folders = $state<Folder[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
   let comparisonToDelete = $state<string | null>(null);
   let isDeleting = $state(false);
 
+  const folderNameById = $derived.by(() => {
+    const map = new Map<string, string>();
+    for (const f of folders) {
+      map.set(f.id, f.name);
+    }
+    return map;
+  });
+
+  function getFolderLabel(comparison: Comparison): string {
+    if (!comparison.folderId) return 'Unfiled';
+    return folderNameById.get(comparison.folderId) ?? comparison.folderId;
+  }
+
   async function loadComparisons() {
     isLoading = true;
     error = null;
     try {
-      comparisons = await getComparisons();
+      const [list, folderList] = await Promise.all([
+        getComparisons(),
+        getFolders().catch(() => [] as Folder[]),
+      ]);
+      comparisons = list;
+      folders = folderList;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load comparisons';
       comparisons = [];
@@ -103,6 +124,12 @@
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
             >
+              Folder
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            >
               Created
             </th>
             <th scope="col" class="relative px-6 py-3">
@@ -126,9 +153,30 @@
             >
               <td class="px-6 py-4">
                 <div class="font-medium text-text-primary">{comparison.name}</div>
+                <div class="mt-1 flex flex-wrap gap-1">
+                  {#if comparison.mixed}
+                    <span
+                      class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-600"
+                      title="Events in this comparison span more than one folder"
+                    >
+                      Mixed
+                    </span>
+                  {/if}
+                  {#if comparison.surfaced}
+                    <span
+                      class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-surface text-text-secondary border border-border"
+                      title="Shown here because it references an event in this folder"
+                    >
+                      Surfaced
+                    </span>
+                  {/if}
+                </div>
               </td>
               <td class="px-6 py-4 text-text-secondary">
                 {comparison.eventIds.length} event{comparison.eventIds.length > 1 ? 's' : ''}
+              </td>
+              <td class="px-6 py-4 text-sm text-text-secondary">
+                {getFolderLabel(comparison)}
               </td>
               <td class="px-6 py-4 text-text-secondary">{formatDate(comparison.createdAt)}</td>
               <td class="whitespace-nowrap px-6 py-4 text-right font-medium">

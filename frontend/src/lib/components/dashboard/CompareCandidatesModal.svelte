@@ -9,6 +9,8 @@
     candidates: EventSummary[];
     candidatesLoading: boolean;
     selectedCandidateIds: Set<string>;
+    showAllFolders?: boolean;
+    onToggleShowAllFolders?: () => void;
     onToggleCandidate: (eventId: string) => void;
     onCompare: () => void;
     onCancel: () => void;
@@ -19,6 +21,8 @@
     candidates,
     candidatesLoading,
     selectedCandidateIds,
+    showAllFolders = false,
+    onToggleShowAllFolders,
     onToggleCandidate,
     onCompare,
     onCancel,
@@ -112,9 +116,20 @@
             No overlapping events found for comparison.
           </p>
         {:else}
-          <p class="mb-4 text-sm text-text-secondary">
+          <p class="mb-2 text-sm text-text-secondary">
             Select events that overlap in time with this event to compare:
           </p>
+          {#if onToggleShowAllFolders}
+            <p class="mb-4">
+              <button
+                type="button"
+                class="text-sm font-medium text-accent hover:underline"
+                onclick={onToggleShowAllFolders}
+              >
+                {showAllFolders ? 'Same folder only' : 'Show all folders'}
+              </button>
+            </p>
+          {/if}
           <div class="space-y-2">
             {#each candidates as candidate (candidate.id)}
               {@const isSelected = selectedCandidateIds.has(candidate.id)}

@@ -11,6 +11,7 @@ const authRouter = require('./routes/auth');
 const accountRouter = require('./routes/account');
 const eventsRouter = require('./routes/events');
 const comparisonsRouter = require('./routes/comparisons');
+const foldersRouter = require('./routes/folders');
 const metaRouter = require('./routes/meta');
 
 const app = express();
@@ -82,6 +83,7 @@ async function start() {
   // Protected routes (require auth)
   app.use('/api/events', requireAuth, eventsRouter);
   app.use('/api/comparisons', requireAuth, comparisonsRouter);
+  app.use('/api/folders', requireAuth, foldersRouter);
   app.use('/api/account', requireAuth, accountRouter);
   app.use('/api', requireAuth, metaRouter);
 

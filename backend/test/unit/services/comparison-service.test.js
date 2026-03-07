@@ -30,8 +30,8 @@ describe('comparison-service', () => {
       strictEqual(queries.length, 3);
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
       strictEqual(Boolean(insertComp), true);
-      strictEqual(insertComp.params[2], 'My Compare');
-      deepStrictEqual(JSON.parse(insertComp.params[3]), { x: 1 });
+      strictEqual(insertComp.params[3], 'My Compare');
+      deepStrictEqual(JSON.parse(insertComp.params[4]), { x: 1 });
 
       const linkInsert = queries.find((q) =>
         q.sql.includes('INSERT INTO comparison_event_activities')
@@ -63,7 +63,7 @@ describe('comparison-service', () => {
 
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
       strictEqual(Boolean(insertComp), true);
-      strictEqual(insertComp.params[3], null);
+      strictEqual(insertComp.params[4], null);
       strictEqual(result.settings, null);
     });
 

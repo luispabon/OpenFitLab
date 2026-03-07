@@ -80,7 +80,9 @@ describe('CompareCandidatesFlow', () => {
 
     component.openForEvent('evt-1');
 
-    expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1');
+    expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1', {
+      sameFolderOnly: true,
+    });
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
@@ -157,7 +159,10 @@ describe('CompareCandidatesFlow', () => {
     const compareBtn = await screen.findByRole('button', { name: /Compare \(2 event/ });
     fireEvent.click(compareBtn);
 
-    expect(mockOnCompare).toHaveBeenCalledWith(['evt-1', 'evt-2']);
+    expect(mockOnCompare).toHaveBeenCalledWith(
+      ['evt-1', 'evt-2'],
+      null // suggestedFolderId (source event has no folderId in fixture)
+    );
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

@@ -12,7 +12,22 @@
   import UserMenu from './lib/components/user-menu.svelte';
   import Footer from './lib/components/Footer.svelte';
   import { checkAuth, state as authState } from './lib/stores/auth.svelte';
+  import {
+    loadFolders,
+    foldersState,
+    getFolderFromHash,
+    buildFolderHash,
+    setFolderHash,
+  } from './lib/stores/folders.svelte';
   import { trackPageView } from './lib/analytics/gtag.js';
+  import { FOLDER_SELECTION_ALL, FOLDER_SELECTION_UNFILED } from './lib/types/event';
+  import type { Folder } from './lib/types/event';
+  import { updateFolder } from './lib/api/folders';
+  import FolderCreateModal from './lib/components/folders/FolderCreateModal.svelte';
+  import FolderRenameModal from './lib/components/folders/FolderRenameModal.svelte';
+  import FolderColorModal from './lib/components/folders/FolderColorModal.svelte';
+  import FolderDeleteModal from './lib/components/folders/FolderDeleteModal.svelte';
+  import FolderContextMenu from './lib/components/folders/FolderContextMenu.svelte';
 
   const routes = {
     '/': Dashboard,
@@ -43,10 +58,23 @@
     localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   });
 
+  $effect(() => {
+    setFolderHash(window.location.hash);
+    const onHashChange = () => setFolderHash(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  });
+
   // Check auth on app load
   $effect(() => {
-    // Fire and forget
     checkAuth();
+  });
+
+  // Load folders when user is authenticated
+  $effect(() => {
+    if (authState.user) {
+      loadFolders();
+    }
   });
 
   function toggleSidebar() {
@@ -56,6 +84,49 @@
   const currentLocation = $derived($location);
   const isDashboardActive = $derived(currentLocation === '/' || currentLocation === '');
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
+
+  const activeFolderValue = $derived(getFolderFromHash(foldersState.currentHash));
+  const folderList = $derived(foldersState.folders);
+  const pinnedFolders = $derived(
+    [...folderList].filter((f) => f.pinned).sort((a, b) => a.name.localeCompare(b.name))
+  );
+  const unpinnedFolders = $derived(
+    [...folderList].filter((f) => !f.pinned).sort((a, b) => a.name.localeCompare(b.name))
+  );
+
+  function isFolderActive(
+    value: typeof FOLDER_SELECTION_ALL | typeof FOLDER_SELECTION_UNFILED | string
+  ): boolean {
+    return activeFolderValue === value;
+  }
+
+  const pinnedCount = $derived(folderList.filter((f) => f.pinned).length);
+  const MAX_FOLDERS = 20;
+  const MAX_PINNED = 5;
+
+  let showCreateFolderModal = $state(false);
+  let folderToRename = $state<Folder | null>(null);
+  let folderToRecolor = $state<Folder | null>(null);
+  let folderToDelete = $state<Folder | null>(null);
+  let folderMenuFolder = $state<Folder | null>(null);
+  let menuAnchorEl = $state<HTMLElement | null>(null);
+  let folderToastMessage = $state<string | null>(null);
+
+  function showFolderToast(message: string) {
+    folderToastMessage = message;
+    setTimeout(() => {
+      folderToastMessage = null;
+    }, 4000);
+  }
+
+  async function handleFolderPinToggle(folder: Folder) {
+    try {
+      await updateFolder(folder.id, { pinned: !folder.pinned });
+      loadFolders();
+    } catch (error) {
+      showFolderToast(error instanceof Error ? error.message : 'Failed to update folder');
+    }
+  }
 
   // Track page views when route changes (SPA)
   $effect(() => {
@@ -90,7 +161,7 @@
         <div class="flex-1"></div>
       {:else}
         <!-- Navigation Items -->
-        <div class="flex-1 py-4">
+        <div class="flex-1 py-4 overflow-y-auto">
           <a
             href="#/"
             class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isDashboardActive
@@ -102,9 +173,110 @@
               <span>Dashboard</span>
             {/if}
           </a>
+          {#if !sidebarCollapsed}
+            <div class="mt-1 pl-4">
+              <a
+                href={buildFolderHash(FOLDER_SELECTION_ALL)}
+                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                  FOLDER_SELECTION_ALL
+                )
+                  ? 'text-text-primary font-medium'
+                  : ''}"
+              >
+                <span class="material-icons text-base">folder_open</span>
+                <span>All</span>
+              </a>
+              <a
+                href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
+                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                  FOLDER_SELECTION_UNFILED
+                )
+                  ? 'text-text-primary font-medium'
+                  : ''}"
+              >
+                <span class="material-icons text-base">folder_off</span>
+                <span>Unfiled</span>
+              </a>
+              <button
+                type="button"
+                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
+                onclick={() => (showCreateFolderModal = true)}
+              >
+                <span class="material-icons text-base">create_new_folder</span>
+                <span>New folder</span>
+              </button>
+              {#each pinnedFolders as folder (folder.id)}
+                <div class="flex items-center gap-0.5 py-0.5">
+                  <a
+                    href={buildFolderHash(folder.id)}
+                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                      folder.id
+                    )
+                      ? 'text-text-primary font-medium'
+                      : ''}"
+                  >
+                    <span
+                      class="h-3 w-3 shrink-0 rounded-full"
+                      style="background-color: {folder.color};"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="truncate">{folder.name}</span>
+                    <span class="material-icons text-base text-amber-500" title="Pinned"
+                      >push_pin</span
+                    >
+                  </a>
+                  <button
+                    type="button"
+                    class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary"
+                    aria-label="Folder options for {folder.name}"
+                    onclick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      folderMenuFolder = folder;
+                      menuAnchorEl = e.currentTarget as HTMLElement;
+                    }}
+                  >
+                    <span class="material-icons text-base">more_vert</span>
+                  </button>
+                </div>
+              {/each}
+              {#each unpinnedFolders as folder (folder.id)}
+                <div class="flex items-center gap-0.5 py-0.5">
+                  <a
+                    href={buildFolderHash(folder.id)}
+                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                      folder.id
+                    )
+                      ? 'text-text-primary font-medium'
+                      : ''}"
+                  >
+                    <span
+                      class="h-3 w-3 shrink-0 rounded-full"
+                      style="background-color: {folder.color};"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="truncate">{folder.name}</span>
+                  </a>
+                  <button
+                    type="button"
+                    class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary"
+                    aria-label="Folder options for {folder.name}"
+                    onclick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      folderMenuFolder = folder;
+                      menuAnchorEl = e.currentTarget as HTMLElement;
+                    }}
+                  >
+                    <span class="material-icons text-base">more_vert</span>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
           <a
             href="#/comparisons"
-            class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isComparisonsActive
+            class="flex items-center gap-3 px-4 py-3 mt-2 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isComparisonsActive
               ? 'bg-card-hover text-text-primary border-r-2 border-accent'
               : ''}"
           >
@@ -114,6 +286,73 @@
             {/if}
           </a>
         </div>
+
+        <!-- Folder modals and context menu -->
+        {#if folderMenuFolder && menuAnchorEl}
+          <FolderContextMenu
+            folder={folderMenuFolder}
+            {pinnedCount}
+            maxPinned={MAX_PINNED}
+            anchor={menuAnchorEl}
+            onRename={() => {
+              folderToRename = folderMenuFolder;
+              folderMenuFolder = null;
+              menuAnchorEl = null;
+            }}
+            onRecolor={() => {
+              folderToRecolor = folderMenuFolder;
+              folderMenuFolder = null;
+              menuAnchorEl = null;
+            }}
+            onPinToggle={handleFolderPinToggle}
+            onDelete={() => {
+              folderToDelete = folderMenuFolder;
+              folderMenuFolder = null;
+              menuAnchorEl = null;
+            }}
+            onClose={() => {
+              folderMenuFolder = null;
+              menuAnchorEl = null;
+            }}
+          />
+        {/if}
+        <FolderCreateModal
+          open={showCreateFolderModal}
+          existingNames={folderList.map((f) => f.name)}
+          maxFolders={MAX_FOLDERS}
+          onCreated={() => {
+            loadFolders();
+          }}
+          onClosed={() => (showCreateFolderModal = false)}
+          onError={showFolderToast}
+        />
+        <FolderRenameModal
+          folder={folderToRename}
+          existingNames={folderList.map((f) => f.name)}
+          onDone={loadFolders}
+          onClosed={() => (folderToRename = null)}
+          onError={showFolderToast}
+        />
+        <FolderColorModal
+          folder={folderToRecolor}
+          onDone={loadFolders}
+          onClosed={() => (folderToRecolor = null)}
+          onError={showFolderToast}
+        />
+        <FolderDeleteModal
+          folder={folderToDelete}
+          onDone={loadFolders}
+          onClosed={() => (folderToDelete = null)}
+          onError={showFolderToast}
+        />
+        {#if folderToastMessage}
+          <div
+            class="fixed bottom-20 left-4 z-50 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary shadow-lg"
+            role="alert"
+          >
+            {folderToastMessage}
+          </div>
+        {/if}
 
         <!-- User Menu -->
         <div class="border-t border-border">

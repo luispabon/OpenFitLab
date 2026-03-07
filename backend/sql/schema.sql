@@ -1,6 +1,6 @@
 -- OpenFitLab database schema
 --
--- Tables: users, user_identities, events, event_stats, activities, activity_stats,
+-- Tables: users, user_identities, folders, events, event_stats, activities, activity_stats,
 --         streams, stream_data_points, comparisons, comparison_event_activities
 -- Sessions are stored in Valkey (not in DB). Applied on API startup via db.initializeSchema().
 -- No migrations; schema changes require DB recreate.
@@ -31,9 +31,25 @@ CREATE TABLE IF NOT EXISTS user_identities (
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS folders (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  color VARCHAR(7) NOT NULL,
+  pinned TINYINT(1) DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_id (user_id),
+  INDEX idx_user_pinned_name (user_id, pinned, name),
+  UNIQUE KEY uk_user_folder_name (user_id, name),
+  CONSTRAINT fk_folders_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+)
+DEFAULT CHARSET = utf8mb4
+COLLATE = utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS events (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
+  folder_id VARCHAR(36) NULL,
   start_date BIGINT NOT NULL,
   name VARCHAR(512),
   end_date BIGINT NULL,
@@ -46,7 +62,9 @@ CREATE TABLE IF NOT EXISTS events (
   INDEX idx_start_date (start_date),
   INDEX idx_user_id (user_id),
   INDEX idx_user_start_date (user_id, start_date),
-  CONSTRAINT fk_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  INDEX idx_folder_id (folder_id),
+  CONSTRAINT fk_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_events_folder FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE SET NULL
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
@@ -125,13 +143,16 @@ COLLATE = utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS comparisons (
   id VARCHAR(36) PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
+  folder_id VARCHAR(36) NULL,
   name VARCHAR(512) NOT NULL,
   settings JSON NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_created_at (created_at),
   INDEX idx_user_id (user_id),
   INDEX idx_user_created_at (user_id, created_at),
-  CONSTRAINT fk_comparisons_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  INDEX idx_folder_id (folder_id),
+  CONSTRAINT fk_comparisons_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_comparisons_folder FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE SET NULL
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;

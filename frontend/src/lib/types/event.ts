@@ -1,3 +1,37 @@
+/** Sentinel values for folder selection (UI-only; not persisted as folder rows). */
+export const FOLDER_SELECTION_ALL = 'all' as const;
+export const FOLDER_SELECTION_UNFILED = 'unfiled' as const;
+export type FolderSelectionValue =
+  | typeof FOLDER_SELECTION_ALL
+  | typeof FOLDER_SELECTION_UNFILED
+  | string;
+
+export interface Folder {
+  id: string;
+  name: string;
+  color: string;
+  pinned: boolean;
+  eventCount?: number;
+  comparisonCount?: number;
+  createdAt?: number;
+}
+
+/** Preset hex colors for folder color picker (12 colors). */
+export const FOLDER_PRESET_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#a855f7',
+  '#d946ef',
+  '#ec4899',
+  '#6b7280',
+] as const;
+
 export interface EventSummary {
   id: string;
   name: string;
@@ -10,6 +44,8 @@ export interface EventSummary {
   srcFileType?: string;
   startTimezone?: string;
   endTimezone?: string;
+  /** Folder this event belongs to; null/undefined = Unfiled. */
+  folderId?: string | null;
 }
 
 export interface EventDetail {
@@ -76,4 +112,10 @@ export interface Comparison {
   activityIds?: string[];
   settings?: ComparisonSettings;
   createdAt?: number;
+  /** Home folder for this comparison; null/undefined = Unfiled. */
+  folderId?: string | null;
+  /** True when comparison references events from more than one folder. */
+  mixed?: boolean;
+  /** True when comparison is shown in a folder view because it references an event in that folder (home folder may differ). */
+  surfaced?: boolean;
 }

@@ -32,7 +32,7 @@ describe('getComparisonCandidates', () => {
 
     expect(result).toEqual(candidates);
     expect(fetch).toHaveBeenCalledWith(
-      '/api/events/evt-1/candidates',
+      '/api/events/evt-1/candidates?sameFolderOnly=true',
       expect.objectContaining({ credentials: 'include' })
     );
   });

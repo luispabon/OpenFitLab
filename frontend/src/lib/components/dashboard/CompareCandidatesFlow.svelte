@@ -5,7 +5,8 @@
 
   interface Props {
     activityRows: ActivityRow[];
-    onCompare: (eventIds: string[]) => void;
+    /** Called with (eventIds, suggestedFolderId for the new comparison). */
+    onCompare: (eventIds: string[], suggestedFolderId?: string | null) => void;
     onError?: (message: string) => void;
   }
   let { activityRows, onCompare, onError }: Props = $props();
@@ -14,6 +15,7 @@
   let candidates = $state<EventSummary[]>([]);
   let candidatesLoading = $state(false);
   let selectedCandidateIds = $state<Set<string>>(new Set());
+  let showAllFolders = $state(false);
 
   const sourceEventRow = $derived.by(() => {
     if (!sourceEventId) return null;
@@ -27,7 +29,9 @@
     candidates = [];
     selectedCandidateIds = new Set();
     try {
-      const found = await getComparisonCandidates(eventId);
+      const found = await getComparisonCandidates(eventId, {
+        sameFolderOnly: !showAllFolders,
+      });
       candidates = found;
     } catch (error) {
       console.error('Failed to load comparison candidates:', error);
@@ -39,7 +43,15 @@
 
   export function openForEvent(eventId: string) {
     sourceEventId = eventId;
+    showAllFolders = false;
     void loadCandidates(eventId);
+  }
+
+  async function toggleShowAllFolders() {
+    showAllFolders = !showAllFolders;
+    if (sourceEventId) {
+      void loadCandidates(sourceEventId);
+    }
   }
 
   function toggleCandidateSelection(eventId: string) {
@@ -55,7 +67,8 @@
   function handleCompare() {
     if (!sourceEventId || selectedCandidateIds.size === 0) return;
     const eventIds = [sourceEventId, ...Array.from(selectedCandidateIds)];
-    onCompare(eventIds);
+    const suggestedFolderId = sourceEventRow?.event.folderId ?? null;
+    onCompare(eventIds, suggestedFolderId);
     sourceEventId = null;
     candidates = [];
     selectedCandidateIds = new Set();
@@ -74,6 +87,8 @@
   {candidates}
   {candidatesLoading}
   {selectedCandidateIds}
+  {showAllFolders}
+  onToggleShowAllFolders={toggleShowAllFolders}
   onToggleCandidate={toggleCandidateSelection}
   onCompare={handleCompare}
   onCancel={handleCancel}

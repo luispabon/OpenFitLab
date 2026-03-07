@@ -4,9 +4,10 @@
     disabled?: boolean;
     onClear: () => void;
     onCompare: () => void;
+    onMove: () => void;
     onDelete: () => void;
   }
-  let { selectedCount, disabled = false, onClear, onCompare, onDelete }: Props = $props();
+  let { selectedCount, disabled = false, onClear, onCompare, onMove, onDelete }: Props = $props();
 </script>
 
 {#if selectedCount > 0}
@@ -34,6 +35,18 @@
         >compare_arrows</span
       >
       Compare
+    </button>
+    <button
+      type="button"
+      class="flex items-center rounded border-0 bg-surface px-1.5 py-0.5 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 border border-border"
+      onclick={onMove}
+      {disabled}
+      title="Move to folder"
+    >
+      <span class="material-icons text-sm leading-none mr-0.5" aria-hidden="true"
+        >drive_file_move</span
+      >
+      Move
     </button>
     <button
       type="button"

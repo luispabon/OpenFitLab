@@ -455,7 +455,9 @@ describe('Dashboard', () => {
     const findButtons = screen.getAllByRole('button', { name: 'Find' });
     await fireEvent.click(findButtons[0]);
     await waitFor(() => {
-      expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1');
+      expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1', {
+        sameFolderOnly: true,
+      });
     });
   });
 
@@ -478,7 +480,7 @@ describe('Dashboard', () => {
     const compareBtn = within(dialog).getByRole('button', { name: /Compare \(2 events\)/ });
     await fireEvent.click(compareBtn);
     expect(mockPush).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/compare\/new\?events=evt-1,evt-2/)
+      expect.stringMatching(/^\/compare\/new\?events=evt-1(?:%2C|,)evt-2/)
     );
   });
 

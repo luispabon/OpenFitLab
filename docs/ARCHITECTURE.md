@@ -63,8 +63,11 @@ graph TB
 ```mermaid
 erDiagram
     USERS ||--o{ USER_IDENTITIES : has
+    USERS ||--o{ FOLDERS : owns
     USERS ||--o{ EVENTS : owns
     USERS ||--o{ COMPARISONS : owns
+    FOLDERS ||--o{ EVENTS : contains
+    FOLDERS ||--o{ COMPARISONS : contains
     EVENTS ||--o{ ACTIVITIES : contains
     EVENTS ||--o{ EVENT_STATS : has
     COMPARISONS ||--o{ COMPARISON_EVENTS : has
@@ -91,9 +94,19 @@ erDiagram
         timestamp created_at
     }
 
+    FOLDERS {
+        varchar id PK
+        varchar user_id FK
+        varchar name
+        varchar color
+        tinyint pinned
+        timestamp created_at
+    }
+
     EVENTS {
         varchar id PK
         varchar user_id FK
+        varchar folder_id FK
         bigint start_date
         varchar name
         bigint end_date
@@ -146,6 +159,7 @@ erDiagram
     COMPARISONS {
         varchar id PK
         varchar user_id FK
+        varchar folder_id FK
         varchar name
         json settings
         timestamp created_at
@@ -157,7 +171,7 @@ erDiagram
     }
 ```
 
-All relationships use foreign keys with **ON DELETE CASCADE**. Deleting a **user** cascades to user_identities, events (and their event_stats, activities, activity_stats, streams, stream_data_points), and comparisons (and comparison_event_activities). Deleting an **event**: the event-delete-service first deletes any comparisons that reference the event (in a transaction), then `DELETE FROM events WHERE id = ?`; CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_event_activities. Deleting an activity or stream cascades to their stats and stream_data_points respectively.
+All relationships use foreign keys with **ON DELETE CASCADE** unless noted. **ON DELETE SET NULL** is used for `events.folder_id` and `comparisons.folder_id` so that deleting a folder unfiles its contents. Deleting a **user** cascades to user_identities, folders, events (and their event_stats, activities, activity_stats, streams, stream_data_points), and comparisons (and comparison_event_activities). Deleting an **event**: the event-delete-service first deletes any comparisons that reference the event (in a transaction), then `DELETE FROM events WHERE id = ?`; CASCADE removes event_stats, activities, activity_stats, streams, stream_data_points, and comparison_event_activities. Deleting an activity or stream cascades to their stats and stream_data_points respectively.
 
 ### Event vs Activity: Core Concepts
 
@@ -233,11 +247,22 @@ Session store for express-session (express-mysql-session). Session ID, expiry, a
 - `data`: Serialized session (MEDIUMTEXT)
 - Index on `expires` for cleanup
 
+#### folders
+User-owned flat list of folders for organizing events and comparisons. Max 20 per user; names unique per user (case-insensitive); max 5 pinned.
+
+- `id`: UUID (VARCHAR(36)) primary key
+- `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
+- `name`: Folder name (unique per user)
+- `color`: Hex color (e.g. for UI)
+- `pinned`: Boolean (0/1); max 5 pinned per user
+- `created_at`: Timestamp
+
 #### events
-Top-level workout sessions. Each event represents a single workout session and can contain multiple activities. Owned by a user.
+Top-level workout sessions. Each event represents a single workout session and can contain multiple activities. Owned by a user. Optionally in one folder.
 
 - `id`: UUID (VARCHAR(36))
 - `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
+- `folder_id`: FK to folders ON DELETE SET NULL (nullable; null = Unfiled)
 - `start_date`: Start timestamp in milliseconds (BIGINT)
 - `name`: Event name (derived from filename)
 - `end_date`: End timestamp (nullable)
@@ -294,10 +319,11 @@ Timestamped data points for each stream. Stored relationally with timestamps for
 - Indexes: `(stream_id, time_ms)`, `stream_id`, `time_ms`
 
 #### comparisons
-Saved comparison definitions (optional feature). Owned by a user; per-event activity membership is stored in `comparison_event_activities`, not as JSON.
+Saved comparison definitions (optional feature). Owned by a user; per-event activity membership is stored in `comparison_event_activities`, not as JSON. Optionally in one folder (home folder).
 
 - `id`: UUID primary key
 - `user_id`: FK to users ON DELETE CASCADE; all queries scope by this
+- `folder_id`: FK to folders ON DELETE SET NULL (nullable; null = Unfiled)
 - `name`: User-defined name
 - `settings`: JSON (e.g. selectedStreams, xAxisMode)
 - `created_at`: Row creation timestamp
@@ -319,7 +345,7 @@ Link table between comparisons, events, and activities. Each comparison can refe
 - **Session:** express-session with MySQL store; cookie name `ofl.sid`; HttpOnly, Secure in production, SameSite=Lax; 7-day max age. Session holds `userId`.
 - **Current user:** `GET /api/auth/me` returns `{ id, displayName, avatarUrl }` or 401. `POST /api/auth/logout` destroys the session.
 - **Account:** `GET /api/account/export?includeStreams=true` (optional) returns a JSON archive of the user's data. `DELETE /api/account` deletes the current user's account and all their data (cascades), clears the session cookie; 204 on success, 404 if user not found.
-- **Protected routes:** All endpoints under `/api/events`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session. Unauthenticated requests receive 401. All data is scoped by the authenticated user; ownership is enforced (e.g. `WHERE user_id = ?`), and 404 is returned when a resource by ID is not found or not owned.
+- **Protected routes:** All endpoints under `/api/events`, `/api/folders`, `/api/comparisons`, `/api/activity-types`, `/api/devices`, and `/api/account` require a valid session. Unauthenticated requests receive 401. All data is scoped by the authenticated user; ownership is enforced (e.g. `WHERE user_id = ?`), and 404 is returned when a resource by ID is not found or not owned.
 
 ### Health (no auth)
 
@@ -471,6 +497,33 @@ Delete an event and all related data.
 **Deletion (in a single transaction):**
 1. Find comparisons that reference this event (via comparison_event_activities) and delete those comparisons (CASCADE removes their comparison_event_activities rows).
 2. Delete the event; CASCADE then removes event_stats, activities, activity_stats, streams, stream_data_points, and any remaining comparison_event_activities rows.
+
+#### Folders API
+
+User-owned flat list of folders for organizing events and comparisons. Many-to-one: each event and each comparison belongs to at most one folder (or **Unfiled**, i.e. `folder_id IS NULL`). **All** and **Unfiled** are UI-only concepts (no persisted row for Unfiled).
+
+**Vocabulary:** **Folder** = persisted entity (id, name, color, pinned; max 20 per user, unique name per user, max 5 pinned). **All** = view all items regardless of folder. **Unfiled** = items with no folder.
+
+**Folder metadata:** List payload includes `id`, `name`, `color`, `pinned`; optional `eventCount`, `comparisonCount`, `createdAt`. Event and comparison responses include `folderId` (string | null). Comparisons can include `mixed` (events span more than one folder) and `surfaced` (shown in this folder because it references an event here, but home folder is different).
+
+**Comparison visibility:** Each comparison has one home folder (or Unfiled). Same-folder-first: candidate picker defaults to events in the source event’s folder; user can choose “show all folders”. When listing comparisons for a folder, include those that reference at least one event in that folder; set `surfaced: true` when the comparison’s home folder is not the current folder.
+
+**Folder selection (frontend/URL):** `all` | `unfiled` | `<folder-uuid>`. Query param `folderId`: omit (all), `unfiled`, or folder UUID.
+
+- **GET /api/folders** – List user's folders (pinned first, then alphabetical). **Response:** `Folder[]` with optional counts.
+- **POST /api/folders** – Create. **Body:** `{ name, color }`. Enforce max 20 folders, unique name per user.
+- **GET /api/folders/:id** – Get one. 404 if not found or not owned.
+- **PATCH /api/folders/:id** – Update name, color, pinned. Enforce max 5 pinned, unique name.
+- **DELETE /api/folders/:id** – Delete. **Query:** `?contents=unfile` (default: move contents to Unfiled) or `contents=delete` (delete folder contents). 204 or 404.
+
+**Events and comparisons extended for folders:**
+
+- **GET /api/events**, **GET /api/events/activity-rows**: **Query** `folderId` = omit (all), `unfiled`, or folder UUID.
+- **POST /api/events**: **Body** may include optional `folderId` (UUID). New events are assigned to that folder.
+- **PATCH /api/events/:id**: **Body** may include `folderId` (UUID | null) to move event to a folder or Unfiled.
+- **GET /api/comparisons**: **Query** `folderId` = omit (all), `unfiled`, or UUID. When set, returns comparisons that belong to that folder or reference an event in it; sets `surfaced` when home folder differs.
+- **POST /api/comparisons**: **Body** may include optional `folderId`. New comparison gets that home folder.
+- **GET /api/events/:id/candidates**: **Query** `sameFolderOnly` (default true) or `sameFolderOnly=false` for cross-folder candidates.
 
 #### GET /api/activity-types
 Returns distinct activity types from the current user's activities. **Response:** JSON array of strings (e.g. `["Running", "Cycling"]`).

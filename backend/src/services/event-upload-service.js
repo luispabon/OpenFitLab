@@ -35,11 +35,14 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
   const activities = event.getActivities();
   const eventTimezone = FileParser.extractEventTimezone(event);
 
+  const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
+
   await db.transaction(async (conn) => {
     const tOpts = { ...opts, db, conn };
     await eventRepository.insertEvent(
       {
         id: eventId,
+        folder_id: folderId,
         start_date: startDate,
         name,
         end_date: eventEndDate,
@@ -125,7 +128,7 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
 
   return {
     eventId,
-    eventJson: { ...eventJson, id: eventId, startDate, name },
+    eventJson: { ...eventJson, id: eventId, startDate, name, folderId: folderId ?? null },
     activities: responseActivities,
   };
 }
