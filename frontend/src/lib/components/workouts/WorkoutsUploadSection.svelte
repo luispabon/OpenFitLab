@@ -9,7 +9,6 @@
     isDraggingOver?: boolean;
     /** When provided, show active folder as a pill next to the title. */
     activeFolderDisplay?: { label: string; color: string | null };
-    bulkBar?: Snippet;
     children?: Snippet;
   }
   let {
@@ -18,7 +17,6 @@
     accept = '.json,.tcx,.fit,.gpx,.sml',
     isDraggingOver = $bindable(false),
     activeFolderDisplay,
-    bulkBar,
     children,
   }: Props = $props();
 
@@ -137,9 +135,6 @@
     onchange={handleFileSelect}
     disabled={isUploading}
   />
-  {#if bulkBar}
-    {@render bulkBar()}
-  {/if}
   {#if children}
     {@render children()}
   {/if}

@@ -349,23 +349,6 @@
     bind:isDraggingOver
     {activeFolderDisplay}
   >
-    {#snippet bulkBar()}
-      <WorkoutsBulkActionBar
-        selectedCount={selectedEventIds.size}
-        disabled={eventsToBulkDelete.length > 0 ||
-          eventToDelete !== null ||
-          eventIdsToMove.length > 0}
-        onClear={clearSelection}
-        onCompare={() => {
-          if (selectedEventIds.size >= 2) {
-            push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
-          }
-        }}
-        onMove={handleBulkMoveClick}
-        onDelete={handleBulkDeleteClick}
-      />
-    {/snippet}
-
     <!-- Loading Spinner (only for loading events, not uploads) -->
     {#if isLoading}
       <div class="mb-4">
@@ -398,20 +381,37 @@
 
     <WorkoutsToast message={toastMessage} />
 
-    <WorkoutsFilters
-      bind:searchInputValue
-      {onSearchInput}
-      {activityTypesOptions}
-      {selectedActivityTypes}
-      onToggleActivityType={toggleActivityType}
-      {devicesOptions}
-      {selectedDevices}
-      onToggleDevice={toggleDevice}
-      {dateStartStr}
-      {dateEndStr}
-      onDateStartChange={setDateStart}
-      onDateEndChange={setDateEnd}
-    />
+    {#if selectedEventIds.size > 0}
+      <WorkoutsBulkActionBar
+        selectedCount={selectedEventIds.size}
+        disabled={eventsToBulkDelete.length > 0 ||
+          eventToDelete !== null ||
+          eventIdsToMove.length > 0}
+        onClear={clearSelection}
+        onCompare={() => {
+          if (selectedEventIds.size >= 2) {
+            push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
+          }
+        }}
+        onMove={handleBulkMoveClick}
+        onDelete={handleBulkDeleteClick}
+      />
+    {:else}
+      <WorkoutsFilters
+        bind:searchInputValue
+        {onSearchInput}
+        {activityTypesOptions}
+        {selectedActivityTypes}
+        onToggleActivityType={toggleActivityType}
+        {devicesOptions}
+        {selectedDevices}
+        onToggleDevice={toggleDevice}
+        {dateStartStr}
+        {dateEndStr}
+        onDateStartChange={setDateStart}
+        onDateEndChange={setDateEnd}
+      />
+    {/if}
 
     <WorkoutsPaginationWithUrl {totalRows} bind:page bind:pageSize>
       <WorkoutsActivityTable
