@@ -86,13 +86,13 @@ describe('EventDetail', () => {
     expect(screen.getByText(/1:00:00/)).toBeInTheDocument();
   });
 
-  it('Back to Dashboard button calls push("/")', async () => {
+  it('Back to Workouts button calls push("/")', async () => {
     mockGetEvent.mockResolvedValue(eventDetailFixture);
     render(EventDetail, { props: { params: { id: 'evt-1' } } });
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    await fireEvent.click(screen.getByRole('button', { name: '← Back to Dashboard' }));
+    await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
@@ -217,7 +217,7 @@ describe('EventDetail', () => {
     render(EventDetail, { props: {} });
     expect(mockGetEvent).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '← Back to Dashboard' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '← Back to Workouts' })).toBeInTheDocument();
     });
   });
 
@@ -272,7 +272,7 @@ describe('EventDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    expect(screen.getByRole('button', { name: '← Back to Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '← Back to Workouts' })).toBeInTheDocument();
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });

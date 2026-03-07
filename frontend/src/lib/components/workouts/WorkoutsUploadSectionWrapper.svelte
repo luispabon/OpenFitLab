@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DashboardUploadSection from '../DashboardUploadSection.svelte';
+  import WorkoutsUploadSection from './WorkoutsUploadSection.svelte';
 
   interface Props {
     showBulkBar?: boolean;
@@ -15,7 +15,7 @@
   }: Props = $props();
 </script>
 
-<DashboardUploadSection {isUploading} {onFilesSelected}>
+<WorkoutsUploadSection {isUploading} {onFilesSelected}>
   {#snippet bulkBar()}
     {#if showBulkBar}
       <div data-testid="bulk-bar">Bulk bar content</div>
@@ -27,4 +27,4 @@
       <div data-testid="upload-children">Children content</div>
     {/if}
   {/snippet}
-</DashboardUploadSection>
+</WorkoutsUploadSection>

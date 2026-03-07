@@ -17,19 +17,19 @@
     formatAvgHeartRateCell,
     formatCaloriesCell,
     formatDistanceCell,
-  } from '../lib/utils/dashboard-table-formatters';
+  } from '../lib/utils/workouts-table-formatters';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import UploadProgressBar from '../lib/components/UploadProgressBar.svelte';
-  import DashboardUploadSection from '../lib/components/dashboard/DashboardUploadSection.svelte';
-  import DashboardToast from '../lib/components/dashboard/DashboardToast.svelte';
-  import DashboardBulkActionBar from '../lib/components/dashboard/DashboardBulkActionBar.svelte';
-  import DashboardBulkDeleteFlow from '../lib/components/dashboard/DashboardBulkDeleteFlow.svelte';
-  import CompareCandidatesFlow from '../lib/components/dashboard/CompareCandidatesFlow.svelte';
-  import DashboardSingleDeleteFlow from '../lib/components/dashboard/DashboardSingleDeleteFlow.svelte';
-  import DashboardMoveToFolderFlow from '../lib/components/dashboard/DashboardMoveToFolderFlow.svelte';
-  import DashboardFilters from '../lib/components/dashboard/DashboardFilters.svelte';
-  import DashboardPaginationWithUrl from '../lib/components/dashboard/DashboardPaginationWithUrl.svelte';
-  import DashboardActivityTable from '../lib/components/dashboard/DashboardActivityTable.svelte';
+  import WorkoutsUploadSection from '../lib/components/workouts/WorkoutsUploadSection.svelte';
+  import WorkoutsToast from '../lib/components/workouts/WorkoutsToast.svelte';
+  import WorkoutsBulkActionBar from '../lib/components/workouts/WorkoutsBulkActionBar.svelte';
+  import WorkoutsBulkDeleteFlow from '../lib/components/workouts/WorkoutsBulkDeleteFlow.svelte';
+  import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
+  import WorkoutsSingleDeleteFlow from '../lib/components/workouts/WorkoutsSingleDeleteFlow.svelte';
+  import WorkoutsMoveToFolderFlow from '../lib/components/workouts/WorkoutsMoveToFolderFlow.svelte';
+  import WorkoutsFilters from '../lib/components/workouts/WorkoutsFilters.svelte';
+  import WorkoutsPaginationWithUrl from '../lib/components/workouts/WorkoutsPaginationWithUrl.svelte';
+  import WorkoutsActivityTable from '../lib/components/workouts/WorkoutsActivityTable.svelte';
 
   let activityRowsFromApi = $state<ActivityRow[]>([]);
   let totalRows = $state(0);
@@ -334,7 +334,7 @@
   class="mx-auto w-[85%] max-w-screen-2xl py-6 transition-opacity"
   class:opacity-50={isDraggingOver && !isUploading}
 >
-  <DashboardUploadSection
+  <WorkoutsUploadSection
     {isUploading}
     onFilesSelected={handleFiles}
     bind:isDraggingOver
@@ -342,7 +342,7 @@
     bind:uploadFolderId
   >
     {#snippet bulkBar()}
-      <DashboardBulkActionBar
+      <WorkoutsBulkActionBar
         selectedCount={selectedEventIds.size}
         disabled={eventsToBulkDelete.length > 0 ||
           eventToDelete !== null ||
@@ -378,7 +378,7 @@
       />
     {/if}
 
-    <DashboardBulkDeleteFlow
+    <WorkoutsBulkDeleteFlow
       eventIdsToDelete={eventsToBulkDelete}
       {deleteEvent}
       onDone={handleBulkDeleteDone}
@@ -388,9 +388,9 @@
       isDeleting={eventToDelete !== null}
     />
 
-    <DashboardToast message={toastMessage} />
+    <WorkoutsToast message={toastMessage} />
 
-    <DashboardFilters
+    <WorkoutsFilters
       bind:searchInputValue
       {onSearchInput}
       {activityTypesOptions}
@@ -405,8 +405,8 @@
       onDateEndChange={setDateEnd}
     />
 
-    <DashboardPaginationWithUrl {totalRows} bind:page bind:pageSize>
-      <DashboardActivityTable
+    <WorkoutsPaginationWithUrl {totalRows} bind:page bind:pageSize>
+      <WorkoutsActivityTable
         rows={activityRowsFromApi}
         {isLoading}
         {selectedEventIds}
@@ -432,9 +432,9 @@
         }}
         onDeleteClick={handleDeleteClick}
       />
-    </DashboardPaginationWithUrl>
+    </WorkoutsPaginationWithUrl>
 
-    <DashboardSingleDeleteFlow
+    <WorkoutsSingleDeleteFlow
       eventIdToDelete={eventToDelete}
       {deleteEvent}
       onDone={() => {
@@ -448,7 +448,7 @@
       confirmDisabledWhen={eventsToBulkDelete.length > 0}
     />
 
-    <DashboardMoveToFolderFlow
+    <WorkoutsMoveToFolderFlow
       {eventIdsToMove}
       folders={foldersState.folders}
       {updateEventFolder}
@@ -470,5 +470,5 @@
       }}
       onError={showToast}
     />
-  </DashboardUploadSection>
+  </WorkoutsUploadSection>
 </section>

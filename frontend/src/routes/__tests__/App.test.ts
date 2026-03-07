@@ -117,7 +117,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByTestId('app-router')).toBeInTheDocument();
       });
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Workouts')).toBeInTheDocument();
       expect(screen.getByText('Comparisons')).toBeInTheDocument();
       expect(screen.getByText('Test User')).toBeInTheDocument();
       expect(document.querySelectorAll('svg.animate-spin').length).toBe(0);
@@ -142,7 +142,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByText('OpenFitLab')).toBeInTheDocument();
       });
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Workouts')).toBeInTheDocument();
       expect(screen.getByText('Comparisons')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
@@ -155,7 +155,7 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.queryByText('OpenFitLab')).not.toBeInTheDocument();
       });
-      expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+      expect(screen.queryByText('Workouts')).not.toBeInTheDocument();
       expect(screen.queryByText('Comparisons')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
@@ -206,14 +206,14 @@ describe('App', () => {
       mockAuthState.user = { id: 'u1', displayName: 'Test User', avatarUrl: null };
     });
 
-    it('highlights Dashboard link when location is /', async () => {
+    it('highlights Workouts link when location is /', async () => {
       getLocationStore().set('/');
       render(App);
       await waitFor(() => {
         expect(screen.getByTestId('app-router')).toBeInTheDocument();
       });
-      const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
-      expect(dashboardLink).toHaveClass('border-accent');
+      const workoutsLink = screen.getByRole('link', { name: /workouts/i });
+      expect(workoutsLink).toHaveClass('border-accent');
       const comparisonsLink = screen.getByRole('link', { name: /comparisons/i });
       expect(comparisonsLink).not.toHaveClass('border-accent');
     });
@@ -226,8 +226,8 @@ describe('App', () => {
       });
       const comparisonsLink = screen.getByRole('link', { name: /comparisons/i });
       expect(comparisonsLink).toHaveClass('border-accent');
-      const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
-      expect(dashboardLink).not.toHaveClass('border-accent');
+      const workoutsLink = screen.getByRole('link', { name: /workouts/i });
+      expect(workoutsLink).not.toHaveClass('border-accent');
     });
 
     it('highlights neither link when location is /account', async () => {
@@ -236,9 +236,9 @@ describe('App', () => {
       await waitFor(() => {
         expect(screen.getByTestId('app-router')).toBeInTheDocument();
       });
-      const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+      const workoutsLink = screen.getByRole('link', { name: /workouts/i });
       const comparisonsLink = screen.getByRole('link', { name: /comparisons/i });
-      expect(dashboardLink).not.toHaveClass('border-accent');
+      expect(workoutsLink).not.toHaveClass('border-accent');
       expect(comparisonsLink).not.toHaveClass('border-accent');
     });
 
@@ -246,12 +246,12 @@ describe('App', () => {
       getLocationStore().set('/');
       render(App);
       await waitFor(() => {
-        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveClass('border-accent');
+        expect(screen.getByRole('link', { name: /workouts/i })).toHaveClass('border-accent');
       });
       getLocationStore().set('/comparisons');
       await waitFor(() => {
         expect(screen.getByRole('link', { name: /comparisons/i })).toHaveClass('border-accent');
-        expect(screen.getByRole('link', { name: /dashboard/i })).not.toHaveClass('border-accent');
+        expect(screen.getByRole('link', { name: /workouts/i })).not.toHaveClass('border-accent');
       });
     });
   });

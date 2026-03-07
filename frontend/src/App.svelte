@@ -1,7 +1,7 @@
 <script lang="ts">
   import Router, { location } from 'svelte-spa-router';
   import { wrap } from 'svelte-spa-router/wrap';
-  import Dashboard from './routes/dashboard.svelte';
+  import Workouts from './routes/workouts.svelte';
   import Comparisons from './routes/comparisons.svelte';
   import Account from './routes/account.svelte';
   import LoginPage from './routes/login.svelte';
@@ -30,7 +30,7 @@
   import FolderContextMenu from './lib/components/folders/FolderContextMenu.svelte';
 
   const routes = {
-    '/': Dashboard,
+    '/': Workouts,
     // svelte-spa-router wrap() expects Svelte 4 ComponentType; we use Svelte 5. Cast to satisfy typecheck.
     '/event/:id': wrap({
       asyncComponent: () => import('./routes/event-detail.svelte'),
@@ -88,7 +88,7 @@
   }
 
   const currentLocation = $derived($location);
-  const isDashboardActive = $derived(currentLocation === '/' || currentLocation === '');
+  const isWorkoutsActive = $derived(currentLocation === '/' || currentLocation === '');
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
 
   const activeFolderValue = $derived(getFolderFromHash(foldersState.currentHash));
@@ -170,13 +170,13 @@
         <div class="flex-1 py-4 overflow-y-auto">
           <a
             href="#/"
-            class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isDashboardActive
+            class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isWorkoutsActive
               ? 'bg-card-hover text-text-primary border-r-2 border-accent'
               : ''}"
           >
             <span class="material-icons">dashboard</span>
             {#if !sidebarCollapsed}
-              <span>Dashboard</span>
+              <span>Workouts</span>
             {/if}
           </a>
           {#if !sidebarCollapsed}
