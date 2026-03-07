@@ -1,0 +1,32 @@
+---
+description: Modal dialogs must be dismissible with the ESC key
+globs: frontend/**
+alwaysApply: false
+---
+
+# Modal dialogs and ESC
+
+Any modal or dialog in the frontend (elements with `role="dialog"` and `aria-modal="true"`) **must** be dismissible when the user presses the **Escape** key.
+
+## Implementation
+
+- Attach a `keydown` handler to the dialog element (or a wrapper that has focus when the modal is open).
+- In the handler, if `e.key === 'Escape'`, close the modal (e.g. set the open state to `false` or call the provided `onClose`/`onClosed` callback).
+- Use `onkeydown` (or Svelte’s `onkeydown`) so the handler runs when the dialog (or its focusable content) has focus; if focus is managed on a container, ensure that container receives the key events.
+
+## Example
+
+```svelte
+<div
+  role="dialog"
+  aria-modal="true"
+  onkeydown={(e) => {
+    if (e.key === 'Escape') onClose();
+  }}
+  tabindex="-1"
+>
+  <!-- dialog content -->
+</div>
+```
+
+If the dialog is closed by other means (e.g. overlay click, Cancel button), use the same close logic for ESC so behavior is consistent.
