@@ -12,7 +12,15 @@
     existingNames: string[];
     maxFolders: number;
   }
-  let { open, anchorEl, onCreated, onClosed, onError, existingNames = [], maxFolders = 20 }: Props = $props();
+  let {
+    open,
+    anchorEl,
+    onCreated,
+    onClosed,
+    onError,
+    existingNames = [],
+    maxFolders = 20,
+  }: Props = $props();
 
   let name = $state('');
   let color = $state<string>(FOLDER_PRESET_COLORS[0]);
@@ -62,7 +70,11 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') handleCancel(); }} />
+<svelte:window
+  onkeydown={(e) => {
+    if (open && e.key === 'Escape') handleCancel();
+  }}
+/>
 
 {#if open}
   <div
@@ -70,7 +82,14 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="folder-create-title"
+    tabindex="-1"
     onclick={handleCancel}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleCancel();
+      }
+    }}
   >
     <div
       class="fixed w-80 rounded-lg border border-border bg-surface-solid p-4 shadow-xl"
