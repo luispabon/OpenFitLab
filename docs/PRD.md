@@ -1,405 +1,272 @@
 # Product Requirements Document (PRD)
 ## OpenFitLab - Fitness Activity Tracker
 
+**Role:** Canonical product requirements and planned scope. This document defines vision, user stories, features, constraints, and glossary. Technical implementation lives in [docs/ARCHITECTURE.md](ARCHITECTURE.md). Agent quickstart lives in [AGENTS.md](../AGENTS.md).
+
 ### Version: 1.0
 ### Date: 2026-02-16
 
 ---
 
-## 1. Product Overview
+## 1. Product overview
 
 ### 1.1 Vision
-OpenFitLab is a self-hosted fitness activity tracking and comparison platform that empowers users to analyze their workout data, compare activities, and evaluate the accuracy of different fitness trackers.
+
+OpenFitLab is a self-hosted fitness activity tracking and comparison platform for people who want to analyze workouts, compare activities, and evaluate different fitness trackers while keeping control of their data.
 
 ### 1.2 Mission
-Provide a privacy-focused, self-hosted solution for fitness enthusiasts to upload, visualize, and analyze their activity data from various fitness devices and file formats.
 
-### 1.3 Target Users
-- **Primary**: Fitness enthusiasts who track activities with multiple devices
-- **Secondary**: Athletes and coaches analyzing performance data
-- **Tertiary**: Data-conscious users who want to self-host their fitness data
+Provide a privacy-focused, self-hosted way to upload, visualize, organize, and compare activity data from multiple devices and file formats.
 
-### 1.4 Key Value Propositions
-- **Privacy**: Self-hosted solution - user owns their data
-- **Comparison**: Compare workouts side-by-side and analyze differences
-- **Tracker Evaluation**: Compare data from different fitness trackers to assess accuracy
-- **Flexibility**: Support multiple file formats (TCX, FIT, GPX, JSON, SML)
-- **Visualization**: Interactive graphs for heart rate, cadence, pace, elevation, and more
+### 1.3 Target users
+
+- **Primary:** Fitness enthusiasts using one or more trackers
+- **Secondary:** Athletes and coaches reviewing performance data
+- **Tertiary:** Privacy-conscious users who prefer self-hosting
+
+### 1.4 Core value propositions
+
+- **Privacy:** user-controlled, self-hosted data
+- **Comparison:** side-by-side workout comparison
+- **Tracker evaluation:** compare the same workout across devices
+- **Flexibility:** support multiple import formats
+- **Visualization:** interactive charts for workout metrics
 
 ---
 
-## 2. User Stories
+## 2. User stories
 
-### 2.1 Core User Stories
+### 2.1 Core user stories
 
-**US-1: Upload Activity Files**
+**US-1: Upload activity files**
+
 - **As a** fitness enthusiast
-- **I want to** upload activity files from my fitness tracker
-- **So that** I can store and analyze my workout data
+- **I want to** upload activity files from my tracker
+- **So that** I can store and analyze workout data
 
-**US-2: View Activity Data**
+**US-2: View activity data**
+
 - **As a** user
-- **I want to** view my activities in a dashboard
-- **So that** I can see all my workouts at a glance
+- **I want to** browse my uploaded activities
+- **So that** I can review workouts at a glance
 
-**US-3: Visualize Workout Metrics**
+**US-3: Visualize workout metrics**
+
 - **As a** user
-- **I want to** see graphs of heart rate, cadence, pace, and elevation
-- **So that** I can understand my performance during workouts
+- **I want to** view graphs for heart rate, cadence, pace, elevation, and similar metrics
+- **So that** I can understand workout performance over time
 
-**US-4: Compare Activities**
+**US-4: Compare activities**
+
 - **As a** user
 - **I want to** compare two or more workouts side-by-side
-- **So that** I can see how my performance changes over time
+- **So that** I can see performance differences over time
 
-**US-5: Analyze Stream Correlations**
-- **As a** user
-- **I want to** see correlation analysis between different data streams (e.g., heart rate vs. pace)
-- **So that** I can understand relationships in my performance data
+**US-5: Analyze stream correlations**
 
-**US-6: Compare Fitness Trackers**
 - **As a** user
-- **I want to** compare data from different fitness trackers
-- **So that** I can evaluate which device provides more accurate measurements
+- **I want to** analyze relationships between streams such as heart rate and pace
+- **So that** I can better understand performance patterns
+
+**US-6: Compare fitness trackers**
+
+- **As a** user
+- **I want to** compare the same workout across multiple trackers
+- **So that** I can evaluate device accuracy and consistency
 
 ---
 
 ## 3. Features
 
-### 3.1 File Upload (MVP - Complete)
+### 3.1 File upload
 
-**Description**: Users can upload activity files in multiple formats.
+**Status:** Implemented
 
-**Supported Formats**:
-- TCX (Training Center XML)
-- FIT (Garmin FIT)
-- GPX (GPS Exchange Format)
-- JSON (Suunto JSON)
-- SML (Suunto Markup Language)
+Users can upload supported activity files and receive clear success or failure feedback.
 
-**Requirements**:
-- Accept single or multiple file uploads
-- Parse files server-side using `@sports-alliance/sports-lib`
-- Extract event metadata, activities, statistics, and stream data
-- Store parsed data in relational database
-- Discard original files after parsing
-- Display upload success/failure feedback
+Requirements:
 
-**Acceptance Criteria**:
-- [x] User can select and upload files via web interface
-- [x] Backend parses files and extracts all data
-- [x] Data is stored in database with proper relationships
-- [x] User receives confirmation of successful upload
-- [x] Error messages are clear and actionable
+- accept one or more activity files
+- support TCX, FIT, GPX, JSON, and SML
+- extract event, activity, statistics, and stream data
+- persist imported data for later analysis
 
-### 3.2 Activity Dashboard (MVP - Complete)
+### 3.2 Activity dashboard
 
-**Description**: Display list of all uploaded activities/events.
+**Status:** Implemented
 
-**Requirements**:
-- Show events in reverse chronological order
-- Display event name, start date, and basic metadata
-- Support filtering by date range
-- Link to detailed event view
-- Pagination or limit results (default: 50, max: 200)
+Users can browse uploaded workouts in a reverse-chronological dashboard.
 
-**Acceptance Criteria**:
-- [x] Events displayed in table format
-- [x] Sortable by date
-- [x] Filterable by start/end date
-- [x] Clickable to view details
-- [x] Responsive design
+Requirements:
 
-### 3.3 Activity Visualization (Complete)
+- show uploaded workouts clearly
+- support filtering and pagination
+- link to a detailed event view
 
-**Description**: Display interactive graphs for workout metrics.
+### 3.3 Activity visualization
 
-**Supported Metrics**:
-- Heart Rate (BPM)
-- Cadence (steps/min or RPM)
-- Pace (min/km or min/mile)
-- Elevation (meters/feet)
-- Speed (km/h or mph)
-- Power (watts)
-- Temperature
-- Other available stream data
+**Status:** Implemented
 
-**Requirements**:
-- Time-series line graphs for each metric
-- X-axis: Time (from activity start)
-- Y-axis: Metric value
-- Interactive tooltips showing exact values
-- Zoom and pan capabilities
-- Multiple metrics on same graph (overlay)
+Users can inspect workout streams in interactive charts.
 
-**Acceptance Criteria**:
-- [x] Graphs render correctly for all stream types
-- [x] Time axis shows correct timestamps
-- [x] Tooltips display accurate values
-- [x] Graphs are responsive and performant
-- [x] Multiple streams can be overlaid
+Requirements:
 
-### 3.4 Activity Comparison (Complete)
+- support common stream types such as heart rate, cadence, pace, elevation, speed, and power
+- show time-series views
+- provide interactive inspection such as hover detail and zoom
+- allow overlay of multiple metrics where useful
 
-**Description**: Compare two or more activities side-by-side.
+### 3.4 Activity comparison
 
-**Requirements**:
-- Select multiple activities for comparison (implemented)
-- Display activities in synchronized time view (implemented)
-- Overlay graphs for same metrics (e.g., heart rate from both activities) (implemented)
-- Show statistics comparison table (implemented)
+**Status:** Implemented
 
-**Acceptance Criteria**:
-- [x] User can select 2+ activities to compare
-- [x] Graphs are synchronized by time
-- [x] Statistics table shows side-by-side comparison
+Users can compare multiple workouts side-by-side.
 
-### 3.5 Stream Analysis (Planned)
+Requirements:
 
-**Description**: Analyze relationships between different data streams.
+- select multiple activities or events for comparison
+- align views in a shared comparison workflow
+- show chart overlays and statistics deltas
 
-**Features**:
-- **Correlation Analysis**: Calculate correlation coefficients between streams
-- **XY Plots**: Scatter plots showing relationship between two metrics
-- **Correlation Index**: Numerical measure of correlation strength
-- **Statistical Analysis**: Mean, median, standard deviation, etc.
+### 3.5 Stream analysis
 
-**Use Cases**:
-- Heart rate vs. Pace correlation
-- Cadence vs. Speed relationship
-- Elevation vs. Heart rate analysis
-- Power vs. Speed correlation (cycling)
+**Status:** Planned
 
-**Requirements**:
-- Generate correlation matrices
-- Create XY scatter plots
-- Display correlation coefficients (Pearson, Spearman)
-- Highlight strong correlations
-- Export analysis data
+Users should be able to analyze relationships between different streams.
 
-**Acceptance Criteria**:
-- [ ] Correlation coefficients calculated correctly
-- [ ] XY plots display relationships clearly
-- [ ] Correlation indices are accurate
-- [ ] Analysis works for any two stream types
-- [ ] Results are exportable
+Planned capabilities:
 
-### 3.6 Tracker Comparison (Complete - via Activity Comparison)
+- correlation analysis
+- XY/scatter plots
+- summary statistics
+- exportable analysis results
 
-**Description**: Compare data from different fitness trackers for the same activity.
+### 3.6 Tracker comparison
 
-This use case is served by the Activity Comparison feature (Section 3.4). Users upload files recorded by different devices for the same workout, create a comparison, and view time-synchronized overlay charts with a statistics delta table. Device names are stored per activity and displayed in the comparison view.
+**Status:** Implemented via activity comparison
 
-**Use Cases**:
-- Compare heart rate from Garmin vs. Apple Watch
-- Compare GPS accuracy between devices
-- Evaluate cadence sensor differences
-- Assess elevation measurement accuracy
-
-**Acceptance Criteria**:
-- [x] Data from multiple trackers can be overlaid (via Activity Comparison)
-- [x] Differences are calculated and displayed (via statistics delta table)
-- [x] Results help users evaluate tracker quality
+Users can compare data from different trackers for the same workout by importing multiple recordings and viewing them through the comparison flow.
 
 ---
 
-## 4. Technical Requirements
+## 4. Product constraints
 
-### 4.1 Deployment Model
-- **Self-hosted**: Docker Compose deployment
-- **Multi-user**: Authentication required. OAuth (Google, GitHub) with server-side session cookies. Each user's data is isolated; no admin roles. If a user signs in with both Google and GitHub using the same verified email, they receive one account (automatic account linking).
-- **Data ownership**: User owns all data; export and account deletion available.
-
-### 4.2 Technology Stack
-
-**Backend**:
-- Node.js 24+
-- Express.js
-- MariaDB 12.2+
-- `@sports-alliance/sports-lib` for file parsing
-
-**Frontend**:
-- Svelte 5
-- Vite 7
-- TypeScript 5.9
-- Tailwind CSS v4
-- svelte-spa-router
-
-**Infrastructure**:
-- Docker Compose
-- MariaDB database
-- No external dependencies (self-contained)
-
-### 4.3 Performance Requirements
-- File upload: Support files up to 50MB
-- Database queries: < 500ms for event list
-- Graph rendering: < 2s for 10,000 data points
-- Concurrent users: Support multiple concurrent users; data scoped per authenticated user
-
-### 4.4 Data Requirements
-- Store all activity data relationally
-- Support unlimited activities per user
-- Retain data indefinitely (user-controlled)
-- Export data capability (implemented: `GET /api/account/export`)
-
-### 4.5 Security Requirements
-- Authentication required: OAuth (Google, GitHub) with server-side sessions; all data endpoints protected and user-scoped
-- SQL injection prevention (parameterized queries)
-- File upload validation (format checking)
-- CORS configuration for production; rate limiting on auth and uploads
-- Automated CI security scanning: dependency vulnerability checks, secrets detection, static analysis (see docs/ARCHITECTURE.md)
+- The product is self-hosted.
+- Authentication is required for personal data access.
+- Users manage their own data and should be able to export or delete it.
+- The product supports activity files from external devices rather than live device sync.
+- Privacy and data ownership take priority over social or cloud-platform features.
 
 ---
 
-## 5. User Experience
+## 5. User experience
 
-### 5.1 User Flow
+### 5.1 Core flow
 
-```
-1. User starts application (docker compose up)
-2. User signs in via Google or GitHub (OAuth) on the login page
-3. User navigates to dashboard
-4. User uploads activity file
-5. System parses file and stores data
-6. User views activity in dashboard
-7. User clicks activity to view details
-8. User sees graphs and statistics
-9. User selects activities to compare
-10. User views comparison graphs
-11. User analyzes correlations
-```
+1. User starts the application.
+2. User signs in.
+3. User lands on the dashboard.
+4. User uploads activity files.
+5. User reviews event detail and charts.
+6. User compares workouts when needed.
 
-### 5.2 Key Screens
+### 5.2 Key screens
 
-1. **Login**: Sign in with Google or GitHub (OAuth); no username/password
-2. **Dashboard**: List of all activities
-3. **Upload**: File upload interface
-4. **Activity Detail**: Single activity view with graphs
-5. **Comparison View**: Side-by-side activity comparison
-6. **Analysis View**: Correlation and statistical analysis
+- Login
+- Dashboard
+- Event detail
+- Comparison list and comparison view
+- Account/privacy controls
 
-### 5.3 Design Principles
-- **Simplicity**: Clean, uncluttered interface
-- **Data-focused**: Graphs and data are primary
-- **Responsive**: Works on desktop and tablet
-- **Accessible**: Follow WCAG guidelines (future)
+### 5.3 Design principles
+
+- keep the interface simple
+- keep data and charts central
+- work well on desktop and tablet
+- continue improving accessibility over time
 
 ---
 
-## 6. Success Metrics
+## 6. Success metrics
 
-### 6.1 MVP Success Criteria
-- [x] Users can upload activity files successfully
-- [x] Users can view their activities in a dashboard
-- [x] Users can visualize activity data in graphs
-- [x] Users can compare two activities side-by-side
+### 6.1 Current success criteria
 
-### 6.2 Future Success Metrics
-- User can analyze correlations between streams
-- User can compare data from different trackers (implemented via Activity Comparison)
-- System handles 1000+ activities without performance degradation
-- Users report positive experience with visualization quality
+- users can upload activity files successfully
+- users can review workouts in a dashboard
+- users can inspect workout metrics visually
+- users can compare activities side-by-side
+
+### 6.2 Future success criteria
+
+- users can analyze stream correlations
+- users can compare trackers effectively
+- the product remains usable with large personal histories
 
 ---
 
 ## 7. Roadmap
 
-### Phase 1: MVP (Complete)
-- [x] File upload (TCX, FIT, GPX, JSON, SML)
-- [x] Activity dashboard
-- [x] Database schema and API
-- [x] Basic activity visualization
+### Phase 1
 
-### Phase 2: Visualization & Comparison (Complete)
-- [x] Complete activity visualization (all stream types)
-- [x] Activity comparison (side-by-side)
-- [x] Enhanced graph interactions
+- file upload
+- dashboard
+- event detail and visualization
 
-### Phase 3: Analysis
-- [ ] Stream correlation analysis
-- [ ] XY plots and correlation indices
-- [ ] Statistical analysis tools
-- [ ] Export analysis results
+### Phase 2
 
-### Phase 4: Tracker Comparison
-- [x] Multi-tracker overlay (via Activity Comparison)
-- [x] Measurement differences and accuracy evaluation (via statistics delta table)
+- activity comparison
+- richer chart interactions
 
-### Phase 5: Enhancements
-- [x] Authentication and multi-user support (OAuth + session; user-scoped data; account export and deletion; account linking by verified email)
-- [ ] Additional file formats
+### Phase 3
+
+- stream analysis
+- scatter plots and correlation views
+- exportable analysis results
+
+### Phase 4
+
+- broader import support
+- continued UX and accessibility improvements
 
 ---
 
-## 8. Constraints and Assumptions
+## 8. Constraints and assumptions
 
 ### 8.1 Constraints
-- Self-hosted deployment only
-- Multi-user with authentication required (OAuth; no username/password)
-- Limited to supported file formats
-- No cloud dependencies
+
+- self-hosted deployment
+- authenticated multi-user access
+- support limited to known import formats
 
 ### 8.2 Assumptions
-- Users have basic technical knowledge (Docker)
-- Users have access to activity files from their devices
-- Users want to compare and analyze their own data
-- Privacy and data ownership are priorities
 
-### 8.3 Out of Scope
-- Mobile app
-- Real-time data sync
-- Social features
-- Cloud hosting (optional; see docs/HOSTING.md)
-- Advanced machine learning analytics
+- users are comfortable running a self-hosted app
+- users have access to exported tracker files
+- users care about privacy and ownership of their workout data
 
----
+### 8.3 Out of scope
 
-## 9. Risks and Mitigations
-
-### 9.1 Technical Risks
-- **Risk**: Large files cause performance issues
-  - **Mitigation**: Implement file size limits, optimize parsing
-
-- **Risk**: Database grows too large
-  - **Mitigation**: Implement data retention policies, archiving
-
-- **Risk**: Parsing errors for edge cases
-  - **Mitigation**: Comprehensive error handling, fallback parsing
-
-### 9.2 User Experience Risks
-- **Risk**: Complex interface confuses users
-  - **Mitigation**: Iterative design, user testing, clear documentation
-
-- **Risk**: Performance issues with large datasets
-  - **Mitigation**: Pagination, lazy loading, data aggregation
+- mobile app
+- real-time tracker sync
+- social features
+- advanced ML-based analytics
 
 ---
 
-## 10. Appendices
+## 9. Risks
 
-### 10.1 Glossary
+- large files or long histories may affect performance
+- inconsistent source files may produce parsing edge cases
+- advanced analysis features may add UI complexity if not designed carefully
 
-These terms define the product; technical implementation (tables, API) is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+---
 
-- **Event**: A top-level workout session created from a single file upload. An event can contain one or more activities and has event-level statistics aggregated across all its activities. The event name is typically derived from the uploaded filename.
+## 10. Glossary
 
-- **Activity**: An individual sport segment within an event. Each activity has a sport type (Running, Cycling, Swimming, etc.), its own statistics, and owns all time-series stream data (heart rate, GPS, cadence, etc.). Most single-sport files create one event with one activity, while multi-sport files (e.g., triathlons) create one event with multiple activities.
+- **Event:** top-level workout session created from an upload
+- **Activity:** individual sport segment within an event
+- **Stream:** time-series metric such as heart rate, pace, or cadence
+- **Data Point:** one timestamped value inside a stream
+- **Stat:** aggregated metric derived from an event or activity
 
-- **Stream**: Time-series data belonging to an activity (e.g., Heart Rate, GPS Position, Cadence, Pace). Each stream contains multiple timestamped data points.
-
-- **Data Point**: A single timestamped value in a stream, stored with a `time_ms` timestamp and a value (can be a number or object).
-
-- **Stat**: An aggregated metric calculated from stream data or provided by the source file. Examples include average heart rate, total distance, duration, max pace, etc. Stats are stored separately for events (`event_stats`) and activities (`activity_stats`).
-
-### 10.2 References
-- [sports-lib Documentation](https://github.com/SportsAlliance/sports-lib)
-- [Svelte Documentation](https://svelte.dev/docs)
-- [Vite Documentation](https://vite.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [MariaDB Documentation](https://mariadb.com/docs/)
-
-### 10.3 Change Log
-- **2026-02-16**: Initial PRD created
-- MVP file upload and dashboard complete
-- Visualization and comparison features in progress
-- **2026-03-02**: Security requirements (4.5) updated with automated CI security scanning (dependency checks, secrets detection, SAST, Docker config scan). See docs/ARCHITECTURE.md.
+Technical implementation details for these concepts are documented in [docs/ARCHITECTURE.md](ARCHITECTURE.md).
