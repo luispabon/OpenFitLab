@@ -197,7 +197,7 @@
                   class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
                     FOLDER_SELECTION_ALL
                   )
-                    ? 'text-text-primary font-medium'
+                    ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                     : ''}"
                 >
                   <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
@@ -214,7 +214,7 @@
                   class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
                     FOLDER_SELECTION_UNFILED
                   )
-                    ? 'text-text-primary font-medium'
+                    ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                     : ''}"
                 >
                   <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
@@ -232,7 +232,7 @@
                     class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
                       folder.id
                     )
-                      ? 'text-text-primary font-medium'
+                      ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                       : ''}"
                   >
                     <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
@@ -271,7 +271,7 @@
                     class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
                       folder.id
                     )
-                      ? 'text-text-primary font-medium'
+                      ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                       : ''}"
                   >
                     <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
