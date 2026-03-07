@@ -92,6 +92,15 @@ async function findManyByIds(ids, opts = {}) {
   return Array.isArray(rows) ? rows : [];
 }
 
+async function findAllByUserId(userId, opts = {}) {
+  const rows = await runQuery(
+    'SELECT id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, created_at FROM events WHERE user_id = ?',
+    [userId],
+    opts
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function findOverlapping(excludeId, startDate, endDate, limit, opts = {}) {
   if (!opts.userId) throw new Error('findOverlapping requires opts.userId');
   let sql = `
@@ -173,6 +182,7 @@ module.exports = {
   getDateRange,
   findMany,
   findManyByIds,
+  findAllByUserId,
   findOverlapping,
   getStatsByEventIds,
   getStatsByEventId,

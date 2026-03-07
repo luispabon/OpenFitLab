@@ -30,6 +30,19 @@ async function findIdentityByProvider(provider, providerUserId, opts = {}) {
 }
 
 /**
+ * Find identities for a user (for export). Excludes profile_data for privacy.
+ * @returns {Array<{ id: string, provider: string, provider_user_id: string, email: string | null, created_at: string }>}
+ */
+async function findIdentitiesByUserId(userId, opts = {}) {
+  const rows = await runQuery(
+    'SELECT id, provider, provider_user_id, email, created_at FROM user_identities WHERE user_id = ?',
+    [userId],
+    opts
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
  * Find identities by email (for account linking). Returns distinct user_id rows.
  * @returns {Array<{ user_id: string }>}
  */
@@ -120,6 +133,7 @@ module.exports = {
   findById,
   deleteById,
   findIdentityByProvider,
+  findIdentitiesByUserId,
   findIdentitiesByEmail,
   linkIdentity,
   createFromPendingProfile,

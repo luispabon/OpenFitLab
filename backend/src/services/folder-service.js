@@ -3,7 +3,6 @@ const defaultDb = require('../db');
 const folderRepository = require('../repositories/folder-repository');
 const eventRepository = require('../repositories/event-repository');
 const comparisonRepository = require('../repositories/comparison-repository');
-const { runQuery } = require('../repositories/query-helper');
 const { ValidationError } = require('../errors');
 
 const MAX_FOLDERS_PER_USER = 20;
@@ -115,12 +114,7 @@ async function deleteFolder(id, contentsMode, opts = {}) {
   if (contentsMode === 'delete') {
     return db.transaction(async (conn) => {
       const txOpts = { ...repoOpts, conn };
-      const eventRows = await runQuery(
-        'SELECT id FROM events WHERE folder_id = ? AND user_id = ?',
-        [id, opts.userId],
-        txOpts
-      );
-      const eventIds = Array.isArray(eventRows) ? eventRows.map((r) => r.id) : [];
+      const eventIds = await folderRepository.findEventIdsByFolderId(id, txOpts);
       for (const eventId of eventIds) {
         const linked = await comparisonRepository.findByEventIds([eventId], txOpts);
         if (linked.length > 0) {
@@ -131,25 +125,13 @@ async function deleteFolder(id, contentsMode, opts = {}) {
         }
         await eventRepository.deleteById(eventId, txOpts);
       }
-      await runQuery(
-        'DELETE FROM comparisons WHERE folder_id = ? AND user_id = ?',
-        [id, opts.userId],
-        txOpts
-      );
+      await folderRepository.deleteComparisonsByFolderId(id, txOpts);
       return folderRepository.deleteById(id, txOpts);
     });
   }
 
-  await runQuery(
-    'UPDATE events SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
-    [id, opts.userId],
-    repoOpts
-  );
-  await runQuery(
-    'UPDATE comparisons SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
-    [id, opts.userId],
-    repoOpts
-  );
+  await folderRepository.clearEventsFolderId(id, repoOpts);
+  await folderRepository.clearComparisonsFolderId(id, repoOpts);
   return folderRepository.deleteById(id, repoOpts);
 }
 

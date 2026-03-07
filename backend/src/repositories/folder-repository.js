@@ -116,6 +116,43 @@ async function getComparisonCountByFolderId(folderId, opts = {}) {
   return row && row.n != null ? Number(row.n) : 0;
 }
 
+async function findEventIdsByFolderId(folderId, opts = {}) {
+  if (!opts.userId) throw new Error('findEventIdsByFolderId requires opts.userId');
+  const rows = await runQuery(
+    'SELECT id FROM events WHERE folder_id = ? AND user_id = ?',
+    [folderId, opts.userId],
+    opts
+  );
+  return Array.isArray(rows) ? rows.map((r) => r.id) : [];
+}
+
+async function clearEventsFolderId(folderId, opts = {}) {
+  if (!opts.userId) throw new Error('clearEventsFolderId requires opts.userId');
+  await runQuery(
+    'UPDATE events SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
+    [folderId, opts.userId],
+    opts
+  );
+}
+
+async function clearComparisonsFolderId(folderId, opts = {}) {
+  if (!opts.userId) throw new Error('clearComparisonsFolderId requires opts.userId');
+  await runQuery(
+    'UPDATE comparisons SET folder_id = NULL WHERE folder_id = ? AND user_id = ?',
+    [folderId, opts.userId],
+    opts
+  );
+}
+
+async function deleteComparisonsByFolderId(folderId, opts = {}) {
+  if (!opts.userId) throw new Error('deleteComparisonsByFolderId requires opts.userId');
+  await runQuery(
+    'DELETE FROM comparisons WHERE folder_id = ? AND user_id = ?',
+    [folderId, opts.userId],
+    opts
+  );
+}
+
 module.exports = {
   create,
   findById,
@@ -127,4 +164,8 @@ module.exports = {
   deleteById,
   getEventCountByFolderId,
   getComparisonCountByFolderId,
+  findEventIdsByFolderId,
+  clearEventsFolderId,
+  clearComparisonsFolderId,
+  deleteComparisonsByFolderId,
 };
