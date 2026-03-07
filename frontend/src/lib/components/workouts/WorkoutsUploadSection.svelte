@@ -82,67 +82,64 @@
     <DropZoneOverlay visible={true} />
   {/if}
 
-  <h1
-    class="mb-6 max-w-full truncate text-2xl font-semibold text-text-primary"
-    title={activeFolderDisplay ? `Workouts / ${activeFolderDisplay.label}` : undefined}
-  >
-    Workouts
-    {#if activeFolderDisplay}
-      <span class="inline-flex items-baseline gap-1 font-normal text-text-secondary">
-        / <span
-          class="material-icons inline-block text-base leading-none translate-y-[0.15em]"
-          style={activeFolderDisplay.color ? `color: ${activeFolderDisplay.color}` : ''}
-          aria-hidden="true"
-        >
-          {activeFolderDisplay.label === 'All'
-            ? 'folder_open'
-            : activeFolderDisplay.label === 'Unfiled'
-              ? 'folder_off'
-              : 'folder'}
+  <div class="mb-6 flex items-center justify-between gap-4">
+    <h1
+      class="max-w-full truncate text-2xl font-semibold text-text-primary"
+      title={activeFolderDisplay ? `Workouts / ${activeFolderDisplay.label}` : undefined}
+    >
+      Workouts
+      {#if activeFolderDisplay}
+        <span class="inline-flex items-baseline gap-1 font-normal text-text-secondary">
+          / <span
+            class="material-icons inline-block text-base leading-none translate-y-[0.15em]"
+            style={activeFolderDisplay.color ? `color: ${activeFolderDisplay.color}` : ''}
+            aria-hidden="true"
+          >
+            {activeFolderDisplay.label === 'All'
+              ? 'folder_open'
+              : activeFolderDisplay.label === 'Unfiled'
+                ? 'folder_off'
+                : 'folder'}
+          </span>
+          <span class="text-text-primary">
+            {activeFolderDisplay.label}
+          </span>
         </span>
-        <span class="text-text-primary">
-          {activeFolderDisplay.label}
-        </span>
-      </span>
-    {/if}
-  </h1>
-
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <div class="flex flex-wrap items-center gap-3">
-      <label
-        for="workouts-file-upload"
-        class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+      {/if}
+    </h1>
+    <label
+      for="workouts-file-upload"
+      class="shrink-0 inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+    >
+      <svg
+        class="mr-2 h-5 w-5"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
       >
-        <svg
-          class="mr-2 h-5 w-5"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-        Upload Activity Files
-      </label>
-    </div>
-    <input
-      id="workouts-file-upload"
-      type="file"
-      {accept}
-      multiple
-      class="hidden"
-      onchange={handleFileSelect}
-      disabled={isUploading}
-    />
-    {#if bulkBar}
-      {@render bulkBar()}
-    {/if}
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+        />
+      </svg>
+      Upload Activity Files
+    </label>
   </div>
+  <input
+    id="workouts-file-upload"
+    type="file"
+    {accept}
+    multiple
+    class="hidden"
+    onchange={handleFileSelect}
+    disabled={isUploading}
+  />
+  {#if bulkBar}
+    {@render bulkBar()}
+  {/if}
   {#if children}
     {@render children()}
   {/if}
