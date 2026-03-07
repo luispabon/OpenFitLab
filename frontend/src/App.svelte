@@ -168,49 +168,63 @@
       {:else}
         <!-- Navigation Items -->
         <div class="flex-1 py-4 overflow-y-auto">
-          <a
-            href="#/"
-            class="flex items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isWorkoutsActive
-              ? 'bg-card-hover text-text-primary border-r-2 border-accent'
-              : ''}"
-          >
-            <span class="material-icons">dashboard</span>
-            {#if !sidebarCollapsed}
-              <span>Workouts</span>
-            {/if}
-          </a>
+          <div class="flex items-center">
+            <a
+              href="#/"
+              class="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary {isWorkoutsActive
+                ? 'bg-card-hover text-text-primary border-r-2 border-accent'
+                : ''}"
+            >
+              <span class="material-icons">dashboard</span>
+              {#if !sidebarCollapsed}
+                <span>Workouts</span>
+              {/if}
+            </a>
+            <button
+              type="button"
+              class="rounded p-1.5 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary"
+              aria-label="New folder"
+              onclick={() => (showCreateFolderModal = true)}
+            >
+              <span class="material-icons text-base">create_new_folder</span>
+            </button>
+          </div>
           {#if !sidebarCollapsed}
-            <div class="mt-1 pl-4">
-              <a
-                href={buildFolderHash(FOLDER_SELECTION_ALL)}
-                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                  FOLDER_SELECTION_ALL
-                )
-                  ? 'text-text-primary font-medium'
-                  : ''}"
-              >
-                <span class="material-icons text-base">folder_open</span>
-                <span>All</span>
-              </a>
-              <a
-                href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
-                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                  FOLDER_SELECTION_UNFILED
-                )
-                  ? 'text-text-primary font-medium'
-                  : ''}"
-              >
-                <span class="material-icons text-base">folder_off</span>
-                <span>Unfiled</span>
-              </a>
-              <button
-                type="button"
-                class="flex items-center gap-2 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
-                onclick={() => (showCreateFolderModal = true)}
-              >
-                <span class="material-icons text-base">create_new_folder</span>
-                <span>New folder</span>
-              </button>
+            <div class="mt-1 pl-11">
+              <div class="flex items-center gap-0.5 py-0.5">
+                <a
+                  href={buildFolderHash(FOLDER_SELECTION_ALL)}
+                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                    FOLDER_SELECTION_ALL
+                  )
+                    ? 'text-text-primary font-medium'
+                    : ''}"
+                >
+                  <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
+                    <span class="absolute left-0 top-0 bottom-1/2 w-px bg-white"></span>
+                    <span class="absolute left-0 right-0 top-1/2 h-px bg-white"></span>
+                  </span>
+                  <span class="material-icons text-base shrink-0">folder_open</span>
+                  <span>All</span>
+                </a>
+              </div>
+              <div class="flex items-center gap-0.5 py-0.5">
+                <a
+                  href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
+                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
+                    FOLDER_SELECTION_UNFILED
+                  )
+                    ? 'text-text-primary font-medium'
+                    : ''}"
+                >
+                  <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
+                    <span class="absolute left-0 top-0 bottom-1/2 w-px bg-white"></span>
+                    <span class="absolute left-0 right-0 top-1/2 h-px bg-white"></span>
+                  </span>
+                  <span class="material-icons text-base shrink-0">folder_off</span>
+                  <span>Unfiled</span>
+                </a>
+              </div>
               {#each pinnedFolders as folder (folder.id)}
                 <div class="flex items-center gap-0.5 py-0.5">
                   <a
@@ -221,11 +235,15 @@
                       ? 'text-text-primary font-medium'
                       : ''}"
                   >
+                    <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
+                      <span class="absolute left-0 top-0 bottom-1/2 w-px bg-white"></span>
+                      <span class="absolute left-0 right-0 top-1/2 h-px bg-white"></span>
+                    </span>
                     <span
-                      class="h-3 w-3 shrink-0 rounded-full"
-                      style="background-color: {folder.color};"
-                      aria-hidden="true"
-                    ></span>
+                      class="material-icons text-base shrink-0"
+                      style="color: {folder.color};"
+                      aria-hidden="true">folder</span
+                    >
                     <span class="truncate">{folder.name}</span>
                     <span class="material-icons text-base text-amber-500" title="Pinned"
                       >push_pin</span
@@ -256,11 +274,15 @@
                       ? 'text-text-primary font-medium'
                       : ''}"
                   >
+                    <span class="relative flex h-6 w-3 shrink-0 items-stretch" aria-hidden="true">
+                      <span class="absolute left-0 top-0 bottom-1/2 w-px bg-white"></span>
+                      <span class="absolute left-0 right-0 top-1/2 h-px bg-white"></span>
+                    </span>
                     <span
-                      class="h-3 w-3 shrink-0 rounded-full"
-                      style="background-color: {folder.color};"
-                      aria-hidden="true"
-                    ></span>
+                      class="material-icons text-base shrink-0"
+                      style="color: {folder.color};"
+                      aria-hidden="true">folder</span
+                    >
                     <span class="truncate">{folder.name}</span>
                   </a>
                   <button
