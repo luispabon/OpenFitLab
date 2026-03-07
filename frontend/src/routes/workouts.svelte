@@ -31,6 +31,8 @@
   import WorkoutsPaginationWithUrl from '../lib/components/workouts/WorkoutsPaginationWithUrl.svelte';
   import WorkoutsActivityTable from '../lib/components/workouts/WorkoutsActivityTable.svelte';
 
+  type ActiveFolderDisplay = { label: string; color: string | null };
+
   let activityRowsFromApi = $state<ActivityRow[]>([]);
   let totalRows = $state(0);
   let isLoading = $state(false);
@@ -101,6 +103,19 @@
   let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined);
 
   const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
+
+  const activeFolderDisplay = $derived(
+    activeFolderId === 'all'
+      ? ({ label: 'All', color: null } satisfies ActiveFolderDisplay)
+      : activeFolderId === 'unfiled'
+        ? ({ label: 'Unfiled', color: null } satisfies ActiveFolderDisplay)
+        : (() => {
+            const folder = foldersState.folders.find((f) => f.id === activeFolderId);
+            return folder
+              ? { label: folder.name, color: folder.color }
+              : ({ label: 'Folder', color: null } satisfies ActiveFolderDisplay);
+          })()
+  );
 
   /** Upload target folder: 'unfiled' | folder UUID. Synced from activeFolderId (all -> unfiled); user can override. */
   let uploadFolderId = $state<string>('unfiled');
@@ -340,6 +355,7 @@
     bind:isDraggingOver
     folders={foldersState.folders}
     bind:uploadFolderId
+    {activeFolderDisplay}
   >
     {#snippet bulkBar()}
       <WorkoutsBulkActionBar

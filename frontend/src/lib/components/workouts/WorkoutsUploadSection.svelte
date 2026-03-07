@@ -12,6 +12,8 @@
     folders?: Folder[];
     /** Current upload target: 'all' | 'unfiled' | folder id. */
     uploadFolderId?: string;
+    /** When provided, show active folder as a pill next to the title. */
+    activeFolderDisplay?: { label: string; color: string | null };
     bulkBar?: Snippet;
     children?: Snippet;
   }
@@ -22,6 +24,7 @@
     isDraggingOver = $bindable(false),
     folders = [],
     uploadFolderId = $bindable('all'),
+    activeFolderDisplay,
     bulkBar,
     children,
   }: Props = $props();
@@ -86,7 +89,30 @@
     <DropZoneOverlay visible={true} />
   {/if}
 
-  <h1 class="mb-6 text-2xl font-semibold text-text-primary">Workouts</h1>
+  <h1
+    class="mb-6 max-w-full truncate text-2xl font-semibold text-text-primary"
+    title={activeFolderDisplay ? `Workouts / ${activeFolderDisplay.label}` : undefined}
+  >
+    Workouts
+    {#if activeFolderDisplay}
+      <span class="inline-flex items-baseline gap-1 font-normal text-text-secondary">
+        / <span
+          class="material-icons inline-block text-base leading-none translate-y-[0.15em]"
+          style={activeFolderDisplay.color ? `color: ${activeFolderDisplay.color}` : ''}
+          aria-hidden="true"
+        >
+          {activeFolderDisplay.label === 'All'
+            ? 'folder_open'
+            : activeFolderDisplay.label === 'Unfiled'
+              ? 'folder_off'
+              : 'folder'}
+        </span>
+        <span class="text-text-primary">
+          {activeFolderDisplay.label}
+        </span>
+      </span>
+    {/if}
+  </h1>
 
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
     <div class="flex flex-wrap items-center gap-3">
