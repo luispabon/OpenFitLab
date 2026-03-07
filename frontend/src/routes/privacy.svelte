@@ -1,8 +1,19 @@
 <script lang="ts">
   import { privacyConfig } from '../lib/config/privacy.js';
+  import { state as authState } from '../lib/stores/auth.svelte';
+
+  interface Props {
+    embeddedInModal?: boolean;
+  }
+  let { embeddedInModal = false }: Props = $props();
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-8">
+  {#if authState.pendingSignup && !embeddedInModal}
+    <p class="mb-4 text-sm text-text-secondary">
+      <a href="#/" class="text-accent hover:underline">Back to terms</a>
+    </p>
+  {/if}
   <h1 class="mb-6 text-3xl font-bold text-text-primary">Privacy Policy</h1>
 
   <div class="prose prose-invert max-w-none text-text-primary">

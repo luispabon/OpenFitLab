@@ -52,6 +52,12 @@
     '*': NotFound,
   };
 
+  const pendingSignupRoutes = {
+    '/': TermsAcceptance,
+    '/privacy': Privacy,
+    '*': TermsAcceptance,
+  };
+
   let sidebarCollapsed = $state(localStorage.getItem('sidebarCollapsed') === 'true');
 
   $effect(() => {
@@ -392,7 +398,7 @@
           <LoadingSpinner />
         </div>
       {:else if authState.pendingSignup}
-        <TermsAcceptance />
+        <Router routes={pendingSignupRoutes} />
       {:else if !authState.user}
         <Router routes={unauthenticatedRoutes} />
       {:else}

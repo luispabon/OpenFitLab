@@ -4,11 +4,22 @@
   import { state as authState, checkAuth } from '../lib/stores/auth.svelte';
   import { privacyConfig } from '../lib/config/privacy.js';
   import { push } from 'svelte-spa-router';
+  import Privacy from './privacy.svelte';
 
   let accepted = $state(false);
   let isSubmitting = $state(false);
   let isDeclining = $state(false);
   let error = $state<string | null>(null);
+  let showPrivacyModal = $state(false);
+  let privacyDialogRef: HTMLDivElement | undefined = $state();
+
+  $effect(() => {
+    if (!showPrivacyModal || !privacyDialogRef) return;
+    const id = requestAnimationFrame(() => {
+      privacyDialogRef?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  });
 
   async function handleAccept() {
     if (!accepted) return;
@@ -72,7 +83,13 @@
       </h3>
       <p class="text-sm text-text-secondary">
         Please review our
-        <a href="#/privacy" target="_blank" class="text-accent hover:underline">Privacy Policy</a>
+        <button
+          type="button"
+          class="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+          onclick={() => (showPrivacyModal = true)}
+        >
+          Privacy Policy
+        </button>
         to understand how we collect, use, and protect your data.
         {#if privacyConfig.email}
           For questions:
@@ -140,3 +157,48 @@
     </div>
   </div>
 </div>
+
+{#if showPrivacyModal}
+  <div
+    bind:this={privacyDialogRef}
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="privacy-modal-title"
+    tabindex="-1"
+    onclick={() => (showPrivacyModal = false)}
+    onkeydown={(e) => {
+      if (e.key === 'Escape') showPrivacyModal = false;
+    }}
+  >
+    <div
+      class="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
+      role="presentation"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === 'Escape') {
+          showPrivacyModal = false;
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+    >
+      <div class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+        <h2 id="privacy-modal-title" class="text-lg font-semibold text-text-primary">
+          Privacy Policy
+        </h2>
+        <button
+          type="button"
+          class="rounded p-1 text-text-secondary hover:bg-card-hover hover:text-text-primary"
+          aria-label="Close"
+          onclick={() => (showPrivacyModal = false)}
+        >
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <Privacy embeddedInModal={true} />
+      </div>
+    </div>
+  </div>
+{/if}
