@@ -140,7 +140,7 @@ describe('App', () => {
     it('shows sidebar expanded by default with OpenFitLab and Collapse button', async () => {
       render(App);
       await waitFor(() => {
-        expect(screen.getByText('OpenFitLab')).toBeInTheDocument();
+        expect(screen.getByAltText('OpenFitLab')).toBeInTheDocument();
       });
       expect(screen.getByText('Workouts')).toBeInTheDocument();
       expect(screen.getByText('Comparisons')).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('App', () => {
       storage['sidebarCollapsed'] = 'false';
       render(App);
       await waitFor(() => {
-        expect(screen.getByText('OpenFitLab')).toBeInTheDocument();
+        expect(screen.getByAltText('OpenFitLab')).toBeInTheDocument();
       });
       expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
     });
