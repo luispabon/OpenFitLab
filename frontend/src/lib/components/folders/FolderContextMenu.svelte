@@ -26,15 +26,35 @@
 
   const canPin = $derived(!folder.pinned && pinnedCount < maxPinned);
 
-  const rect = $derived(anchor?.getBoundingClientRect());
+  let menuLeft = $state(0);
+  let menuTop = $state(0);
+
+  $effect(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  });
+
+  $effect(() => {
+    if (anchor) {
+      const rect = anchor.getBoundingClientRect();
+      const MENU_WIDTH = 160; // min-w-[10rem]
+      const GAP = 8;
+      const rawLeft = rect.right + GAP;
+      menuLeft = Math.min(rawLeft, window.innerWidth - MENU_WIDTH - GAP);
+      menuTop = Math.min(rect.top, window.innerHeight - 200);
+    }
+  });
 </script>
 
-{#if anchor && rect}
+{#if anchor}
   <!-- Backdrop to close on outside click -->
-  <div class="fixed inset-0 z-40" aria-hidden="true" onclick={onClose}></div>
+  <div class="fixed inset-0 z-40 bg-black/50" aria-hidden="true" onclick={onClose}></div>
   <div
-    class="fixed z-50 min-w-[10rem] rounded-md border border-border bg-surface py-1 shadow-lg"
-    style="left: {rect.left}px; top: {rect.bottom + 4}px;"
+    class="fixed z-50 min-w-[10rem] rounded-md border border-border bg-surface-solid py-1 shadow-xl"
+    style="left: {menuLeft}px; top: {menuTop}px;"
     role="menu"
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}

@@ -36,15 +36,18 @@
   }
 </script>
 
+<svelte:window onkeydown={(e) => open && e.key === 'Escape' && onClosed()} />
+
 {#if open}
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
     role="dialog"
     aria-modal="true"
     aria-labelledby="move-to-folder-title"
+    onclick={onClosed}
   >
     <div
-      class="max-h-[80vh] w-full max-w-sm overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
+      class="max-h-[80vh] w-full max-w-sm overflow-hidden rounded-lg border border-border bg-surface-solid shadow-xl"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
@@ -75,10 +78,10 @@
             onclick={() => moveTo(folder.id)}
           >
             <span
-              class="h-3 w-3 shrink-0 rounded-full"
-              style="background-color: {folder.color};"
+              class="material-icons text-base shrink-0"
+              style="color: {folder.color || '#64748b'};"
               aria-hidden="true"
-            ></span>
+            >folder</span>
             <span class="truncate">{folder.name}</span>
           </button>
         {/each}
