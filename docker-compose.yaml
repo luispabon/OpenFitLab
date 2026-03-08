@@ -31,6 +31,7 @@ services:
   api:
     image: node:24-alpine
     working_dir: /app
+    command: sh -c "npm install && npm run dev"
     ports:
       - "3000:3000"
     environment:
@@ -54,11 +55,11 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: sh -c "npm install && npm run dev"
 
   frontend:
     image: node:22-alpine
     working_dir: /workspace/frontend
+    command: sh -c "npm install && npm run dev"
     ports:
       - "4200:4200"
     environment:
@@ -67,7 +68,6 @@ services:
       - api
     volumes:
       - .:/workspace
-    command: sh -c "npm install && npm run dev"
 
   adminer:
     image: ghcr.io/jeliebig/adminer-autologin:latest
