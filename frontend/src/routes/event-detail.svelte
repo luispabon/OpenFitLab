@@ -6,6 +6,8 @@
 
   import { push } from 'svelte-spa-router';
   import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api';
+  import { getComparisonsByEventIds } from '../lib/api/comparisons';
+  import type { ComparisonSummary } from '../lib/api/comparisons';
   import { isAbortError } from '../lib/api/client';
   import type { EventDetail as EventDetailType, StreamData } from '../lib/types';
   import {
@@ -34,6 +36,9 @@
   let streams = $state<StreamData[]>([]);
   let streamsLoading = $state(false);
   let streamsError = $state<string | null>(null);
+  let relatedComparisons = $state<ComparisonSummary[]>([]);
+  let relatedComparisonsLoading = $state(false);
+  let relatedComparisonsError = $state<string | null>(null);
   const event = $derived(eventDetail?.event ?? null);
 
   const mainActivityType = $derived.by(() => {
@@ -347,6 +352,37 @@
       ac.abort();
     };
   });
+
+  // Load related comparisons when event ID changes
+  $effect(() => {
+    const idVal = id;
+    if (!idVal) {
+      relatedComparisons = [];
+      return;
+    }
+    const ac = new AbortController();
+    let cancelled = false;
+    relatedComparisonsLoading = true;
+    relatedComparisonsError = null;
+    getComparisonsByEventIds([idVal])
+      .then((comparisons) => {
+        if (!cancelled) relatedComparisons = comparisons;
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          relatedComparisonsError =
+            e instanceof Error ? e.message : 'Failed to load related comparisons';
+          relatedComparisons = [];
+        }
+      })
+      .finally(() => {
+        if (!cancelled) relatedComparisonsLoading = false;
+      });
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  });
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -475,6 +511,46 @@
         onToggle={() => (moreStatsOpen = !moreStatsOpen)}
       />
     </div>
+
+    <!-- Related Comparisons Section -->
+    {#if relatedComparisons.length > 0}
+      <div class="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div class="border-b border-border px-6 py-4">
+          <h3 class="text-base font-semibold text-text-primary">
+            In comparisons ({relatedComparisons.length})
+          </h3>
+        </div>
+        <div class="divide-y divide-border">
+          {#each relatedComparisons as comparison (comparison.id)}
+            <div class="flex items-center justify-between px-6 py-3 hover:bg-surface/50">
+              <span class="text-text-primary">{comparison.name}</span>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+                onclick={() => push(`/compare/${comparison.id}`)}
+              >
+                View
+                <span class="material-icons text-base">arrow_forward</span>
+              </button>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else if relatedComparisonsLoading}
+      <div class="mt-6 rounded-xl border border-border bg-card p-4">
+        <div class="flex items-center gap-2 text-text-secondary">
+          <span class="material-icons animate-spin text-base">refresh</span>
+          <span class="text-sm">Loading related comparisons...</span>
+        </div>
+      </div>
+    {:else if relatedComparisonsError}
+      <div class="mt-6 rounded-xl border border-border bg-card p-4">
+        <div class="flex items-center gap-2 text-danger">
+          <span class="material-icons text-base">error_outline</span>
+          <span class="text-sm">{relatedComparisonsError}</span>
+        </div>
+      </div>
+    {/if}
 
     {#if locationAvailable && !streamsLoading}
       <div class="mt-6 overflow-hidden rounded-xl border border-border shadow-sm">
