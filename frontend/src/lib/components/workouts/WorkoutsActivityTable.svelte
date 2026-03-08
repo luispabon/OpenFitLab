@@ -185,6 +185,7 @@
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="View activity"
+                  aria-label="View"
                   onclick={(e) => {
                     e.stopPropagation();
                     onViewClick(row.event.id, e);
@@ -193,12 +194,12 @@
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >visibility</span
                   >
-
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="Find comparisons"
+                  aria-label="Find comparisons"
                   onclick={(e) => {
                     e.stopPropagation();
                     onFindComparisonsClick(row.event.id);
@@ -207,7 +208,6 @@
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >compare</span
                   >
-
                 </button>
                 <button
                   type="button"
@@ -218,18 +218,17 @@
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >folder_open</span
                   >
-
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
                   title="Delete activity"
+                  aria-label="Delete"
                   onclick={(e) => onDeleteClick(row.event.id, e)}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >delete</span
                   >
-
                 </button>
               </div>
             </td>

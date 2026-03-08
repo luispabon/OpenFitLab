@@ -130,7 +130,7 @@ describe('Workouts', () => {
   it('pushes to event detail when row View is clicked', async () => {
     render(Workouts);
     await waitFor(() => {
-      expect(screen.getByText('View')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(mockPush).toHaveBeenCalledWith('/event/evt-1');
@@ -139,7 +139,7 @@ describe('Workouts', () => {
   it('opens single-delete flow when row Delete is clicked', async () => {
     render(Workouts);
     await waitFor(() => {
-      expect(screen.getByText('Delete')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     });
     const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
     await fireEvent.click(deleteButtons[0]);
@@ -409,7 +409,7 @@ describe('Workouts', () => {
     mockDeleteEvent.mockResolvedValue(true);
     render(Workouts);
     await waitFor(() => {
-      expect(screen.getByText('Delete')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     });
     const rowDeleteBtn = screen.getByRole('button', { name: 'Delete' });
     await fireEvent.click(rowDeleteBtn);
@@ -429,7 +429,7 @@ describe('Workouts', () => {
     mockDeleteEvent.mockResolvedValue(false);
     render(Workouts);
     await waitFor(() => {
-      expect(screen.getByText('Delete')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     });
     const rowDeleteBtn = screen.getByRole('button', { name: 'Delete' });
     await fireEvent.click(rowDeleteBtn);
@@ -452,8 +452,8 @@ describe('Workouts', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const findButtons = screen.getAllByRole('button', { name: 'Find' });
-    await fireEvent.click(findButtons[0]);
+    const findButton = screen.getByRole('button', { name: 'Find comparisons' });
+    await fireEvent.click(findButton);
     await waitFor(() => {
       expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1', {
         sameFolderOnly: true,
@@ -469,8 +469,8 @@ describe('Workouts', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const findButtons = screen.getAllByRole('button', { name: 'Find' });
-    await fireEvent.click(findButtons[0]);
+    const findButton = screen.getByRole('button', { name: 'Find comparisons' });
+    await fireEvent.click(findButton);
     await waitFor(() => {
       expect(screen.getByText('Other Run')).toBeInTheDocument();
     });
@@ -491,8 +491,8 @@ describe('Workouts', () => {
     await waitFor(() => {
       expect(screen.getByText('Morning Run')).toBeInTheDocument();
     });
-    const findButtons = screen.getAllByRole('button', { name: 'Find' });
-    await fireEvent.click(findButtons[0]);
+    const findButton = screen.getByRole('button', { name: 'Find comparisons' });
+    await fireEvent.click(findButton);
     await waitFor(() => {
       expect(screen.getByText('Candidates failed')).toBeInTheDocument();
     });
