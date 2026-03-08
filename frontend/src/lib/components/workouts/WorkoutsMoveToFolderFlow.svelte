@@ -80,8 +80,8 @@
             <span
               class="material-icons text-base shrink-0"
               style="color: {folder.color || '#64748b'};"
-              aria-hidden="true"
-            >folder</span>
+              aria-hidden="true">folder</span
+            >
             <span class="truncate">{folder.name}</span>
           </button>
         {/each}

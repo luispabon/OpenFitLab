@@ -201,7 +201,11 @@
           ? 'bg-accent text-white'
           : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
       >
-        <span class="material-icons text-base shrink-0" style="color: {folder.color || '#64748b'}" aria-hidden="true">folder</span>
+        <span
+          class="material-icons text-base shrink-0"
+          style="color: {folder.color || '#64748b'}"
+          aria-hidden="true">folder</span
+        >
         {folder.name}
       </a>
     {/each}
@@ -215,7 +219,11 @@
           ? 'bg-accent text-white'
           : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
       >
-        <span class="material-icons text-base shrink-0" style="color: {folder.color || '#64748b'}" aria-hidden="true">folder</span>
+        <span
+          class="material-icons text-base shrink-0"
+          style="color: {folder.color || '#64748b'}"
+          aria-hidden="true">folder</span
+        >
         {folder.name}
       </a>
     {/each}
