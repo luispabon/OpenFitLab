@@ -35,6 +35,12 @@ vi.mock('svelte-spa-router', () => ({
   },
 }));
 
+vi.mock('../../lib/stores/folders.svelte', () => ({
+  foldersState: {
+    folders: [{ id: 'folder-1', name: 'Running', color: '#22c55e', pinned: false }],
+  },
+}));
+
 describe('ComparisonView', () => {
   beforeEach(() => {
     resetLoader();
@@ -160,6 +166,45 @@ describe('ComparisonView', () => {
       );
     });
     expect(mockReplace).toHaveBeenCalledWith('/compare/cmp-new');
+  });
+
+  it('passes inferred folderId to createComparison when all events share the same folder', async () => {
+    const evt1WithFolder = {
+      ...eventDetailFixture,
+      event: { ...eventDetailFixture.event, folderId: 'folder-1' },
+    };
+    const evt2WithFolder = {
+      ...eventDetailEvt2Fixture,
+      event: { ...eventDetailEvt2Fixture.event, folderId: 'folder-1' },
+    };
+    mockGetEvent.mockImplementation((id: string) =>
+      Promise.resolve(id === 'evt-1' ? evt1WithFolder : evt2WithFolder)
+    );
+    const saved = { ...comparisonFixture, id: 'cmp-new', name: 'My Compare' };
+    mockCreateComparison.mockResolvedValue(saved);
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save Comparison' }));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Will be saved to: Running')).toBeInTheDocument();
+    await fireEvent.input(screen.getByPlaceholderText('Enter comparison name'), {
+      target: { value: 'My Compare' },
+    });
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(mockCreateComparison).toHaveBeenCalledWith(
+        'My Compare',
+        ['act-1', 'act-2'],
+        expect.any(Object),
+        'folder-1'
+      );
+    });
   });
 
   it('loads saved comparison and shows name and Delete button', async () => {

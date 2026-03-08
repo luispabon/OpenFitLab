@@ -198,9 +198,8 @@
               <div class="flex items-center gap-0.5 py-0.5">
                 <a
                   href={buildFolderHash(FOLDER_SELECTION_ALL)}
-                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                    FOLDER_SELECTION_ALL
-                  )
+                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
+                  isFolderActive(FOLDER_SELECTION_ALL)
                     ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                     : ''}"
                 >
@@ -215,9 +214,8 @@
               <div class="flex items-center gap-0.5 py-0.5">
                 <a
                   href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
-                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                    FOLDER_SELECTION_UNFILED
-                  )
+                  class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
+                  isFolderActive(FOLDER_SELECTION_UNFILED)
                     ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                     : ''}"
                 >
@@ -233,9 +231,8 @@
                 <div class="flex items-center gap-0.5 py-0.5">
                   <a
                     href={buildFolderHash(folder.id)}
-                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                      folder.id
-                    )
+                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
+                    isFolderActive(folder.id)
                       ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                       : ''}"
                   >
@@ -272,9 +269,8 @@
                 <div class="flex items-center gap-0.5 py-0.5">
                   <a
                     href={buildFolderHash(folder.id)}
-                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isFolderActive(
-                      folder.id
-                    )
+                    class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
+                    isFolderActive(folder.id)
                       ? 'bg-card-hover text-text-primary border-r-2 border-accent'
                       : ''}"
                   >
