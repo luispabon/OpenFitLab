@@ -181,15 +181,17 @@
                 <span>Workouts</span>
               {/if}
             </a>
-            <button
-              bind:this={newFolderBtnEl}
-              type="button"
-              class="rounded p-1.5 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary"
-              aria-label="New folder"
-              onclick={() => (showCreateFolderModal = true)}
-            >
-              <span class="material-icons text-base">create_new_folder</span>
-            </button>
+            {#if !sidebarCollapsed}
+              <button
+                bind:this={newFolderBtnEl}
+                type="button"
+                class="rounded p-1.5 text-text-secondary transition-colors hover:bg-card-hover hover:text-text-primary"
+                aria-label="New folder"
+                onclick={() => (showCreateFolderModal = true)}
+              >
+                <span class="material-icons text-base">create_new_folder</span>
+              </button>
+            {/if}
           </div>
           {#if !sidebarCollapsed}
             <div class="mt-1 pl-11">

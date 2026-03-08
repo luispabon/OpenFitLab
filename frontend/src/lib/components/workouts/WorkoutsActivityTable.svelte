@@ -98,7 +98,7 @@
         >
           Date
         </th>
-        <th scope="col" class="relative w-48 px-3 py-3">
+        <th scope="col" class="relative w-44 px-3 py-3">
           <span class="sr-only">Actions</span>
         </th>
       </tr>
@@ -179,11 +179,12 @@
                 row.activity.startTimezone ?? row.event.startTimezone
               )}
             </td>
-            <td class="px-3 py-4 text-right font-medium">
-              <div class="flex flex-wrap items-center justify-end gap-1.5">
+            <td class="px-3 py-4 text-right font-medium whitespace-nowrap">
+              <div class="flex items-center justify-end gap-1">
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  title="View activity"
                   onclick={(e) => {
                     e.stopPropagation();
                     onViewClick(row.event.id, e);
@@ -192,41 +193,43 @@
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >search</span
                   >
-                  View
+
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  title="Find comparisons"
                   onclick={(e) => {
                     e.stopPropagation();
                     onFindComparisonsClick(row.event.id);
                   }}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
-                    >compare_arrows</span
+                    >compare</span
                   >
-                  Find
+
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-                  onclick={(e) => onMoveClick(row.event.id, e)}
                   title="Move to folder"
+                  onclick={(e) => onMoveClick(row.event.id, e)}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
-                    >drive_file_move</span
+                    >folder_open</span
                   >
-                  Move
+
                 </button>
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
+                  title="Delete activity"
                   onclick={(e) => onDeleteClick(row.event.id, e)}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
                     >delete</span
                   >
-                  Delete
+
                 </button>
               </div>
             </td>
