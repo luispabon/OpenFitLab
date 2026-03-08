@@ -16,13 +16,11 @@
 </script>
 
 <WorkoutsUploadSection {isUploading} {onFilesSelected}>
-  {#snippet bulkBar()}
+  <!-- eslint-disable-next-line svelte/no-useless-children-snippet -- test wrapper: snippet content is conditional -->
+  {#snippet children()}
     {#if showBulkBar}
       <div data-testid="bulk-bar">Bulk bar content</div>
     {/if}
-  {/snippet}
-  <!-- eslint-disable-next-line svelte/no-useless-children-snippet -- test wrapper: snippet content is conditional -->
-  {#snippet children()}
     {#if showChildren}
       <div data-testid="upload-children">Children content</div>
     {/if}

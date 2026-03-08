@@ -381,37 +381,45 @@
 
     <WorkoutsToast message={toastMessage} />
 
-    {#if selectedEventIds.size > 0}
-      <WorkoutsBulkActionBar
-        selectedCount={selectedEventIds.size}
-        disabled={eventsToBulkDelete.length > 0 ||
-          eventToDelete !== null ||
-          eventIdsToMove.length > 0}
-        onClear={clearSelection}
-        onCompare={() => {
-          if (selectedEventIds.size >= 2) {
-            push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
-          }
-        }}
-        onMove={handleBulkMoveClick}
-        onDelete={handleBulkDeleteClick}
-      />
-    {:else}
-      <WorkoutsFilters
-        bind:searchInputValue
-        {onSearchInput}
-        {activityTypesOptions}
-        {selectedActivityTypes}
-        onToggleActivityType={toggleActivityType}
-        {devicesOptions}
-        {selectedDevices}
-        onToggleDevice={toggleDevice}
-        {dateStartStr}
-        {dateEndStr}
-        onDateStartChange={setDateStart}
-        onDateEndChange={setDateEnd}
-      />
-    {/if}
+    <div class="relative">
+      <div
+        class:invisible={selectedEventIds.size > 0}
+        inert={selectedEventIds.size > 0 || undefined}
+      >
+        <WorkoutsFilters
+          bind:searchInputValue
+          {onSearchInput}
+          {activityTypesOptions}
+          {selectedActivityTypes}
+          onToggleActivityType={toggleActivityType}
+          {devicesOptions}
+          {selectedDevices}
+          onToggleDevice={toggleDevice}
+          {dateStartStr}
+          {dateEndStr}
+          onDateStartChange={setDateStart}
+          onDateEndChange={setDateEnd}
+        />
+      </div>
+      {#if selectedEventIds.size > 0}
+        <div class="absolute inset-0">
+          <WorkoutsBulkActionBar
+            selectedCount={selectedEventIds.size}
+            disabled={eventsToBulkDelete.length > 0 ||
+              eventToDelete !== null ||
+              eventIdsToMove.length > 0}
+            onClear={clearSelection}
+            onCompare={() => {
+              if (selectedEventIds.size >= 2) {
+                push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
+              }
+            }}
+            onMove={handleBulkMoveClick}
+            onDelete={handleBulkDeleteClick}
+          />
+        </div>
+      {/if}
+    </div>
 
     <WorkoutsPaginationWithUrl {totalRows} bind:page bind:pageSize>
       <WorkoutsActivityTable
