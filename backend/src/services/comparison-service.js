@@ -154,10 +154,30 @@ async function deleteComparisonById(id, opts = {}) {
   return true;
 }
 
+/**
+ * Update a comparison's folder assignment.
+ * @param {string} id
+ * @param {string|null} folderId
+ * @param {{ db?: object }} [opts]
+ * @returns {Promise<boolean>} true if updated, false if not found
+ */
+async function updateComparisonFolder(id, folderId, opts = {}) {
+  if (!opts.userId) throw new Error('updateComparisonFolder requires opts.userId');
+  const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
+
+  const existing = await comparisonRepository.existsById(id, repoOpts);
+  if (!existing) return false;
+
+  const newFolderId = folderId != null && folderId !== '' ? folderId : null;
+  return await comparisonRepository.updateFolderId(id, newFolderId, repoOpts);
+}
+
 module.exports = {
   createComparison,
   getComparisons,
   getComparisonById,
   getComparisonsByEventIds,
   deleteComparisonById,
+  updateComparisonFolder,
 };

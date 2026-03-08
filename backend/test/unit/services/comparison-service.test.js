@@ -7,6 +7,7 @@ const {
   getComparisonById,
   getComparisonsByEventIds,
   deleteComparisonById,
+  updateComparisonFolder,
 } = require('../../../src/services/comparison-service');
 const { makeFakeDb } = require('../../helpers/fake-db');
 
@@ -228,6 +229,57 @@ describe('comparison-service', () => {
       const result = await deleteComparisonById('c1', { db, userId: 'u1' });
       strictEqual(result, true);
       strictEqual(calls.some((s) => s.includes('DELETE')), true);
+    });
+  });
+
+  describe('updateComparisonFolder', () => {
+    it('returns false when comparison not found', async () => {
+      const db = {
+        query: async (sql) =>
+          sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 },
+      };
+      const result = await updateComparisonFolder('missing', 'f1', { db, userId: 'u1' });
+      strictEqual(result, false);
+    });
+
+    it('returns true and updates folder when found', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
+          if (sql.includes('UPDATE comparisons SET folder_id')) {
+            strictEqual(params[0], 'f2');
+            strictEqual(params[1], 'c1');
+            strictEqual(params[2], 'u1');
+            return { affectedRows: 1 };
+          }
+          return [];
+        },
+      };
+      const result = await updateComparisonFolder('c1', 'f2', { db, userId: 'u1' });
+      strictEqual(result, true);
+      strictEqual(
+        calls.some((s) => s.sql.includes('UPDATE comparisons SET folder_id')),
+        true
+      );
+    });
+
+    it('sets folder_id to null when folderId is null (unfiled)', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
+          if (sql.includes('UPDATE comparisons SET folder_id')) {
+            strictEqual(params[0], null);
+            return { affectedRows: 1 };
+          }
+          return [];
+        },
+      };
+      const result = await updateComparisonFolder('c1', null, { db, userId: 'u1' });
+      strictEqual(result, true);
     });
   });
 });

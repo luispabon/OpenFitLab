@@ -267,6 +267,21 @@ function validateFolderUpdateBody(req, res, next) {
 }
 
 /**
+ * Validates comparison folder update body (PATCH /api/comparisons/:id/folder)
+ */
+function validateComparisonFolderUpdateBody(req, res, next) {
+  const { folderId } = req.body || {};
+  if (folderId !== undefined) {
+    if (folderId !== null && (typeof folderId !== 'string' || !isValidUUID(folderId))) {
+      return res.status(400).json({ error: 'folderId must be a valid UUID or null' });
+    }
+  } else {
+    return res.status(400).json({ error: 'folderId is required' });
+  }
+  next();
+}
+
+/**
  * Validates folder delete query (contents=unfile|delete)
  */
 function validateFolderDeleteQuery(req, res, next) {
@@ -287,6 +302,7 @@ module.exports = {
   validateComparisonId,
   validateComparisonBody,
   validateComparisonByEventsBody,
+  validateComparisonFolderUpdateBody,
   validateExportQuery,
   validateFolderId,
   validateFolderCreateBody,

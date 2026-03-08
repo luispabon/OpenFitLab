@@ -1,16 +1,19 @@
 <script lang="ts">
   import { push } from 'svelte-spa-router';
-  import { getComparisons, deleteComparison } from '../lib/api';
+  import { getComparisons, deleteComparison, updateComparisonFolder } from '../lib/api';
   import { foldersState, getFolderFromHash } from '../lib/stores/folders.svelte';
   import type { Comparison } from '../lib/types';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import ConfirmDialog from '../lib/components/workouts/ConfirmDialog.svelte';
+  import SearchableSelect from '../lib/components/SearchableSelect.svelte';
 
   let comparisons = $state<Comparison[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
   let comparisonToDelete = $state<string | null>(null);
   let isDeleting = $state(false);
+  let editingComparisonId = $state<string | null>(null);
+  let editingError = $state<string | null>(null);
 
   // Derived state for folder tabs (use current hash so ?folder= is respected on this route)
   const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
@@ -55,6 +58,68 @@
   function getFolderLabel(comparison: Comparison): string {
     if (!comparison.folderId) return 'Unfiled';
     return folderNameById.get(comparison.folderId) ?? comparison.folderId;
+  }
+
+  const folderOptions = $derived([
+    'Unfiled',
+    ...[...foldersState.folders].sort((a, b) => a.name.localeCompare(b.name)).map((f) => f.name),
+  ]);
+
+  function getFolderIdByName(name: string): string | null {
+    if (name === 'Unfiled') return null;
+    return foldersState.folders.find((f) => f.name === name)?.id ?? null;
+  }
+
+  function getFolderNameById(id: string | null): string {
+    if (!id) return 'Unfiled';
+    return folderNameById.get(id) ?? id;
+  }
+
+  async function handleFolderUpdate(comparisonId: string, newFolderId: string | null) {
+    editingError = null;
+
+    const comparison = comparisons.find((c) => c.id === comparisonId);
+    if (!comparison) {
+      editingComparisonId = null;
+      return;
+    }
+
+    const originalFolderId = comparison.folderId;
+
+    if (originalFolderId === newFolderId) {
+      editingComparisonId = null;
+      return;
+    }
+
+    comparisons = comparisons.map((c) =>
+      c.id === comparisonId ? { ...c, folderId: newFolderId } : c
+    );
+
+    if (activeFolderId !== 'all' && activeFolderId !== 'unfiled') {
+      if (newFolderId !== activeFolderId) {
+        comparisons = comparisons.filter((c) => c.id !== comparisonId);
+      }
+    }
+
+    editingComparisonId = null;
+
+    try {
+      await updateComparisonFolder(comparisonId, newFolderId);
+    } catch (e) {
+      editingError = e instanceof Error ? e.message : 'Failed to update folder';
+
+      if (
+        activeFolderId !== 'all' &&
+        activeFolderId !== 'unfiled' &&
+        newFolderId !== activeFolderId
+      ) {
+        await loadComparisons();
+      } else {
+        comparisons = comparisons.map((c) =>
+          c.id === comparisonId ? { ...c, folderId: originalFolderId } : c
+        );
+      }
+    }
   }
 
   async function loadComparisons() {
@@ -168,6 +233,12 @@
     </a>
   </div>
 
+  {#if editingError}
+    <div class="mb-4 rounded-md border border-danger/20 bg-danger/10 p-3 backdrop-blur">
+      <p class="text-sm font-medium text-danger">{editingError}</p>
+    </div>
+  {/if}
+
   {#if isLoading}
     <div class="flex justify-center py-12">
       <LoadingSpinner />
@@ -223,9 +294,13 @@
               role="link"
               tabindex="0"
               class="hover:bg-card-hover cursor-pointer"
-              onclick={() => push(`/compare/${comparison.id}`)}
+              onclick={(e) => {
+                if ((e.target as HTMLElement).closest?.('[data-folder-cell]')) return;
+                push(`/compare/${comparison.id}`);
+              }}
               onkeydown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
+                  if ((e.target as HTMLElement).closest?.('[data-folder-cell]')) return;
                   e.preventDefault();
                   push(`/compare/${comparison.id}`);
                 }
@@ -255,8 +330,30 @@
               <td class="px-6 py-4 text-text-secondary">
                 {comparison.eventIds.length} event{comparison.eventIds.length > 1 ? 's' : ''}
               </td>
-              <td class="px-6 py-4 text-sm text-text-secondary">
-                {getFolderLabel(comparison)}
+              <td class="px-6 py-4 text-sm" data-folder-cell>
+                {#if editingComparisonId === comparison.id}
+                  <div class="w-48">
+                    <SearchableSelect
+                      options={folderOptions}
+                      value={getFolderNameById(comparison.folderId ?? null)}
+                      placeholder="Select folder..."
+                      oncommit={(name) =>
+                        handleFolderUpdate(comparison.id, getFolderIdByName(name))}
+                      oncancel={() => (editingComparisonId = null)}
+                    />
+                  </div>
+                {:else}
+                  <button
+                    type="button"
+                    class="text-text-secondary hover:text-text-primary hover:underline"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      editingComparisonId = comparison.id;
+                    }}
+                  >
+                    {getFolderLabel(comparison)}
+                  </button>
+                {/if}
               </td>
               <td class="px-6 py-4 text-text-secondary">{formatDate(comparison.createdAt)}</td>
               <td class="whitespace-nowrap px-6 py-4 text-right font-medium">
