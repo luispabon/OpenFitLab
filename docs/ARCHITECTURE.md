@@ -50,19 +50,15 @@ Core flow:
 erDiagram
     USERS ||--o{ USER_IDENTITIES : has
     USERS ||--o{ FOLDERS : owns
-    USERS ||--o{ EVENTS : owns
-    USERS ||--o{ COMPARISONS : owns
-    FOLDERS |o--o{ EVENTS : contains
-    FOLDERS |o--o{ COMPARISONS : contains
+    USERS ||--o{ EVENTS : triggers
+    FOLDERS ||--o{ EVENTS : contains
     EVENTS ||--o{ EVENT_STATS : has
-    EVENTS ||--o{ ACTIVITIES : contains
-    EVENTS ||--o{ STREAMS : has
-    ACTIVITIES ||--o{ ACTIVITY_STATS : has
-    ACTIVITIES ||--o{ STREAMS : has
-    STREAMS ||--o{ STREAM_DATA_POINTS : contains
-    COMPARISONS ||--o{ COMPARISON_EVENT_ACTIVITIES : has
-    EVENTS ||--o{ COMPARISON_EVENT_ACTIVITIES : referenced_by
-    ACTIVITIES ||--o{ COMPARISON_EVENT_ACTIVITIES : referenced_by
+    EVENTS ||--o{ ACTIVITIES : tracks
+    ACTIVITIES ||--o{ ACTIVITY_STATS : measured_by
+    ACTIVITIES ||--o{ STREAMS : produces
+    STREAMS ||--o{ STREAM_DATA_POINTS : generates
+    FOLDERS ||--o{ COMPARISONS : includes
+    COMPARISONS ||--o{ COMPARISON_EVENT_ACTIVITIES : consists_of
 
     USERS {
         varchar36 id PK
@@ -107,8 +103,8 @@ erDiagram
     }
 
     EVENT_STATS {
-        varchar36 event_id PK_FK
-        varchar stat_type PK
+        varchar36 event_id PK, FK
+        varchar statType PK
         json value
     }
 
@@ -126,8 +122,8 @@ erDiagram
     }
 
     ACTIVITY_STATS {
-        varchar36 activity_id PK_FK
-        varchar stat_type PK
+        varchar36 activity_id PK, FK
+        varchar statType PK
         json value
     }
 
@@ -157,8 +153,8 @@ erDiagram
     }
 
     COMPARISON_EVENT_ACTIVITIES {
-        varchar36 comparison_id PK_FK
-        varchar36 event_id PK_FK
+        varchar36 comparison_id PK, FK
+        varchar36 event_id PK, FK
         varchar36 activity_id FK
     }
 ```
