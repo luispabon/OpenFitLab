@@ -1,5 +1,6 @@
 <script lang="ts">
   // Simple login page with OAuth provider buttons
+  import logoBig from '../assets/logo-big.svg';
   import googleIcon from '../assets/auth/google-g.svg';
   import githubIcon from '../assets/auth/github-mark.svg';
 
@@ -18,9 +19,8 @@
 
 <div class="min-h-screen flex items-center justify-center bg-surface">
   <div class="w-full max-w-md rounded-lg border border-border bg-card p-8 shadow">
-    <div class="mb-6 flex items-center justify-center gap-3">
-      <span class="material-icons text-3xl text-text-primary">fitness_center</span>
-      <h1 class="text-xl font-semibold text-text-primary">OpenFitLab</h1>
+    <div class="mb-6 flex items-center justify-center">
+      <img src={logoBig} alt="OpenFitLab" class="h-16" />
     </div>
     <p class="mb-6 text-center text-text-secondary">Sign in to continue</p>
     <div class="flex flex-col gap-3">

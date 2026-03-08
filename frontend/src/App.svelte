@@ -23,6 +23,8 @@
   import { FOLDER_SELECTION_ALL, FOLDER_SELECTION_UNFILED } from './lib/types/event';
   import type { Folder } from './lib/types/event';
   import { updateFolder } from './lib/api/folders';
+  import logoIcon from './assets/logo-icon.svg';
+  import logoBig from './assets/logo-big.svg';
   import FolderCreateModal from './lib/components/folders/FolderCreateModal.svelte';
   import FolderRenameModal from './lib/components/folders/FolderRenameModal.svelte';
   import FolderColorModal from './lib/components/folders/FolderColorModal.svelte';
@@ -152,10 +154,11 @@
   >
     <div class="flex h-full flex-col">
       <!-- Logo/Branding -->
-      <div class="flex items-center gap-3 border-b border-border px-4 py-4">
-        <span class="material-icons text-2xl text-text-primary">fitness_center</span>
-        {#if !sidebarCollapsed}
-          <h1 class="text-lg font-medium text-text-primary">OpenFitLab</h1>
+      <div class="flex items-center border-b border-border px-4 py-4">
+        {#if sidebarCollapsed}
+          <img src={logoIcon} alt="OpenFitLab" class="h-8" />
+        {:else}
+          <img src={logoBig} alt="OpenFitLab" class="h-8" />
         {/if}
       </div>
 

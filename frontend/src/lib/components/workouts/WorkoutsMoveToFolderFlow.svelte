@@ -44,7 +44,14 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="move-to-folder-title"
+    tabindex="-1"
     onclick={onClosed}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClosed();
+      }
+    }}
   >
     <div
       class="max-h-[80vh] w-full max-w-sm overflow-hidden rounded-lg border border-border bg-surface-solid shadow-xl"
