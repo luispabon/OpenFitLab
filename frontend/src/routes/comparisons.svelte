@@ -1,27 +1,56 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
   import { getComparisons, deleteComparison } from '../lib/api';
-  import { getFolders } from '../lib/api/folders';
+  import { foldersState, getFolderFromHash } from '../lib/stores/folders.svelte';
   import type { Comparison } from '../lib/types';
-  import type { Folder } from '../lib/types/event';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import ConfirmDialog from '../lib/components/workouts/ConfirmDialog.svelte';
 
   let comparisons = $state<Comparison[]>([]);
-  let folders = $state<Folder[]>([]);
   let isLoading = $state(true);
   let error = $state<string | null>(null);
   let comparisonToDelete = $state<string | null>(null);
   let isDeleting = $state(false);
 
+  // Derived state for folder tabs (use current hash so ?folder= is respected on this route)
+  const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
+
+  const pinnedFolders = $derived(
+    [...foldersState.folders].filter((f) => f.pinned).sort((a, b) => a.name.localeCompare(b.name))
+  );
+
+  const unpinnedFolders = $derived(
+    [...foldersState.folders].filter((f) => !f.pinned).sort((a, b) => a.name.localeCompare(b.name))
+  );
+
   const folderNameById = $derived.by(() => {
     const map = new Map<string, string>();
-    for (const f of folders) {
+    for (const f of foldersState.folders) {
       map.set(f.id, f.name);
     }
     return map;
   });
+
+  /** Build href for comparisons page folder tab (keeps user on /comparisons). */
+  function comparisonsFolderHref(folderId: 'all' | 'unfiled' | string): string {
+    if (folderId === 'all') return '#/comparisons';
+    return `#/comparisons?folder=${encodeURIComponent(folderId)}`;
+  }
+
+  function isFolderActive(value: 'all' | 'unfiled' | string): boolean {
+    return activeFolderId === value;
+  }
+
+  const pageTitle = $derived(
+    activeFolderId === 'all'
+      ? 'Saved Comparisons'
+      : activeFolderId === 'unfiled'
+        ? 'Unfiled Comparisons'
+        : (() => {
+            const folder = foldersState.folders.find((f) => f.id === activeFolderId);
+            return folder ? `${folder.name} - Comparisons` : 'Saved Comparisons';
+          })()
+  );
 
   function getFolderLabel(comparison: Comparison): string {
     if (!comparison.folderId) return 'Unfiled';
@@ -32,12 +61,9 @@
     isLoading = true;
     error = null;
     try {
-      const [list, folderList] = await Promise.all([
-        getComparisons(),
-        getFolders().catch(() => [] as Folder[]),
-      ]);
+      const folderId = activeFolderId === 'all' ? undefined : activeFolderId;
+      const list = await getComparisons({ folderId });
       comparisons = list;
-      folders = folderList;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load comparisons';
       comparisons = [];
@@ -45,6 +71,12 @@
       isLoading = false;
     }
   }
+
+  // Re-fetch comparisons when active folder changes
+  $effect(() => {
+    const _folderId = activeFolderId;
+    loadComparisons();
+  });
 
   function handleDeleteClick(id: string) {
     comparisonToDelete = id;
@@ -77,15 +109,63 @@
       year: 'numeric',
     });
   }
-
-  onMount(() => {
-    loadComparisons();
-  });
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
   <div class="mb-6 flex items-center justify-between">
-    <h1 class="text-2xl font-semibold text-text-primary">Saved Comparisons</h1>
+    <h1 class="text-2xl font-semibold text-text-primary">{pageTitle}</h1>
+  </div>
+
+  <!-- Folder Filter Tabs -->
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    <a
+      href={comparisonsFolderHref('all')}
+      class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {isFolderActive('all')
+        ? 'bg-accent text-white'
+        : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
+    >
+      All
+    </a>
+
+    {#each pinnedFolders as folder (folder.id)}
+      <a
+        href={comparisonsFolderHref(folder.id)}
+        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 {isFolderActive(
+          folder.id
+        )
+          ? 'bg-accent text-white'
+          : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
+      >
+        <span class="w-2 h-2 rounded-full" style="background-color: {folder.color || '#64748b'}"
+        ></span>
+        {folder.name}
+      </a>
+    {/each}
+
+    {#each unpinnedFolders as folder (folder.id)}
+      <a
+        href={comparisonsFolderHref(folder.id)}
+        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 {isFolderActive(
+          folder.id
+        )
+          ? 'bg-accent text-white'
+          : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
+      >
+        <span class="w-2 h-2 rounded-full" style="background-color: {folder.color || '#64748b'}"
+        ></span>
+        {folder.name}
+      </a>
+    {/each}
+
+    <!-- Unfiled tab (always show so user can filter to unfiled when no folders exist) -->
+    <a
+      href={comparisonsFolderHref('unfiled')}
+      class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors {isFolderActive('unfiled')
+        ? 'bg-accent text-white'
+        : 'bg-surface text-text-secondary hover:bg-surface-hover hover:text-text-primary'}"
+    >
+      Unfiled
+    </a>
   </div>
 
   {#if isLoading}
