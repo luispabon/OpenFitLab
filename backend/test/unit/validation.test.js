@@ -9,6 +9,7 @@ const {
   validateComparisonId,
   validateComparisonBody,
   validateComparisonByEventsBody,
+  validateComparisonFolderUpdateBody,
   validateExportQuery,
 } = require('../../src/utils/validation');
 
@@ -410,6 +411,46 @@ describe('validateComparisonByEventsBody', () => {
     validateComparisonByEventsBody(req, res, next);
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
+    strictEqual(next.called(), false);
+  });
+});
+
+describe('validateComparisonFolderUpdateBody', () => {
+  it('calls next for valid folderId (UUID)', () => {
+    const req = {
+      body: { folderId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde' },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonFolderUpdateBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next for folderId null (unfiled)', () => {
+    const req = { body: { folderId: null } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonFolderUpdateBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 when folderId is missing', () => {
+    const req = { body: {} };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonFolderUpdateBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'folderId is required' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when folderId is not a valid UUID', () => {
+    const req = { body: { folderId: 'not-a-uuid' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonFolderUpdateBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'folderId must be a valid UUID or null' });
     strictEqual(next.called(), false);
   });
 });

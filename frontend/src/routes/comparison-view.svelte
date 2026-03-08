@@ -7,7 +7,7 @@
 
   import { push, replace, location } from 'svelte-spa-router';
   import { createComparison, deleteComparison } from '../lib/api';
-  import type { StreamData, ComparisonSettings } from '../lib/types';
+  import type { StreamData, ComparisonSettings, Folder } from '../lib/types';
   import {
     isChartableStream,
     isSmoothVariantToHide,
@@ -33,6 +33,7 @@
   import ComparisonChart from '../lib/components/ComparisonChart.svelte';
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
+  import { foldersState } from '../lib/stores/folders.svelte';
 
   const comparisonId = $derived(params?.id ?? '');
 
@@ -119,6 +120,14 @@
   );
   const error = $derived(loaderState.error);
   const events = $derived(loaderState.events);
+  const inferredFolderId = $derived.by(() => {
+    if (comparisonId && comparisonId !== 'new') return null;
+    const evs = events;
+    if (evs.length === 0) return null;
+    const firstFolder = evs[0].event.folderId ?? null;
+    if (!firstFolder) return null;
+    return evs.every((e) => (e.event.folderId ?? null) === firstFolder) ? firstFolder : null;
+  });
   const streamsByEventId = $derived(loaderState.streamsByEventId);
   const selectedActivities = $derived(loaderState.selectedActivities);
   const selectedStreamTypes = $derived(loaderState.selectedStreamTypes);
@@ -270,7 +279,7 @@
         saveName.trim(),
         activityIds,
         settings,
-        folderIdForNewComparison ?? undefined
+        folderIdForNewComparison ?? inferredFolderId ?? undefined
       );
       setComparison(saved);
       showSaveDialog = false;
@@ -619,6 +628,13 @@
               if (e.key === 'Escape') showSaveDialog = false;
             }}
           />
+          {#if (folderIdForNewComparison ?? inferredFolderId) != null}
+            {@const effectiveFolderId = folderIdForNewComparison ?? inferredFolderId}
+            {@const folder = foldersState.folders.find((f: Folder) => f.id === effectiveFolderId)}
+            <p class="mt-2 text-sm text-text-secondary">
+              Will be saved to: {folder?.name ?? 'Unknown folder'}
+            </p>
+          {/if}
           {#if saveError}
             <p class="mt-2 text-sm text-danger">{saveError}</p>
           {/if}

@@ -229,6 +229,17 @@ async function getEventFolderIdsForComparisons(comparisonIds, opts = {}) {
   return byComparison;
 }
 
+async function updateFolderId(id, folderId, opts = {}) {
+  if (!opts.userId) throw new Error('updateFolderId comparison requires opts.userId');
+  const newFolderId = folderId != null && folderId !== '' ? folderId : null;
+  const result = await runQuery(
+    'UPDATE comparisons SET folder_id = ? WHERE id = ? AND user_id = ?',
+    [newFolderId, id, opts.userId],
+    opts
+  );
+  return result && result.affectedRows === 1;
+}
+
 module.exports = {
   create,
   findAll,
@@ -241,4 +252,5 @@ module.exports = {
   deleteById,
   deleteByIds,
   getEventFolderIdsForComparisons,
+  updateFolderId,
 };
