@@ -191,7 +191,7 @@
                   }}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
-                    >search</span
+                    >visibility</span
                   >
 
                 </button>
