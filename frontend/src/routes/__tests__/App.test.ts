@@ -144,6 +144,7 @@ describe('App', () => {
       });
       expect(screen.getByText('Workouts')).toBeInTheDocument();
       expect(screen.getByText('Comparisons')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'New folder' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
       expect(nav).toHaveStyle({ width: '16rem' });
@@ -157,6 +158,7 @@ describe('App', () => {
       });
       expect(screen.queryByText('Workouts')).not.toBeInTheDocument();
       expect(screen.queryByText('Comparisons')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New folder' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
       expect(nav).toHaveStyle({ width: '4rem' });

@@ -31,6 +31,8 @@
   import WorkoutsPaginationWithUrl from '../lib/components/workouts/WorkoutsPaginationWithUrl.svelte';
   import WorkoutsActivityTable from '../lib/components/workouts/WorkoutsActivityTable.svelte';
 
+  type ActiveFolderDisplay = { label: string; color: string | null };
+
   let activityRowsFromApi = $state<ActivityRow[]>([]);
   let totalRows = $state(0);
   let isLoading = $state(false);
@@ -102,12 +104,18 @@
 
   const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
 
-  /** Upload target folder: 'unfiled' | folder UUID. Synced from activeFolderId (all -> unfiled); user can override. */
-  let uploadFolderId = $state<string>('unfiled');
-
-  $effect(() => {
-    uploadFolderId = activeFolderId === 'all' ? 'unfiled' : activeFolderId;
-  });
+  const activeFolderDisplay = $derived(
+    activeFolderId === 'all'
+      ? ({ label: 'All', color: null } satisfies ActiveFolderDisplay)
+      : activeFolderId === 'unfiled'
+        ? ({ label: 'Unfiled', color: null } satisfies ActiveFolderDisplay)
+        : (() => {
+            const folder = foldersState.folders.find((f) => f.id === activeFolderId);
+            return folder
+              ? { label: folder.name, color: folder.color }
+              : ({ label: 'Folder', color: null } satisfies ActiveFolderDisplay);
+          })()
+  );
 
   function showToast(message: string) {
     toastMessage = message;
@@ -169,6 +177,8 @@
   });
 
   async function handleFiles(fileList: File[]) {
+    const folderIdForApi =
+      activeFolderId === 'all' || activeFolderId === 'unfiled' ? null : activeFolderId;
     isUploading = true;
     totalFiles = fileList.length;
     let successful = 0;
@@ -183,7 +193,6 @@
         uploadProgress = totalFiles > 0 ? (i / totalFiles) * 100 : 0;
 
         let firstProgressInChunk = true;
-        const folderIdForApi = uploadFolderId === 'unfiled' ? null : uploadFolderId;
         try {
           const { results } = await uploadFiles(
             chunk,
@@ -338,26 +347,8 @@
     {isUploading}
     onFilesSelected={handleFiles}
     bind:isDraggingOver
-    folders={foldersState.folders}
-    bind:uploadFolderId
+    {activeFolderDisplay}
   >
-    {#snippet bulkBar()}
-      <WorkoutsBulkActionBar
-        selectedCount={selectedEventIds.size}
-        disabled={eventsToBulkDelete.length > 0 ||
-          eventToDelete !== null ||
-          eventIdsToMove.length > 0}
-        onClear={clearSelection}
-        onCompare={() => {
-          if (selectedEventIds.size >= 2) {
-            push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
-          }
-        }}
-        onMove={handleBulkMoveClick}
-        onDelete={handleBulkDeleteClick}
-      />
-    {/snippet}
-
     <!-- Loading Spinner (only for loading events, not uploads) -->
     {#if isLoading}
       <div class="mb-4">
@@ -390,20 +381,45 @@
 
     <WorkoutsToast message={toastMessage} />
 
-    <WorkoutsFilters
-      bind:searchInputValue
-      {onSearchInput}
-      {activityTypesOptions}
-      {selectedActivityTypes}
-      onToggleActivityType={toggleActivityType}
-      {devicesOptions}
-      {selectedDevices}
-      onToggleDevice={toggleDevice}
-      {dateStartStr}
-      {dateEndStr}
-      onDateStartChange={setDateStart}
-      onDateEndChange={setDateEnd}
-    />
+    <div class="relative">
+      <div
+        class:invisible={selectedEventIds.size > 0}
+        inert={selectedEventIds.size > 0 || undefined}
+      >
+        <WorkoutsFilters
+          bind:searchInputValue
+          {onSearchInput}
+          {activityTypesOptions}
+          {selectedActivityTypes}
+          onToggleActivityType={toggleActivityType}
+          {devicesOptions}
+          {selectedDevices}
+          onToggleDevice={toggleDevice}
+          {dateStartStr}
+          {dateEndStr}
+          onDateStartChange={setDateStart}
+          onDateEndChange={setDateEnd}
+        />
+      </div>
+      {#if selectedEventIds.size > 0}
+        <div class="absolute inset-0">
+          <WorkoutsBulkActionBar
+            selectedCount={selectedEventIds.size}
+            disabled={eventsToBulkDelete.length > 0 ||
+              eventToDelete !== null ||
+              eventIdsToMove.length > 0}
+            onClear={clearSelection}
+            onCompare={() => {
+              if (selectedEventIds.size >= 2) {
+                push(`/compare/new?events=${Array.from(selectedEventIds).join(',')}`);
+              }
+            }}
+            onMove={handleBulkMoveClick}
+            onDelete={handleBulkDeleteClick}
+          />
+        </div>
+      {/if}
+    </div>
 
     <WorkoutsPaginationWithUrl {totalRows} bind:page bind:pageSize>
       <WorkoutsActivityTable
