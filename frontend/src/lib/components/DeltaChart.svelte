@@ -4,7 +4,7 @@
   import type { DeltaPoint } from '../utils/stream-analysis';
   import { formatElapsedTime, CHART_TEXT_COLOR, CHART_GRID_COLOR } from '../utils/chart-utils';
 
-  const DELTA_CHART_HEIGHT = 220;
+  const DELTA_CHART_HEIGHT = 300;
 
   interface Props {
     deltaSeries: DeltaPoint[];

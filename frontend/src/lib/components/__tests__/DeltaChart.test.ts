@@ -68,6 +68,19 @@ describe('DeltaChart', () => {
     expect(screen.queryByText(/No delta data/)).not.toBeInTheDocument();
   });
 
+  it('empty state uses 300px height', () => {
+    render(DeltaChart, {
+      props: {
+        deltaSeries: [],
+        label: 'Heart Rate delta',
+        color: '#3b82f6',
+        unit: 'bpm',
+      },
+    });
+    const el = screen.getByText(/No delta data/).closest('div[style]');
+    expect(el).toHaveAttribute('style', 'height: 300px;');
+  });
+
   it('destroys chart on unmount', async () => {
     const { unmount } = render(DeltaChart, {
       props: {

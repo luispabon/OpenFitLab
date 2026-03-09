@@ -246,6 +246,54 @@ describe('ComparisonStatsTable', () => {
       const deltaHeaders = screen.getAllByText('Δ');
       expect(deltaHeaders).toHaveLength(2);
     });
+
+    it('renders reference column first when ref is not the first event', () => {
+      const events = [eventDetailFixture, eventDetailEvt2Fixture, eventDetailEvt3Fixture];
+      const selectedActivities = { 'evt-1': 'act-1', 'evt-2': 'act-2', 'evt-3': 'act-3' };
+      const allStatTypes = ['Duration'];
+      const eventColors = ['#ef4444', '#3b82f6', '#10b981'];
+      const calculateDelta = vi.fn(() => null);
+
+      render(ComparisonStatsTable, {
+        props: {
+          events,
+          selectedActivities,
+          allStatTypes,
+          eventColors,
+          getActivityDeviceName,
+          calculateDelta,
+          referenceEventId: 'evt-2',
+        },
+      });
+
+      const ths = screen.getAllByRole('columnheader');
+      expect(ths[1].textContent).toMatch(/Wahoo Elemnt/);
+      expect(ths[2].textContent).toMatch(/Garmin Forerunner/);
+    });
+
+    it('applies red border style to the reference column header', () => {
+      const events = [eventDetailFixture, eventDetailEvt2Fixture];
+      const selectedActivities = { 'evt-1': 'act-1', 'evt-2': 'act-2' };
+      const allStatTypes = ['Duration'];
+      const eventColors = ['#ef4444', '#3b82f6'];
+      const calculateDelta = vi.fn(() => null);
+
+      render(ComparisonStatsTable, {
+        props: {
+          events,
+          selectedActivities,
+          allStatTypes,
+          eventColors,
+          getActivityDeviceName,
+          calculateDelta,
+          referenceEventId: 'evt-1',
+        },
+      });
+
+      const ths = screen.getAllByRole('columnheader');
+      // Browser normalises #ef4444 → rgb(239, 68, 68)
+      expect(ths[1]).toHaveAttribute('style', expect.stringContaining('rgb(239, 68, 68)'));
+    });
   });
 
   it('calls onHideStat with the stat type when hide button is clicked', async () => {

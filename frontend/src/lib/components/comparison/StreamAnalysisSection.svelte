@@ -84,7 +84,9 @@
   $effect(() => {
     if (availableStreamTypes.length > 0) {
       if (!selectedStreamType || !availableStreamTypes.includes(selectedStreamType)) {
-        selectedStreamType = availableStreamTypes[0];
+        selectedStreamType = availableStreamTypes.includes('Heart Rate')
+          ? 'Heart Rate'
+          : availableStreamTypes[0];
       }
     } else {
       selectedStreamType = null;
@@ -112,6 +114,15 @@
   function getEventColor(eventDetail: EventDetail): string {
     const idx = events.findIndex((e) => e.event.id === eventDetail.event.id);
     return eventColors[idx % eventColors.length];
+  }
+
+  function getCorrelationRating(r: number): { label: string; color: string } {
+    const abs = Math.abs(r);
+    if (abs >= 0.9) return { label: 'Excellent', color: '#22c55e' };
+    if (abs >= 0.7) return { label: 'Good', color: '#84cc16' };
+    if (abs >= 0.5) return { label: 'Moderate', color: '#eab308' };
+    if (abs >= 0.3) return { label: 'Weak', color: '#f97316' };
+    return { label: 'Poor', color: '#ef4444' };
   }
 </script>
 
@@ -193,6 +204,7 @@
                   </p>
                 </div>
               {:else}
+                {@const rating = getCorrelationRating(stats.r)}
                 <div class="grid gap-6 lg:grid-cols-2">
                   <!-- Scatter chart -->
                   <div>
@@ -200,6 +212,15 @@
                       class="mb-2 text-xs font-medium uppercase tracking-wider text-text-secondary"
                     >
                       Scatter / Correlation
+                      <span
+                        class="ml-2 inline-flex flex-col items-center rounded px-2 py-0.5 leading-tight align-middle"
+                        style="background-color: {rating.color}26; color: {rating.color};"
+                      >
+                        <span class="font-mono text-sm font-bold">{stats.r.toFixed(3)}</span>
+                        <span class="text-[9px] font-semibold uppercase tracking-wide"
+                          >{rating.label}</span
+                        >
+                      </span>
                     </p>
                     <ScatterChart
                       {pairs}

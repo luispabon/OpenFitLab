@@ -175,4 +175,73 @@ describe('StreamAnalysisSection', () => {
     // Speed is now selected (button should change style) - just verify no crash
     expect(screen.getByText('Speed')).toBeInTheDocument();
   });
+
+  it('auto-selects Heart Rate stream by default when available', () => {
+    const speedStream1 = { type: 'Speed', data: [{ time: 1_700_000_000_000, value: 3.5 }] };
+    const speedStream2 = { type: 'Speed', data: [{ time: 1_700_000_000_000, value: 3.6 }] };
+    const streams = {
+      'evt-1': [heartRateStream1, speedStream1],
+      'evt-2': [heartRateStream2, speedStream2],
+    };
+    render(StreamAnalysisSection, {
+      props: {
+        events: [evt1, evt2],
+        streamsByEventId: streams,
+        selectedActivities,
+        referenceActivityId: 'act-1',
+        eventColors,
+      },
+    });
+    const hrBtn = screen.getByText('Heart Rate').closest('button');
+    expect(hrBtn).toHaveAttribute('style', expect.stringMatching(/background-color/));
+    const speedBtn = screen.getByText('Speed').closest('button');
+    expect(speedBtn).not.toHaveAttribute('style', expect.stringMatching(/background-color/));
+  });
+
+  it('falls back to first available stream when Heart Rate is not present', () => {
+    const speedStream1 = { type: 'Speed', data: [{ time: 1_700_000_000_000, value: 3.5 }] };
+    const speedStream2 = { type: 'Speed', data: [{ time: 1_700_000_000_000, value: 3.6 }] };
+    const streams = {
+      'evt-1': [speedStream1],
+      'evt-2': [speedStream2],
+    };
+    render(StreamAnalysisSection, {
+      props: {
+        events: [evt1, evt2],
+        streamsByEventId: streams,
+        selectedActivities,
+        referenceActivityId: 'act-1',
+        eventColors,
+      },
+    });
+    const speedBtn = screen.getByText('Speed').closest('button');
+    expect(speedBtn).toHaveAttribute('style', expect.stringMatching(/background-color/));
+  });
+
+  it('correlation badge displays the r value prominently', () => {
+    render(StreamAnalysisSection, {
+      props: {
+        events: [evt1, evt2],
+        streamsByEventId,
+        selectedActivities,
+        referenceActivityId: 'act-1',
+        eventColors,
+      },
+    });
+    const boldR = document.querySelector('.font-bold.font-mono');
+    expect(boldR?.textContent).toBe('1.000');
+  });
+
+  it('correlation badge displays the rating label', () => {
+    render(StreamAnalysisSection, {
+      props: {
+        events: [evt1, evt2],
+        streamsByEventId,
+        selectedActivities,
+        referenceActivityId: 'act-1',
+        eventColors,
+      },
+    });
+    expect(screen.getByText('Excellent')).toBeInTheDocument();
+  });
 });

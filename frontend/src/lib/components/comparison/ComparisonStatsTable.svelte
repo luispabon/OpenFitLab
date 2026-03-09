@@ -34,6 +34,18 @@
 
   // Whether delta columns should be shown
   const showDeltas = $derived(refIndex >= 0);
+
+  // Ordered events: ref first, then others in original order
+  const orderedEvents = $derived.by(() => {
+    if (refIndex < 0) return events;
+    return [events[refIndex], ...events.filter((_, i) => i !== refIndex)];
+  });
+
+  // Get color by original index in events (stable across reorders)
+  function getEventColor(eventDetail: EventDetail): string {
+    const idx = events.findIndex((e) => e.event.id === eventDetail.event.id);
+    return eventColors[idx % eventColors.length];
+  }
 </script>
 
 <div class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
@@ -47,12 +59,13 @@
           >
             Stat
           </th>
-          {#each events as eventDetail, i (eventDetail.event.id)}
+          {#each orderedEvents as eventDetail (eventDetail.event.id)}
             {@const eventId = eventDetail.event.id}
             {@const activityId = selectedActivities[eventId]}
             {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
-            {@const color = eventColors[i % eventColors.length]}
-            {@const isRef = showDeltas && i === refIndex}
+            {@const isRef = showDeltas && eventDetail.event.id === referenceEventId}
+            {@const color = isRef ? '#ef4444' : getEventColor(eventDetail)}
+            {@const originalIndex = events.findIndex((e) => e.event.id === eventId)}
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
@@ -60,15 +73,15 @@
             >
               {activity
                 ? getActivityDeviceName(activity)
-                : eventDetail.event.name || `Event ${i + 1}`}
+                : eventDetail.event.name || `Event ${originalIndex + 1}`}
               {#if isRef}
                 <span
-                  class="ml-1 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
-                  >Ref</span
+                  class="ml-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                  style="background-color: #ef444426; color: #ef4444;">Ref</span
                 >
               {/if}
             </th>
-            {#if showDeltas && i !== refIndex}
+            {#if showDeltas && !isRef}
               <th
                 scope="col"
                 class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
@@ -81,12 +94,13 @@
       </thead>
       <tbody class="divide-y divide-border bg-transparent">
         {#each allStatTypes as statType (statType)}
-          {@const values = events.map((eventDetail) => {
-            const eventId = eventDetail.event.id;
-            const activityId = selectedActivities[eventId];
-            const activity = eventDetail.activities.find((a) => a.id === activityId);
+          {@const refValue = (() => {
+            const refEventDetail = events.find((e) => e.event.id === referenceEventId);
+            if (!refEventDetail) return undefined;
+            const activityId = selectedActivities[refEventDetail.event.id];
+            const activity = refEventDetail.activities.find((a) => a.id === activityId);
             return activity?.stats?.[statType];
-          })}
+          })()}
           <tr class="group">
             <td class="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
               {statType}
@@ -117,7 +131,7 @@
                 </button>
               {/if}
             </td>
-            {#each events as eventDetail, i (eventDetail.event.id)}
+            {#each orderedEvents as eventDetail (eventDetail.event.id)}
               {@const eventId = eventDetail.event.id}
               {@const activityId = selectedActivities[eventId]}
               {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
@@ -125,9 +139,10 @@
               {@const formatted = value != null ? formatStatValue(value, statType) : '---'}
               {@const unit = getStatUnit(statType)}
               {@const displayValue = unit ? `${formatted} ${unit}` : formatted}
+              {@const isRef = showDeltas && eventDetail.event.id === referenceEventId}
               <td class="whitespace-nowrap px-6 py-4 text-text-secondary">{displayValue}</td>
-              {#if showDeltas && i !== refIndex}
-                {@const delta = calculateDelta(values[refIndex], values[i])}
+              {#if showDeltas && !isRef}
+                {@const delta = calculateDelta(refValue, value)}
                 <td class="whitespace-nowrap px-4 py-4 text-text-secondary">
                   {#if delta}
                     <span class={delta.absolute >= 0 ? 'text-green-500' : 'text-red-500'}>
