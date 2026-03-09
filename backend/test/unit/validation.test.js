@@ -580,6 +580,38 @@ describe('validateComparisonSettingsBody', () => {
     deepStrictEqual(res.body, { error: 'settings.hiddenStats must be an array of strings' });
     strictEqual(next.called(), false);
   });
+
+  it('calls next for valid referenceActivityId UUID', () => {
+    const req = {
+      body: {
+        settings: { referenceActivityId: '550e8400-e29b-41d4-a716-446655440000' },
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next for referenceActivityId null', () => {
+    const req = { body: { settings: { referenceActivityId: null } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 for invalid referenceActivityId string', () => {
+    const req = { body: { settings: { referenceActivityId: 'not-a-uuid' } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, {
+      error: 'settings.referenceActivityId must be a valid UUID or null',
+    });
+    strictEqual(next.called(), false);
+  });
 });
 
 describe('validateExportQuery', () => {

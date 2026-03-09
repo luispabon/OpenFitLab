@@ -103,6 +103,7 @@ export interface ComparisonSettings {
   selectedStreams?: string[];
   xAxisMode?: 'elapsed' | 'wall-clock';
   hiddenStats?: string[];
+  referenceActivityId?: string | null;
 }
 
 export interface Comparison {

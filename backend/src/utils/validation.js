@@ -294,7 +294,7 @@ function validateComparisonSettingsBody(req, res, next) {
   ) {
     return res.status(400).json({ error: 'settings must be an object' });
   }
-  const { selectedStreams, xAxisMode, hiddenStats } = settings;
+  const { selectedStreams, xAxisMode, hiddenStats, referenceActivityId } = settings;
   if (selectedStreams !== undefined) {
     if (!Array.isArray(selectedStreams)) {
       return res.status(400).json({ error: 'settings.selectedStreams must be an array' });
@@ -318,6 +318,13 @@ function validateComparisonSettingsBody(req, res, next) {
       if (typeof s !== 'string') {
         return res.status(400).json({ error: 'settings.hiddenStats must be an array of strings' });
       }
+    }
+  }
+  if (referenceActivityId !== undefined) {
+    if (referenceActivityId !== null && !isValidUUID(referenceActivityId)) {
+      return res
+        .status(400)
+        .json({ error: 'settings.referenceActivityId must be a valid UUID or null' });
     }
   }
   next();

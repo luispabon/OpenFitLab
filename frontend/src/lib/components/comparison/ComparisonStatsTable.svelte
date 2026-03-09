@@ -10,10 +10,11 @@
     eventColors: string[];
     getActivityDeviceName: (activity: { deviceName?: string }) => string;
     calculateDelta: (
-      value1: unknown,
-      value2: unknown
+      refValue: unknown,
+      secValue: unknown
     ) => { absolute: number; percent: number } | null;
     onHideStat?: (statType: string) => void;
+    referenceEventId?: string;
   }
   let {
     events,
@@ -23,7 +24,16 @@
     getActivityDeviceName,
     calculateDelta,
     onHideStat,
+    referenceEventId,
   }: Props = $props();
+
+  // Index of the reference event in the events array
+  const refIndex = $derived(
+    referenceEventId != null ? events.findIndex((e) => e.event.id === referenceEventId) : -1
+  );
+
+  // Whether delta columns should be shown
+  const showDeltas = $derived(refIndex >= 0);
 </script>
 
 <div class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
@@ -42,6 +52,7 @@
             {@const activityId = selectedActivities[eventId]}
             {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
             {@const color = eventColors[i % eventColors.length]}
+            {@const isRef = showDeltas && i === refIndex}
             <th
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
@@ -50,16 +61,22 @@
               {activity
                 ? getActivityDeviceName(activity)
                 : eventDetail.event.name || `Event ${i + 1}`}
+              {#if isRef}
+                <span
+                  class="ml-1 rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+                  >Ref</span
+                >
+              {/if}
             </th>
+            {#if showDeltas && i !== refIndex}
+              <th
+                scope="col"
+                class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+              >
+                Δ
+              </th>
+            {/if}
           {/each}
-          {#if events.length === 2}
-            <th
-              scope="col"
-              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
-            >
-              Delta
-            </th>
-          {/if}
         </tr>
       </thead>
       <tbody class="divide-y divide-border bg-transparent">
@@ -100,7 +117,7 @@
                 </button>
               {/if}
             </td>
-            {#each events as eventDetail (eventDetail.event.id)}
+            {#each events as eventDetail, i (eventDetail.event.id)}
               {@const eventId = eventDetail.event.id}
               {@const activityId = selectedActivities[eventId]}
               {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
@@ -109,22 +126,22 @@
               {@const unit = getStatUnit(statType)}
               {@const displayValue = unit ? `${formatted} ${unit}` : formatted}
               <td class="whitespace-nowrap px-6 py-4 text-text-secondary">{displayValue}</td>
+              {#if showDeltas && i !== refIndex}
+                {@const delta = calculateDelta(values[refIndex], values[i])}
+                <td class="whitespace-nowrap px-4 py-4 text-text-secondary">
+                  {#if delta}
+                    <span class={delta.absolute >= 0 ? 'text-green-500' : 'text-red-500'}>
+                      {delta.absolute >= 0 ? '+' : ''}{formatStatValue(delta.absolute, statType)}
+                      {delta.percent !== 0
+                        ? ` (${delta.percent >= 0 ? '+' : ''}${delta.percent.toFixed(1)}%)`
+                        : ''}
+                    </span>
+                  {:else}
+                    —
+                  {/if}
+                </td>
+              {/if}
             {/each}
-            {#if events.length === 2}
-              {@const delta = calculateDelta(values[0], values[1])}
-              <td class="whitespace-nowrap px-6 py-4 text-text-secondary">
-                {#if delta}
-                  <span class={delta.absolute >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {delta.absolute >= 0 ? '+' : ''}{formatStatValue(delta.absolute, statType)}
-                    {delta.percent !== 0
-                      ? ` (${delta.percent >= 0 ? '+' : ''}${delta.percent.toFixed(1)}%)`
-                      : ''}
-                  </span>
-                {:else}
-                  —
-                {/if}
-              </td>
-            {/if}
           </tr>
         {/each}
       </tbody>

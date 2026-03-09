@@ -23,6 +23,7 @@
     setSelectedStreamTypes,
     setXAxisMode,
     setComparison,
+    setReferenceActivityId,
     toggleHiddenStat as loaderToggleHiddenStat,
     clearHiddenStats as loaderClearHiddenStats,
   } from '../lib/utils/comparison-loader.svelte';
@@ -34,6 +35,7 @@
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import ComparisonChart from '../lib/components/ComparisonChart.svelte';
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
+  import StreamAnalysisSection from '../lib/components/comparison/StreamAnalysisSection.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
   import { foldersState } from '../lib/stores/folders.svelte';
 
@@ -135,6 +137,19 @@
   const selectedStreamTypes = $derived(loaderState.selectedStreamTypes);
   const xAxisMode = $derived(loaderState.xAxisMode);
   const savedComparison = $derived(loaderState.comparison);
+
+  // Reference activity / event ID derived from loader state
+  const referenceActivityId = $derived(loaderState.referenceActivityId);
+  const referenceEventId = $derived.by(() => {
+    const refActId = referenceActivityId;
+    if (!refActId) {
+      return events.length > 0 ? events[0].event.id : null;
+    }
+    for (const [eventId, actId] of Object.entries(selectedActivities)) {
+      if (actId === refActId) return eventId;
+    }
+    return events.length > 0 ? events[0].event.id : null;
+  });
 
   // Get all unique stream types across all events, but only include streams where at least 2 devices have data
   const allStreamTypes = $derived.by(() => {
@@ -242,6 +257,7 @@
         selectedStreams: Array.from(loaderState.selectedStreamTypes),
         xAxisMode: loaderState.xAxisMode,
         hiddenStats: Array.from(loaderState.hiddenStats),
+        referenceActivityId: loaderState.referenceActivityId,
       };
       updateComparisonSettings(savedComparison.id, settings).catch(() => {});
     }
@@ -254,6 +270,7 @@
         selectedStreams: Array.from(loaderState.selectedStreamTypes),
         xAxisMode: loaderState.xAxisMode,
         hiddenStats: [],
+        referenceActivityId: loaderState.referenceActivityId,
       };
       updateComparisonSettings(savedComparison.id, settings).catch(() => {});
     }
@@ -262,6 +279,19 @@
   async function handleActivityChange(eventId: string, activityId: string) {
     setSelectedActivities((prev) => ({ ...prev, [eventId]: activityId }));
     await loaderLoadStreams();
+  }
+
+  function handleReferenceChange(activityId: string) {
+    setReferenceActivityId(activityId);
+    if (savedComparison) {
+      const settings = {
+        selectedStreams: Array.from(loaderState.selectedStreamTypes),
+        xAxisMode: loaderState.xAxisMode,
+        hiddenStats: Array.from(loaderState.hiddenStats),
+        referenceActivityId: activityId,
+      };
+      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+    }
   }
 
   // Generate auto name for comparison
@@ -300,6 +330,7 @@
         selectedStreams: Array.from(loaderState.selectedStreamTypes),
         xAxisMode: loaderState.xAxisMode,
         hiddenStats: Array.from(loaderState.hiddenStats),
+        referenceActivityId: loaderState.referenceActivityId,
       };
 
       const saved = await createComparison(
@@ -514,6 +545,40 @@
       </div>
     {/if}
 
+    <!-- Reference Device Picker -->
+    <div class="mb-6 space-y-3 rounded-lg border border-border bg-card p-4">
+      <h2 class="text-base font-semibold text-text-primary">Reference Device</h2>
+      <div class="flex flex-wrap gap-2">
+        {#each events as eventDetail, i (eventDetail.event.id)}
+          {@const eventId = eventDetail.event.id}
+          {@const activityId = selectedActivities[eventId]}
+          {@const activity = eventDetail.activities.find((a) => a.id === activityId)}
+          {@const deviceName = activity
+            ? getActivityDeviceName(activity)
+            : eventDetail.event.name || `Event ${i + 1}`}
+          {@const isRef = referenceEventId === eventId}
+          {@const color = EVENT_COLORS[i % EVENT_COLORS.length]}
+          <button
+            type="button"
+            class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isRef
+              ? 'text-text-primary'
+              : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
+            style={isRef ? `background-color: ${color}20; border-color: ${color}80` : ''}
+            onclick={() => activityId && handleReferenceChange(activityId)}
+          >
+            <span class="h-2 w-2 rounded-full" style="background-color: {color};"></span>
+            {deviceName}
+            {#if isRef}
+              <span
+                class="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+                >Ref</span
+              >
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+
     {#if loaderState.hiddenStats.size > 0}
       <div class="mb-4 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2">
         <svg
@@ -554,6 +619,7 @@
       {getActivityDeviceName}
       {calculateDelta}
       onHideStat={toggleHiddenStat}
+      referenceEventId={referenceEventId ?? undefined}
     />
 
     <!-- Comparison map: all devices' routes with EVENT_COLORS -->
@@ -640,6 +706,15 @@
         </div>
       {/if}
     </div>
+
+    <!-- Stream Analysis Section -->
+    <StreamAnalysisSection
+      {events}
+      {streamsByEventId}
+      {selectedActivities}
+      {referenceActivityId}
+      eventColors={EVENT_COLORS}
+    />
   {/if}
 
   <!-- Save Dialog -->
