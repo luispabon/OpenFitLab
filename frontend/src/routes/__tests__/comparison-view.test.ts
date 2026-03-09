@@ -13,6 +13,7 @@ const mockGetStreams = vi.fn();
 const mockGetComparison = vi.fn();
 const mockCreateComparison = vi.fn();
 const mockDeleteComparison = vi.fn();
+const mockUpdateComparisonSettings = vi.fn();
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
 
@@ -22,6 +23,7 @@ vi.mock('../../lib/api', () => ({
   getComparison: (...args: unknown[]) => mockGetComparison(...args),
   createComparison: (...args: unknown[]) => mockCreateComparison(...args),
   deleteComparison: (...args: unknown[]) => mockDeleteComparison(...args),
+  updateComparisonSettings: (...args: unknown[]) => mockUpdateComparisonSettings(...args),
 }));
 
 vi.mock('svelte-spa-router', () => ({
@@ -46,6 +48,7 @@ describe('ComparisonView', () => {
     resetLoader();
     vi.clearAllMocks();
     mockGetStreams.mockResolvedValue([]);
+    mockUpdateComparisonSettings.mockResolvedValue(undefined);
     mockGetEvent.mockImplementation((id: string) =>
       Promise.resolve(id === 'evt-1' ? eventDetailFixture : eventDetailEvt2Fixture)
     );
@@ -263,6 +266,39 @@ describe('ComparisonView', () => {
     await waitFor(() => {
       expect(screen.getByText('Comparison not found')).toBeInTheDocument();
     });
+  });
+
+  it('shows hidden stats banner when saved comparison has hiddenStats in settings', async () => {
+    const compWithHidden = {
+      ...comparisonFixture,
+      settings: { hiddenStats: ['Duration', 'Distance'] },
+    };
+    mockGetComparison.mockResolvedValue(compWithHidden);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText(/2 rows hidden/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+    });
+  });
+
+  it('"Show all" clears hidden stats and calls updateComparisonSettings for saved comparison', async () => {
+    const compWithHidden = {
+      ...comparisonFixture,
+      settings: { hiddenStats: ['Duration'] },
+    };
+    mockGetComparison.mockResolvedValue(compWithHidden);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/row.*hidden/)).not.toBeInTheDocument();
+    });
+    expect(mockUpdateComparisonSettings).toHaveBeenCalledWith(
+      'cmp-1',
+      expect.objectContaining({ hiddenStats: [] })
+    );
   });
 
   it('xAxisMode toggle buttons are present and clickable', async () => {

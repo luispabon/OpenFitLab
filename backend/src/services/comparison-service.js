@@ -173,6 +173,23 @@ async function updateComparisonFolder(id, folderId, opts = {}) {
   return await comparisonRepository.updateFolderId(id, newFolderId, repoOpts);
 }
 
+/**
+ * Update a comparison's settings.
+ * @param {string} id
+ * @param {object} settings
+ * @param {{ db?: object }} [opts]
+ * @returns {Promise<object | null>} updated settings, or null if not found
+ */
+async function updateComparisonSettings(id, settings, opts = {}) {
+  if (!opts.userId) throw new Error('updateComparisonSettings requires opts.userId');
+  const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
+
+  const updated = await comparisonRepository.updateSettings(id, settings, repoOpts);
+  if (!updated) return null;
+  return settings;
+}
+
 module.exports = {
   createComparison,
   getComparisons,
@@ -180,4 +197,5 @@ module.exports = {
   getComparisonsByEventIds,
   deleteComparisonById,
   updateComparisonFolder,
+  updateComparisonSettings,
 };

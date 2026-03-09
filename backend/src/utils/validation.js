@@ -282,6 +282,48 @@ function validateComparisonFolderUpdateBody(req, res, next) {
 }
 
 /**
+ * Validates body for PATCH /api/comparisons/:id/settings
+ */
+function validateComparisonSettingsBody(req, res, next) {
+  const { settings } = req.body || {};
+  if (
+    settings === undefined ||
+    settings === null ||
+    typeof settings !== 'object' ||
+    Array.isArray(settings)
+  ) {
+    return res.status(400).json({ error: 'settings must be an object' });
+  }
+  const { selectedStreams, xAxisMode, hiddenStats } = settings;
+  if (selectedStreams !== undefined) {
+    if (!Array.isArray(selectedStreams)) {
+      return res.status(400).json({ error: 'settings.selectedStreams must be an array' });
+    }
+    for (const s of selectedStreams) {
+      if (typeof s !== 'string') {
+        return res
+          .status(400)
+          .json({ error: 'settings.selectedStreams must be an array of strings' });
+      }
+    }
+  }
+  if (xAxisMode !== undefined && xAxisMode !== 'elapsed' && xAxisMode !== 'wall-clock') {
+    return res.status(400).json({ error: 'settings.xAxisMode must be "elapsed" or "wall-clock"' });
+  }
+  if (hiddenStats !== undefined) {
+    if (!Array.isArray(hiddenStats)) {
+      return res.status(400).json({ error: 'settings.hiddenStats must be an array' });
+    }
+    for (const s of hiddenStats) {
+      if (typeof s !== 'string') {
+        return res.status(400).json({ error: 'settings.hiddenStats must be an array of strings' });
+      }
+    }
+  }
+  next();
+}
+
+/**
  * Validates folder delete query (contents=unfile|delete)
  */
 function validateFolderDeleteQuery(req, res, next) {
@@ -303,6 +345,7 @@ module.exports = {
   validateComparisonBody,
   validateComparisonByEventsBody,
   validateComparisonFolderUpdateBody,
+  validateComparisonSettingsBody,
   validateExportQuery,
   validateFolderId,
   validateFolderCreateBody,

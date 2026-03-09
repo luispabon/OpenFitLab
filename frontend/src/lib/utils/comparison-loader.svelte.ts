@@ -26,6 +26,7 @@ export const state = $state({
   selectedActivities: {} as Record<string, string>,
   selectedStreamTypes: new Set<string>() as Set<string>,
   xAxisMode: 'elapsed' as 'elapsed' | 'wall-clock',
+  hiddenStats: new Set<string>() as Set<string>,
 });
 
 export function setSelectedActivities(
@@ -46,6 +47,17 @@ export function setComparison(value: Comparison | null) {
   state.comparison = value;
 }
 
+export function toggleHiddenStat(statType: string) {
+  const next = new Set(state.hiddenStats);
+  if (next.has(statType)) next.delete(statType);
+  else next.add(statType);
+  state.hiddenStats = next;
+}
+
+export function clearHiddenStats() {
+  state.hiddenStats = new Set();
+}
+
 /** Reset module-level state (for tests). */
 export function reset(): void {
   if (abortController) abortController.abort();
@@ -61,6 +73,7 @@ export function reset(): void {
   state.selectedActivities = {};
   state.selectedStreamTypes = new Set();
   state.xAxisMode = 'elapsed';
+  state.hiddenStats = new Set();
 }
 
 function deriveKey(comparisonId: string, eventIdsFromQuery: string[]): string {
@@ -177,6 +190,7 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
     state.selectedActivities = {};
     state.selectedStreamTypes = new Set();
     state.xAxisMode = 'elapsed';
+    state.hiddenStats = new Set();
   }
 
   if (abortController) abortController.abort();
@@ -218,6 +232,7 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
       if (comp.settings) {
         state.xAxisMode = comp.settings.xAxisMode ?? 'elapsed';
         state.selectedStreamTypes = new Set(comp.settings.selectedStreams ?? []);
+        state.hiddenStats = new Set(comp.settings.hiddenStats ?? []);
       }
       if (Array.isArray(comp.eventIds) && Array.isArray(comp.activityIds)) {
         const nextSelectedActivities: Record<string, string> = {};

@@ -13,6 +13,7 @@
       value1: unknown,
       value2: unknown
     ) => { absolute: number; percent: number } | null;
+    onHideStat?: (statType: string) => void;
   }
   let {
     events,
@@ -21,6 +22,7 @@
     eventColors,
     getActivityDeviceName,
     calculateDelta,
+    onHideStat,
   }: Props = $props();
 </script>
 
@@ -68,8 +70,36 @@
             const activity = eventDetail.activities.find((a) => a.id === activityId);
             return activity?.stats?.[statType];
           })}
-          <tr>
-            <td class="whitespace-nowrap px-6 py-4 font-medium text-text-primary">{statType}</td>
+          <tr class="group">
+            <td class="whitespace-nowrap px-6 py-4 font-medium text-text-primary">
+              {statType}
+              {#if onHideStat}
+                <button
+                  type="button"
+                  class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-text-secondary hover:text-text-primary"
+                  onclick={() => onHideStat(statType)}
+                  title="Hide this row"
+                  aria-label="Hide {statType} row"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="inline h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                </button>
+              {/if}
+            </td>
             {#each events as eventDetail (eventDetail.event.id)}
               {@const eventId = eventDetail.event.id}
               {@const activityId = selectedActivities[eventId]}

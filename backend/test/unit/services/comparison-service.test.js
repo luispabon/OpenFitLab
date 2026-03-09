@@ -8,6 +8,7 @@ const {
   getComparisonsByEventIds,
   deleteComparisonById,
   updateComparisonFolder,
+  updateComparisonSettings,
 } = require('../../../src/services/comparison-service');
 const { makeFakeDb } = require('../../helpers/fake-db');
 
@@ -280,6 +281,57 @@ describe('comparison-service', () => {
       };
       const result = await updateComparisonFolder('c1', null, { db, userId: 'u1' });
       strictEqual(result, true);
+    });
+  });
+
+  describe('updateComparisonSettings', () => {
+    it('returns null when comparison not found', async () => {
+      const db = {
+        query: async () => ({ affectedRows: 0 }),
+      };
+      const result = await updateComparisonSettings('missing', { hiddenStats: ['Distance'] }, { db, userId: 'u1' });
+      strictEqual(result, null);
+    });
+
+    it('updates settings and returns them when comparison found', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          return { affectedRows: 1 };
+        },
+      };
+      const settings = { selectedStreams: ['Heart Rate'], xAxisMode: 'elapsed', hiddenStats: ['Distance'] };
+      const result = await updateComparisonSettings('c1', settings, { db, userId: 'u1' });
+
+      deepStrictEqual(result, settings);
+      const updateCall = calls.find((c) => c.sql.includes('UPDATE comparisons SET settings'));
+      strictEqual(Boolean(updateCall), true);
+      deepStrictEqual(JSON.parse(updateCall.params[0]), settings);
+      strictEqual(updateCall.params[1], 'c1');
+      strictEqual(updateCall.params[2], 'u1');
+    });
+
+    it('stores null when settings is null', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          return { affectedRows: 1 };
+        },
+      };
+      const result = await updateComparisonSettings('c1', null, { db, userId: 'u1' });
+      strictEqual(result, null);
+      const updateCall = calls.find((c) => c.sql.includes('UPDATE comparisons SET settings'));
+      strictEqual(updateCall.params[0], null);
+    });
+
+    it('throws when userId is not provided', async () => {
+      const db = { query: async () => ({ affectedRows: 1 }) };
+      await assert.rejects(
+        async () => updateComparisonSettings('c1', {}, { db }),
+        /updateComparisonSettings requires opts\.userId/
+      );
     });
   });
 });
