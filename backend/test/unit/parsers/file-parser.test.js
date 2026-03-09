@@ -128,11 +128,8 @@ describe('FileParser.parseFile', () => {
   </Activities>
 </TrainingCenterDatabase>`;
     await require('node:assert').rejects(
-      async () =>
-        FileParser.parseFile(Buffer.from(tcxNoId, 'utf8'), 'tcx', 'no-id.tcx'),
-      (err) =>
-        err.message.includes('no-id.tcx') &&
-        err.message.includes('Lap missing StartTime')
+      async () => FileParser.parseFile(Buffer.from(tcxNoId, 'utf8'), 'tcx', 'no-id.tcx'),
+      (err) => err.message.includes('no-id.tcx') && err.message.includes('Lap missing StartTime')
     );
   });
 

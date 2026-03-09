@@ -35,7 +35,10 @@ describe('extractStreamDataPointsFromJSON', () => {
       timeStream.dataPoints.map((dp) => dp.time),
       [BASE_MS, BASE_MS + 1000, BASE_MS + 2000]
     );
-    deepStrictEqual(hrStream.dataPoints.map((dp) => dp.value), [120, 130, 125]);
+    deepStrictEqual(
+      hrStream.dataPoints.map((dp) => dp.value),
+      [120, 130, 125]
+    );
   });
 
   it('parses Time stream with absolute ISO timestamps', () => {
@@ -66,7 +69,10 @@ describe('extractStreamDataPointsFromJSON', () => {
     strictEqual(result.length, 2);
     const hrStream = result.find((s) => s.type === 'Heart Rate');
     strictEqual(hrStream.dataPoints.length, 2);
-    deepStrictEqual(hrStream.dataPoints.map((dp) => dp.value), [100, 110]);
+    deepStrictEqual(
+      hrStream.dataPoints.map((dp) => dp.value),
+      [100, 110]
+    );
     deepStrictEqual(
       hrStream.dataPoints.map((dp) => dp.time),
       [BASE_MS, BASE_MS + 1000]
@@ -83,7 +89,10 @@ describe('extractStreamDataPointsFromJSON', () => {
     const result = extractStreamDataPointsFromJSON(activityJson, BASE_MS);
     const hrStream = result.find((s) => s.type === 'HR');
     strictEqual(hrStream.dataPoints.length, 2);
-    deepStrictEqual(hrStream.dataPoints.map((dp) => dp.value), [100, 130]);
+    deepStrictEqual(
+      hrStream.dataPoints.map((dp) => dp.value),
+      [100, 130]
+    );
   });
 
   it('excludes stream when all values are null', () => {
@@ -124,7 +133,10 @@ describe('extractStreamDataPointsFromJSON', () => {
     };
     const result = extractStreamDataPointsFromJSON(activityJson, 0);
     const yStream = result.find((s) => s.type === 'Y');
-    deepStrictEqual(yStream.dataPoints.map((dp) => dp.time), [t0, t1]);
+    deepStrictEqual(
+      yStream.dataPoints.map((dp) => dp.time),
+      [t0, t1]
+    );
   });
 
   it('uses 1-second interval fallback when no Time stream', () => {
@@ -149,7 +161,10 @@ describe('extractStreamDataPointsFromJSON', () => {
     const result = extractStreamDataPointsFromJSON(activityJson, BASE_MS);
     const zStream = result.find((s) => s.type === 'Z');
     strictEqual(zStream.dataPoints.length, 2);
-    deepStrictEqual(zStream.dataPoints.map((dp) => dp.value), [10, 20]);
+    deepStrictEqual(
+      zStream.dataPoints.map((dp) => dp.value),
+      [10, 20]
+    );
   });
 
   it('Time stream with Date objects uses correct timestamps', () => {

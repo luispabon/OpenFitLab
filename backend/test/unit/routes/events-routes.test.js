@@ -132,12 +132,10 @@ describe('Events route → service parameter mapping', () => {
           : [queryTypes]
         : undefined;
       const db = { query: async () => [] };
-      const result = await getStreamsForActivity(
-        eventId,
-        activityId,
-        types ? { types } : {},
-        { db, userId: 'u1' }
-      );
+      const result = await getStreamsForActivity(eventId, activityId, types ? { types } : {}, {
+        db,
+        userId: 'u1',
+      });
       deepStrictEqual(result, []);
     });
   });
@@ -285,9 +283,7 @@ describe('Events route HTTP handler coverage', () => {
     try {
       const router = getFreshEventsRouter();
       const app = createEventsApp(router);
-      const res = await request(app)
-        .get(`/api/events/${EVENT_ID}/candidates`)
-        .expect(404);
+      const res = await request(app).get(`/api/events/${EVENT_ID}/candidates`).expect(404);
       deepStrictEqual(res.body, { error: 'Event not found' });
     } finally {
       eventQueryService.getComparisonCandidates.mock.restore();

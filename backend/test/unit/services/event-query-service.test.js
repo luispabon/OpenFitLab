@@ -35,8 +35,10 @@ describe('enrichEventsWithStatsAndActivities', () => {
     ];
     const db = {
       query: async (sql, params) => {
-        if (sql.includes('event_stats')) return [{ event_id: 'e1', stat_type: 'Distance', value: 5000 }];
-        if (sql.includes('activity_stats')) return [{ activity_id: 'a1', stat_type: 'Duration', value: 300 }];
+        if (sql.includes('event_stats'))
+          return [{ event_id: 'e1', stat_type: 'Distance', value: 5000 }];
+        if (sql.includes('activity_stats'))
+          return [{ activity_id: 'a1', stat_type: 'Duration', value: 300 }];
         if (sql.includes('activities') && !sql.includes('activity_stats')) {
           return [
             {
@@ -65,8 +67,24 @@ describe('enrichEventsWithStatsAndActivities', () => {
 
   it('enriches multiple events', async () => {
     const eventRows = [
-      { id: 'e1', start_date: 1000, name: 'E1', end_date: null, description: null, is_merge: 0, src_file_type: null },
-      { id: 'e2', start_date: 2000, name: 'E2', end_date: null, description: null, is_merge: 0, src_file_type: null },
+      {
+        id: 'e1',
+        start_date: 1000,
+        name: 'E1',
+        end_date: null,
+        description: null,
+        is_merge: 0,
+        src_file_type: null,
+      },
+      {
+        id: 'e2',
+        start_date: 2000,
+        name: 'E2',
+        end_date: null,
+        description: null,
+        is_merge: 0,
+        src_file_type: null,
+      },
     ];
     const db = {
       query: async (sql) => {
@@ -118,13 +136,12 @@ describe('getEventById', () => {
     ];
     const db = {
       query: async (sql) => {
-        if (sql.includes('FROM events WHERE id = ?') && !sql.includes(' IN '))
-          return [eventRow];
-        if (sql.includes('activities') && !sql.includes('activity_stats'))
-          return activityRows;
+        if (sql.includes('FROM events WHERE id = ?') && !sql.includes(' IN ')) return [eventRow];
+        if (sql.includes('activities') && !sql.includes('activity_stats')) return activityRows;
         if (sql.includes('event_stats') && sql.includes('event_id = ?'))
           return [{ stat_type: 'Distance', value: 5000 }];
-        if (sql.includes('activity_stats')) return [{ activity_id: 'a1', stat_type: 'Duration', value: 300 }];
+        if (sql.includes('activity_stats'))
+          return [{ activity_id: 'a1', stat_type: 'Duration', value: 300 }];
         return [];
       },
     };
@@ -147,7 +164,15 @@ describe('listEvents', () => {
 
   it('uses default limit 50 and applies startDate/endDate', async () => {
     const eventRows = [
-      { id: 'e1', start_date: 5000, name: 'E', end_date: null, description: null, is_merge: 0, src_file_type: null },
+      {
+        id: 'e1',
+        start_date: 5000,
+        name: 'E',
+        end_date: null,
+        description: null,
+        is_merge: 0,
+        src_file_type: null,
+      },
     ];
     const db = {
       query: async (sql, params) => {
@@ -197,14 +222,46 @@ describe('getActivityRows', () => {
         }
         if (sql.includes('FROM events') && sql.includes('WHERE id IN')) {
           return [
-            { id: 'e1', start_date: 1000, name: 'E1', end_date: null, description: null, is_merge: 0, src_file_type: null },
-            { id: 'e2', start_date: 2000, name: 'E2', end_date: null, description: null, is_merge: 0, src_file_type: null },
+            {
+              id: 'e1',
+              start_date: 1000,
+              name: 'E1',
+              end_date: null,
+              description: null,
+              is_merge: 0,
+              src_file_type: null,
+            },
+            {
+              id: 'e2',
+              start_date: 2000,
+              name: 'E2',
+              end_date: null,
+              description: null,
+              is_merge: 0,
+              src_file_type: null,
+            },
           ];
         }
         if (sql.includes('FROM activities a') && sql.includes('WHERE a.id IN')) {
           return [
-            { id: 'a1', event_id: 'e1', name: null, start_date: 1000, end_date: null, type: 'Run', device_name: null },
-            { id: 'a2', event_id: 'e2', name: null, start_date: 2000, end_date: null, type: 'Run', device_name: null },
+            {
+              id: 'a1',
+              event_id: 'e1',
+              name: null,
+              start_date: 1000,
+              end_date: null,
+              type: 'Run',
+              device_name: null,
+            },
+            {
+              id: 'a2',
+              event_id: 'e2',
+              name: null,
+              start_date: 2000,
+              end_date: null,
+              type: 'Run',
+              device_name: null,
+            },
           ];
         }
         if (sql.includes('event_stats')) return [];
@@ -241,14 +298,23 @@ describe('getComparisonCandidates', () => {
 
   it('returns overlapping events with stats and activities', async () => {
     const candidateRows = [
-      { id: 'e2', start_date: 1500, name: 'E2', end_date: 2500, description: null, is_merge: 0, src_file_type: null },
+      {
+        id: 'e2',
+        start_date: 1500,
+        name: 'E2',
+        end_date: 2500,
+        description: null,
+        is_merge: 0,
+        src_file_type: null,
+      },
     ];
     const db = {
       query: async (sql) => {
         if (sql.includes('start_date, end_date') && sql.includes('FROM events WHERE id = ?'))
           return [{ start_date: 1000, end_date: 2000 }];
         if (sql.includes('WHERE id != ?')) return candidateRows;
-        if (sql.includes('event_stats')) return [{ event_id: 'e2', stat_type: 'Distance', value: 3000 }];
+        if (sql.includes('event_stats'))
+          return [{ event_id: 'e2', stat_type: 'Distance', value: 3000 }];
         if (sql.includes('activities') && !sql.includes('activity_stats')) return [];
         return [];
       },

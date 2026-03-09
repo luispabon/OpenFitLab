@@ -14,4 +14,3 @@ function makeFakeDb(queryFn) {
 }
 
 module.exports = { makeFakeDb };
-

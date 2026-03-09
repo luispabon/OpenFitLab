@@ -16,8 +16,14 @@ describe('deleteEventById', () => {
     const result = await deleteEventById('e1', { db, userId: 'u1' });
 
     strictEqual(result, true);
-    strictEqual(queries.some((q) => q.sql.includes('DELETE FROM comparisons')), false);
-    strictEqual(queries.some((q) => q.sql.includes('DELETE FROM events')), true);
+    strictEqual(
+      queries.some((q) => q.sql.includes('DELETE FROM comparisons')),
+      false
+    );
+    strictEqual(
+      queries.some((q) => q.sql.includes('DELETE FROM events')),
+      true
+    );
   });
 
   it('returns false when event not found', async () => {

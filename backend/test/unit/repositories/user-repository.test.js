@@ -13,7 +13,13 @@ const { makeFakeDb } = require('../../helpers/fake-db');
 describe('user-repository', () => {
   describe('findById', () => {
     it('returns user when found', async () => {
-      const user = { id: 'u1', display_name: 'Alice', avatar_url: null, created_at: new Date(), updated_at: new Date() };
+      const user = {
+        id: 'u1',
+        display_name: 'Alice',
+        avatar_url: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
       const db = { query: async () => [user] };
 
       const result = await findById('u1', { db });
@@ -98,13 +104,17 @@ describe('user-repository', () => {
         },
       };
 
-      const result = await linkIdentity('u1', {
-        provider: 'github',
-        providerUserId: 'gh456',
-        email: 'user@example.com',
-        displayName: 'Alice',
-        avatarUrl: 'http://avatar',
-      }, { db });
+      const result = await linkIdentity(
+        'u1',
+        {
+          provider: 'github',
+          providerUserId: 'gh456',
+          email: 'user@example.com',
+          displayName: 'Alice',
+          avatarUrl: 'http://avatar',
+        },
+        { db }
+      );
 
       ok(result.id);
 
@@ -132,19 +142,30 @@ describe('user-repository', () => {
         if (sql.includes('INSERT INTO users')) return { affectedRows: 1 };
         if (sql.includes('INSERT INTO user_identities')) return { affectedRows: 1 };
         if (sql.includes('FROM users WHERE')) {
-          return [{ id: params[0], display_name: 'New', avatar_url: null, created_at: new Date(), updated_at: new Date() }];
+          return [
+            {
+              id: params[0],
+              display_name: 'New',
+              avatar_url: null,
+              created_at: new Date(),
+              updated_at: new Date(),
+            },
+          ];
         }
         return [];
       });
 
-      const result = await createFromPendingProfile({
-        provider: 'google',
-        providerUserId: 'g789',
-        displayName: 'New',
-        avatarUrl: 'http://img',
-        email: 'new@example.com',
-        emailVerified: true,
-      }, { db });
+      const result = await createFromPendingProfile(
+        {
+          provider: 'google',
+          providerUserId: 'g789',
+          displayName: 'New',
+          avatarUrl: 'http://img',
+          email: 'new@example.com',
+          emailVerified: true,
+        },
+        { db }
+      );
 
       strictEqual(result.created, true);
       strictEqual(result.user.display_name, 'New');

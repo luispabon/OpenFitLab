@@ -50,7 +50,9 @@ describe('config', () => {
     strictEqual(typeof config.server.port, 'number');
     strictEqual(typeof config.server.uploadDir, 'string');
     strictEqual(typeof config.server.isProduction, 'boolean');
-    ok(config.server.corsAllowedOrigins === true || Array.isArray(config.server.corsAllowedOrigins));
+    ok(
+      config.server.corsAllowedOrigins === true || Array.isArray(config.server.corsAllowedOrigins)
+    );
     strictEqual(typeof config.server.oauthRedirectBase, 'string');
   });
 
@@ -115,11 +117,7 @@ describe('config', () => {
       });
       strictEqual(result.status, 0, result.stderr || result.error?.message);
       const out = JSON.parse(result.stdout.trim());
-      deepStrictEqual(out.corsAllowedOrigins, [
-        'https://a.com',
-        'https://b.com',
-        'https://c.com',
-      ]);
+      deepStrictEqual(out.corsAllowedOrigins, ['https://a.com', 'https://b.com', 'https://c.com']);
     });
   });
 
@@ -127,11 +125,11 @@ describe('config', () => {
     it('throws when SESSION_SECRET is unset', () => {
       const env = { ...process.env };
       delete env.SESSION_SECRET;
-      const result = spawnSync(
-        process.execPath,
-        ['-e', "require('./src/config');"],
-        { cwd: backendDir, env, encoding: 'utf8' }
-      );
+      const result = spawnSync(process.execPath, ['-e', "require('./src/config');"], {
+        cwd: backendDir,
+        env,
+        encoding: 'utf8',
+      });
       strictEqual(result.status, 1);
       ok(
         (result.stderr + result.stdout).includes('SESSION_SECRET') &&
@@ -141,11 +139,11 @@ describe('config', () => {
     });
 
     it('throws when SESSION_SECRET is shorter than 32 characters', () => {
-      const result = spawnSync(
-        process.execPath,
-        ['-e', "require('./src/config');"],
-        { cwd: backendDir, env: { ...process.env, SESSION_SECRET: 'short' }, encoding: 'utf8' }
-      );
+      const result = spawnSync(process.execPath, ['-e', "require('./src/config');"], {
+        cwd: backendDir,
+        env: { ...process.env, SESSION_SECRET: 'short' },
+        encoding: 'utf8',
+      });
       strictEqual(result.status, 1);
       ok(
         (result.stderr + result.stdout).includes('SESSION_SECRET') &&

@@ -73,7 +73,14 @@ describe('event-upload-service processUpload', () => {
     const mockEvent = {
       name: '',
       startDate: new Date(BASE_MS),
-      toJSON: () => ({ name: '', startDate: BASE_MS, endDate: BASE_MS + 60000, stats: {}, description: null, isMerge: false }),
+      toJSON: () => ({
+        name: '',
+        startDate: BASE_MS,
+        endDate: BASE_MS + 60000,
+        stats: {},
+        description: null,
+        isMerge: false,
+      }),
       getActivities: () => [],
     };
     mock.method(FileParser, 'parseFile', async () => mockEvent);
@@ -105,10 +112,7 @@ describe('event-upload-service processUpload', () => {
         startDate: BASE_MS,
         endDate: BASE_MS + 60000,
         stats: {},
-        streams: [
-          { type: 'Heart Rate', data: [100, 110] },
-          { data: [1, 2] },
-        ],
+        streams: [{ type: 'Heart Rate', data: [100, 110] }, { data: [1, 2] }],
         creator: null,
       }),
     };
