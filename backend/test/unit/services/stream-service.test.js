@@ -52,14 +52,17 @@ describe('getStreamsForActivity', () => {
           return [{ id: 'a1_Heart Rate', type: 'Heart Rate' }];
         }
         if (sql.includes('stream_data_points')) {
-          return [
-            { stream_id: 'a1_Heart Rate', time_ms: 1000, value: 100, sequence_index: 0 },
-          ];
+          return [{ stream_id: 'a1_Heart Rate', time_ms: 1000, value: 100, sequence_index: 0 }];
         }
         return [];
       },
     };
-    await getStreamsForActivity('e1', 'a1', { types: ['Heart Rate', 'Distance'] }, { db, userId: 'u1' });
+    await getStreamsForActivity(
+      'e1',
+      'a1',
+      { types: ['Heart Rate', 'Distance'] },
+      { db, userId: 'u1' }
+    );
     strictEqual(capturedParams[3], 'Heart Rate');
     strictEqual(capturedParams[4], 'Distance');
   });

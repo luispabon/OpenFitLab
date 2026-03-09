@@ -30,7 +30,11 @@ describe('JSONSanitizer.sanitize', () => {
   it('keeps stats with valid types', () => {
     const input = { stats: { Distance: 5000, Duration: 1800, 'Heart Rate': 140 } };
     const result = JSONSanitizer.sanitize(input, { getDataClassFromDataType: mockGetDataClass });
-    deepStrictEqual(result.sanitizedJson.stats, { Distance: 5000, Duration: 1800, 'Heart Rate': 140 });
+    deepStrictEqual(result.sanitizedJson.stats, {
+      Distance: 5000,
+      Duration: 1800,
+      'Heart Rate': 140,
+    });
     deepStrictEqual(result.unknownTypes, []);
   });
 

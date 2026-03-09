@@ -27,7 +27,12 @@ describe('comparison-service', () => {
         return { affectedRows: 1 };
       });
 
-      const result = await createComparison(' My Compare ', ['a1', 'a2'], { x: 1 }, { db, userId: 'u1' });
+      const result = await createComparison(
+        ' My Compare ',
+        ['a1', 'a2'],
+        { x: 1 },
+        { db, userId: 'u1' }
+      );
 
       strictEqual(queries.length, 3);
       const insertComp = queries.find((q) => q.sql.startsWith('INSERT INTO comparisons'));
@@ -210,8 +215,7 @@ describe('comparison-service', () => {
   describe('deleteComparisonById', () => {
     it('returns false when comparison not found', async () => {
       const db = {
-        query: async (sql) =>
-          sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 },
+        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
       };
       const result = await deleteComparisonById('missing', { db, userId: 'u1' });
       strictEqual(result, false);
@@ -229,15 +233,17 @@ describe('comparison-service', () => {
       };
       const result = await deleteComparisonById('c1', { db, userId: 'u1' });
       strictEqual(result, true);
-      strictEqual(calls.some((s) => s.includes('DELETE')), true);
+      strictEqual(
+        calls.some((s) => s.includes('DELETE')),
+        true
+      );
     });
   });
 
   describe('updateComparisonFolder', () => {
     it('returns false when comparison not found', async () => {
       const db = {
-        query: async (sql) =>
-          sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 },
+        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
       };
       const result = await updateComparisonFolder('missing', 'f1', { db, userId: 'u1' });
       strictEqual(result, false);
@@ -289,7 +295,11 @@ describe('comparison-service', () => {
       const db = {
         query: async () => ({ affectedRows: 0 }),
       };
-      const result = await updateComparisonSettings('missing', { hiddenStats: ['Distance'] }, { db, userId: 'u1' });
+      const result = await updateComparisonSettings(
+        'missing',
+        { hiddenStats: ['Distance'] },
+        { db, userId: 'u1' }
+      );
       strictEqual(result, null);
     });
 
@@ -301,7 +311,11 @@ describe('comparison-service', () => {
           return { affectedRows: 1 };
         },
       };
-      const settings = { selectedStreams: ['Heart Rate'], xAxisMode: 'elapsed', hiddenStats: ['Distance'] };
+      const settings = {
+        selectedStreams: ['Heart Rate'],
+        xAxisMode: 'elapsed',
+        hiddenStats: ['Distance'],
+      };
       const result = await updateComparisonSettings('c1', settings, { db, userId: 'u1' });
 
       deepStrictEqual(result, settings);

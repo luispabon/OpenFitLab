@@ -38,10 +38,7 @@ describe('folder-service', () => {
         return [];
       });
 
-      const result = await createFolder(
-        { name: ' Test ', color: '#ff0000' },
-        { db, userId: 'u1' }
-      );
+      const result = await createFolder({ name: ' Test ', color: '#ff0000' }, { db, userId: 'u1' });
 
       strictEqual(typeof result.id, 'string');
       strictEqual(result.name, 'Test');
@@ -57,7 +54,8 @@ describe('folder-service', () => {
 
     it('rejects when at max folders', async () => {
       const db = makeFakeDb(async (sql) => {
-        if (sql.includes('COUNT(*)') && sql.includes('FROM folders')) return [{ n: MAX_FOLDERS_PER_USER }];
+        if (sql.includes('COUNT(*)') && sql.includes('FROM folders'))
+          return [{ n: MAX_FOLDERS_PER_USER }];
         return [];
       });
 
@@ -86,7 +84,14 @@ describe('folder-service', () => {
       const db = makeFakeDb(async (sql) => {
         if (sql.includes('ORDER BY pinned')) {
           return [
-            { id: 'f1', user_id: 'u1', name: 'A', color: '#111', pinned: 1, created_at: new Date() },
+            {
+              id: 'f1',
+              user_id: 'u1',
+              name: 'A',
+              color: '#111',
+              pinned: 1,
+              created_at: new Date(),
+            },
           ];
         }
         if (sql.includes('events WHERE folder_id')) return [{ n: 3 }];

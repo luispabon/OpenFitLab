@@ -160,7 +160,8 @@ describe('db', () => {
 
       strictEqual(adminQueryCalls.length, 1);
       ok(
-        adminQueryCalls[0].includes('CREATE DATABASE') && adminQueryCalls[0].includes('IF NOT EXISTS'),
+        adminQueryCalls[0].includes('CREATE DATABASE') &&
+          adminQueryCalls[0].includes('IF NOT EXISTS'),
         'ensureDatabaseExists should run CREATE DATABASE IF NOT EXISTS'
       );
       const config = dbFresh.getConfig();

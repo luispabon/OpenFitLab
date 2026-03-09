@@ -68,9 +68,21 @@ async function callLimiterNTimes(limiter, times, ip) {
       const origJson = res.json.bind(res);
       const origSend = res.send.bind(res);
       const origEnd = res.end.bind(res);
-      res.json = (obj) => { origJson(obj); resolve(); return res; };
-      res.send = (obj) => { origSend(obj); resolve(); return res; };
-      res.end = () => { origEnd(); resolve(); return res; };
+      res.json = (obj) => {
+        origJson(obj);
+        resolve();
+        return res;
+      };
+      res.send = (obj) => {
+        origSend(obj);
+        resolve();
+        return res;
+      };
+      res.end = () => {
+        origEnd();
+        resolve();
+        return res;
+      };
 
       limiter(req, res, () => {
         nextCount++;

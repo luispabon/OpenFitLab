@@ -6,11 +6,7 @@ describe('meta-service', () => {
   describe('getActivityTypes', () => {
     it('returns distinct types from db rows in query order', async () => {
       const db = {
-        query: async () => [
-          { type: 'Running' },
-          { type: 'Cycling' },
-          { type: 'Swimming' },
-        ],
+        query: async () => [{ type: 'Running' }, { type: 'Cycling' }, { type: 'Swimming' }],
       };
       const result = await getActivityTypes({ db, userId: 'u1' });
       deepStrictEqual(result, ['Running', 'Cycling', 'Swimming']);
@@ -18,12 +14,7 @@ describe('meta-service', () => {
 
     it('filters out null and empty and trims', async () => {
       const db = {
-        query: async () => [
-          { type: 'Running' },
-          { type: '  ' },
-          { type: '' },
-          { type: 'Cycling' },
-        ],
+        query: async () => [{ type: 'Running' }, { type: '  ' }, { type: '' }, { type: 'Cycling' }],
       };
       const result = await getActivityTypes({ db, userId: 'u1' });
       deepStrictEqual(result, ['Running', 'Cycling']);
@@ -39,10 +30,7 @@ describe('meta-service', () => {
   describe('getDevices', () => {
     it('returns distinct device names ordered by name', async () => {
       const db = {
-        query: async () => [
-          { device_name: 'Garmin' },
-          { device_name: 'Wahoo' },
-        ],
+        query: async () => [{ device_name: 'Garmin' }, { device_name: 'Wahoo' }],
       };
       const result = await getDevices({ db, userId: 'u1' });
       deepStrictEqual(result, ['Garmin', 'Wahoo']);

@@ -40,4 +40,3 @@ describe('async-handler', () => {
     strictEqual(passedError.message, 'boom');
   });
 });
-

@@ -46,4 +46,3 @@ describe('tcx-normalizer normalizeTcxLapStartTimes', () => {
     ok(String(caught.message).includes('Lap missing StartTime'));
   });
 });
-
