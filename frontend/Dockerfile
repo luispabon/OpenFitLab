@@ -12,6 +12,8 @@ FROM nginxinc/nginx-unprivileged:alpine AS prod
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
+USER nginx
+
 EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
