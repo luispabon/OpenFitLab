@@ -6,13 +6,15 @@
 
 ## Quickstart
 
-1. Start the local stack from the repo root with `docker compose up -d`.
-2. Services:
+1. Copy `.env.example` to `.env` and fill in required values (see [Configuration, runtime, and deployment](docs/ARCHITECTURE.md#configuration-runtime-and-deployment) in ARCHITECTURE.md).
+2. Start the local stack from the repo root with `docker compose up -d`.
+3. Services:
    - API: `http://localhost:3000`
    - Frontend: `http://localhost:4200`
    - MariaDB: `localhost:3306`
    - Adminer: `http://localhost:8080`
-3. Stop with `docker compose down` or `docker compose down -v` to remove volumes.
+4. Reset the database: `make db-reset`
+5. Stop with `docker compose down` or `docker compose down -v` to remove volumes.
 
 ## Key commands
 
@@ -28,6 +30,14 @@
 - Run: `npm run dev` in `frontend/`
 - Main quality gate: `npm run ci`
 - Runtime: Node 20+
+
+### Docker images
+
+- Build both images: `make docker-build`
+- Build backend only: `make docker-build-backend`
+- Build frontend only: `make docker-build-frontend`
+- Build and push both to GHCR: `make docker-push`
+- Registry: `ghcr.io/luispabon` (images: `openfitlab-backend`, `openfitlab-frontend`)
 
 ### CI
 

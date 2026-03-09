@@ -1,4 +1,4 @@
-FROM node:24-alpine
+FROM node:24-alpine AS dev
 
 WORKDIR /app
 
@@ -13,3 +13,9 @@ COPY --chown=appuser:appgroup . .
 EXPOSE 3000
 
 CMD ["npm", "run", "dev"]
+
+FROM dev AS prod
+
+RUN npm ci --omit=dev
+
+CMD ["node", "src/index.js"]
