@@ -102,6 +102,7 @@ export interface BatchUploadResponse {
 export interface ComparisonSettings {
   selectedStreams?: string[];
   xAxisMode?: 'elapsed' | 'wall-clock';
+  hiddenStats?: string[];
 }
 
 export interface Comparison {

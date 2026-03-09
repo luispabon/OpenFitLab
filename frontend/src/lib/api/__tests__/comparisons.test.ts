@@ -6,6 +6,7 @@ import {
   getComparisonsByEventIds,
   createComparison,
   deleteComparison,
+  updateComparisonSettings,
 } from '../comparisons';
 import {
   comparisonFixture,
@@ -267,6 +268,49 @@ describe('createComparison', () => {
 
     await expect(createComparison('Test', ['act-1'])).rejects.toThrow(
       /Failed to create comparison/
+    );
+  });
+});
+
+describe('updateComparisonSettings', () => {
+  it('sends PATCH to /api/comparisons/:id/settings with settings body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const settings = {
+      selectedStreams: ['Heart Rate'],
+      xAxisMode: 'elapsed' as const,
+      hiddenStats: ['Distance'],
+    };
+    await updateComparisonSettings('cmp-1', settings);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/comparisons/cmp-1/settings',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ settings }),
+        credentials: 'include',
+      })
+    );
+  });
+
+  it('throws "Comparison not found" on 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+    );
+
+    await expect(updateComparisonSettings('missing', {})).rejects.toThrow('Comparison not found');
+  });
+
+  it('throws on other non-ok response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Server Error' })
+    );
+
+    await expect(updateComparisonSettings('cmp-1', {})).rejects.toThrow(
+      /Failed to update comparison settings/
     );
   });
 });

@@ -6,7 +6,7 @@
   let { params = {}, query = {} }: Props = $props();
 
   import { push, replace, location } from 'svelte-spa-router';
-  import { createComparison, deleteComparison } from '../lib/api';
+  import { createComparison, deleteComparison, updateComparisonSettings } from '../lib/api';
   import type { StreamData, ComparisonSettings, Folder } from '../lib/types';
   import {
     isChartableStream,
@@ -23,6 +23,8 @@
     setSelectedStreamTypes,
     setXAxisMode,
     setComparison,
+    toggleHiddenStat as loaderToggleHiddenStat,
+    clearHiddenStats as loaderClearHiddenStats,
   } from '../lib/utils/comparison-loader.svelte';
   import { parseStat } from '../lib/utils/stat-parsing';
   import {
@@ -221,7 +223,7 @@
     }
 
     const filteredTypes = Array.from(byKey.values()).sort();
-    return filteredTypes;
+    return filteredTypes.filter((t) => !loaderState.hiddenStats.has(t));
   });
 
   function toggleStream(type: string) {
@@ -231,6 +233,30 @@
       else next.add(type);
       return next;
     });
+  }
+
+  function toggleHiddenStat(statType: string) {
+    loaderToggleHiddenStat(statType);
+    if (savedComparison) {
+      const settings = {
+        selectedStreams: Array.from(loaderState.selectedStreamTypes),
+        xAxisMode: loaderState.xAxisMode,
+        hiddenStats: Array.from(loaderState.hiddenStats),
+      };
+      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+    }
+  }
+
+  function handleClearHiddenStats() {
+    loaderClearHiddenStats();
+    if (savedComparison) {
+      const settings = {
+        selectedStreams: Array.from(loaderState.selectedStreamTypes),
+        xAxisMode: loaderState.xAxisMode,
+        hiddenStats: [],
+      };
+      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+    }
   }
 
   async function handleActivityChange(eventId: string, activityId: string) {
@@ -273,6 +299,7 @@
       const settings: ComparisonSettings = {
         selectedStreams: Array.from(loaderState.selectedStreamTypes),
         xAxisMode: loaderState.xAxisMode,
+        hiddenStats: Array.from(loaderState.hiddenStats),
       };
 
       const saved = await createComparison(
@@ -487,6 +514,38 @@
       </div>
     {/if}
 
+    {#if loaderState.hiddenStats.size > 0}
+      <div class="mb-4 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4 text-text-secondary"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+          />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+        <span class="text-sm text-text-secondary">
+          {loaderState.hiddenStats.size}
+          {loaderState.hiddenStats.size === 1 ? 'row' : 'rows'} hidden
+        </span>
+        <button
+          type="button"
+          class="ml-auto text-sm text-accent hover:underline"
+          onclick={handleClearHiddenStats}
+        >
+          Show all
+        </button>
+      </div>
+    {/if}
+
     <ComparisonStatsTable
       {events}
       {selectedActivities}
@@ -494,6 +553,7 @@
       eventColors={EVENT_COLORS}
       {getActivityDeviceName}
       {calculateDelta}
+      onHideStat={toggleHiddenStat}
     />
 
     <!-- Comparison map: all devices' routes with EVENT_COLORS -->

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import ComparisonStatsTable from '../ComparisonStatsTable.svelte';
 import { eventDetailFixture, eventDetailEvt2Fixture } from '../../../../test/fixtures/event-detail';
 
@@ -122,6 +122,53 @@ describe('ComparisonStatsTable', () => {
     const span = screen.getByText(/\+00:00/).closest('span');
     expect(span).toHaveClass('text-green-500');
     expect(span?.textContent).not.toMatch(/\(.*%\)/);
+  });
+
+  it('calls onHideStat with the stat type when hide button is clicked', async () => {
+    const events = [eventDetailFixture, eventDetailEvt2Fixture];
+    const selectedActivities = { 'evt-1': 'act-1', 'evt-2': 'act-2' };
+    const allStatTypes = ['Duration'];
+    const eventColors = ['#ef4444', '#3b82f6'];
+    const calculateDelta = vi.fn(() => null);
+    const onHideStat = vi.fn();
+
+    render(ComparisonStatsTable, {
+      props: {
+        events,
+        selectedActivities,
+        allStatTypes,
+        eventColors,
+        getActivityDeviceName,
+        calculateDelta,
+        onHideStat,
+      },
+    });
+
+    const hideBtn = screen.getByRole('button', { name: 'Hide Duration row' });
+    expect(hideBtn).toBeInTheDocument();
+    await fireEvent.click(hideBtn);
+    expect(onHideStat).toHaveBeenCalledWith('Duration');
+  });
+
+  it('does not render hide button when onHideStat is not provided', () => {
+    const events = [eventDetailFixture, eventDetailEvt2Fixture];
+    const selectedActivities = { 'evt-1': 'act-1', 'evt-2': 'act-2' };
+    const allStatTypes = ['Duration'];
+    const eventColors = ['#ef4444', '#3b82f6'];
+    const calculateDelta = vi.fn(() => null);
+
+    render(ComparisonStatsTable, {
+      props: {
+        events,
+        selectedActivities,
+        allStatTypes,
+        eventColors,
+        getActivityDeviceName,
+        calculateDelta,
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: /Hide Duration row/ })).not.toBeInTheDocument();
   });
 
   it('uses event name or Event N fallback when selected activity is not found', () => {

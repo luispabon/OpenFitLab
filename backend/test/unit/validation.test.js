@@ -10,6 +10,7 @@ const {
   validateComparisonBody,
   validateComparisonByEventsBody,
   validateComparisonFolderUpdateBody,
+  validateComparisonSettingsBody,
   validateExportQuery,
 } = require('../../src/utils/validation');
 
@@ -451,6 +452,130 @@ describe('validateComparisonFolderUpdateBody', () => {
     validateComparisonFolderUpdateBody(req, res, next);
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'folderId must be a valid UUID or null' });
+    strictEqual(next.called(), false);
+  });
+});
+
+describe('validateComparisonSettingsBody', () => {
+  it('calls next for valid settings with all fields', () => {
+    const req = {
+      body: {
+        settings: {
+          selectedStreams: ['Heart Rate', 'Speed'],
+          xAxisMode: 'elapsed',
+          hiddenStats: ['Distance', 'Average Power'],
+        },
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next for empty settings object', () => {
+    const req = { body: { settings: {} } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next for settings with only hiddenStats', () => {
+    const req = { body: { settings: { hiddenStats: ['Duration'] } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('calls next for xAxisMode wall-clock', () => {
+    const req = { body: { settings: { xAxisMode: 'wall-clock' } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 when settings is missing', () => {
+    const req = { body: {} };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings must be an object' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings is null', () => {
+    const req = { body: { settings: null } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings must be an object' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings is an array', () => {
+    const req = { body: { settings: [] } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings must be an object' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings.selectedStreams is not an array', () => {
+    const req = { body: { settings: { selectedStreams: 'Heart Rate' } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings.selectedStreams must be an array' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings.selectedStreams contains non-string', () => {
+    const req = { body: { settings: { selectedStreams: [1, 'Speed'] } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings.selectedStreams must be an array of strings' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings.xAxisMode is invalid', () => {
+    const req = { body: { settings: { xAxisMode: 'distance' } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, {
+      error: 'settings.xAxisMode must be "elapsed" or "wall-clock"',
+    });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings.hiddenStats is not an array', () => {
+    const req = { body: { settings: { hiddenStats: 'Distance' } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings.hiddenStats must be an array' });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when settings.hiddenStats contains non-string', () => {
+    const req = { body: { settings: { hiddenStats: [42] } } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonSettingsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'settings.hiddenStats must be an array of strings' });
     strictEqual(next.called(), false);
   });
 });

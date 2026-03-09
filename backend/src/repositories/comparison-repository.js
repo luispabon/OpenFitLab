@@ -240,6 +240,16 @@ async function updateFolderId(id, folderId, opts = {}) {
   return result && result.affectedRows === 1;
 }
 
+async function updateSettings(id, settings, opts = {}) {
+  if (!opts.userId) throw new Error('updateSettings comparison requires opts.userId');
+  const result = await runQuery(
+    'UPDATE comparisons SET settings = ? WHERE id = ? AND user_id = ?',
+    [settings != null ? JSON.stringify(settings) : null, id, opts.userId],
+    opts
+  );
+  return result && result.affectedRows === 1;
+}
+
 module.exports = {
   create,
   findAll,
@@ -253,4 +263,5 @@ module.exports = {
   deleteByIds,
   getEventFolderIdsForComparisons,
   updateFolderId,
+  updateSettings,
 };

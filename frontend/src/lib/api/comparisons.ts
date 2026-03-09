@@ -162,6 +162,27 @@ export interface UpdateComparisonFolderBody {
   folderId: string | null;
 }
 
+export async function updateComparisonSettings(
+  id: string,
+  settings: ComparisonSettings
+): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/comparisons/${id}/settings`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ settings }),
+  });
+
+  if (response.status === 404) {
+    throw new Error('Comparison not found');
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to update comparison settings: ${response.statusText}`);
+  }
+}
+
 export async function updateComparisonFolder(id: string, folderId: string | null): Promise<void> {
   const response = await apiFetch(`${API_BASE}/comparisons/${id}/folder`, {
     method: 'PATCH',
