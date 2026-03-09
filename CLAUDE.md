@@ -1,6 +1,15 @@
 # OpenFitLab - Claude Code Guide
 
-**Start by reading [AGENTS.md](AGENTS.md)** — it contains quickstart commands, critical invariants, and navigation guidance.
+## MANDATORY: Session Start
+
+**At the start of every conversation, before responding to anything else, you MUST:**
+
+1. Read `.cursor/rules/*.mdc`. These are cursor rules, so make sure you interpret the frontmatter accoringly
+3. Read [AGENTS.md](AGENTS.md) for quickstart commands, critical invariants, and navigation guidance
+
+This is not optional. Do not skip or defer these reads. LOAD THE RULES.
+
+---
 
 ## About the Cursor Rules
 
