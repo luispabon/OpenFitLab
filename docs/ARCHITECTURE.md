@@ -19,12 +19,71 @@ Core flow:
 4. The backend parses the files (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`), stores relational event/activity/stream data, and discards the originals.
 5. The frontend reads event, stream, comparison, folder, and account data through authenticated API calls.
 
-## Configuration and runtime
+## Configuration, runtime, and deployment
 
 - Backend config is read only from `backend/src/config.js`.
 - Schema is defined in `backend/sql/schema.sql` and applied on startup via `db.initializeSchema()`.
 - There is no migration system. Schema changes require database recreation.
 - Local development uses `docker compose up -d`.
+
+### Compose stacks
+
+Two stacks serve different purposes:
+
+| Stack | File | Purpose |
+|---|---|---|
+| Development | `compose.yaml` | Source-mounted services with hot-reload |
+| Production | `compose.prod.yaml` | Pre-built images from GHCR |
+
+**Development services** (`compose.yaml`):
+- `db` — MariaDB 12.2.2, port 3306, persistent volume `db_data`
+- `valkey` — Valkey 8 Alpine (Redis-compatible session store), persistent volume `valkey_data`
+- `api` — Node 24 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
+- `frontend` — Node 22 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
+- `adminer` — DB admin UI, port 8080
+
+Health checks ensure `api` and `frontend` only start after `db` and `valkey` are healthy.
+
+**Production services** (`compose.prod.yaml`):
+- `db` and `valkey` — same images, restart: unless-stopped
+- `api` — `ghcr.io/luispabon/openfitlab-backend:latest`, 2 replicas, Traefik labels
+- `frontend` — `ghcr.io/luispabon/openfitlab-frontend:latest`, 2 replicas, Traefik labels
+
+### Dockerfiles
+
+Both use multi-stage builds with named targets:
+
+- **`backend/Dockerfile`**: `dev` target (Node 24 Alpine, `npm install`, `npm run dev`) and `prod` target (extends dev, `npm ci --omit=dev`, `node src/index.js`). Runs as non-root `appuser`.
+- **`frontend/Dockerfile`**: `build` target (Node 24 Alpine, runs `npm ci && npm run build`) and `prod` target (Nginx Alpine serving the built `dist/`).
+
+### Production networking
+
+The prod stack uses two named networks:
+- `internal` — db, valkey, api (not exposed externally)
+- `dmz` — api, frontend (attached to an existing external network expected by Traefik)
+
+Traefik terminates TLS and routes:
+- `Host(${DOMAIN}) && PathPrefix(/api/)` → api
+- `Host(${DOMAIN})` → frontend
+
+Both services are tagged for Watchtower auto-updates.
+
+### Container registry and CI/CD
+
+Images are published to `ghcr.io/luispabon/openfitlab-backend` and `ghcr.io/luispabon/openfitlab-frontend` on every push to `main` via `.github/workflows/publish.yml`. Tags: `latest` and `sha-<short-hash>`. The `prod` target is built in CI.
+
+Local publishing uses `make docker-push` (or `make docker-push-backend` / `make docker-push-frontend`).
+
+### Environment variables
+
+`.env.example` is the canonical reference with inline documentation. Copy it to `.env` before starting the dev stack.
+
+Required in production only:
+- `SESSION_SECRET` — min 32 chars, generate with `openssl rand -hex 32`
+- `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
+- `OAUTH_CALLBACK_URL`, `DOMAIN`
+
+Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`), rate limit overrides, `VITE_GA_*` frontend analytics config.
 
 ## Data model
 
