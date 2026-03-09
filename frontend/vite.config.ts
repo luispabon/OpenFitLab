@@ -22,7 +22,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      $docs: path.resolve(__dirname, '../docs'),
+      $docs: path.resolve(__dirname, './docs'),
     },
   },
   server: {
