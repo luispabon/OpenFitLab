@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/svelte';
 import Workouts from '../workouts.svelte';
 import { activityRowsFixture } from '../../test/fixtures/activity-rows';
+import { setFolderHash } from '../../lib/stores/folders.svelte';
 
 const mockGetActivityRows = vi.fn();
 const mockUploadFiles = vi.fn();
@@ -47,6 +48,7 @@ describe('Workouts', () => {
   });
 
   afterEach(() => {
+    setFolderHash('');
     vi.useRealTimers();
   });
 
@@ -482,6 +484,28 @@ describe('Workouts', () => {
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringMatching(/^\/compare\/new\?events=evt-1(?:%2C|,)evt-2/)
     );
+  });
+
+  it('CompareCandidatesFlow onCompare includes back param when viewing a folder', async () => {
+    setFolderHash('#/?folder=my-folder-id');
+    mockGetComparisonCandidates.mockResolvedValue([
+      { id: 'evt-2', name: 'Other Run', startDate: 0, stats: {} },
+    ]);
+    render(Workouts);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const findButton = screen.getByRole('button', { name: 'Find comparisons' });
+    await fireEvent.click(findButton);
+    await waitFor(() => {
+      expect(screen.getByText('Other Run')).toBeInTheDocument();
+    });
+    const dialog = screen.getByRole('dialog');
+    const candidateCheckbox = within(dialog).getByRole('checkbox');
+    await fireEvent.click(candidateCheckbox);
+    const compareBtn = within(dialog).getByRole('button', { name: /Compare \(2 events\)/ });
+    await fireEvent.click(compareBtn);
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('back=my-folder-id'));
   });
 
   it('CompareCandidatesFlow onError shows toast when candidates fail', async () => {

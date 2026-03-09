@@ -324,17 +324,38 @@ Folder semantics:
   - body: `{ eventIds }`
 - `GET /api/comparisons/:id`
 - `DELETE /api/comparisons/:id`
+- `PATCH /api/comparisons/:id/settings`
+  - body: `{ settings }` where settings may include `selectedStreams`, `xAxisMode`, `hiddenStats`, and `referenceActivityId`
+  - `referenceActivityId` must be a valid UUID or null; it identifies which activity acts as the reference baseline for stream analysis and delta columns
 
 Comparison responses include:
 
 - `id`, `name`
 - `eventIds`
 - `activityIds`
-- optional `settings`
+- optional `settings` — includes `selectedStreams`, `xAxisMode`, `hiddenStats`, `referenceActivityId`
 - optional `folderId`
 - optional `mixed`
 - optional `surfaced`
 - optional `createdAt`
+
+### Stream analysis (frontend-only)
+
+Stream analysis runs entirely client-side in `frontend/src/lib/utils/stream-analysis.ts`. No additional API endpoints are needed.
+
+Key functions:
+
+- `alignStreams` — nearest-neighbour alignment of two streams by elapsed time; pairs with gap > 30 s are excluded
+- `buildDeltaSeries` — builds a secondary − reference delta series indexed by elapsed ms
+- `computePearson` — Pearson correlation coefficient
+- `computeLinearRegression` — OLS slope, intercept, and R²
+- `computeStreamAnalysisStats` — aggregated stats (r, r2, slope, intercept, n, meanDiff, maxAbsDiff)
+
+UI components:
+
+- `ScatterChart.svelte` — uPlot XY scatter with optional regression line overlay
+- `DeltaChart.svelte` — uPlot area chart of delta over elapsed time with a zero-baseline dashed line
+- `StreamAnalysisSection.svelte` — orchestrates stream selection, alignment, and chart/stats display for each secondary-vs-reference pair
 
 ### Meta
 

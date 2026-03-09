@@ -27,6 +27,7 @@ export const state = $state({
   selectedStreamTypes: new Set<string>() as Set<string>,
   xAxisMode: 'elapsed' as 'elapsed' | 'wall-clock',
   hiddenStats: new Set<string>() as Set<string>,
+  referenceActivityId: null as string | null,
 });
 
 export function setSelectedActivities(
@@ -58,6 +59,10 @@ export function clearHiddenStats() {
   state.hiddenStats = new Set();
 }
 
+export function setReferenceActivityId(id: string | null) {
+  state.referenceActivityId = id;
+}
+
 /** Reset module-level state (for tests). */
 export function reset(): void {
   if (abortController) abortController.abort();
@@ -74,6 +79,7 @@ export function reset(): void {
   state.selectedStreamTypes = new Set();
   state.xAxisMode = 'elapsed';
   state.hiddenStats = new Set();
+  state.referenceActivityId = null;
 }
 
 function deriveKey(comparisonId: string, eventIdsFromQuery: string[]): string {
@@ -191,6 +197,7 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
     state.selectedStreamTypes = new Set();
     state.xAxisMode = 'elapsed';
     state.hiddenStats = new Set();
+    state.referenceActivityId = null;
   }
 
   if (abortController) abortController.abort();
@@ -233,6 +240,7 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
         state.xAxisMode = comp.settings.xAxisMode ?? 'elapsed';
         state.selectedStreamTypes = new Set(comp.settings.selectedStreams ?? []);
         state.hiddenStats = new Set(comp.settings.hiddenStats ?? []);
+        state.referenceActivityId = comp.settings?.referenceActivityId ?? null;
       }
       if (Array.isArray(comp.eventIds) && Array.isArray(comp.activityIds)) {
         const nextSelectedActivities: Record<string, string> = {};

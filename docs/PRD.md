@@ -130,16 +130,19 @@ Requirements:
 
 ### 3.5 Stream analysis
 
-**Status:** Planned
+**Status:** Implemented
 
-Users should be able to analyze relationships between different streams.
+Users can analyze relationships between streams across compared activities.
 
-Planned capabilities:
+Implemented capabilities:
 
-- correlation analysis
-- XY/scatter plots
-- summary statistics
-- exportable analysis results
+- nearest-neighbour time alignment of streams across two recordings (30-second tolerance)
+- XY scatter plot with OLS regression line overlay
+- delta-over-time chart (secondary − reference)
+- summary statistics: Pearson r, R², slope, intercept, mean difference, max absolute difference, and point count
+- reference device picker: choose which activity acts as the baseline for deltas and scatter plots
+- stream type selector showing only streams common to all compared activities
+- `referenceActivityId` persisted in comparison settings
 
 ### 3.6 Tracker comparison
 
