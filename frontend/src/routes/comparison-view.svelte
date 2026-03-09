@@ -1,7 +1,7 @@
 <script lang="ts">
   interface Props {
     params?: { id?: string };
-    query?: { events?: string; folder?: string };
+    query?: { events?: string; folder?: string; back?: string };
   }
   let { params = {}, query = {} }: Props = $props();
 
@@ -51,6 +51,7 @@
   // Parse query parameters from URL hash
   let eventIdsFromQueryState = $state<string[]>([]);
   let folderIdFromQueryState = $state<string | null>(null);
+  let backFolderFromQueryState = $state<string | null>(null);
 
   $effect(() => {
     const _loc = locationForEffect;
@@ -64,6 +65,8 @@
       if (idsStr !== currentStr) eventIdsFromQueryState = ids;
       const folderFromQuery = query?.folder?.trim() || null;
       if (folderFromQuery !== folderIdFromQueryState) folderIdFromQueryState = folderFromQuery;
+      const backFromQuery = query?.back?.trim() || null;
+      if (backFromQuery !== backFolderFromQueryState) backFolderFromQueryState = backFromQuery;
       return;
     }
     try {
@@ -74,6 +77,9 @@
         ? decodeURIComponent(folderMatch[1]).trim() || null
         : null;
       if (folderFromHash !== folderIdFromQueryState) folderIdFromQueryState = folderFromHash;
+      const backMatch = hash.match(/[?&]back=([^&]*)/);
+      const backFromHash = backMatch?.[1] ? decodeURIComponent(backMatch[1]).trim() || null : null;
+      if (backFromHash !== backFolderFromQueryState) backFolderFromQueryState = backFromHash;
       if (hashMatch?.[1]) {
         const ids = decodeURIComponent(hashMatch[1])
           .split(',')
@@ -436,7 +442,15 @@
   <button
     type="button"
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
-    onclick={() => push(savedComparison ? '/comparisons' : '/')}
+    onclick={() => {
+      if (savedComparison) {
+        push('/comparisons');
+      } else if (backFolderFromQueryState) {
+        push(`/?folder=${encodeURIComponent(backFolderFromQueryState)}`);
+      } else {
+        push('/');
+      }
+    }}
   >
     ← {savedComparison ? 'Back to comparisons' : 'Back to Workouts'}
   </button>

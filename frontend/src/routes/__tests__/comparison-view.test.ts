@@ -110,7 +110,7 @@ describe('ComparisonView', () => {
     });
   });
 
-  it('Back button when new comparison pushes to Workouts', async () => {
+  it('Back button when new comparison with no back param pushes to /', async () => {
     render(ComparisonView, {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
@@ -119,6 +119,17 @@ describe('ComparisonView', () => {
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('Back button when new comparison with back param pushes to folder URL', async () => {
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2', back: 'folder-abc' } },
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Event Comparison')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
+    expect(mockPush).toHaveBeenCalledWith('/?folder=folder-abc');
   });
 
   it('Save Comparison opens dialog with auto-generated name', async () => {

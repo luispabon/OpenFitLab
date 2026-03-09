@@ -482,6 +482,7 @@
         const params = new URLSearchParams();
         params.set('events', eventIds.join(','));
         if (suggestedFolderId) params.set('folder', suggestedFolderId);
+        if (activeFolderId !== 'all') params.set('back', activeFolderId);
         push(`/compare/new?${params.toString()}`);
       }}
       onError={showToast}
