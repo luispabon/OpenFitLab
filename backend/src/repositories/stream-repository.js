@@ -1,5 +1,4 @@
-const { runQuery } = require('./query-helper');
-const { placeholders } = require('../utils/transforms');
+const { runQuery, placeholders } = require('./query-helper');
 
 async function insertStream(streamId, activityId, eventId, type, opts = {}) {
   await runQuery(

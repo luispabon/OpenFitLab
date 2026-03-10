@@ -9,6 +9,54 @@ const activityRepository = require('../repositories/activity-repository');
 const streamRepository = require('../repositories/stream-repository');
 
 /**
+ * Build the event DB row from parsed event data. Pure function, no DB dependency.
+ * @param {object} eventJson - Parsed event JSON
+ * @param {string} name - Resolved event name
+ * @param {number} startDate - Resolved start date timestamp
+ * @param {string|null} folderId
+ * @param {string|null} extension - File extension (src_file_type)
+ * @returns {object} Event row ready for insertEvent (without id, user_id, timezone fields)
+ */
+function buildEventRecord(eventJson, name, startDate, folderId, extension) {
+  return {
+    start_date: startDate,
+    name,
+    end_date: toTimestamp(eventJson.endDate, null),
+    description: eventJson.description != null ? String(eventJson.description) : null,
+    is_merge: eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0,
+    src_file_type: extension || null,
+    folder_id: folderId,
+  };
+}
+
+/**
+ * Build the activity DB row from parsed activity data. Pure function, no DB dependency.
+ * @param {object} activityJson - Parsed activity JSON
+ * @param {string} aid - Activity UUID
+ * @param {string} eventId - Parent event UUID
+ * @returns {object} Activity row ready for insertActivity
+ */
+function buildActivityRecord(activityJson, aid, eventId) {
+  const { startTimezone, endTimezone } = extractActivityTimezones(activityJson);
+  return {
+    id: aid,
+    event_id: eventId,
+    name: activityJson.name != null ? String(activityJson.name) : null,
+    start_date: toTimestamp(activityJson.startDate, null),
+    end_date: toTimestamp(activityJson.endDate, null),
+    type: activityJson.type != null ? String(activityJson.type) : null,
+    device_name:
+      activityJson.creator &&
+      typeof activityJson.creator === 'object' &&
+      activityJson.creator.name != null
+        ? String(activityJson.creator.name).trim() || null
+        : null,
+    start_timezone: startTimezone,
+    end_timezone: endTimezone,
+  };
+}
+
+/**
  * Parses an uploaded file and persists event, activities, stats, and streams to the DB.
  */
 async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
@@ -27,28 +75,18 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
 
   const eventJson = event.toJSON();
   const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
-  const eventEndDate = toTimestamp(eventJson.endDate, null);
-  const eventDescription = eventJson.description != null ? String(eventJson.description) : null;
-  const eventIsMerge = eventJson.isMerge === true || eventJson.isMerge === 1 ? 1 : 0;
-  const srcFileType = extension || null;
-
-  const activities = event.getActivities();
+  const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
   const eventTimezone = FileParser.extractEventTimezone(event);
 
-  const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
+  const activities = event.getActivities();
 
   await db.transaction(async (conn) => {
     const tOpts = { ...opts, db, conn };
+    const eventRow = buildEventRecord(eventJson, name, startDate, folderId, extension);
     await eventRepository.insertEvent(
       {
         id: eventId,
-        folder_id: folderId,
-        start_date: startDate,
-        name,
-        end_date: eventEndDate,
-        description: eventDescription,
-        is_merge: eventIsMerge,
-        src_file_type: srcFileType,
+        ...eventRow,
         start_timezone: eventTimezone,
         end_timezone: eventTimezone,
       },
@@ -62,32 +100,9 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
       const streams = activityJson.streams;
       const aStats =
         activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
-      const aName = activityJson.name != null ? String(activityJson.name) : null;
-      const aStartDate = toTimestamp(activityJson.startDate, null);
-      const aEndDate = toTimestamp(activityJson.endDate, null);
-      const aType = activityJson.type != null ? String(activityJson.type) : null;
-      const deviceName =
-        activityJson.creator &&
-        typeof activityJson.creator === 'object' &&
-        activityJson.creator.name != null
-          ? String(activityJson.creator.name).trim()
-          : null;
-      const { startTimezone, endTimezone } = extractActivityTimezones(activityJson);
 
-      await activityRepository.insertActivity(
-        {
-          id: aid,
-          event_id: eventId,
-          name: aName,
-          start_date: aStartDate,
-          end_date: aEndDate,
-          type: aType,
-          device_name: deviceName || null,
-          start_timezone: startTimezone,
-          end_timezone: endTimezone,
-        },
-        tOpts
-      );
+      const activityRow = buildActivityRecord(activityJson, aid, eventId);
+      await activityRepository.insertActivity(activityRow, tOpts);
       await activityRepository.insertActivityStats(aid, aStats, tOpts);
 
       if (streams) {
@@ -133,4 +148,4 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
   };
 }
 
-module.exports = { processUpload };
+module.exports = { processUpload, buildEventRecord, buildActivityRecord };

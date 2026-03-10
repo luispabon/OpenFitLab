@@ -18,4 +18,25 @@ async function runQuery(sql, params, opts = {}) {
   return db.query(sql, params);
 }
 
-module.exports = { runQuery };
+/**
+ * Run a query and return the first row, or null. Transaction-aware like runQuery.
+ * @param {string} sql
+ * @param {Array} params
+ * @param {{ db?: object, conn?: object }} opts
+ * @returns {Promise<object|null>}
+ */
+async function runQueryOne(sql, params, opts = {}) {
+  const rows = await runQuery(sql, params, opts);
+  return Array.isArray(rows) ? (rows[0] ?? null) : null;
+}
+
+/**
+ * Generate SQL placeholder string for N params: ?,?,?
+ * @param {number} count
+ * @returns {string}
+ */
+function placeholders(count) {
+  return Array.from({ length: count }, () => '?').join(',');
+}
+
+module.exports = { runQuery, runQueryOne, placeholders };

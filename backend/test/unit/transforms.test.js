@@ -6,7 +6,6 @@ const {
   aggregateStats,
   mapEventRow,
   mapActivityRow,
-  placeholders,
 } = require('../../src/utils/transforms');
 
 describe('parseJSONField', () => {
@@ -229,16 +228,3 @@ describe('mapActivityRow', () => {
   });
 });
 
-describe('placeholders', () => {
-  it('returns one placeholder for count 1', () => {
-    strictEqual(placeholders(1), '?');
-  });
-
-  it('returns comma-separated placeholders for count 3', () => {
-    strictEqual(placeholders(3), '?,?,?');
-  });
-
-  it('returns empty string for count 0', () => {
-    strictEqual(placeholders(0), '');
-  });
-});

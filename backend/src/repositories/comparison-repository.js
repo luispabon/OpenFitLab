@@ -1,5 +1,4 @@
-const { runQuery } = require('./query-helper');
-const { placeholders } = require('../utils/transforms');
+const { runQuery, placeholders } = require('./query-helper');
 
 async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');

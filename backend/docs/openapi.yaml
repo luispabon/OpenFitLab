@@ -1,0 +1,1332 @@
+openapi: 3.1.0
+info:
+  title: OpenFitLab API
+  version: "1.0"
+  description: |
+    REST API for the OpenFitLab self-hosted fitness activity tracker.
+
+    **Authentication:** All protected endpoints require a valid session cookie
+    (`ofl.sid`). Obtain a session by completing the OAuth flow via
+    `GET /api/auth/google` or `GET /api/auth/github`.
+
+    **CSRF:** All state-changing requests (POST, PATCH, DELETE) must include the
+    `x-csrf-token` header. Obtain the token from `GET /api/auth/me`.
+
+    **Ownership:** All resource endpoints scope data to the authenticated user.
+    A missing or unowned resource returns `404` (not `403`) to avoid leaking existence.
+
+    **Error shape:** All error responses use `{ "error": "<message>" }`.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: auth
+    description: OAuth login, session management, and account creation
+  - name: events
+    description: Activity event upload, query, and management
+  - name: comparisons
+    description: Saved side-by-side activity comparisons
+  - name: folders
+    description: Named folder organisation for events and comparisons
+  - name: account
+    description: Data export and account deletion
+  - name: meta
+    description: Distinct activity types and device names
+
+# ---------------------------------------------------------------------------
+# Reusable components
+# ---------------------------------------------------------------------------
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Not found
+
+    Stats:
+      type: object
+      description: |
+        Key-value map of stat type to value. Common keys include Distance,
+        Duration, Calories, HeartRateAvg, HeartRateMax, CadenceAvg, PowerAvg,
+        SpeedAvg, ElevationGain. Values may be numbers, strings, or objects
+        depending on stat type.
+      additionalProperties: true
+      example:
+        Distance: 10000
+        Duration: 3600
+        HeartRateAvg: 145
+
+    Activity:
+      type: object
+      required: [id, eventID, stats]
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventID:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startDate:
+          type: integer
+          description: Unix timestamp in milliseconds
+        endDate:
+          type: integer
+          description: Unix timestamp in milliseconds
+        type:
+          type: string
+          example: Running
+        deviceName:
+          type: string
+          example: Garmin Forerunner 245
+        startTimezone:
+          type: string
+          example: UTC
+        endTimezone:
+          type: string
+          example: UTC
+        stats:
+          $ref: "#/components/schemas/Stats"
+
+    Event:
+      type: object
+      required: [id, startDate, name, stats, folderId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        startDate:
+          type: integer
+          description: Unix timestamp in milliseconds
+        endDate:
+          type: integer
+          description: Unix timestamp in milliseconds
+        name:
+          type: string
+        description:
+          type: string
+        isMerge:
+          type: boolean
+        srcFileType:
+          type: string
+          example: tcx
+        startTimezone:
+          type: string
+          example: UTC
+        endTimezone:
+          type: string
+          example: UTC
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+        stats:
+          $ref: "#/components/schemas/Stats"
+
+    EventDetail:
+      type: object
+      required: [event, activities]
+      properties:
+        event:
+          $ref: "#/components/schemas/Event"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+
+    ActivityRow:
+      type: object
+      required: [event, activity]
+      properties:
+        event:
+          $ref: "#/components/schemas/Event"
+        activity:
+          $ref: "#/components/schemas/Activity"
+
+    Folder:
+      type: object
+      required: [id, name, color, pinned]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+          description: Hex colour code
+          example: "#e74c3c"
+        pinned:
+          type: boolean
+        eventCount:
+          type: integer
+        comparisonCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    Comparison:
+      type: object
+      required: [id, name, eventIds, activityIds, settings, folderId, mixed, surfaced]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        eventIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        activityIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        settings:
+          type: object
+          nullable: true
+          description: Arbitrary settings blob (e.g. referenceActivityId)
+          properties:
+            referenceActivityId:
+              type: string
+              format: uuid
+              nullable: true
+          additionalProperties: true
+        folderId:
+          type: string
+          format: uuid
+          nullable: true
+        mixed:
+          type: boolean
+          description: True when the comparison references events from more than one folder
+        surfaced:
+          type: boolean
+          description: True when the comparison was returned because it references an event in the queried folder, not because it is directly assigned to it
+        createdAt:
+          type: integer
+          description: Unix timestamp in milliseconds
+
+    StreamDataPoint:
+      type: object
+      required: [timeMs, value, sequenceIndex]
+      properties:
+        timeMs:
+          type: integer
+          description: Absolute timestamp in milliseconds
+        value:
+          description: Stream value (number, array, or object depending on stream type)
+        sequenceIndex:
+          type: integer
+
+    Stream:
+      type: object
+      required: [id, type, activityId, dataPoints]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: Heart Rate
+        activityId:
+          type: string
+          format: uuid
+        dataPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/StreamDataPoint"
+
+    UploadResultItem:
+      type: object
+      required: [filename, success]
+      properties:
+        filename:
+          type: string
+        success:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+          description: Present when success is true
+        event:
+          $ref: "#/components/schemas/Event"
+          description: Present when success is true
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+          description: Present when success is true. Activity ids are null in this response.
+        error:
+          type: string
+          description: Present when success is false
+
+    AuthMe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Present when authenticated
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        csrfToken:
+          type: string
+          description: CSRF token — include as x-csrf-token header on all state-changing requests
+        pendingSignup:
+          type: boolean
+          description: Present and true when the user has authenticated via OAuth but has not yet accepted terms
+        profile:
+          type: object
+          description: Present when pendingSignup is true
+          properties:
+            displayName:
+              type: string
+              nullable: true
+            avatarUrl:
+              type: string
+              nullable: true
+
+  parameters:
+    eventId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Event UUID
+
+    activityId:
+      name: activityId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Activity UUID
+
+    comparisonId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Comparison UUID
+
+    folderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Folder UUID
+
+  responses:
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found or not owned by the authenticated user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Invalid or missing CSRF token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  securitySchemes:
+    csrfToken:
+      type: apiKey
+      in: header
+      name: x-csrf-token
+      description: CSRF token obtained from GET /api/auth/me. Required on all state-changing requests (POST, PATCH, DELETE).
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /api/auth/me:
+    get:
+      tags: [auth]
+      summary: Get current session state
+      description: |
+        Returns the authenticated user and a CSRF token, or a pending-signup
+        profile, or `401` when no valid session exists. Always call this first
+        to obtain the CSRF token required for state-changing requests.
+      responses:
+        "200":
+          description: Authenticated user or pending signup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMe"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/google:
+    get:
+      tags: [auth]
+      summary: Initiate Google OAuth flow
+      description: Redirects to Google. Returns 400 if Google OAuth is not configured.
+      responses:
+        "302":
+          description: Redirect to Google authorization endpoint
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Google OAuth callback
+      description: |
+        Handles the redirect from Google. On success, creates or resumes a
+        session and redirects to the SPA. On pending signup, stores the profile
+        in session and redirects with `?signup=pending`.
+      responses:
+        "302":
+          description: Redirect to SPA
+
+  /api/auth/github:
+    get:
+      tags: [auth]
+      summary: Initiate GitHub OAuth flow
+      description: Redirects to GitHub. Returns 400 if GitHub OAuth is not configured.
+      responses:
+        "302":
+          description: Redirect to GitHub authorization endpoint
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/github/callback:
+    get:
+      tags: [auth]
+      summary: GitHub OAuth callback
+      description: Handles the redirect from GitHub. Behaviour mirrors the Google callback.
+      responses:
+        "302":
+          description: Redirect to SPA
+
+  /api/auth/complete-signup:
+    post:
+      tags: [auth]
+      summary: Accept terms of service and create account
+      description: |
+        Completes a pending signup by creating a user and identity row, then
+        upgrading the session. Requires a pending-signup session (set by an
+        OAuth callback).
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMe"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/decline-signup:
+    post:
+      tags: [auth]
+      summary: Decline terms of service
+      description: Destroys the pending-signup session without creating an account.
+      responses:
+        "200":
+          description: Session destroyed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Log out
+      description: Destroys the current session and clears the session cookie.
+      security:
+        - csrfToken: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  # ── Events ────────────────────────────────────────────────────────────────
+
+  /api/events:
+    get:
+      tags: [events]
+      summary: List events
+      description: Returns enriched events (with activities and stats) in reverse-chronological order.
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: integer
+          description: Filter events with start_date >= startDate (ms)
+        - name: endDate
+          in: query
+          schema:
+            type: integer
+          description: Filter events with start_date <= endDate (ms)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: folderId
+          in: query
+          schema:
+            type: string
+          description: |
+            Filter by folder. Use `unfiled` for events with no folder,
+            `all` or omit for all events, or a UUID for a specific folder.
+      responses:
+        "200":
+          description: Array of enriched events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [events]
+      summary: Upload one or more activity files
+      description: |
+        Accepts 1–10 files as `multipart/form-data`. Each file is parsed,
+        persisted, and returned in the results array. Unsupported or unparseable
+        files produce a result with `success: false` rather than failing the
+        whole request.
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                folderId:
+                  type: string
+                  format: uuid
+                  description: Optional folder to assign all uploaded events to
+      responses:
+        "200":
+          description: Upload results (one item per file)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UploadResultItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/events/activity-rows:
+    get:
+      tags: [events]
+      summary: Paginated activity table
+      description: Returns a paginated list of `{ event, activity }` pairs for the activity table view.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: startDate
+          in: query
+          schema:
+            type: integer
+        - name: endDate
+          in: query
+          schema:
+            type: integer
+        - name: activityTypes
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: devices
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Partial match against event name, activity name, or activity type
+        - name: folderId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated activity rows
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, total]
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityRow"
+                  total:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/events/{id}:
+    get:
+      tags: [events]
+      summary: Get event detail
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      responses:
+        "200":
+          description: Event with activities and stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [events]
+      summary: Update event folder assignment
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folderId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "204":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [events]
+      summary: Delete event
+      description: Deletes the event and any comparisons that reference it.
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{id}/candidates:
+    get:
+      tags: [events]
+      summary: Get comparison candidates
+      description: |
+        Returns events that overlap in time with the given event and are in the
+        same folder (by default), suitable for building a new comparison.
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+        - name: sameFolderOnly
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Overlapping candidate events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{id}/activities/{activityId}:
+    patch:
+      tags: [events]
+      summary: Update activity type or device name
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+        - $ref: "#/components/parameters/activityId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: At least one of type or deviceName must be provided
+              properties:
+                type:
+                  type: string
+                  example: Cycling
+                deviceName:
+                  type: string
+                  example: Wahoo ELEMNT Bolt
+      responses:
+        "200":
+          description: Updated activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Activity"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{id}/activities/{activityId}/streams:
+    get:
+      tags: [events]
+      summary: Get streams for an activity
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+        - $ref: "#/components/parameters/activityId"
+        - name: types
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          description: Filter to specific stream types. Omit to return all streams.
+      responses:
+        "200":
+          description: Streams with data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Stream"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Comparisons ───────────────────────────────────────────────────────────
+
+  /api/comparisons:
+    get:
+      tags: [comparisons]
+      summary: List comparisons
+      parameters:
+        - name: folderId
+          in: query
+          schema:
+            type: string
+          description: |
+            Filter by folder UUID, `unfiled` for unassigned comparisons,
+            or omit for all comparisons. When a folder UUID is given, comparisons
+            that reference events in that folder are also included (`surfaced: true`).
+      responses:
+        "200":
+          description: List of comparisons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comparison"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [comparisons]
+      summary: Create a comparison
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, activityIds]
+              properties:
+                name:
+                  type: string
+                activityIds:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: string
+                    format: uuid
+                settings:
+                  type: object
+                  nullable: true
+                folderId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "201":
+          description: Created comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comparison"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: One or more activityIds not found or not owned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/comparisons/by-events:
+    post:
+      tags: [comparisons]
+      summary: Get comparisons by event IDs
+      description: Returns lightweight comparison stubs for all comparisons that reference any of the given event IDs.
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [eventIds]
+              properties:
+                eventIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Matching comparisons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    createdAt:
+                      type: integer
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/comparisons/{id}:
+    get:
+      tags: [comparisons]
+      summary: Get comparison by ID
+      parameters:
+        - $ref: "#/components/parameters/comparisonId"
+      responses:
+        "200":
+          description: Comparison detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comparison"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [comparisons]
+      summary: Delete comparison
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/comparisonId"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/comparisons/{id}/folder:
+    patch:
+      tags: [comparisons]
+      summary: Update comparison folder assignment
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/comparisonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folderId]
+              properties:
+                folderId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "204":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/comparisons/{id}/settings:
+    patch:
+      tags: [comparisons]
+      summary: Update comparison settings
+      description: Persists arbitrary settings for a comparison (e.g. referenceActivityId for stream analysis).
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/comparisonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  nullable: true
+                  properties:
+                    referenceActivityId:
+                      type: string
+                      format: uuid
+                      nullable: true
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    type: object
+                    nullable: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Folders ───────────────────────────────────────────────────────────────
+
+  /api/folders:
+    get:
+      tags: [folders]
+      summary: List folders
+      description: Returns all folders for the authenticated user, ordered by pinned desc then name asc, with event and comparison counts.
+      responses:
+        "200":
+          description: List of folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Folder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [folders]
+      summary: Create folder
+      security:
+        - csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, color]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                color:
+                  type: string
+                  description: Hex colour code (#rrggbb)
+                  example: "#3498db"
+                pinned:
+                  type: boolean
+                  default: false
+      responses:
+        "201":
+          description: Created folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/folders/{id}:
+    get:
+      tags: [folders]
+      summary: Get folder by ID
+      parameters:
+        - $ref: "#/components/parameters/folderId"
+      responses:
+        "200":
+          description: Folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [folders]
+      summary: Update folder
+      description: Updates one or more of name, color, pinned. At least one field required.
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/folderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                color:
+                  type: string
+                pinned:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Folder"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [folders]
+      summary: Delete folder
+      security:
+        - csrfToken: []
+      parameters:
+        - $ref: "#/components/parameters/folderId"
+        - name: contents
+          in: query
+          schema:
+            type: string
+            enum: [unfile, delete]
+            default: unfile
+          description: |
+            What to do with events and comparisons assigned to this folder.
+            `unfile` removes the folder assignment; `delete` deletes them.
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Account ───────────────────────────────────────────────────────────────
+
+  /api/account/export:
+    get:
+      tags: [account]
+      summary: Export all user data
+      parameters:
+        - name: includeStreams
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: When `true`, stream data points are included in the export. Omit or set to `false` to export metadata only.
+      responses:
+        "200":
+          description: Full user data export
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                  - identities
+                  - folders
+                  - events
+                  - eventStats
+                  - activities
+                  - activityStats
+                  - comparisons
+                  - comparisonEventActivities
+                  - streams
+                  - streamDataPoints
+                properties:
+                  user:
+                    type: object
+                  identities:
+                    type: array
+                  folders:
+                    type: array
+                  events:
+                    type: array
+                  eventStats:
+                    type: array
+                  activities:
+                    type: array
+                  activityStats:
+                    type: array
+                  comparisons:
+                    type: array
+                  comparisonEventActivities:
+                    type: array
+                  streams:
+                    type: array
+                  streamDataPoints:
+                    type: array
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/account:
+    delete:
+      tags: [account]
+      summary: Delete account
+      description: |
+        Permanently deletes the authenticated user and all associated data
+        (events, activities, comparisons, folders, streams). Cascade delete
+        is enforced at the database level. The current session is destroyed.
+      security:
+        - csrfToken: []
+      responses:
+        "204":
+          description: Account deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Meta ──────────────────────────────────────────────────────────────────
+
+  /api/activity-types:
+    get:
+      tags: [meta]
+      summary: Get distinct activity types
+      description: Returns all distinct non-empty activity type strings from the authenticated user's activities, sorted alphabetically.
+      responses:
+        "200":
+          description: Activity types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: [Cycling, Running, Swimming]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/devices:
+    get:
+      tags: [meta]
+      summary: Get distinct device names
+      description: Returns all distinct non-empty device name strings from the authenticated user's activities, sorted alphabetically.
+      responses:
+        "200":
+          description: Device names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: [Garmin Forerunner 245, Wahoo ELEMNT Bolt]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Health ────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      tags: []
+      summary: Health check
+      description: Returns 200 when the API and database are reachable, 503 otherwise.
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        "503":
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  error:
+                    type: string
+
+# Note: Session auth is cookie-based and not expressible as a standard
+# OpenAPI securityScheme. The csrfToken scheme below documents the
+# x-csrf-token header requirement for state-changing endpoints.
