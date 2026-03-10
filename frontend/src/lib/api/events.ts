@@ -1,5 +1,4 @@
 import type {
-  EventSummary,
   EventDetail,
   StreamData,
   BatchUploadResponse,
@@ -22,6 +21,25 @@ function assertEventDetail(data: unknown): asserts data is EventDetail {
   }
 }
 
+function assertActivityRowsResponse(
+  data: unknown
+): asserts data is { rows: ActivityRow[]; total: number } {
+  const d = data as Record<string, unknown> | undefined;
+  if (!Array.isArray(d?.rows)) {
+    throw new Error('Invalid activity rows response: missing rows array');
+  }
+  if (typeof d?.total !== 'number') {
+    throw new Error('Invalid activity rows response: missing total');
+  }
+}
+
+function assertActivity(data: unknown): asserts data is Activity {
+  const d = data as Record<string, unknown> | undefined;
+  if (!d || typeof d.id !== 'string') {
+    throw new Error('Invalid activity response: missing id');
+  }
+}
+
 function assertStreamDataArray(data: unknown): asserts data is StreamData[] {
   if (!Array.isArray(data)) {
     throw new Error('Invalid streams response: expected array');
@@ -35,32 +53,6 @@ function assertStreamDataArray(data: unknown): asserts data is StreamData[] {
       throw new Error(`Invalid streams response: item ${i} missing data array`);
     }
   }
-}
-
-export interface GetEventsParams {
-  startDate?: number;
-  endDate?: number;
-  limit?: number;
-}
-
-export async function getEvents(params?: GetEventsParams): Promise<EventSummary[]> {
-  const searchParams = new URLSearchParams();
-  if (params?.startDate != null) {
-    searchParams.set('startDate', String(params.startDate));
-  }
-  if (params?.endDate != null) {
-    searchParams.set('endDate', String(params.endDate));
-  }
-  searchParams.set('limit', String(params?.limit ?? 50));
-
-  const url = `${API_BASE}/events?${searchParams.toString()}`;
-  const response = await apiFetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch events: ${response.statusText}`);
-  }
-
-  return response.json();
 }
 
 export interface GetActivityRowsParams {
@@ -103,7 +95,9 @@ export async function getActivityRows(
     throw new Error(`Failed to fetch activity rows: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertActivityRowsResponse(data);
+  return data;
 }
 
 export interface GetEventOptions {
@@ -130,7 +124,9 @@ export async function getActivityTypes(): Promise<string[]> {
   if (!response.ok) {
     throw new Error(`Failed to fetch activity types: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid activity types response: expected array');
+  return data;
 }
 
 export async function getDevices(): Promise<string[]> {
@@ -138,7 +134,9 @@ export async function getDevices(): Promise<string[]> {
   if (!response.ok) {
     throw new Error(`Failed to fetch devices: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('Invalid devices response: expected array');
+  return data;
 }
 
 export async function updateActivity(
@@ -158,7 +156,9 @@ export async function updateActivity(
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || `Failed to update activity: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  assertActivity(data);
+  return data;
 }
 
 export interface GetStreamsOptions {
@@ -289,10 +289,7 @@ export async function deleteEvent(id: string): Promise<boolean> {
   return true;
 }
 
-export async function updateEventFolder(
-  eventId: string,
-  folderId: string | null
-): Promise<EventDetail> {
+export async function updateEventFolder(eventId: string, folderId: string | null): Promise<void> {
   const response = await apiFetch(`${API_BASE}/events/${eventId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -305,8 +302,4 @@ export async function updateEventFolder(
   if (!response.ok) {
     throw new Error(`Failed to update event folder: ${response.statusText}`);
   }
-
-  const data = await response.json();
-  assertEventDetail(data);
-  return data;
 }

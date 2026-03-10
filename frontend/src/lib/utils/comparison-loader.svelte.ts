@@ -163,11 +163,11 @@ async function loadEventsAndStreams(
           allStreamTypes.add(stream.type);
         }
       }
-      if (allStreamTypes.has('Heart Rate')) {
-        state.selectedStreamTypes = new Set(['Heart Rate']);
-      } else if (allStreamTypes.size > 0) {
-        state.selectedStreamTypes = new Set([Array.from(allStreamTypes)[0]]);
-      }
+    }
+    if (allStreamTypes.has('Heart Rate')) {
+      state.selectedStreamTypes = new Set(['Heart Rate']);
+    } else if (allStreamTypes.size > 0) {
+      state.selectedStreamTypes = new Set([Array.from(allStreamTypes)[0]]);
     }
   }
 }
@@ -236,6 +236,10 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
     .then((comp) => {
       if (myGen !== loadGeneration) return;
       state.comparison = comp;
+      state.hiddenStats = new Set();
+      state.referenceActivityId = null;
+      state.xAxisMode = 'elapsed';
+      state.selectedStreamTypes = new Set();
       if (comp.settings) {
         state.xAxisMode = comp.settings.xAxisMode ?? 'elapsed';
         state.selectedStreamTypes = new Set(comp.settings.selectedStreams ?? []);
@@ -291,21 +295,31 @@ export async function loadStreams(): Promise<void> {
     return;
   }
 
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+  const signal = abortController.signal;
+
   const streamsToLoad: Record<string, StreamData[]> = {};
-  await Promise.all(
-    evs.map(async (eventDetail) => {
-      const eventId = eventDetail.event.id;
-      const activityId = state.selectedActivities[eventId];
-      if (!activityId) return;
-      try {
-        const loaded = await getStreams(eventId, activityId);
-        streamsToLoad[eventId] = loaded;
-      } catch (e) {
-        console.error(`Failed to load streams for event ${eventId}:`, e);
-        streamsToLoad[eventId] = [];
-      }
-    })
-  );
+  try {
+    await Promise.all(
+      evs.map(async (eventDetail) => {
+        const eventId = eventDetail.event.id;
+        const activityId = state.selectedActivities[eventId];
+        if (!activityId) return;
+        try {
+          const loaded = await getStreams(eventId, activityId, undefined, { signal });
+          streamsToLoad[eventId] = loaded;
+        } catch (e) {
+          if (isAbortError(e)) throw e;
+          console.error(`Failed to load streams for event ${eventId}:`, e);
+          streamsToLoad[eventId] = [];
+        }
+      })
+    );
+  } catch (e) {
+    if (isAbortError(e)) return;
+    throw e;
+  }
   state.streamsByEventId = streamsToLoad;
   loadedStreamsSignature = currentActivityIds;
 }

@@ -41,6 +41,10 @@ vi.mock('../../lib/stores/folders.svelte', () => ({
   foldersState: {
     folders: [{ id: 'folder-1', name: 'Running', color: '#22c55e', pinned: false }],
   },
+  buildFolderHash: (folderId: string) => {
+    if (folderId === 'all') return '#/';
+    return `#/?folder=${encodeURIComponent(folderId)}`;
+  },
 }));
 
 describe('ComparisonView', () => {
@@ -129,7 +133,7 @@ describe('ComparisonView', () => {
       expect(screen.getByText('Event Comparison')).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
-    expect(mockPush).toHaveBeenCalledWith('/?folder=folder-abc');
+    expect(mockPush).toHaveBeenCalledWith('#/?folder=folder-abc');
   });
 
   it('Save Comparison opens dialog with auto-generated name', async () => {

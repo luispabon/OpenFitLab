@@ -1,4 +1,18 @@
 // Auth store for managing current user session (Svelte 5 runes)
+
+function assertAuthResponse(data: unknown): asserts data is {
+  csrfToken: string;
+  id?: string;
+  pendingSignup?: boolean;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  profile?: { displayName?: string | null; avatarUrl?: string | null };
+} {
+  if (!data || typeof data !== 'object') throw new Error('Invalid auth response');
+  const d = data as Record<string, unknown>;
+  if (typeof d.csrfToken !== 'string') throw new Error('Invalid auth response: missing csrfToken');
+}
+
 export interface AuthUser {
   id: string;
   displayName: string | null;
@@ -25,6 +39,7 @@ export async function checkAuth(): Promise<void> {
     const res = await fetch('/api/auth/me', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
+      assertAuthResponse(data);
 
       if (data.pendingSignup) {
         state.pendingSignup = true;
@@ -36,7 +51,7 @@ export async function checkAuth(): Promise<void> {
         state.csrfToken = data.csrfToken ?? null;
       } else {
         state.user = {
-          id: data.id,
+          id: data.id ?? '',
           displayName: data.displayName ?? null,
           avatarUrl: data.avatarUrl ?? null,
         };

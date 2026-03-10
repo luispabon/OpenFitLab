@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { buildComparisonChartData, type ComparisonChartEntry } from '../comparison-chart-data';
+import {
+  buildComparisonChartData,
+  calculateDelta,
+  type ComparisonChartEntry,
+} from '../comparison-chart-data';
 
 function entry(
   activityStartDate: number,
@@ -299,5 +303,53 @@ describe('buildComparisonChartData', () => {
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
     });
+  });
+});
+
+describe('calculateDelta', () => {
+  it('returns zero absolute and percent when values are the same', () => {
+    const result = calculateDelta(100, 100);
+    expect(result).toEqual({ absolute: 0, percent: 0 });
+  });
+
+  it('returns null when first value is not a number', () => {
+    expect(calculateDelta(null, 10)).toBeNull();
+    expect(calculateDelta('abc', 10)).toBeNull();
+    expect(calculateDelta(undefined, 10)).toBeNull();
+  });
+
+  it('returns null when second value is not a number', () => {
+    expect(calculateDelta(10, null)).toBeNull();
+    expect(calculateDelta(10, 'abc')).toBeNull();
+    expect(calculateDelta(10, undefined)).toBeNull();
+  });
+
+  it('returns null when both values are non-numeric', () => {
+    expect(calculateDelta(null, null)).toBeNull();
+    expect(calculateDelta('a', 'b')).toBeNull();
+  });
+
+  it('handles zero denominator: returns 100% when value2 is non-zero', () => {
+    const result = calculateDelta(0, 50);
+    expect(result).toEqual({ absolute: 50, percent: 100 });
+  });
+
+  it('handles zero denominator: returns 0% when both values are zero', () => {
+    const result = calculateDelta(0, 0);
+    expect(result).toEqual({ absolute: 0, percent: 0 });
+  });
+
+  it('calculates correct absolute and percent for normal case', () => {
+    const result = calculateDelta(200, 250);
+    expect(result).not.toBeNull();
+    expect(result!.absolute).toBe(50);
+    expect(result!.percent).toBeCloseTo(25);
+  });
+
+  it('calculates negative delta correctly', () => {
+    const result = calculateDelta(200, 150);
+    expect(result).not.toBeNull();
+    expect(result!.absolute).toBe(-50);
+    expect(result!.percent).toBeCloseTo(-25);
   });
 });

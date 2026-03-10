@@ -66,7 +66,7 @@ The full machine-readable API specification is at [`backend/docs/openapi.yaml`](
 
 Key points:
 - All protected endpoints require a valid session cookie (`ofl.sid`).
-- All state-changing requests (POST, PATCH, DELETE) must include the `x-csrf-token` header. Obtain it from `GET /api/auth/me`.
+- All state-changing requests (POST, PATCH, DELETE) must include the `CSRF-Token` header. Obtain it from `GET /api/auth/me`.
 - Error responses are always `{ "error": "<message>" }`.
 - Missing or unowned resources return `404`, not `403`.
 - Response shapes for events and activities are produced by `mapEventRow` and `mapActivityRow` in `backend/src/utils/transforms.js`.

@@ -42,10 +42,16 @@
   }
   let { streams = [], routes }: Props = $props();
 
-  let selectedTheme = $state<MapTheme>('liberty');
+  let selectedTheme = $state<MapTheme>(
+    (localStorage.getItem('mapTheme') as MapTheme | null) ?? 'liberty'
+  );
   let showLabels = $state(true);
   let map = $state<MapLibreMap | undefined>(undefined);
   let arrowImageLoaded = $state<HTMLImageElement | null>(null);
+
+  $effect(() => {
+    localStorage.setItem('mapTheme', selectedTheme);
+  });
 
   const mapStyle = $derived(`https://tiles.openfreemap.org/styles/${selectedTheme}`);
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  getEvents,
   getActivityRows,
   getEvent,
   getActivityTypes,
@@ -24,52 +23,6 @@ describe('fixtures', () => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-});
-
-describe('getEvents', () => {
-  it('includes limit=50 by default in URL', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([]),
-    });
-    vi.stubGlobal('fetch', mockFetch);
-
-    await getEvents();
-
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=50'), expect.any(Object));
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('includes startDate, endDate and limit when provided', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve([]),
-    });
-    vi.stubGlobal('fetch', mockFetch);
-
-    await getEvents({
-      startDate: 1000,
-      endDate: 2000,
-      limit: 10,
-    });
-
-    const url = mockFetch.mock.calls[0][0];
-    expect(url).toContain('startDate=1000');
-    expect(url).toContain('endDate=2000');
-    expect(url).toContain('limit=10');
-  });
-
-  it('throws on non-ok response', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        statusText: 'Server Error',
-      })
-    );
-
-    await expect(getEvents()).rejects.toThrow(/Failed to fetch events/);
-  });
 });
 
 describe('getActivityRows', () => {
@@ -237,6 +190,20 @@ describe('getActivityTypes', () => {
 
     await expect(getActivityTypes()).rejects.toThrow(/Failed to fetch activity types/);
   });
+
+  it('throws when response is not an array', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ types: [] }),
+      })
+    );
+
+    await expect(getActivityTypes()).rejects.toThrow(
+      /Invalid activity types response: expected array/
+    );
+  });
 });
 
 describe('getDevices', () => {
@@ -265,6 +232,18 @@ describe('getDevices', () => {
     );
 
     await expect(getDevices()).rejects.toThrow(/Failed to fetch devices/);
+  });
+
+  it('throws when response is not an array', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ devices: [] }),
+      })
+    );
+
+    await expect(getDevices()).rejects.toThrow(/Invalid devices response: expected array/);
   });
 });
 

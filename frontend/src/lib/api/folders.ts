@@ -3,12 +3,23 @@ import { apiFetch } from './client';
 
 const API_BASE = '/api';
 
+function assertFolderArray(data: unknown): asserts data is Folder[] {
+  if (!Array.isArray(data)) throw new Error('Invalid folders response: expected array');
+}
+
+function assertFolder(data: unknown): asserts data is Folder {
+  const d = data as Record<string, unknown> | undefined;
+  if (!d || typeof d.id !== 'string') throw new Error('Invalid folder response: missing id');
+}
+
 export async function getFolders(): Promise<Folder[]> {
   const response = await apiFetch(`${API_BASE}/folders`);
   if (!response.ok) {
     throw new Error(`Failed to fetch folders: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  assertFolderArray(data);
+  return data;
 }
 
 export async function getFolder(id: string): Promise<Folder> {
@@ -17,7 +28,9 @@ export async function getFolder(id: string): Promise<Folder> {
     if (response.status === 404) throw new Error('Folder not found');
     throw new Error(`Failed to fetch folder: ${response.statusText}`);
   }
-  return response.json();
+  const data = await response.json();
+  assertFolder(data);
+  return data;
 }
 
 export interface CreateFolderBody {
@@ -66,7 +79,9 @@ export async function deleteFolder(
   id: string,
   contents: 'unfile' | 'delete' = 'unfile'
 ): Promise<void> {
-  const response = await apiFetch(`${API_BASE}/folders/${id}?contents=${contents}`);
+  const response = await apiFetch(`${API_BASE}/folders/${id}?contents=${contents}`, {
+    method: 'DELETE',
+  });
   if (!response.ok) {
     if (response.status === 404) throw new Error('Folder not found');
     throw new Error(`Failed to delete folder: ${response.statusText}`);

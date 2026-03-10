@@ -65,6 +65,20 @@ describe('getComparisonCandidates', () => {
       /Failed to fetch comparison candidates/
     );
   });
+
+  it('throws when response is not an array', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: 'evt-1' }),
+      })
+    );
+
+    await expect(getComparisonCandidates('evt-1')).rejects.toThrow(
+      /Invalid candidates response: expected array/
+    );
+  });
 });
 
 describe('getComparisons', () => {

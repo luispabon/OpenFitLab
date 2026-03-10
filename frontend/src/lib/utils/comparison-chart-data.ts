@@ -1,6 +1,23 @@
 import type uPlot from 'uplot';
 import type { StreamData } from '../types';
 
+/**
+ * Calculate the absolute and percent delta between two values.
+ * Returns null if either value is not a number.
+ */
+export function calculateDelta(
+  value1: unknown,
+  value2: unknown
+): { absolute: number; percent: number } | null {
+  const num1 = typeof value1 === 'number' ? value1 : null;
+  const num2 = typeof value2 === 'number' ? value2 : null;
+  if (num1 == null || num2 == null) return null;
+
+  const absolute = num2 - num1;
+  const percent = num1 !== 0 ? (absolute / num1) * 100 : num2 !== 0 ? 100 : 0;
+  return { absolute, percent };
+}
+
 export interface ComparisonChartEntry {
   eventName: string;
   color: string;
