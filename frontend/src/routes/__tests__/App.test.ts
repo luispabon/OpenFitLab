@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import App from '../../App.svelte';
 import type { Writable } from 'svelte/store';
+import { foldersState, setFolderHash } from '../../lib/stores/folders.svelte';
+
+const mockDeleteFolder = vi.fn();
+const mockGetFolders = vi.fn();
+vi.mock('../../lib/api/folders', () => ({
+  getFolders: (...args: unknown[]) => mockGetFolders(...args),
+  deleteFolder: (...args: unknown[]) => mockDeleteFolder(...args),
+  updateFolder: vi.fn(),
+  createFolder: vi.fn(),
+}));
 
 interface AuthUser {
   id: string;
@@ -56,6 +66,8 @@ describe('App', () => {
 
   beforeEach(() => {
     mockCheckAuth.mockClear();
+    mockGetFolders.mockResolvedValue([]);
+    mockDeleteFolder.mockResolvedValue(undefined);
     mockAuthState.user = null;
     mockAuthState.authLoading = true;
     mockAuthState.authChecked = false;
@@ -71,6 +83,9 @@ describe('App', () => {
   });
 
   afterEach(() => {
+    setFolderHash('');
+    foldersState.folders = [];
+    foldersState.loading = false;
     vi.restoreAllMocks();
   });
 
@@ -293,6 +308,46 @@ describe('App', () => {
         const img = document.querySelector('img[alt="avatar"]');
         expect(img).toBeInTheDocument();
         expect(img).toHaveAttribute('src', 'https://example.com/avatar.png');
+      });
+    });
+  });
+
+  describe('folder deletion redirect', () => {
+    beforeEach(() => {
+      mockAuthState.authLoading = false;
+      mockAuthState.user = { id: 'u1', displayName: 'Test User', avatarUrl: null };
+    });
+
+    it('redirects to #/ when the active folder is deleted', async () => {
+      const folderId = 'folder-to-delete-id';
+      const testFolder = { id: folderId, name: 'My Folder', color: '#3b82f6', pinned: false };
+      mockGetFolders.mockResolvedValue([testFolder]);
+      setFolderHash(`#/?folder=${folderId}`);
+      window.location.hash = `#/?folder=${folderId}`;
+      render(App);
+
+      // Open folder context menu
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: 'Folder options for My Folder' })
+        ).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByRole('button', { name: 'Folder options for My Folder' }));
+
+      // Click Delete in context menu
+      await waitFor(() => {
+        expect(screen.getByRole('menuitem', { name: /Delete/ })).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByRole('menuitem', { name: /Delete/ }));
+
+      // Confirm deletion in modal
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByRole('button', { name: 'Move contents to Unfiled' }));
+
+      await waitFor(() => {
+        expect(window.location.hash).toBe('#/');
       });
     });
   });

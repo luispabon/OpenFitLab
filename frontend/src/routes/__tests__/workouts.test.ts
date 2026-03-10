@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/svelte';
 import Workouts from '../workouts.svelte';
 import { activityRowsFixture } from '../../test/fixtures/activity-rows';
-import { setFolderHash } from '../../lib/stores/folders.svelte';
+import { setFolderHash, foldersState } from '../../lib/stores/folders.svelte';
 
 const mockGetActivityRows = vi.fn();
 const mockUploadFiles = vi.fn();
@@ -49,6 +49,8 @@ describe('Workouts', () => {
 
   afterEach(() => {
     setFolderHash('');
+    foldersState.folders = [];
+    foldersState.loading = false;
     vi.useRealTimers();
   });
 
@@ -521,5 +523,31 @@ describe('Workouts', () => {
       expect(screen.getByText('Candidates failed')).toBeInTheDocument();
     });
     consoleError.mockRestore();
+  });
+
+  it('shows folder not found banner when folder ID is unknown', async () => {
+    setFolderHash('#/?folder=non-existent-uuid');
+    foldersState.loading = false;
+    foldersState.folders = [];
+    render(Workouts);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Folder not found. It may have been deleted.'
+      );
+    });
+  });
+
+  it('does not show folder not found banner when folder ID is known', async () => {
+    const knownId = 'known-folder-uuid';
+    setFolderHash(`#/?folder=${knownId}`);
+    foldersState.loading = false;
+    foldersState.folders = [{ id: knownId, name: 'My Folder', color: '#3b82f6', pinned: false }];
+    render(Workouts);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText('Folder not found. It may have been deleted.')
+    ).not.toBeInTheDocument();
   });
 });

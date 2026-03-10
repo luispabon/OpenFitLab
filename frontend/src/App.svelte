@@ -373,7 +373,13 @@
         />
         <FolderDeleteModal
           folder={folderToDelete}
-          onDone={loadFolders}
+          onDone={() => {
+            const deletedId = folderToDelete?.id;
+            loadFolders();
+            if (deletedId && activeFolderValue === deletedId) {
+              window.location.hash = '#/';
+            }
+          }}
           onClosed={() => (folderToDelete = null)}
           onError={showFolderToast}
         />
