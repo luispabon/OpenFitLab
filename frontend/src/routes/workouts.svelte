@@ -117,6 +117,13 @@
           })()
   );
 
+  const isFolderNotFound = $derived(
+    !foldersState.loading &&
+      activeFolderId !== 'all' &&
+      activeFolderId !== 'unfiled' &&
+      foldersState.folders.find((f) => f.id === activeFolderId) === undefined
+  );
+
   function showToast(message: string) {
     toastMessage = message;
     if (toastTimeout) clearTimeout(toastTimeout);
@@ -349,6 +356,15 @@
     bind:isDraggingOver
     {activeFolderDisplay}
   >
+    {#if isFolderNotFound}
+      <div
+        class="mb-4 rounded border border-danger/50 bg-danger/10 px-4 py-3 text-sm text-danger"
+        role="alert"
+      >
+        Folder not found. It may have been deleted.
+      </div>
+    {/if}
+
     <!-- Loading Spinner (only for loading events, not uploads) -->
     {#if isLoading}
       <div class="mb-4">
