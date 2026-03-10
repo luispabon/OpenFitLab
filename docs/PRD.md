@@ -244,6 +244,25 @@ Requirements:
 - broader import support
 - continued UX and accessibility improvements
 
+### Phase 5
+
+- integration and end-to-end testing
+
+Backend integration tests (real MariaDB container via `testcontainers-node`, separate CI job):
+
+- transaction correctness: multi-statement writes either fully commit or fully roll back
+- cascade deletes: deleting a user or event removes all child rows
+- schema constraint enforcement: duplicate identity provider rows are rejected at the DB level
+- OAuth session flow: pending signup → complete signup creates exactly one user and one identity
+
+Frontend + backend end-to-end tests (Playwright against the Docker Compose stack):
+
+- full upload → dashboard → event detail → comparison flow
+- folder create, assign, filter, and delete
+- account export and account delete
+
+CI integration: separate `integration` and `e2e` workflow jobs, not blocking the fast unit-test pipeline. Requires Docker-in-Docker or service containers in CI.
+
 ---
 
 ## 8. Constraints and assumptions

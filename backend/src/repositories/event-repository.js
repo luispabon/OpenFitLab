@@ -1,5 +1,4 @@
-const { runQuery } = require('./query-helper');
-const { placeholders } = require('../utils/transforms');
+const { runQuery, placeholders } = require('./query-helper');
 
 const EVENT_COLUMNS =
   'id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone';

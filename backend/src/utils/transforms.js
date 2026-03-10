@@ -61,15 +61,10 @@ function mapActivityRow(row, statsForActivity = {}) {
   };
 }
 
-function placeholders(count) {
-  return Array.from({ length: count }, () => '?').join(',');
-}
-
 module.exports = {
   parseJSONField,
   toTimestamp,
   aggregateStats,
   mapEventRow,
   mapActivityRow,
-  placeholders,
 };

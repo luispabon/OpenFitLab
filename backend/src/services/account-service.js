@@ -10,67 +10,64 @@ const defaultDb = require('../db');
 /**
  * Export all user data as a JSON-serialisable object.
  * Calls repositories directly (no other services) to avoid circular dependencies.
- * Uses batched IN(...) queries to avoid N+1 patterns.
+ * Uses batched IN(...) queries and Promise.all to minimise latency.
  *
  * @param {string} userId
  * @param {{ includeStreams?: boolean, db?: object }} opts
- * @returns {Promise<object>}
+ * @returns {Promise<object|null>}
  */
 async function exportUserData(userId, opts = {}) {
   const dbOpts = { db: opts.db ?? defaultDb, userId };
   const includeStreams = opts.includeStreams === true;
 
-  // User profile
+  // Level 1: user profile — needed to short-circuit if user not found
   const user = await userRepository.findById(userId, dbOpts);
   if (!user) return null;
 
-  // Identities (exclude profile_data for privacy)
-  const identityRows = await userRepository.findIdentitiesByUserId(userId, dbOpts);
+  // Level 2: all queries that depend only on userId (independent of each other)
+  const [identityRows, folderRows, eventRows, comparisonRows] = await Promise.all([
+    userRepository.findIdentitiesByUserId(userId, dbOpts),
+    folderRepository.listAll(userId, dbOpts),
+    eventRepository.findAllByUserId(userId, dbOpts),
+    comparisonRepository.findAllByUserId(userId, dbOpts),
+  ]);
 
-  // Folders
-  const folderRows = await folderRepository.listAll(userId, dbOpts);
-
-  // Events (include folder_id)
-  const eventRows = await eventRepository.findAllByUserId(userId, dbOpts);
   const eventIds = eventRows.map((e) => e.id);
-
-  // Event stats (batched)
-  const eventStatRows =
-    eventIds.length > 0 ? await eventRepository.getStatsByEventIds(eventIds, dbOpts) : [];
-
-  // Activities (batched)
-  const activityRows =
-    eventIds.length > 0 ? await activityRepository.findManyByEventIds(eventIds, dbOpts) : [];
-  const activityIds = activityRows.map((a) => a.id);
-
-  // Activity stats (batched)
-  const activityStatRows =
-    activityIds.length > 0
-      ? await activityRepository.getStatsByActivityIds(activityIds, dbOpts)
-      : [];
-
-  // Comparisons (include folder_id)
-  const comparisonRows = await comparisonRepository.findAllByUserId(userId, dbOpts);
   const comparisonIds = comparisonRows.map((c) => c.id);
 
-  // Comparison events/activities (batched)
-  const comparisonEventActivityRows =
+  // Level 3: queries that depend on eventIds or comparisonIds
+  const [eventStatRows, activityRows, comparisonEventActivityRows] = await Promise.all([
+    eventIds.length > 0
+      ? eventRepository.getStatsByEventIds(eventIds, dbOpts)
+      : Promise.resolve([]),
+    eventIds.length > 0
+      ? activityRepository.findManyByEventIds(eventIds, dbOpts)
+      : Promise.resolve([]),
     comparisonIds.length > 0
-      ? await comparisonRepository.findEventActivitiesByComparisonIds(comparisonIds, dbOpts)
-      : [];
+      ? comparisonRepository.findEventActivitiesByComparisonIds(comparisonIds, dbOpts)
+      : Promise.resolve([]),
+  ]);
 
-  // Streams metadata (batched) — always included; data points only if includeStreams
-  let streamRows = [];
+  const activityIds = activityRows.map((a) => a.id);
+
+  // Level 4: queries that depend on activityIds
+  const [activityStatRows, streamRows] = await Promise.all([
+    activityIds.length > 0
+      ? activityRepository.getStatsByActivityIds(activityIds, dbOpts)
+      : Promise.resolve([]),
+    activityIds.length > 0
+      ? streamRepository.findAllByActivityIds(activityIds, dbOpts)
+      : Promise.resolve([]),
+  ]);
+
+  // Level 5: stream data points (depend on streamIds, only if requested)
   let streamDataPointRows = [];
-  if (activityIds.length > 0) {
-    streamRows = await streamRepository.findAllByActivityIds(activityIds, dbOpts);
-    if (includeStreams && streamRows.length > 0) {
-      const streamIds = streamRows.map((s) => s.id);
-      streamDataPointRows = await streamRepository.findDataPointsByStreamIdsOrdered(
-        streamIds,
-        dbOpts
-      );
-    }
+  if (includeStreams && streamRows.length > 0) {
+    const streamIds = streamRows.map((s) => s.id);
+    streamDataPointRows = await streamRepository.findDataPointsByStreamIdsOrdered(
+      streamIds,
+      dbOpts
+    );
   }
 
   return {

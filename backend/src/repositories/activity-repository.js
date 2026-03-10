@@ -1,5 +1,4 @@
-const { runQuery } = require('./query-helper');
-const { placeholders } = require('../utils/transforms');
+const { runQuery, placeholders } = require('./query-helper');
 
 const ACTIVITY_COLUMNS =
   'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.device_name, a.start_timezone, a.end_timezone, a.created_at';

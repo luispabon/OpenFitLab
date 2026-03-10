@@ -60,6 +60,17 @@
 - Schema is defined in `backend/sql/schema.sql` and applied on startup. There are no migrations; schema changes require DB recreation.
 - Backend configuration must come from `backend/src/config.js`, not direct `process.env` reads elsewhere.
 
+## API contract
+
+The full machine-readable API specification is at [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml) (OpenAPI 3.1).
+
+Key points:
+- All protected endpoints require a valid session cookie (`ofl.sid`).
+- All state-changing requests (POST, PATCH, DELETE) must include the `x-csrf-token` header. Obtain it from `GET /api/auth/me`.
+- Error responses are always `{ "error": "<message>" }`.
+- Missing or unowned resources return `404`, not `403`.
+- Response shapes for events and activities are produced by `mapEventRow` and `mapActivityRow` in `backend/src/utils/transforms.js`.
+
 ## Conventions
 
 ### Backend
@@ -118,6 +129,7 @@ After meaningful refactors, verify:
 |---|---|
 | Technical reference | `docs/ARCHITECTURE.md` |
 | Product intent | `docs/PRD.md` |
+| API contract | `backend/docs/openapi.yaml` |
 | API routes | `backend/src/routes/` |
 | Auth flow | `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js` |
 | Events and uploads | `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js` |
