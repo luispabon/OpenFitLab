@@ -15,6 +15,7 @@
     getActivityDeviceName,
     hasLocationStreams,
   } from '../lib/utils';
+  import { calculateDelta } from '../lib/utils/comparison-chart-data';
   import {
     state as loaderState,
     load as loaderLoad,
@@ -37,16 +38,11 @@
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
   import StreamAnalysisSection from '../lib/components/comparison/StreamAnalysisSection.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
-  import { foldersState } from '../lib/stores/folders.svelte';
+  import { foldersState, buildFolderHash } from '../lib/stores/folders.svelte';
 
   const comparisonId = $derived(params?.id ?? '');
 
-  // Sync router location to state so parsing effect re-runs when hash changes
-  let locationForEffect = $state('');
-  $effect(() => {
-    const unsub = location.subscribe((v) => (locationForEffect = v));
-    return unsub;
-  });
+  const currentLocation = $derived($location);
 
   // Parse query parameters from URL hash
   let eventIdsFromQueryState = $state<string[]>([]);
@@ -54,7 +50,7 @@
   let backFolderFromQueryState = $state<string | null>(null);
 
   $effect(() => {
-    const _loc = locationForEffect;
+    const _loc = currentLocation;
     if (query?.events) {
       const ids = query.events
         .split(',')
@@ -111,6 +107,7 @@
   let isSaving = $state(false);
   let isDeleting = $state(false);
   let saveError = $state<string | null>(null);
+  let deleteError = $state<string | null>(null);
 
   const eventIds = $derived.by(() => {
     if (comparisonId && comparisonId !== 'new' && loaderState.comparison) {
@@ -366,7 +363,7 @@
       await deleteComparison(savedComparison.id);
       push('/comparisons');
     } catch (e) {
-      loaderState.error = e instanceof Error ? e.message : 'Failed to delete comparison';
+      deleteError = e instanceof Error ? e.message : 'Failed to delete comparison';
       isDeleting = false;
     }
   }
@@ -422,20 +419,6 @@
     }
     return entries;
   }
-
-  // Calculate delta for stats (when exactly 2 events)
-  function calculateDelta(
-    value1: unknown,
-    value2: unknown
-  ): { absolute: number; percent: number } | null {
-    const num1 = typeof value1 === 'number' ? value1 : null;
-    const num2 = typeof value2 === 'number' ? value2 : null;
-    if (num1 == null || num2 == null) return null;
-
-    const absolute = num2 - num1;
-    const percent = num1 !== 0 ? (absolute / num1) * 100 : num2 !== 0 ? 100 : 0;
-    return { absolute, percent };
-  }
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
@@ -446,7 +429,7 @@
       if (savedComparison) {
         push('/comparisons');
       } else if (backFolderFromQueryState) {
-        push(`/?folder=${encodeURIComponent(backFolderFromQueryState)}`);
+        push(buildFolderHash(backFolderFromQueryState));
       } else {
         push('/');
       }
@@ -489,7 +472,7 @@
           {/if}
         {/if}
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-col items-end gap-2">
         {#if savedComparison}
           <button
             type="button"
@@ -499,6 +482,9 @@
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
+          {#if deleteError}
+            <p class="text-sm text-danger">{deleteError}</p>
+          {/if}
         {:else}
           <button
             type="button"

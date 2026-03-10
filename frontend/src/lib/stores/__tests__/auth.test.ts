@@ -66,6 +66,21 @@ describe('auth store', () => {
     expect(state.csrfToken).toBe('token-pending');
   });
 
+  it('throws and clears state when /api/auth/me returns invalid response (missing csrfToken)', async () => {
+    vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 'u1', displayName: 'Alice' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }) as unknown as Response
+    );
+
+    await checkAuth();
+
+    expect(state.user).toBeNull();
+    expect(state.csrfToken).toBeNull();
+    expect(state.authChecked).toBe(true);
+  });
+
   it('sets user and csrfToken to null when /api/auth/me returns non-ok', async () => {
     setCurrentUser({ id: 'u1', displayName: 'Alice', avatarUrl: null });
     state.csrfToken = 'old-token';

@@ -3,6 +3,16 @@ import type { EventSummary, Comparison, ComparisonSettings } from '../types/even
 const API_BASE = '/api';
 import { apiFetch } from './client';
 
+function assertComparisonArray(data: unknown): asserts data is Comparison[] {
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid comparisons response: expected array');
+  }
+}
+
+function assertEventSummaryArray(data: unknown): asserts data is EventSummary[] {
+  if (!Array.isArray(data)) throw new Error('Invalid candidates response: expected array');
+}
+
 function assertComparison(data: unknown): asserts data is Comparison {
   const d = data as Record<string, unknown> | undefined;
   if (!d || typeof d.id !== 'string') {
@@ -39,7 +49,9 @@ export async function getComparisonCandidates(
     throw new Error(`Failed to fetch comparison candidates: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertEventSummaryArray(data);
+  return data;
 }
 
 export interface GetComparisonsOptions {
@@ -59,7 +71,9 @@ export async function getComparisons(options?: GetComparisonsOptions): Promise<C
     throw new Error(`Failed to fetch comparisons: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  assertComparisonArray(data);
+  return data;
 }
 
 export interface GetComparisonOptions {
@@ -103,7 +117,11 @@ export async function getComparisonsByEventIds(eventIds: string[]): Promise<Comp
     throw new Error(`Failed to fetch comparisons: ${response.statusText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid comparisons response: expected array');
+  }
+  return data;
 }
 
 export interface CreateComparisonBody {

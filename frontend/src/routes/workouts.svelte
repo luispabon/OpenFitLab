@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import { push } from 'svelte-spa-router';
   import {
     getActivityRows,
@@ -246,7 +246,7 @@
     eventToDelete = eventId;
   }
 
-  onMount(() => {
+  $effect(() => {
     getActivityTypes().then((r) => {
       activityTypesOptions = r;
     });

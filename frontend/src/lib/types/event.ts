@@ -111,7 +111,7 @@ export interface Comparison {
   name: string;
   eventIds: string[];
   /** Activity IDs for the comparison, parallel to eventIds (same order). */
-  activityIds?: string[];
+  activityIds: string[];
   settings?: ComparisonSettings;
   createdAt?: number;
   /** Home folder for this comparison; null/undefined = Unfiled. */
