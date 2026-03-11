@@ -166,50 +166,7 @@ OAUTH_CALLBACK_URL=https://fit.example.com
 
 ## Backups (production)
 
-The production stack supports automated hourly database backups via `mysqldump` + [Restic](https://restic.net/) to Google Cloud Storage. Backups are encrypted and deduplicated. The service is gated behind a Compose profile so it never starts in development.
-
-### One-time setup
-
-1. Create a GCS bucket (e.g. `openfitlab-backups`) with uniform bucket-level access.
-2. Create a GCP service account with **Storage Object Admin** on that bucket and download its JSON key.
-3. Save the key to `backup/secrets/gcs-key.json` (this path is gitignored).
-4. Add to `.env`:
-
-```env
-RESTIC_REPOSITORY=gs:openfitlab-backups:/prod
-RESTIC_PASSWORD=<strong-passphrase>   # openssl rand -hex 32
-GOOGLE_PROJECT_ID=<your-gcp-project-id>
-```
-
-### Starting the backup service
-
-```bash
-# Alongside a fresh stack:
-docker compose -f compose.prod.yaml --profile backup up -d
-
-# Or alongside an already-running stack:
-docker compose -f compose.prod.yaml --profile backup up -d backup
-```
-
-The container initialises the Restic repository on first start and runs the first backup immediately, then continues on an hourly cron schedule.
-
-### Backup operations
-
-| Command | What it does |
-|---|---|
-| `make backup-list` | List all snapshots in the repository |
-| `make backup-now` | Run a backup immediately |
-| `make backup-restore` | Restore the latest snapshot (safety-dumps the live DB first) |
-| `make backup-restore-snapshot SNAPSHOT=<id>` | Restore a specific snapshot by ID |
-| `make backup-fetch-safety-dump` | Copy the most recent safety dump out of the Docker volume to the current directory |
-
-### Restore safety
-
-`restore.sh` always writes a full dump of the live database to `/restores/pre-restore-<timestamp>.sql` (in the `restores` Docker volume) before applying any snapshot. If a restore goes wrong you can pipe that file back into `mysql` manually.
-
-### Retention policy
-
-Last 24 hourly · last 7 daily · last 4 weekly · last 6 monthly snapshots are kept; older ones are pruned automatically after each backup.
+The production compose stack supports automated hourly database backups via `mysqldump` + [Restic](https://restic.net/) to Google Cloud Storage. Backups are encrypted and deduplicated. The service is gated behind a Compose profile so it never starts in development. 
 
 See [`backup/README.md`](backup/README.md) for full details.
 
