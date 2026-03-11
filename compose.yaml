@@ -1,3 +1,6 @@
+volumes:
+  db_data:
+  valkey_data:
 services:
   db:
     image: mariadb:12.2.2
@@ -83,7 +86,3 @@ services:
       ADMINER_USERNAME: ${MARIADB_USER:-qs}
       ADMINER_PASSWORD: ${MARIADB_PASSWORD:-qspass}
       ADMINER_DB: ${MARIADB_DATABASE:-openfitlab}
-
-volumes:
-  db_data:
-  valkey_data:
