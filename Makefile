@@ -70,3 +70,80 @@ endif
 backup-fetch-safety-dump:
 	docker compose --profile backup run --rm backup sh -c \
 	  'ls -t /restores/*.sql | head -1 | xargs cat' > safety-dump-$(shell date +%Y%m%dT%H%M%S).sql
+
+# ── DAST (ZAP API scan) ───────────────────────────────────────────────────────
+#
+# Spins up the stack with relaxed rate limits, seeds a disposable test user +
+# session into MariaDB/Valkey (no codebase auth backdoor), then runs ZAP against
+# the OpenAPI spec with the session cookie and CSRF token injected.
+#
+# Usage:
+#   make dast          — full pipeline: up → seed → scan (stack stays up)
+#   make dast-down     — tear down stack and remove volumes when done
+#
+# Reports are written to ./zap-reports/ (gitignored).
+# Set ZAP_REPORT_DIR to override: make dast ZAP_REPORT_DIR=/tmp/reports
+
+ZAP_REPORT_DIR  ?= $(CURDIR)/zap-reports
+DAST_COOKIE_FILE = /tmp/ofl-dast-cookie
+
+.PHONY: dast-up
+dast-up:
+	docker compose -f compose.yaml -f compose.dast.yaml up -d db valkey api
+	@echo "Waiting for API to be healthy..."
+	@timeout 180 bash -c 'until curl -sf http://localhost:3000/health > /dev/null; do sleep 3; done'
+	@echo "API is ready."
+
+# Runs inside the api container so it can reach db/valkey via internal Docker DNS
+# and use the backend's installed node_modules.
+.PHONY: dast-seed
+dast-seed:
+	@OUTPUT=$$(docker compose exec -T api node scripts/dast-seed.mjs) && \
+	  COOKIE=$$(printf '%s\n' "$$OUTPUT" | grep '^SESSION_COOKIE=' | cut -d'=' -f2-) && \
+	  [ -n "$$COOKIE" ] || { echo "dast-seed: no SESSION_COOKIE in output" >&2; exit 1; } && \
+	  printf '%s' "$$COOKIE" > $(DAST_COOKIE_FILE) && \
+	  echo "Session cookie saved to $(DAST_COOKIE_FILE)"
+
+# Fetches the CSRF token from /api/auth/me, writes a ZAP replacer properties file,
+# then runs ZAP in Docker with --network host so it can reach localhost:3000.
+.PHONY: dast-scan
+dast-scan:
+	@COOKIE=$$(cat $(DAST_COOKIE_FILE)) && \
+	RESPONSE=$$(curl -sf -H "Cookie: ofl.sid=$$COOKIE" http://localhost:3000/api/auth/me) && \
+	TOKEN=$$(printf '%s' "$$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['csrfToken'])") && \
+	CONFIG=$$(mktemp /tmp/zap-config-XXXXXX.properties) && \
+	printf '%s\n' \
+	  "replacer.full_list(0).description=session_cookie" \
+	  "replacer.full_list(0).enabled=true" \
+	  "replacer.full_list(0).matchtype=REQ_HEADER" \
+	  "replacer.full_list(0).matchstr=Cookie" \
+	  "replacer.full_list(0).replacement=ofl.sid=$$COOKIE" \
+	  "replacer.full_list(1).description=csrf_token" \
+	  "replacer.full_list(1).enabled=true" \
+	  "replacer.full_list(1).matchtype=REQ_HEADER" \
+	  "replacer.full_list(1).matchstr=x-csrf-token" \
+	  "replacer.full_list(1).replacement=$$TOKEN" \
+	  > "$$CONFIG" && \
+	mkdir -p $(ZAP_REPORT_DIR) && \
+	docker run --rm \
+	  --network host \
+	  -v $(CURDIR):/zap/wrk:ro \
+	  -v $(ZAP_REPORT_DIR):/zap/reports \
+	  -v "$$CONFIG":/tmp/zap.properties:ro \
+	  ghcr.io/zaproxy/zaproxy:stable \
+	  zap-api-scan.py \
+	    -t /zap/wrk/backend/docs/openapi.yaml \
+	    -f openapi \
+	    -I \
+	    -r /zap/reports/report.html \
+	    -J /zap/reports/report.json \
+	    -z "-configfile /tmp/zap.properties" ; \
+	EXIT=$$? ; rm -f "$$CONFIG" ; \
+	echo "Reports written to $(ZAP_REPORT_DIR)" ; exit $$EXIT
+
+.PHONY: dast-down
+dast-down:
+	docker compose down -v
+
+.PHONY: dast
+dast: dast-up dast-seed dast-scan

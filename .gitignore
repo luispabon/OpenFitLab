@@ -46,3 +46,6 @@ implementation_plans
 
 # Backup secrets
 backup/secrets/*.json
+
+# DAST reports
+zap-reports/
