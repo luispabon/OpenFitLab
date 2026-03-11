@@ -1,7 +1,13 @@
 # compose.dast.yaml — overlay for DAST runs (docker compose -f compose.yaml -f compose.dast.yaml)
 #
+# Sets an isolated project name so the DAST stack can run alongside the dev stack
+# without container, volume, or network collisions.  Port collision avoidance is
+# handled by the Makefile passing DB_HOST_PORT and API_HOST_PORT overrides.
+#
 # Relaxes rate limits so ZAP's active scan is not throttled.
 # Never use in production.
+name: openfitlab-dast
+
 services:
   api:
     environment:

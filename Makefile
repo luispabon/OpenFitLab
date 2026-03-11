@@ -86,30 +86,38 @@ backup-fetch-safety-dump:
 
 ZAP_REPORT_DIR  ?= $(CURDIR)/zap-reports
 DAST_COOKIE_FILE = /tmp/ofl-dast-cookie
+DAST_PROJECT     = openfitlab-dast
+DAST_API_PORT   ?= 3099
+DAST_DB_PORT    ?= 3307
+
+# Shorthand so every docker compose call in a DAST target uses the same flags.
+DAST_COMPOSE = DB_HOST_PORT=$(DAST_DB_PORT) API_HOST_PORT=$(DAST_API_PORT) \
+               docker compose -p $(DAST_PROJECT) -f compose.yaml -f compose.dast.yaml
 
 .PHONY: dast-up
 dast-up:
-	docker compose -f compose.yaml -f compose.dast.yaml up -d db valkey api
+	$(DAST_COMPOSE) up -d db valkey api
 	@echo "Waiting for API to be healthy..."
-	@timeout 180 bash -c 'until curl -sf http://localhost:3000/health > /dev/null; do sleep 3; done'
+	@timeout 180 bash -c 'until curl -sf http://localhost:$(DAST_API_PORT)/health > /dev/null; do sleep 3; done'
 	@echo "API is ready."
 
 # Runs inside the api container so it can reach db/valkey via internal Docker DNS
 # and use the backend's installed node_modules.
 .PHONY: dast-seed
 dast-seed:
-	@OUTPUT=$$(docker compose exec -T api node scripts/dast-seed.mjs) && \
+	@OUTPUT=$$($(DAST_COMPOSE) exec -T api node scripts/dast-seed.mjs) && \
 	  COOKIE=$$(printf '%s\n' "$$OUTPUT" | grep '^SESSION_COOKIE=' | cut -d'=' -f2-) && \
 	  [ -n "$$COOKIE" ] || { echo "dast-seed: no SESSION_COOKIE in output" >&2; exit 1; } && \
 	  printf '%s' "$$COOKIE" > $(DAST_COOKIE_FILE) && \
 	  echo "Session cookie saved to $(DAST_COOKIE_FILE)"
 
 # Fetches the CSRF token from /api/auth/me, writes a ZAP replacer properties file,
-# then runs ZAP in Docker with --network host so it can reach localhost:3000.
+# then runs ZAP in Docker with --network host so it can reach localhost:$(DAST_API_PORT).
+# -O overrides the server URL baked into openapi.yaml (localhost:3000) with the DAST port.
 .PHONY: dast-scan
 dast-scan:
 	@COOKIE=$$(cat $(DAST_COOKIE_FILE)) && \
-	RESPONSE=$$(curl -sf -H "Cookie: ofl.sid=$$COOKIE" http://localhost:3000/api/auth/me) && \
+	RESPONSE=$$(curl -sf -H "Cookie: ofl.sid=$$COOKIE" http://localhost:$(DAST_API_PORT)/api/auth/me) && \
 	TOKEN=$$(printf '%s' "$$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['csrfToken'])") && \
 	CONFIG=$$(mktemp /tmp/zap-config-XXXXXX.properties) && \
 	printf '%s\n' \
@@ -134,6 +142,7 @@ dast-scan:
 	  zap-api-scan.py \
 	    -t /zap/wrk/backend/docs/openapi.yaml \
 	    -f openapi \
+	    -O http://localhost:$(DAST_API_PORT) \
 	    -I \
 	    -r /zap/reports/report.html \
 	    -J /zap/reports/report.json \
@@ -143,7 +152,7 @@ dast-scan:
 
 .PHONY: dast-down
 dast-down:
-	docker compose down -v
+	$(DAST_COMPOSE) down -v
 
 .PHONY: dast
 dast: dast-up dast-seed dast-scan
