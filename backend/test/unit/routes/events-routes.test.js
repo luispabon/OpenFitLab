@@ -312,6 +312,19 @@ describe('Events route HTTP handler coverage', () => {
     delete require.cache[EVENTS_ROUTER_PATH];
   });
 
+  it('POST / returns 400 when folderId is not a valid UUID', async () => {
+    const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+    const router = getFreshEventsRouter();
+    const app = createEventsApp(router);
+    const res = await request(app)
+      .post('/api/events')
+      .attach('files', tcxPath, 'minimal.tcx')
+      .field('folderId', 'not-a-uuid')
+      .expect(400);
+    deepStrictEqual(res.body, { error: 'folderId must be a valid UUID' });
+    delete require.cache[EVENTS_ROUTER_PATH];
+  });
+
   it('GET streams with types array returns 200 and getStreamsForActivity result', async () => {
     mock.method(streamService, 'getStreamsForActivity', async (_e, _a, opts) => {
       deepStrictEqual(opts.types, ['Heart Rate', 'Distance']);
