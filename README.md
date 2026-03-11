@@ -164,6 +164,10 @@ OAUTH_CALLBACK_URL=http://localhost:3000
 OAUTH_CALLBACK_URL=https://fit.example.com
 ```
 
+## Backups (production compose stack)
+
+See [`backup/README.md`](backup/README.md) for full details.
+
 ## Stop
 
 ```bash

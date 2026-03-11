@@ -43,3 +43,6 @@ Desktop.ini
 .claude/settings.local.json
 
 implementation_plans
+
+# Backup secrets
+backup/secrets/*.json
