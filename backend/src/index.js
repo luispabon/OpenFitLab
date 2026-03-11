@@ -38,6 +38,10 @@ app.use(
 // CORS lockdown - only enable credentials for trusted origins in production
 app.use(cors({ origin: config.server.corsAllowedOrigins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
+app.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 
 // Global rate limit
 app.use('/api', apiLimiter);

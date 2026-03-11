@@ -1,4 +1,6 @@
 const zlib = require('zlib');
+
+const MAX_DECOMPRESSED_BYTES = 100 * 1024 * 1024; // 100 MB
 const { DOMParser } = require('@xmldom/xmldom');
 const {
   EventImporterFIT,
@@ -28,7 +30,7 @@ class FileParser {
     let buffer = fileBuffer;
     if (ext !== 'fit' && this.isGzipped(buffer)) {
       try {
-        buffer = zlib.gunzipSync(buffer);
+        buffer = zlib.gunzipSync(buffer, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
       } catch (e) {
         throw new ParseError(`Failed to decompress gzipped file: ${e.message}`, { cause: e });
       }

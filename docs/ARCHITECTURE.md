@@ -74,6 +74,33 @@ Images are published to `ghcr.io/luispabon/openfitlab-backend` and `ghcr.io/luis
 
 Local publishing uses `make docker-push` (or `make docker-push-backend` / `make docker-push-frontend`).
 
+### DAST (ZAP API scan)
+
+Dynamic application security testing runs ZAP in API-scan mode against the OpenAPI spec (`backend/docs/openapi.yaml`).
+
+**GitHub Actions** (`.github/workflows/dast.yml`): runs weekly (Tuesdays at 04:00 UTC) and on demand via `workflow_dispatch`. Not on every PR — stack spinup plus an active scan is too slow for a dev feedback loop.
+
+**Local run** (`Makefile`):
+
+| Target | Action |
+|---|---|
+| `make dast` | Full pipeline: start stack → seed user → run ZAP scan |
+| `make dast-down` | Tear down DAST stack and remove volumes |
+
+Both local and CI runs use the same strategy:
+
+1. Start `db`, `valkey`, and `api` via `compose.dast.yaml` overlay.
+2. Run `backend/scripts/dast-seed.mjs` inside the api container to insert a disposable test user in MariaDB and inject a pre-signed session into Valkey. No auth backdoor is added to the codebase.
+3. Fetch a CSRF token from `GET /api/auth/me` using the seeded session cookie.
+4. Run ZAP with two replacer rules that inject the session cookie and CSRF token as fixed headers on every request.
+
+**`compose.dast.yaml` overlay:**
+- Sets project name `openfitlab-dast` to avoid collisions with the dev stack.
+- Relaxes all rate limits so ZAP's active scan is not throttled.
+- Explicitly zeros all four OAuth env vars (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) so the API never redirects ZAP to `github.com` or `accounts.google.com`. Without this, ZAP follows the OAuth redirect and scans external hosts, producing false-positive findings.
+
+Reports are written to `./zap-reports/` (gitignored locally; uploaded as a GitHub Actions artifact in CI).
+
 ### Environment variables
 
 `.env.example` is the canonical reference with inline documentation. Copy it to `.env` before starting the dev stack.
@@ -397,6 +424,9 @@ Primary route usage:
 - Repositories and services enforce ownership with `user_id` / `req.userId`.
 - Parameterized SQL is used through repository helpers.
 - Auth, callback, upload, and general API routes are rate-limited.
+- All API responses set `Cache-Control: no-store` to prevent proxy or browser caching of session-scoped data.
+- Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb). Multer's 50 MB `fileSize` limit applies to compressed bytes only.
+- `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint.
 
 ## Architectural decisions
 

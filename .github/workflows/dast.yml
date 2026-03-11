@@ -1,0 +1,119 @@
+name: DAST (ZAP API Scan)
+
+# Run weekly (offset from the existing Monday scheduled scan) and on demand.
+# Not on every PR — stack spinup + active scan is too slow for a dev feedback loop.
+on:
+  schedule:
+    - cron: '0 4 * * 2' # Every Tuesday at 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zap-api-scan:
+    name: ZAP API scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Generate a fresh SESSION_SECRET for this ephemeral stack.
+      # It only needs to be internally consistent (seed script + running API both use it).
+      - name: Generate ephemeral secrets
+        id: secrets
+        run: |
+          SECRET=$(openssl rand -hex 32)
+          echo "session_secret=$SECRET" >> "$GITHUB_OUTPUT"
+
+      # Start only the services ZAP needs; skip adminer and the frontend.
+      - name: Start stack
+        env:
+          SESSION_SECRET: ${{ steps.secrets.outputs.session_secret }}
+        run: |
+          docker compose -f compose.yaml -f compose.dast.yaml up -d db valkey api
+
+      # /health checks DB connectivity, so this gate covers db + api readiness.
+      - name: Wait for API to be healthy
+        run: |
+          echo "Waiting for API..."
+          timeout 180 bash -c 'until curl -sf http://localhost:3000/health > /dev/null; do sleep 3; done'
+          echo "API is ready."
+
+      # Create a disposable test user in MariaDB and inject a pre-signed session
+      # into Valkey.  Runs inside the api container so it can reach db/valkey via
+      # internal Docker DNS and use the backend's own node_modules.
+      - name: Seed test user and inject session
+        id: seed
+        env:
+          SESSION_SECRET: ${{ steps.secrets.outputs.session_secret }}
+        run: |
+          OUTPUT=$(docker compose exec -T \
+            -e SESSION_SECRET="$SESSION_SECRET" \
+            api node scripts/dast-seed.mjs)
+          COOKIE=$(printf '%s' "$OUTPUT" | grep '^SESSION_COOKIE=' | cut -d'=' -f2-)
+          if [ -z "$COOKIE" ]; then
+            echo "Seed script did not output SESSION_COOKIE" >&2
+            echo "$OUTPUT" >&2
+            exit 1
+          fi
+          echo "session_cookie=$COOKIE" >> "$GITHUB_OUTPUT"
+
+      # Fetch a valid CSRF token for this session.  /api/auth/me returns csrfToken
+      # in the JSON body.  The token stays valid for the session lifetime, so ZAP
+      # can reuse it as a fixed x-csrf-token header on all state-changing requests.
+      - name: Fetch CSRF token
+        id: csrf
+        run: |
+          RESPONSE=$(curl -sf \
+            -H "Cookie: ofl.sid=${{ steps.seed.outputs.session_cookie }}" \
+            http://localhost:3000/api/auth/me)
+          TOKEN=$(printf '%s' "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['csrfToken'])")
+          if [ -z "$TOKEN" ]; then
+            echo "Could not extract csrfToken from /api/auth/me response" >&2
+            echo "$RESPONSE" >&2
+            exit 1
+          fi
+          echo "csrf_token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      # ZAP API scan against the OpenAPI spec.
+      #
+      # Authentication strategy — no codebase changes required:
+      #   * replacer rule 0: injects the pre-signed session cookie on every request
+      #   * replacer rule 1: injects the CSRF token as x-csrf-token on every request
+      #
+      # fail_action=false: treat scan findings as informational in CI for now.
+      # Change to true once a baseline .zap/rules.tsv has been tuned.
+      - name: ZAP API scan
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: 'http://localhost:3000'
+          format: openapi
+          file: backend/docs/openapi.yaml
+          fail_action: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          cmd_options: >-
+            -z
+            "-config replacer.full_list(0).description=session_cookie
+            -config replacer.full_list(0).enabled=true
+            -config replacer.full_list(0).matchtype=REQ_HEADER
+            -config replacer.full_list(0).matchstr=Cookie
+            -config 'replacer.full_list(0).replacement=ofl.sid=${{ steps.seed.outputs.session_cookie }}'
+            -config replacer.full_list(1).description=csrf_token
+            -config replacer.full_list(1).enabled=true
+            -config replacer.full_list(1).matchtype=REQ_HEADER
+            -config replacer.full_list(1).matchstr=x-csrf-token
+            -config 'replacer.full_list(1).replacement=${{ steps.csrf.outputs.csrf_token }}'"
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-api-scan-report
+          path: |
+            report_html.html
+            report_json.json
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

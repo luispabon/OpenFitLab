@@ -31,6 +31,12 @@
 - Main quality gate: `npm run ci`
 - Runtime: Node 20+
 
+### DAST
+
+- Run full local scan (stack up + seed + ZAP): `make dast`
+- Tear down DAST stack and volumes: `make dast-down`
+- Reports are written to `./zap-reports/` (gitignored). Override with `ZAP_REPORT_DIR=/path make dast`.
+
 ### Docker images
 
 - Build both images: `make docker-build`
@@ -44,6 +50,7 @@
 - Backend: lint, format, unit tests (including Node 24 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
 - Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
+- DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
 
 ## Agent-critical invariants
 

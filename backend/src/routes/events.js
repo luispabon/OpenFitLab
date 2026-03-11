@@ -30,6 +30,7 @@ const {
   validateEventId,
   validateActivityId,
   validateStreamTypes,
+  isValidUUID,
 } = require('../utils/validation');
 
 // GET /api/events?startDate=&endDate=&limit=&folderId=
@@ -153,6 +154,11 @@ router.post(
       throw new ValidationError('No files provided');
     }
     const folderId = req.body?.folderId;
+    if (folderId != null && folderId !== '') {
+      if (!isValidUUID(folderId)) {
+        throw new ValidationError('folderId must be a valid UUID');
+      }
+    }
     const results = await buildUploadResults(req.files, req.userId, processUpload, {
       folderId: folderId ?? null,
     });
@@ -215,7 +221,6 @@ router.patch(
     const { id } = req.params;
     const { folderId } = req.body || {};
     if (folderId !== undefined && folderId !== null && folderId !== '') {
-      const { isValidUUID } = require('../utils/validation');
       if (!isValidUUID(folderId)) {
         throw new ValidationError('folderId must be a valid UUID or null');
       }

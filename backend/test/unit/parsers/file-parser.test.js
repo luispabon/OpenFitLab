@@ -160,4 +160,12 @@ describe('FileParser.parseFile', () => {
     ok(event.name);
     strictEqual(event.name.trim().length > 0, true);
   });
+
+  it('rejects gzip bomb exceeding the 100 MB decompression limit', async () => {
+    const bomb = fs.readFileSync(path.join(FIXTURES_DIR, 'gzip-bomb.tcx.gz'));
+    await require('node:assert').rejects(
+      async () => FileParser.parseFile(bomb, 'tcx', 'bomb.tcx.gz'),
+      (err) => err.message.includes('decompress')
+    );
+  });
 });
