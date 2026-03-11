@@ -1,0 +1,15 @@
+# compose.dast.yaml — overlay for DAST runs (docker compose -f compose.yaml -f compose.dast.yaml)
+#
+# Relaxes rate limits so ZAP's active scan is not throttled.
+# Never use in production.
+services:
+  api:
+    environment:
+      API_RATE_LIMIT_MAX: 10000
+      API_RATE_LIMIT_WINDOW_MS: 60000
+      AUTH_RATE_LIMIT_MAX: 1000
+      AUTH_RATE_LIMIT_WINDOW_MS: 60000
+      AUTH_CALLBACK_RATE_LIMIT_MAX: 1000
+      AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS: 60000
+      UPLOAD_RATE_LIMIT_MAX: 1000
+      UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
