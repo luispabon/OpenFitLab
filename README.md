@@ -164,9 +164,7 @@ OAUTH_CALLBACK_URL=http://localhost:3000
 OAUTH_CALLBACK_URL=https://fit.example.com
 ```
 
-## Backups (production)
-
-The production compose stack supports automated hourly database backups via `mysqldump` + [Restic](https://restic.net/) to Google Cloud Storage. Backups are encrypted and deduplicated. The service is gated behind a Compose profile so it never starts in development. 
+## Backups (production compose stack)
 
 See [`backup/README.md`](backup/README.md) for full details.
 
