@@ -8,6 +8,10 @@ import {
   emptyStreamsFixture,
 } from '../../../test/fixtures/streams';
 
+vi.mock('../../utils/export-image', () => ({
+  exportAsPng: vi.fn().mockResolvedValue(undefined),
+}));
+
 declare global {
   var __routeMapAddImageSpy: (...args: unknown[]) => void;
   var __routeMapSetLayoutPropertySpy: (...args: unknown[]) => void;
@@ -105,6 +109,27 @@ describe('RouteMap', () => {
       });
       expect(screen.getByText('Route A')).toBeInTheDocument();
       expect(screen.getByText('Route B')).toBeInTheDocument();
+    });
+  });
+
+  describe('export button', () => {
+    it('renders export button when route data is available', () => {
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+      expect(screen.getByTitle('Export map as PNG')).toBeInTheDocument();
+    });
+
+    it('does not render export button when there is no route data', () => {
+      render(RouteMap, { props: { streams: emptyStreamsFixture } });
+      expect(screen.queryByTitle('Export map as PNG')).not.toBeInTheDocument();
+    });
+
+    it('calls exportAsPng when export button is clicked', async () => {
+      const { exportAsPng } = await import('../../utils/export-image');
+      render(RouteMap, { props: { streams: streamsLatLngFixture } });
+      await fireEvent.click(screen.getByTitle('Export map as PNG'));
+      await vi.waitFor(() => {
+        expect(exportAsPng).toHaveBeenCalledWith(expect.any(Object), 'comparison-map');
+      });
     });
   });
 
