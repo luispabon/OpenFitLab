@@ -98,12 +98,12 @@ jobs:
       - name: ZAP API scan
         uses: zaproxy/action-api-scan@v0.9.0
         with:
-          target: 'http://localhost:3000'
+          target: 'backend/docs/openapi.yaml'
           format: openapi
-          file: backend/docs/openapi.yaml
           fail_action: false
           token: ${{ secrets.GITHUB_TOKEN }}
           cmd_options: >-
+            -t http://localhost:3000
             -z
             "-config replacer.full_list(0).description=session_cookie
             -config replacer.full_list(0).enabled=true
