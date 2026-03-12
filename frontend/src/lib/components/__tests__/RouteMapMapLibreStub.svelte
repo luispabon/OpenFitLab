@@ -9,7 +9,7 @@
     onload?: (ev: { target: unknown }) => void;
     class?: string;
     autoloadGlobalCss?: boolean;
-    preserveDrawingBuffer?: boolean;
+    canvasContextAttributes?: Record<string, unknown>;
     children?: import('svelte').Snippet;
   }
   let {

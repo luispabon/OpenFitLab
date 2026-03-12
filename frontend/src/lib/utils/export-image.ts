@@ -1,5 +1,10 @@
 import { toPng } from 'html-to-image';
 
+// Exclude UI controls marked with [data-export-exclude] (e.g. ExportButton itself)
+// from the captured image. Defined at module scope to avoid reallocating on every call.
+const excludeExportControls = (node: Node): boolean =>
+  !(node instanceof Element && node.hasAttribute('data-export-exclude'));
+
 /**
  * Captures a DOM element (including any embedded <canvas> elements, such as uPlot
  * charts or a MapLibre WebGL canvas with preserveDrawingBuffer enabled) and triggers
@@ -26,9 +31,7 @@ export async function exportAsPng(element: HTMLElement, filename: string): Promi
     // is already loaded in the browser and its glyphs are drawn into the canvas
     // pixels directly, so the exported image looks correct without it.
     skipFonts: true,
-    // Exclude UI controls that are part of the export affordance itself (e.g. the
-    // ExportButton) so they don't appear in the captured image.
-    filter: (node) => !(node instanceof Element && node.hasAttribute('data-export-exclude')),
+    filter: excludeExportControls,
   });
   const a = document.createElement('a');
   a.download = `${filename}.png`;
