@@ -154,6 +154,21 @@
       // ignore
     }
   }
+
+  async function exportMap() {
+    if (!mapContainerEl) return;
+    // Temporarily exclude MapLibre's built-in UI controls (zoom, compass, fullscreen,
+    // attribution) from the capture. The bottom-left custom legend is kept.
+    const controls = mapContainerEl.querySelectorAll<HTMLElement>(
+      '.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right'
+    );
+    controls.forEach((el) => el.setAttribute('data-export-exclude', ''));
+    try {
+      await exportAsPng(mapContainerEl, 'comparison-map');
+    } finally {
+      controls.forEach((el) => el.removeAttribute('data-export-exclude'));
+    }
+  }
 </script>
 
 {#if routesWithData.length > 0 && center}
@@ -181,10 +196,7 @@
       </button>
       {#if mapContainerEl}
         <div class="rounded-lg border border-border bg-surface/85 shadow-sm backdrop-blur">
-          <ExportButton
-            onExport={() => exportAsPng(mapContainerEl!, 'comparison-map')}
-            title="Export map as PNG"
-          />
+          <ExportButton onExport={exportMap} title="Export map as PNG" />
         </div>
       {/if}
     </div>
