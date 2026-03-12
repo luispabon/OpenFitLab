@@ -56,7 +56,7 @@ jobs:
         env:
           SESSION_SECRET: ${{ steps.secrets.outputs.session_secret }}
         run: |
-          OUTPUT=$(docker compose exec -T \
+          OUTPUT=$(docker compose -f compose.yaml -f compose.dast.yaml exec -T \
             -e SESSION_SECRET="$SESSION_SECRET" \
             api node scripts/dast-seed.mjs)
           COOKIE=$(printf '%s' "$OUTPUT" | grep '^SESSION_COOKIE=' | cut -d'=' -f2-)
@@ -124,4 +124,4 @@ jobs:
 
       - name: Stop stack
         if: always()
-        run: docker compose down -v
+        run: docker compose -p openfitlab-dast down -v
