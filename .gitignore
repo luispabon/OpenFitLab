@@ -49,3 +49,6 @@ backup/secrets/*.json
 
 # DAST reports
 zap-reports/
+
+# Misc
+tmp/

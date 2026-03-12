@@ -12,6 +12,8 @@
   import 'maplibre-gl/dist/maplibre-gl.css';
   import type { StreamData } from '../types';
   import { buildRouteGeoJSON, mergeBounds } from '../utils/geo';
+  import { exportAsPng } from '../utils/export-image';
+  import ExportButton from './ExportButton.svelte';
 
   const ROUTE_ARROW_IMAGE_ID = 'route-direction-arrow';
   const ROUTE_ARROW_LAYER_PREFIX = 'route-arrow-';
@@ -48,6 +50,7 @@
   let showLabels = $state(true);
   let map = $state<MapLibreMap | undefined>(undefined);
   let arrowImageLoaded = $state<HTMLImageElement | null>(null);
+  let mapContainerEl = $state<HTMLElement | null>(null);
 
   $effect(() => {
     localStorage.setItem('mapTheme', selectedTheme);
@@ -151,6 +154,21 @@
       // ignore
     }
   }
+
+  async function exportMap() {
+    if (!mapContainerEl) return;
+    // Temporarily exclude MapLibre's built-in UI controls (zoom, compass, fullscreen,
+    // attribution) from the capture. The bottom-left custom legend is kept.
+    const controls = mapContainerEl.querySelectorAll<HTMLElement>(
+      '.maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right'
+    );
+    controls.forEach((el) => el.setAttribute('data-export-exclude', ''));
+    try {
+      await exportAsPng(mapContainerEl, 'comparison-map');
+    } finally {
+      controls.forEach((el) => el.removeAttribute('data-export-exclude'));
+    }
+  }
 </script>
 
 {#if routesWithData.length > 0 && center}
@@ -176,8 +194,16 @@
       >
         <span class="material-icons text-base">{showLabels ? 'label' : 'label_off'}</span>
       </button>
+      {#if mapContainerEl}
+        <div class="rounded-lg border border-border bg-surface/85 shadow-sm backdrop-blur">
+          <ExportButton onExport={exportMap} title="Export map as PNG" />
+        </div>
+      {/if}
     </div>
-    <div class="h-[600px] w-full overflow-hidden rounded-xl border border-border">
+    <div
+      bind:this={mapContainerEl}
+      class="h-[600px] w-full overflow-hidden rounded-xl border border-border"
+    >
       <MapLibre
         bind:map
         class="h-full w-full"
@@ -186,6 +212,7 @@
         zoom={12}
         onload={handleLoad}
         autoloadGlobalCss={false}
+        canvasContextAttributes={{ preserveDrawingBuffer: true }}
       >
         <NavigationControl position="top-right" />
         <FullScreenControl position="top-right" />

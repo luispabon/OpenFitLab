@@ -150,6 +150,21 @@ Implemented capabilities:
 
 Users can compare data from different trackers for the same workout by importing multiple recordings and viewing them through the comparison flow.
 
+### 3.6.1 Comparison image export
+
+**Status:** Implemented
+
+Users can export sections of the comparison view as PNG files directly from the browser.
+
+Requirements:
+
+- export the stats table (hidden stat rows are excluded)
+- export the route map at full resolution
+- export each individual stream comparison chart
+- export each stream analysis card (scatter chart, delta chart, and stats row)
+- exported images use the app's dark colour scheme with an opaque background
+- export controls are themselves excluded from the captured image
+
 ### 3.7 Folder organization
 
 **Status:** Implemented
@@ -237,7 +252,7 @@ Requirements:
 
 - stream analysis
 - scatter plots and correlation views
-- exportable analysis results
+- comparison image export (stats, map, charts, stream analysis cards)
 
 ### Phase 4
 

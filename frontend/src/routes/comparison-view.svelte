@@ -34,7 +34,7 @@
     metricAggregationKeyNormalized,
   } from '../lib/utils/stat-categories';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
-  import ComparisonChart from '../lib/components/ComparisonChart.svelte';
+  import ComparisonChartCard from '../lib/components/comparison/ComparisonChartCard.svelte';
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
   import StreamAnalysisSection from '../lib/components/comparison/StreamAnalysisSection.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
@@ -688,16 +688,7 @@
         <div class="space-y-6">
           {#each Array.from(selectedStreamTypes) as streamType (streamType)}
             {@const entries = getComparisonEntries(streamType)}
-            {#if entries.length > 0}
-              <div
-                class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
-              >
-                <h3 class="mb-4 text-lg font-semibold text-text-primary">
-                  {getStreamConfig(streamType).label}
-                </h3>
-                <ComparisonChart {streamType} {entries} {xAxisMode} />
-              </div>
-            {/if}
+            <ComparisonChartCard {streamType} {entries} {xAxisMode} />
           {/each}
         </div>
       {:else}

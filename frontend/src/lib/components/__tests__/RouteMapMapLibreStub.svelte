@@ -9,6 +9,7 @@
     onload?: (ev: { target: unknown }) => void;
     class?: string;
     autoloadGlobalCss?: boolean;
+    canvasContextAttributes?: Record<string, unknown>;
     children?: import('svelte').Snippet;
   }
   let {

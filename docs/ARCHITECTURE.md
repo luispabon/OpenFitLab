@@ -383,6 +383,45 @@ UI components:
 - `ScatterChart.svelte` — uPlot XY scatter with optional regression line overlay
 - `DeltaChart.svelte` — uPlot area chart of delta over elapsed time with a zero-baseline dashed line
 - `StreamAnalysisSection.svelte` — orchestrates stream selection, alignment, and chart/stats display for each secondary-vs-reference pair
+- `StreamAnalysisCard.svelte` — renders a single reference-vs-secondary pair card (scatter chart, delta chart, stats row) with a per-card export button
+
+### Image export (frontend-only)
+
+Users can export sections of the comparison view as PNG files. Export runs entirely
+client-side using `html-to-image`. No API endpoints are involved.
+
+Key utility:
+
+- `export-image.ts` — `exportAsPng(element, filename)`: captures a DOM element (including
+  any embedded `<canvas>`) to a retina-quality PNG and triggers a browser download.
+  - **Background:** uses the `--color-surface-solid` CSS custom property (the opaque dark
+    surface colour) so that the semi-transparent `bg-card` / `bg-surface` values don't
+    produce transparent PNGs when composited without a parent background.
+  - **Filter:** elements with `data-export-exclude` are stripped from the capture so UI
+    controls (e.g. `ExportButton` itself) never appear in the exported image.
+
+Exported sections:
+
+| Section | Trigger | Element captured |
+|---|---|---|
+| Stats table | Button in table header | Outer card div of `ComparisonStatsTable` |
+| Map | Button in map overlay controls | 600 px map container div (includes legend and nav controls) |
+| Stream comparison chart | Button per chart card | `ComparisonChartCard` root div (title + uPlot canvas) |
+| Stream analysis box | Button per pair card | `StreamAnalysisCard` root div (scatter + delta charts + stats row) |
+
+MapLibre requires `preserveDrawingBuffer: true` on the `Map` constructor for the WebGL
+framebuffer to remain readable after each frame. This option is set on the `<MapLibre>`
+component in `RouteMap.svelte`.
+
+Hidden stats rows are naturally excluded from exports because `allStatTypes` is filtered
+by `hiddenStats` before being passed to `ComparisonStatsTable`, so hidden rows are never
+in the DOM.
+
+Reusable component:
+
+- `ExportButton.svelte` — small icon button wrapping an `onExport: () => Promise<void>`
+  callback; disables itself while the export is in-flight to prevent double-clicks. Carries
+  `data-export-exclude` so the button is never included in the captured image.
 
 ### Meta
 
@@ -397,6 +436,7 @@ The frontend consumes API JSON directly.
 
 Important modules:
 
+- `frontend/src/lib/utils/export-image.ts`: `exportAsPng` helper for DOM-to-PNG capture (see [Image export (frontend-only)](#image-export-frontend-only))
 - `frontend/src/lib/api/client.ts`: authenticated fetch wrapper with CSRF handling
 - `frontend/src/lib/api/events.ts`: event, activity, stream, and upload API calls
 - `frontend/src/lib/api/comparisons.ts`: comparison CRUD and candidate lookup

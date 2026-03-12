@@ -2,6 +2,8 @@
   import type { EventDetail } from '../../types';
   import { getStatUnit } from '../../utils/stat-icons';
   import { formatStatValue } from '../../utils/stat-formatting';
+  import { exportAsPng } from '../../utils/export-image';
+  import ExportButton from '../ExportButton.svelte';
 
   interface Props {
     events: EventDetail[];
@@ -46,9 +48,23 @@
     const idx = events.findIndex((e) => e.event.id === eventDetail.event.id);
     return eventColors[idx % eventColors.length];
   }
+
+  let tableEl = $state<HTMLElement | null>(null);
 </script>
 
-<div class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
+<div
+  bind:this={tableEl}
+  class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg"
+>
+  <div class="flex items-center justify-between border-b border-border px-6 py-3">
+    <span class="text-sm font-medium uppercase tracking-wider text-text-secondary">Stats</span>
+    {#if tableEl}
+      <ExportButton
+        onExport={() => exportAsPng(tableEl!, 'comparison-stats')}
+        title="Export stats as PNG"
+      />
+    {/if}
+  </div>
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-border">
       <thead class="bg-surface">
