@@ -23,6 +23,12 @@ const {
   GOOGLE_CLIENT_SECRET,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
+  APPLE_CLIENT_ID,
+  APPLE_TEAM_ID,
+  APPLE_KEY_ID,
+  APPLE_PRIVATE_KEY,
+  FACEBOOK_APP_ID,
+  FACEBOOK_APP_SECRET,
   API_RATE_LIMIT_MAX,
   API_RATE_LIMIT_WINDOW_MS,
   AUTH_RATE_LIMIT_MAX,
@@ -108,6 +114,12 @@ const googleClientId = GOOGLE_CLIENT_ID != null ? String(GOOGLE_CLIENT_ID) : '';
 const googleClientSecret = GOOGLE_CLIENT_SECRET != null ? String(GOOGLE_CLIENT_SECRET) : '';
 const githubClientId = GITHUB_CLIENT_ID != null ? String(GITHUB_CLIENT_ID) : '';
 const githubClientSecret = GITHUB_CLIENT_SECRET != null ? String(GITHUB_CLIENT_SECRET) : '';
+const appleClientId = APPLE_CLIENT_ID != null ? String(APPLE_CLIENT_ID) : '';
+const appleTeamId = APPLE_TEAM_ID != null ? String(APPLE_TEAM_ID) : '';
+const appleKeyId = APPLE_KEY_ID != null ? String(APPLE_KEY_ID) : '';
+const applePrivateKey = APPLE_PRIVATE_KEY != null ? String(APPLE_PRIVATE_KEY) : '';
+const facebookAppId = FACEBOOK_APP_ID != null ? String(FACEBOOK_APP_ID) : '';
+const facebookAppSecret = FACEBOOK_APP_SECRET != null ? String(FACEBOOK_APP_SECRET) : '';
 
 const oauth = {
   callbackUrl: oauthCallbackUrl,
@@ -120,6 +132,18 @@ const oauth = {
     enabled: !!(githubClientId && githubClientSecret),
     clientId: githubClientId || undefined,
     clientSecret: githubClientSecret || undefined,
+  },
+  apple: {
+    enabled: !!(appleClientId && appleTeamId && appleKeyId && applePrivateKey),
+    clientId: appleClientId || undefined,
+    teamId: appleTeamId || undefined,
+    keyId: appleKeyId || undefined,
+    privateKey: applePrivateKey ? applePrivateKey.replace(/\\n/g, '\n') : undefined,
+  },
+  facebook: {
+    enabled: !!(facebookAppId && facebookAppSecret),
+    clientId: facebookAppId || undefined,
+    clientSecret: facebookAppSecret || undefined,
   },
 };
 

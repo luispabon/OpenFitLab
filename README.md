@@ -113,7 +113,7 @@ Set the result as `SESSION_SECRET` in `.env`.
 
 ### OAuth Provider Setup
 
-At least one OAuth provider must be configured for login to work. Both are optional — only the providers with credentials present in `.env` will appear on the login page.
+At least one OAuth provider must be configured for login to work. All are optional — only the providers with credentials present in `.env` will appear on the login page.
 
 #### Google
 
@@ -151,6 +151,48 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 GITHUB_CLIENT_ID=your-client-id
 GITHUB_CLIENT_SECRET=your-client-secret
 ```
+
+#### Apple
+
+1. Go to [developer.apple.com](https://developer.apple.com) → **Certificates, Identifiers & Profiles**.
+2. Create an **App ID** with the **Sign In with Apple** capability (or use an existing one).
+3. Under **Identifiers**, create a **Services ID** — this becomes `APPLE_CLIENT_ID` (e.g. `com.example.openfitlab`).
+   - Enable **Sign In with Apple**, click **Configure**, add your domain and return URL:
+     - Production: `https://<your-domain>/api/auth/apple/callback`
+4. Under **Keys**, create a new key with **Sign In with Apple** enabled. Download the `.p8` file (only downloadable once).
+5. Note your **Team ID** (top-right of the developer portal) and **Key ID** (shown on the key detail page).
+6. Add to `.env`, pasting the `.p8` contents as a single line with literal `\n` for newlines:
+
+```env
+APPLE_CLIENT_ID=com.example.openfitlab
+APPLE_TEAM_ID=XXXXXXXXXX
+APPLE_KEY_ID=XXXXXXXXXX
+APPLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nMIGT...\n-----END PRIVATE KEY-----
+```
+
+> [!IMPORTANT]
+> Apple requires an **HTTPS** callback URL — `http://localhost` is not supported. For local development, use a tunnel such as [ngrok](https://ngrok.com) and set `OAUTH_CALLBACK_URL` to the tunnel's HTTPS URL.
+
+> [!NOTE]
+> Apple only provides the user's email address on the **first** login. Subsequent logins with the same Apple ID will not include an email.
+
+#### Facebook
+
+1. Go to [developers.facebook.com](https://developers.facebook.com) → **My Apps** → **Create App**.
+2. Select **Consumer** as the app type and give it a name.
+3. Go to **App Settings → Basic** and copy the **App ID** and **App Secret**.
+4. Add the **Facebook Login** product → go to its **Settings** → add Valid OAuth Redirect URIs:
+   - Local development: `http://localhost:3000/api/auth/facebook/callback`
+   - Production: `https://<your-domain>/api/auth/facebook/callback`
+5. Add to `.env`:
+
+```env
+FACEBOOK_APP_ID=your-app-id
+FACEBOOK_APP_SECRET=your-app-secret
+```
+
+> [!NOTE]
+> While the app is in **Development** mode, only users with admin, developer, or tester roles on the Facebook app can log in. Switch the app to **Live** mode for public access — this requires completing Facebook's app review for the `email` permission.
 
 #### Callback Base URL
 

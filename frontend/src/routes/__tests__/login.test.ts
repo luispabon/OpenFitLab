@@ -25,20 +25,20 @@ describe('login page', () => {
 
   it('renders provider buttons', () => {
     render(Login);
-    expect(screen.getByText('Continue with Google')).toBeInTheDocument();
-    expect(screen.getByText('Continue with GitHub')).toBeInTheDocument();
+    expect(screen.getByText('Google')).toBeInTheDocument();
+    expect(screen.getByText('GitHub')).toBeInTheDocument();
   });
 
-  it('calls location.assign with Google OAuth URL when Continue with Google is clicked', async () => {
+  it('calls location.assign with Google OAuth URL when Google is clicked', async () => {
     render(Login);
-    await fireEvent.click(screen.getByText('Continue with Google'));
+    await fireEvent.click(screen.getByText('Google'));
     expect(assign).toHaveBeenCalledTimes(1);
     expect(assign).toHaveBeenCalledWith('/api/auth/google');
   });
 
-  it('calls location.assign with GitHub OAuth URL when Continue with GitHub is clicked', async () => {
+  it('calls location.assign with GitHub OAuth URL when GitHub is clicked', async () => {
     render(Login);
-    await fireEvent.click(screen.getByText('Continue with GitHub'));
+    await fireEvent.click(screen.getByText('GitHub'));
     expect(assign).toHaveBeenCalledTimes(1);
     expect(assign).toHaveBeenCalledWith('/api/auth/github');
   });

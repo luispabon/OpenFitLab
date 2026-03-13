@@ -1,7 +1,7 @@
 networks:
   # This network is exclusive of this stack for services to talk to each other internally.
   internal:
-  
+
   # This network is what gives Traefik access to the services that must be exposed to the internet.
   dmz:
     external: true
@@ -57,6 +57,12 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
       OAUTH_CALLBACK_URL: ${OAUTH_CALLBACK_URL:?OAUTH_CALLBACK_URL is required}
     depends_on:
       db:
@@ -85,7 +91,7 @@ services:
     deploy:
       mode: replicated
       replicas: 2
-    
+
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:?DOMAIN is required}`)"
@@ -116,6 +122,3 @@ services:
         condition: service_healthy
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-    
-
-

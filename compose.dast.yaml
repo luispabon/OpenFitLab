@@ -19,8 +19,14 @@ services:
       AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS: 60000
       UPLOAD_RATE_LIMIT_MAX: 1000
       UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
-      # Disable OAuth so ZAP never follows redirects to github.com / accounts.google.com
+      # Disable OAuth so ZAP never follows redirects to external providers
       GITHUB_CLIENT_ID: ""
       GITHUB_CLIENT_SECRET: ""
       GOOGLE_CLIENT_ID: ""
       GOOGLE_CLIENT_SECRET: ""
+      APPLE_CLIENT_ID: ""
+      APPLE_TEAM_ID: ""
+      APPLE_KEY_ID: ""
+      APPLE_PRIVATE_KEY: ""
+      FACEBOOK_APP_ID: ""
+      FACEBOOK_APP_SECRET: ""

@@ -13,6 +13,8 @@ const router = express.Router();
 function isEnabled(strategy) {
   if (strategy === 'google') return config.oauth.google.enabled;
   if (strategy === 'github') return config.oauth.github.enabled;
+  if (strategy === 'apple') return config.oauth.apple.enabled;
+  if (strategy === 'facebook') return config.oauth.facebook.enabled;
   return false;
 }
 
@@ -88,6 +90,119 @@ router.get(
     if (!isEnabled('github')) return res.status(404).end();
     passport.authenticate('github', {
       failureRedirect: '/#/login?error=github',
+      session: false,
+    })(req, res, next);
+  },
+  asyncHandler(async (req, res) => {
+    if (req.user.pendingSignup) {
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      req.session.pendingSignup = req.user.profile;
+      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
+      return;
+    }
+    const userId = req.user.user.id;
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    req.session.userId = userId;
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+  })
+);
+
+// Apple OAuth — callback is POST (Apple uses response_mode: form_post)
+router.get('/apple', (req, res, next) => {
+  if (!isEnabled('apple')) {
+    throw new ValidationError(
+      'Apple OAuth is not configured. Please set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY in .env'
+    );
+  }
+  passport.authenticate('apple')(req, res, next);
+});
+
+router.post(
+  '/apple/callback',
+  express.urlencoded({ extended: true }),
+  (req, res, next) => {
+    if (!isEnabled('apple')) return res.status(404).end();
+    passport.authenticate('apple', {
+      failureRedirect: '/#/login?error=apple',
+      session: false,
+    })(req, res, next);
+  },
+  asyncHandler(async (req, res) => {
+    if (req.user.pendingSignup) {
+      await new Promise((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      req.session.pendingSignup = req.user.profile;
+      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
+      return;
+    }
+    const userId = req.user.user.id;
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    req.session.userId = userId;
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+  })
+);
+
+// Facebook OAuth
+router.get('/facebook', (req, res, next) => {
+  if (!isEnabled('facebook')) {
+    throw new ValidationError(
+      'Facebook OAuth is not configured. Please set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env'
+    );
+  }
+  passport.authenticate('facebook', { scope: ['email'] })(req, res, next);
+});
+
+router.get(
+  '/facebook/callback',
+  (req, res, next) => {
+    if (!isEnabled('facebook')) return res.status(404).end();
+    passport.authenticate('facebook', {
+      failureRedirect: '/#/login?error=facebook',
       session: false,
     })(req, res, next);
   },

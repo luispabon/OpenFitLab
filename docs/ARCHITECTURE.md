@@ -13,7 +13,7 @@ OpenFitLab is a self-hosted fitness activity tracking app with:
 
 Core flow:
 
-1. The user signs in with Google or GitHub OAuth.
+1. The user signs in with Google, GitHub, Apple, or Facebook OAuth.
 2. The API creates a server-side session and returns CSRF tokens from `GET /api/auth/me`.
 3. The user uploads activity files.
 4. The backend parses the files (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`), stores relational event/activity/stream data, and discards the originals.
@@ -97,7 +97,7 @@ Both local and CI runs use the same strategy:
 **`compose.dast.yaml` overlay:**
 - Sets project name `openfitlab-dast` to avoid collisions with the dev stack.
 - Relaxes all rate limits so ZAP's active scan is not throttled.
-- Explicitly zeros all four OAuth env vars (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) so the API never redirects ZAP to `github.com` or `accounts.google.com`. Without this, ZAP follows the OAuth redirect and scans external hosts, producing false-positive findings.
+- Explicitly zeros all OAuth env vars (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`) so the API never redirects ZAP to external OAuth hosts. Without this, ZAP follows OAuth redirects and scans external hosts, producing false-positive findings.
 
 Reports are written to `./zap-reports/` (gitignored locally; uploaded as a GitHub Actions artifact in CI).
 
@@ -110,7 +110,7 @@ Required in production only:
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
 - `OAUTH_CALLBACK_URL`, `DOMAIN`
 
-Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`), rate limit overrides, `VITE_GA_*` frontend analytics config.
+Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), rate limit overrides, `VITE_GA_*` frontend analytics config.
 
 ## Data model
 
@@ -278,6 +278,10 @@ Both return `{ ok: true }`.
 - `GET /api/auth/google/callback`
 - `GET /api/auth/github`
 - `GET /api/auth/github/callback`
+- `GET /api/auth/apple`
+- `POST /api/auth/apple/callback` (Apple uses `response_mode: form_post`)
+- `GET /api/auth/facebook`
+- `GET /api/auth/facebook/callback`
 
 OAuth callbacks either:
 
