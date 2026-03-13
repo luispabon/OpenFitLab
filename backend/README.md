@@ -8,7 +8,7 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 - **Routes**: `src/routes/events.js`, `comparisons.js`, `meta.js` — validation + service calls only; no direct DB access.
 - **Services**: `src/services/*` — business logic; they call **repositories** and orchestrate transactions. Each service accepts optional `opts.db` for test injection.
 - **Repositories**: `src/repositories/*` — all SQL lives here. `event-repository`, `activity-repository`, `stream-repository`, `comparison-repository`; each uses `query-helper.runQuery(sql, params, opts)` so that `opts.conn` (inside a transaction) or `opts.db` is used.
-- **DB layer**: `src/db.js` — `query`, `queryOne`, `transaction`; schema in `sql/schema.sql` (run on startup, no migrations).
+- **DB layer**: `src/db.js` — `query`, `queryOne`, `transaction`, `runMigrations`; migrations in `sql/migrations/` (applied in order on startup via advisory lock).
 - **Parsers**: `src/parsers/file-parser.js` — file parsing (TCX, FIT, GPX, JSON, SML) via sports-lib.
 - **Utils**: `src/utils/` — validation (Express middleware), transforms (row → API shape), stream-extractor, json-sanitizer.
 - **Middleware**: `src/middleware/async-handler.js` — shared wrapper for async route handlers.

@@ -22,8 +22,8 @@ Core flow:
 ## Configuration, runtime, and deployment
 
 - Backend config is read only from `backend/src/config.js`.
-- Schema is defined in `backend/sql/schema.sql` and applied on startup via `db.initializeSchema()`.
-- There is no migration system. Schema changes require database recreation.
+- Schema is managed by `db.runMigrations()`, which runs on startup. Migration SQL files live in `backend/sql/migrations/` (named `NNN_description.sql`, applied in lexicographic order). Applied filenames are tracked in a `schema_migrations` table. A MariaDB advisory lock (`GET_LOCK('openfitlab_migrations', 30)`) prevents race conditions when multiple replicas start simultaneously.
+- To make a schema change, add a new `NNN_description.sql` file — never edit existing migration files. `backend/sql/schema.sql` is a human-readable reference snapshot and is not applied directly.
 - Local development uses `docker compose up -d`.
 
 ### Compose stacks
@@ -479,7 +479,7 @@ Primary route usage:
 - **Relational stats:** event/activity stats are normalized into separate tables.
 - **Relational stream points:** stream data is stored row-by-row for ordering and time filtering.
 - **Server-managed auth:** OAuth plus server sessions, not client-managed tokens.
-- **Schema-on-startup:** simple self-hosted setup over migrations.
+- **Lightweight migration runner:** SQL files in `backend/sql/migrations/` applied in order on startup with an advisory lock, enabling schema evolution without data loss.
 
 ## Source references
 

@@ -20,7 +20,7 @@ globs: backend/**
 ## Queries and performance
 
 - **Avoid N+1 patterns.** When loading related data for many parents (e.g. stats for many events), use batched `IN (...)` queries with parameterized placeholders (e.g. `placeholders(n)` from `utils/transforms.js`), not per-parent queries.
-- **When adding new queries,** consider whether existing indexes support filters and `ORDER BY`; add or adjust indexes in `sql/schema.sql` if needed, and document the change (schema has no migrations; changes require DB recreate).
+- **When adding new queries,** consider whether existing indexes support filters and `ORDER BY`; add or adjust indexes in a new migration file (e.g. `backend/sql/migrations/NNN_description.sql`) if needed. Never edit existing migration files.
 
 ## Testing
 

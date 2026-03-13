@@ -65,7 +65,7 @@ async function start() {
   // uploadDir from config (env), not user input
   /* eslint-disable-next-line security/detect-non-literal-fs-filename */
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-  await db.initializeSchema();
+  await db.runMigrations();
 
   // Session + Passport (session store: Valkey via connect-redis)
   const { createSessionMiddleware } = require('./middleware/session');

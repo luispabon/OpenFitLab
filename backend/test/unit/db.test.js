@@ -103,76 +103,157 @@ describe('db', () => {
     });
   });
 
-  describe('initializeSchema', () => {
-    it('ensures database exists then reads schema.sql and executes it', async () => {
-      const adminQueryCalls = [];
-      const mainQueryCalls = [];
-      const schemaContent = 'CREATE TABLE t (id INT);';
+  describe('runMigrations', () => {
+    function makeConn({ lockResult = 1, appliedRows = [], executeCalls, queryCalls } = {}) {
+      const _executeCalls = executeCalls || [];
+      const _queryCalls = queryCalls || [];
+      return {
+        _executeCalls,
+        _queryCalls,
+        execute: async (sql, params) => {
+          _executeCalls.push({ sql, params });
+          if (sql.includes('GET_LOCK')) return [[{ acquired: lockResult }]];
+          if (sql.includes('SELECT filename FROM schema_migrations')) return [appliedRows];
+          return [[]];
+        },
+        query: async (sql) => {
+          _queryCalls.push(sql);
+          return [[]];
+        },
+        beginTransaction: async () => {},
+        commit: async () => {},
+        rollback: async () => {},
+        release: async () => {},
+      };
+    }
 
+    function makeEnv({ files, fileContents = {}, conn, lockResult, appliedRows }) {
+      const _conn = conn || makeConn({ lockResult, appliedRows });
       const adminPool = {
-        query: async (sql) => {
-          adminQueryCalls.push(sql);
-          return [];
-        },
+        query: async () => [],
         end: async () => {},
       };
-
       const mainPool = {
-        query: async (sql) => {
-          mainQueryCalls.push(sql);
-          return [];
-        },
         execute: async () => [[]],
-        getConnection: async () => ({}),
+        getConnection: async () => _conn,
         end: async () => {},
       };
-
       const mockMysql = {
         createPool(config) {
-          if (!config.database) {
-            return adminPool;
-          }
-          return mainPool;
+          return config.database ? mainPool : adminPool;
         },
       };
+      const mockFs = {
+        readdirSync: () => files,
+        readFileSync: (filePath) => {
+          const name = require('path').basename(filePath);
+          return fileContents[name] || `-- migration ${name}`;
+        },
+      };
+      return { mockMysql, mockFs, conn: _conn };
+    }
 
+    function withEnv(env, fn) {
       const originalReq = Module.prototype.require;
       Module.prototype.require = function (id) {
-        if (id === 'mysql2/promise') return mockMysql;
-        if (id === 'fs') {
-          return {
-            readFileSync(filePath, encoding) {
-              strictEqual(encoding, 'utf8');
-              ok(
-                filePath.endsWith('schema.sql') || filePath.includes('sql'),
-                'should read schema.sql'
-              );
-              return schemaContent;
-            },
-          };
-        }
+        if (id === 'mysql2/promise') return env.mockMysql;
+        if (id === 'fs') return env.mockFs;
         return originalReq.apply(this, arguments);
       };
-
       delete require.cache[dbPathResolved];
       const dbFresh = require(dbPath);
-      await dbFresh.initializeSchema();
+      return fn(dbFresh).finally(() => {
+        Module.prototype.require = originalReq;
+        delete require.cache[dbPathResolved];
+        require(dbPath);
+      });
+    }
 
-      strictEqual(adminQueryCalls.length, 1);
-      ok(
-        adminQueryCalls[0].includes('CREATE DATABASE') &&
-          adminQueryCalls[0].includes('IF NOT EXISTS'),
-        'ensureDatabaseExists should run CREATE DATABASE IF NOT EXISTS'
-      );
-      const config = dbFresh.getConfig();
-      ok(adminQueryCalls[0].includes(config.database), 'should use config.database name');
+    it('first run: applies all migration files in order and records them', async () => {
+      const env = makeEnv({
+        files: ['001_initial.sql', '002_add_table.sql'],
+        appliedRows: [],
+      });
+      await withEnv(env, async (dbFresh) => {
+        await dbFresh.runMigrations();
+        const insertCalls = env.conn._executeCalls.filter(
+          (c) => c.sql.includes('INSERT INTO schema_migrations') && c.params
+        );
+        deepStrictEqual(
+          insertCalls.map((c) => c.params[0]),
+          ['001_initial.sql', '002_add_table.sql']
+        );
+        strictEqual(env.conn._queryCalls.length, 2);
+      });
+    });
 
-      strictEqual(mainQueryCalls.length, 1);
-      strictEqual(mainQueryCalls[0], schemaContent);
+    it('subsequent run: skips already-applied migrations', async () => {
+      const env = makeEnv({
+        files: ['001_initial.sql', '002_add_table.sql'],
+        appliedRows: [{ filename: '001_initial.sql' }, { filename: '002_add_table.sql' }],
+      });
+      await withEnv(env, async (dbFresh) => {
+        await dbFresh.runMigrations();
+        const insertCalls = env.conn._executeCalls.filter(
+          (c) => c.sql.includes('INSERT INTO schema_migrations') && c.params
+        );
+        strictEqual(insertCalls.length, 0);
+        strictEqual(env.conn._queryCalls.length, 0);
+      });
+    });
 
-      Module.prototype.require = originalReq;
-      delete require.cache[dbPathResolved];
-      require(dbPath);
+    it('new migration: only runs unapplied file', async () => {
+      const env = makeEnv({
+        files: ['001_initial.sql', '002_new.sql'],
+        appliedRows: [{ filename: '001_initial.sql' }],
+      });
+      await withEnv(env, async (dbFresh) => {
+        await dbFresh.runMigrations();
+        const insertCalls = env.conn._executeCalls.filter(
+          (c) => c.sql.includes('INSERT INTO schema_migrations') && c.params
+        );
+        deepStrictEqual(
+          insertCalls.map((c) => c.params[0]),
+          ['002_new.sql']
+        );
+        strictEqual(env.conn._queryCalls.length, 1);
+      });
+    });
+
+    it('GET_LOCK returns 0: throws and does not run migrations', async () => {
+      const env = makeEnv({ files: ['001_initial.sql'], lockResult: 0 });
+      await withEnv(env, async (dbFresh) => {
+        await require('node:assert').rejects(
+          () => dbFresh.runMigrations(),
+          (err) => err.message.includes('migration lock')
+        );
+        const insertCalls = env.conn._executeCalls.filter(
+          (c) => c.sql.includes('INSERT INTO schema_migrations') && c.params
+        );
+        strictEqual(insertCalls.length, 0);
+      });
+    });
+
+    it('failed migration SQL: rolls back and error propagates, migration not recorded', async () => {
+      const rollbackCalls = [];
+      const conn = makeConn({ appliedRows: [] });
+      conn.query = async () => {
+        throw new Error('syntax error');
+      };
+      conn.rollback = async () => rollbackCalls.push(1);
+
+      const env = makeEnv({ files: ['001_bad.sql'], conn });
+      await withEnv(env, async (dbFresh) => {
+        await require('node:assert').rejects(
+          () => dbFresh.runMigrations(),
+          (err) => err.message === 'syntax error'
+        );
+        strictEqual(rollbackCalls.length, 1);
+        const insertCalls = env.conn._executeCalls.filter(
+          (c) => c.sql.includes('INSERT INTO schema_migrations') && c.params
+        );
+        strictEqual(insertCalls.length, 0);
+      });
     });
   });
 
