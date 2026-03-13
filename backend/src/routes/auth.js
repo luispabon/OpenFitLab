@@ -31,7 +31,7 @@ router.get('/google', (req, res, next) => {
 router.get(
   '/google/callback',
   (req, res, next) => {
-    if (!isEnabled('google')) return res.status(404).end();
+    if (!isEnabled('google')) return res.status(404).json({ error: 'Not found' });
     passport.authenticate('google', {
       failureRedirect: '/#/login?error=google',
       session: false,
@@ -87,7 +87,7 @@ router.get('/github', (req, res, next) => {
 router.get(
   '/github/callback',
   (req, res, next) => {
-    if (!isEnabled('github')) return res.status(404).end();
+    if (!isEnabled('github')) return res.status(404).json({ error: 'Not found' });
     passport.authenticate('github', {
       failureRedirect: '/#/login?error=github',
       session: false,
@@ -144,7 +144,7 @@ router.post(
   '/apple/callback',
   express.urlencoded({ extended: true }),
   (req, res, next) => {
-    if (!isEnabled('apple')) return res.status(404).end();
+    if (!isEnabled('apple')) return res.status(404).json({ error: 'Not found' });
     passport.authenticate('apple', {
       failureRedirect: '/#/login?error=apple',
       session: false,
@@ -200,7 +200,7 @@ router.get('/facebook', (req, res, next) => {
 router.get(
   '/facebook/callback',
   (req, res, next) => {
-    if (!isEnabled('facebook')) return res.status(404).end();
+    if (!isEnabled('facebook')) return res.status(404).json({ error: 'Not found' });
     passport.authenticate('facebook', {
       failureRedirect: '/#/login?error=facebook',
       session: false,
