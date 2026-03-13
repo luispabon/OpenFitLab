@@ -227,4 +227,4 @@ Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to
 
 ## Key Architectural Decisions
 
-Key decisions (file parsing on backend, relational stats storage, timestamped stream data, no migrations, self-hosted deployment) are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Key decisions (file parsing on backend, relational stats storage, timestamped stream data, lightweight migration runner, self-hosted deployment) are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

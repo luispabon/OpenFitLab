@@ -1,12 +1,9 @@
--- OpenFitLab database schema — REFERENCE SNAPSHOT ONLY
---
--- This file is a human-readable snapshot of the schema. It is NOT applied on startup.
--- The source of truth is backend/sql/migrations/. New schema changes must be added as a
--- new migration file (e.g. 002_description.sql) — never edit existing migration files.
+-- OpenFitLab database schema
 --
 -- Tables: users, user_identities, folders, events, event_stats, activities, activity_stats,
 --         streams, stream_data_points, comparisons, comparison_event_activities
--- Sessions are stored in Valkey (not in DB).
+-- Sessions are stored in Valkey (not in DB). Applied on API startup via db.initializeSchema().
+-- No migrations; schema changes require DB recreate.
 -- Foreign keys with ON DELETE CASCADE so deleting a user or event removes all related rows.
 
 CREATE TABLE IF NOT EXISTS users (
