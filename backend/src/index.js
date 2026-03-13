@@ -22,7 +22,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline for dev if needed
+        scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind needs inline styles
         imgSrc: ["'self'", 'data:', 'https:'], // OAuth avatars
         connectSrc: ["'self'"],
@@ -90,6 +90,11 @@ async function start() {
   app.use('/api/folders', requireAuth, foldersRouter);
   app.use('/api/account', requireAuth, accountRouter);
   app.use('/api', requireAuth, metaRouter);
+
+  // Catch-all: return JSON 404 for any unmatched route
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
 
   // Central error handler for async routes
   const { errorHandler } = require('./middleware/error-handler');
