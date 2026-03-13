@@ -18,8 +18,7 @@ COPY crontab /crontab
 
 RUN chmod +x /entrypoint.sh /backup.sh /restore.sh \
     && mkdir -p /restores /var/cache/restic \
-    && touch /var/log/backup.log \
-    && chown backup:backup /restores /var/cache/restic /var/log/backup.log
+    && chown backup:backup /restores /var/cache/restic
 
 USER backup
 ENTRYPOINT ["/entrypoint.sh"]
