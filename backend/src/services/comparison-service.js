@@ -78,6 +78,10 @@ async function getComparisons(limit = 100, opts = {}) {
     const eventFolderIds = folderIdsByComparison[row.id];
     const mixed = eventFolderIds ? eventFolderIds.size > 1 : false;
     const surfaced = Boolean(folderId && row.folder_id !== folderId);
+    const referenceActivityStartDate =
+      row.reference_activity_start_date != null
+        ? Number(row.reference_activity_start_date)
+        : undefined;
     return {
       id: row.id,
       name: row.name,
@@ -88,6 +92,7 @@ async function getComparisons(limit = 100, opts = {}) {
       mixed,
       surfaced,
       createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+      referenceActivityStartDate,
     };
   });
 }
@@ -109,6 +114,10 @@ async function getComparisonById(id, opts = {}) {
   );
   const eventFolderIds = folderIdsByComparison[id];
   const mixed = eventFolderIds ? eventFolderIds.size > 1 : false;
+  const referenceActivityStartDate =
+    row.reference_activity_start_date != null
+      ? Number(row.reference_activity_start_date)
+      : undefined;
   return {
     id: row.id,
     name: row.name,
@@ -118,6 +127,7 @@ async function getComparisonById(id, opts = {}) {
     folderId: row.folder_id ?? null,
     mixed,
     createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+    referenceActivityStartDate,
   };
 }
 

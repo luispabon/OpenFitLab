@@ -287,6 +287,12 @@
               scope="col"
               class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
             >
+              Activity Date
+            </th>
+            <th
+              scope="col"
+              class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
+            >
               Created
             </th>
             <th scope="col" class="relative px-6 py-3">
@@ -360,6 +366,9 @@
                     {getFolderLabel(comparison)}
                   </button>
                 {/if}
+              </td>
+              <td class="px-6 py-4 text-text-secondary">
+                {formatDate(comparison.referenceActivityStartDate)}
               </td>
               <td class="px-6 py-4 text-text-secondary">{formatDate(comparison.createdAt)}</td>
               <td class="whitespace-nowrap px-6 py-4 text-right font-medium">

@@ -120,4 +120,6 @@ export interface Comparison {
   mixed?: boolean;
   /** True when comparison is shown in a folder view because it references an event in that folder (home folder may differ). */
   surfaced?: boolean;
+  /** Start date (ms) of the reference device activity. */
+  referenceActivityStartDate?: number;
 }

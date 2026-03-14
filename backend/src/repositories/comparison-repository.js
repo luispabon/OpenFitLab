@@ -1,5 +1,18 @@
 const { runQuery, placeholders } = require('./query-helper');
 
+/** Resolve reference activity ID from comparison row (settings + activity_ids). */
+function getReferenceActivityId(row) {
+  const activityIds = row.activity_ids || [];
+  if (activityIds.length === 0) return null;
+  let refId = null;
+  if (row.settings != null) {
+    const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings;
+    refId = settings?.referenceActivityId ?? null;
+  }
+  if (refId && activityIds.includes(refId)) return refId;
+  return activityIds[0];
+}
+
 async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');
   const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
@@ -73,11 +86,33 @@ async function findAll(limit, opts = {}) {
     activityIdsByComparison[link.comparison_id].push(link.activity_id);
   }
 
-  return comparisons.map((row) => ({
-    ...row,
-    event_ids: eventIdsByComparison[row.id] || [],
-    activity_ids: activityIdsByComparison[row.id] || [],
-  }));
+  const allActivityIds = [...new Set(Object.values(activityIdsByComparison).flat())];
+  let startDateByActivityId = {};
+  if (allActivityIds.length > 0) {
+    const activityRows = await runQuery(
+      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(allActivityIds.length)})`,
+      allActivityIds,
+      opts
+    );
+    const arr = Array.isArray(activityRows) ? activityRows : [];
+    startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
+  }
+
+  return comparisons.map((row) => {
+    const activityIds = activityIdsByComparison[row.id] || [];
+    const rowWithIds = {
+      ...row,
+      event_ids: eventIdsByComparison[row.id] || [],
+      activity_ids: activityIds,
+    };
+    const refActivityId = getReferenceActivityId(rowWithIds);
+    const reference_activity_start_date =
+      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
+    return {
+      ...rowWithIds,
+      reference_activity_start_date,
+    };
+  });
 }
 
 /**
@@ -128,11 +163,33 @@ async function findAllForFolder(folderId, limit, opts = {}) {
     activityIdsByComparison[link.comparison_id].push(link.activity_id);
   }
 
-  return comparisons.map((row) => ({
-    ...row,
-    event_ids: eventIdsByComparison[row.id] || [],
-    activity_ids: activityIdsByComparison[row.id] || [],
-  }));
+  const allActivityIds = [...new Set(Object.values(activityIdsByComparison).flat())];
+  let startDateByActivityId = {};
+  if (allActivityIds.length > 0) {
+    const activityRows = await runQuery(
+      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(allActivityIds.length)})`,
+      allActivityIds,
+      opts
+    );
+    const arr = Array.isArray(activityRows) ? activityRows : [];
+    startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
+  }
+
+  return comparisons.map((row) => {
+    const activityIds = activityIdsByComparison[row.id] || [];
+    const rowWithIds = {
+      ...row,
+      event_ids: eventIdsByComparison[row.id] || [],
+      activity_ids: activityIds,
+    };
+    const refActivityId = getReferenceActivityId(rowWithIds);
+    const reference_activity_start_date =
+      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
+    return {
+      ...rowWithIds,
+      reference_activity_start_date,
+    };
+  });
 }
 
 async function findById(id, opts = {}) {
@@ -156,6 +213,21 @@ async function findById(id, opts = {}) {
   } else {
     row.event_ids = [];
     row.activity_ids = [];
+  }
+  const activityIds = row.activity_ids || [];
+  if (activityIds.length > 0) {
+    const activityRows = await runQuery(
+      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
+      activityIds,
+      opts
+    );
+    const arr = Array.isArray(activityRows) ? activityRows : [];
+    const startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
+    const refActivityId = getReferenceActivityId(row);
+    row.reference_activity_start_date =
+      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
+  } else {
+    row.reference_activity_start_date = null;
   }
   return row;
 }
