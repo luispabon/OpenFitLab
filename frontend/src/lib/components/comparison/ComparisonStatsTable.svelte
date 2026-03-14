@@ -17,6 +17,8 @@
     ) => { absolute: number; percent: number } | null;
     onHideStat?: (statType: string) => void;
     referenceEventId?: string;
+    /** When set, each event column header shows a link to view the original event. */
+    onNavigateToEvent?: (eventId: string) => void;
   }
   let {
     events,
@@ -27,6 +29,7 @@
     calculateDelta,
     onHideStat,
     referenceEventId,
+    onNavigateToEvent,
   }: Props = $props();
 
   // Index of the reference event in the events array
@@ -87,15 +90,28 @@
               class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary"
               style="border-left: 2px solid {color};"
             >
-              {activity
-                ? getActivityDeviceName(activity)
-                : eventDetail.event.name || `Event ${originalIndex + 1}`}
-              {#if isRef}
-                <span
-                  class="ml-1 rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                  style="background-color: #ef444426; color: #ef4444;">Ref</span
-                >
-              {/if}
+              <span class="inline-flex items-center gap-1">
+                {activity
+                  ? getActivityDeviceName(activity)
+                  : eventDetail.event.name || `Event ${originalIndex + 1}`}
+                {#if onNavigateToEvent}
+                  <button
+                    type="button"
+                    class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                    title="View original event"
+                    aria-label="View original event"
+                    onclick={() => onNavigateToEvent(eventId)}
+                  >
+                    <span class="material-icons text-sm" aria-hidden="true">open_in_new</span>
+                  </button>
+                {/if}
+                {#if isRef}
+                  <span
+                    class="rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                    style="background-color: #ef444426; color: #ef4444;">Ref</span
+                  >
+                {/if}
+              </span>
             </th>
             {#if showDeltas && !isRef}
               <th
