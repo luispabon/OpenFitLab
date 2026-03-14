@@ -44,7 +44,7 @@ function buildActivityRecord(activityJson, aid, eventId) {
     name: activityJson.name != null ? String(activityJson.name) : null,
     start_date: toTimestamp(activityJson.startDate, null),
     end_date: toTimestamp(activityJson.endDate, null),
-    type: activityJson.type != null ? String(activityJson.type) : null,
+    type: activityJson.type != null ? String(activityJson.type) : 'Other',
     device_name:
       activityJson.creator &&
       typeof activityJson.creator === 'object' &&
