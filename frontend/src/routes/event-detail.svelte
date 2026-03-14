@@ -29,11 +29,14 @@
   import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte';
   import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte';
   import PowerCurveChart from '../lib/components/event-detail/PowerCurveChart.svelte';
+  import ExportButton from '../lib/components/ExportButton.svelte';
+  import { exportAsPng } from '../lib/utils/export-image';
   import { buildFolderHash } from '../lib/stores/folders.svelte';
 
   const id = $derived(params?.id ?? '');
 
   let backFolderId = $state<string | null>(null);
+  let powerCurveSectionEl = $state<HTMLElement | null>(null);
 
   $effect(() => {
     if (query?.back?.trim()) {
@@ -602,12 +605,18 @@
 
     {#if powerCurveSeries.length > 0}
       <div
+        bind:this={powerCurveSectionEl}
         class="mt-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
       >
-        <h3 class="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
-          <span class="material-icons text-xl text-text-muted">bolt</span>
-          Power Curve
-        </h3>
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-base font-semibold text-text-primary">Power Curve</h3>
+          {#if powerCurveSectionEl}
+            <ExportButton
+              onExport={() => exportAsPng(powerCurveSectionEl!, 'power-curve')}
+              title="Export chart as PNG"
+            />
+          {/if}
+        </div>
         <PowerCurveChart series={powerCurveSeries} maxDuration={powerCurveMaxDuration} />
       </div>
     {/if}

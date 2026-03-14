@@ -287,6 +287,7 @@
         class="absolute right-2 top-2 z-10 rounded border border-border bg-card px-2 py-1 text-xs text-text-primary opacity-75 transition-opacity hover:opacity-100"
         onclick={resetZoom}
         style="display: {isZoomed ? 'block' : 'none'};"
+        data-export-exclude
       >
         Reset Zoom
       </button>
