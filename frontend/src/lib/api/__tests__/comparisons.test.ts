@@ -353,9 +353,7 @@ describe('updateComparisonName', () => {
       vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
     );
 
-    await expect(updateComparisonName('missing', 'Name')).rejects.toThrow(
-      'Comparison not found'
-    );
+    await expect(updateComparisonName('missing', 'Name')).rejects.toThrow('Comparison not found');
   });
 
   it('throws on other non-ok response', async () => {
