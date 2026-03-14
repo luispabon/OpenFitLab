@@ -249,6 +249,16 @@ async function updateSettings(id, settings, opts = {}) {
   return result && result.affectedRows === 1;
 }
 
+async function updateName(id, name, opts = {}) {
+  if (!opts.userId) throw new Error('updateName comparison requires opts.userId');
+  const result = await runQuery(
+    'UPDATE comparisons SET name = ? WHERE id = ? AND user_id = ?',
+    [name, id, opts.userId],
+    opts
+  );
+  return result && result.affectedRows === 1;
+}
+
 module.exports = {
   create,
   findAll,
@@ -263,4 +273,5 @@ module.exports = {
   getEventFolderIdsForComparisons,
   updateFolderId,
   updateSettings,
+  updateName,
 };

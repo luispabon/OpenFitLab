@@ -9,6 +9,7 @@ const {
   deleteComparisonById,
   updateComparisonFolder,
   updateComparisonSettings,
+  updateComparisonName,
 } = require('../../../src/services/comparison-service');
 const { makeFakeDb } = require('../../helpers/fake-db');
 
@@ -345,6 +346,64 @@ describe('comparison-service', () => {
       await assert.rejects(
         async () => updateComparisonSettings('c1', {}, { db }),
         /updateComparisonSettings requires opts\.userId/
+      );
+    });
+  });
+
+  describe('updateComparisonName', () => {
+    it('returns false when comparison not found', async () => {
+      const db = {
+        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
+      };
+      const result = await updateComparisonName('missing', 'New Name', { db, userId: 'u1' });
+      strictEqual(result, false);
+    });
+
+    it('returns true and updates name when found', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
+          if (sql.includes('UPDATE comparisons SET name')) {
+            strictEqual(params[0], 'New Name');
+            strictEqual(params[1], 'c1');
+            strictEqual(params[2], 'u1');
+            return { affectedRows: 1 };
+          }
+          return [];
+        },
+      };
+      const result = await updateComparisonName('c1', 'New Name', { db, userId: 'u1' });
+      strictEqual(result, true);
+      strictEqual(
+        calls.some((c) => c.sql.includes('UPDATE comparisons SET name')),
+        true
+      );
+    });
+
+    it('trims the name before saving', async () => {
+      const calls = [];
+      const db = {
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
+          if (sql.includes('UPDATE comparisons SET name')) {
+            strictEqual(params[0], 'Trimmed Name');
+            return { affectedRows: 1 };
+          }
+          return [];
+        },
+      };
+      const result = await updateComparisonName('c1', '  Trimmed Name  ', { db, userId: 'u1' });
+      strictEqual(result, true);
+    });
+
+    it('throws when userId is not provided', async () => {
+      const db = { query: async () => [{ id: 'c1' }] };
+      await assert.rejects(
+        async () => updateComparisonName('c1', 'Name', { db }),
+        /updateComparisonName requires opts\.userId/
       );
     });
   });

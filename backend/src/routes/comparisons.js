@@ -7,6 +7,7 @@ const {
   deleteComparisonById,
   updateComparisonFolder,
   updateComparisonSettings,
+  updateComparisonName,
 } = require('../services/comparison-service');
 const {
   validateComparisonId,
@@ -14,6 +15,7 @@ const {
   validateComparisonByEventsBody,
   validateComparisonFolderUpdateBody,
   validateComparisonSettingsBody,
+  validateComparisonNameUpdateBody,
 } = require('../utils/validation');
 const { asyncHandler } = require('../middleware/async-handler');
 const { NotFoundError } = require('../errors');
@@ -77,6 +79,21 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { folderId } = req.body;
     const updated = await updateComparisonFolder(req.params.id, folderId ?? null, {
+      userId: req.userId,
+    });
+    if (!updated) throw new NotFoundError('Comparison not found');
+    res.status(204).send();
+  })
+);
+
+// PATCH /api/comparisons/:id/name
+router.patch(
+  '/:id/name',
+  validateComparisonId,
+  validateComparisonNameUpdateBody,
+  asyncHandler(async (req, res) => {
+    const { name } = req.body;
+    const updated = await updateComparisonName(req.params.id, name.trim(), {
       userId: req.userId,
     });
     if (!updated) throw new NotFoundError('Comparison not found');

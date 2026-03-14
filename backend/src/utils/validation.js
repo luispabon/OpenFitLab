@@ -331,6 +331,23 @@ function validateComparisonSettingsBody(req, res, next) {
 }
 
 /**
+ * Validates comparison name update body (PATCH /api/comparisons/:id/name)
+ */
+function validateComparisonNameUpdateBody(req, res, next) {
+  const { name } = req.body || {};
+  if (name === undefined || name === null) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+  if (typeof name !== 'string') {
+    return res.status(400).json({ error: 'name must be a string' });
+  }
+  if (name.trim().length === 0) {
+    return res.status(400).json({ error: 'name must not be empty' });
+  }
+  next();
+}
+
+/**
  * Validates folder delete query (contents=unfile|delete)
  */
 function validateFolderDeleteQuery(req, res, next) {
@@ -353,6 +370,7 @@ module.exports = {
   validateComparisonByEventsBody,
   validateComparisonFolderUpdateBody,
   validateComparisonSettingsBody,
+  validateComparisonNameUpdateBody,
   validateExportQuery,
   validateFolderId,
   validateFolderCreateBody,

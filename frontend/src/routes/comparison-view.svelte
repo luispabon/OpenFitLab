@@ -6,7 +6,12 @@
   let { params = {}, query = {} }: Props = $props();
 
   import { push, replace, location } from 'svelte-spa-router';
-  import { createComparison, deleteComparison, updateComparisonSettings } from '../lib/api';
+  import {
+    createComparison,
+    deleteComparison,
+    updateComparisonName,
+    updateComparisonSettings,
+  } from '../lib/api';
   import type { StreamData, ComparisonSettings, Folder } from '../lib/types';
   import {
     isChartableStream,
@@ -108,6 +113,14 @@
   let isDeleting = $state(false);
   let saveError = $state<string | null>(null);
   let deleteError = $state<string | null>(null);
+
+  // Inline name editing (saved comparisons only)
+  let isEditingName = $state(false);
+  let editNameValue = $state('');
+  let isSavingName = $state(false);
+  let nameSaveError = $state<string | null>(null);
+  let nameInputEl = $state<HTMLInputElement | null>(null);
+  let nameEditorRoot = $state<HTMLDivElement | null>(null);
 
   const eventIds = $derived.by(() => {
     if (comparisonId && comparisonId !== 'new' && loaderState.comparison) {
@@ -297,24 +310,43 @@
     }
   }
 
-  // Generate auto name for comparison
+  // Generate auto name for comparison (e.g. "Walking / Pixel Watch 2 vs Kospet Pulse")
   function generateComparisonName(): string {
-    if (events.length === 2) {
-      const device1 = (() => {
-        const eventId = events[0].event.id;
-        const activityId = selectedActivities[eventId];
-        const activity = events[0].activities.find((a) => a.id === activityId);
-        return activity ? getActivityDeviceName(activity) : null;
-      })();
-      const device2 = (() => {
-        const eventId = events[1].event.id;
-        const activityId = selectedActivities[eventId];
-        const activity = events[1].activities.find((a) => a.id === activityId);
-        return activity ? getActivityDeviceName(activity) : null;
-      })();
-      return `${device1 || events[0].event.name || 'Event 1'} vs ${device2 || events[1].event.name || 'Event 2'}`;
+    function getActivityTypeForEvent(index: number): string | null {
+      const eventDetail = events[index];
+      const eventId = eventDetail.event.id;
+      const activityId = selectedActivities[eventId];
+      const activity = eventDetail.activities.find((a) => a.id === activityId);
+      const t = activity?.type?.trim();
+      const lower = t?.toLowerCase();
+      return t && lower !== 'unknown' && lower !== 'other' ? t : null;
     }
-    return `${events.length} Events Comparison`;
+
+    const devicePart =
+      events.length === 2
+        ? (() => {
+            const device1 = (() => {
+              const eventId = events[0].event.id;
+              const activityId = selectedActivities[eventId];
+              const activity = events[0].activities.find((a) => a.id === activityId);
+              return activity ? getActivityDeviceName(activity) : null;
+            })();
+            const device2 = (() => {
+              const eventId = events[1].event.id;
+              const activityId = selectedActivities[eventId];
+              const activity = events[1].activities.find((a) => a.id === activityId);
+              return activity ? getActivityDeviceName(activity) : null;
+            })();
+            return `${device1 || events[0].event.name || 'Event 1'} vs ${device2 || events[1].event.name || 'Event 2'}`;
+          })()
+        : `${events.length} Events Comparison`;
+
+    const activityType =
+      events.length >= 1
+        ? (getActivityTypeForEvent(0) ?? getActivityTypeForEvent(1) ?? null)
+        : null;
+    const prefix = activityType ? `${activityType} / ` : '';
+    return prefix + devicePart;
   }
 
   async function handleSave() {
@@ -367,6 +399,60 @@
       isDeleting = false;
     }
   }
+
+  function openNameEditor() {
+    if (savedComparison) {
+      nameSaveError = null;
+      editNameValue = savedComparison.name;
+      isEditingName = true;
+    }
+  }
+
+  function closeNameEditor() {
+    isEditingName = false;
+    nameSaveError = null;
+  }
+
+  async function commitNameUpdate() {
+    const comp = savedComparison;
+    const trimmed = editNameValue.trim();
+    if (!comp || !trimmed) {
+      closeNameEditor();
+      return;
+    }
+    isSavingName = true;
+    nameSaveError = null;
+    try {
+      await updateComparisonName(comp.id, trimmed);
+      setComparison({ ...comp, name: trimmed });
+      closeNameEditor();
+    } catch (e) {
+      nameSaveError = e instanceof Error ? e.message : 'Failed to update name';
+    } finally {
+      isSavingName = false;
+    }
+  }
+
+  function handleNameClickOutside(e: MouseEvent) {
+    const target = e.target as Node;
+    if (nameEditorRoot && !nameEditorRoot.contains(target)) {
+      closeNameEditor();
+    }
+  }
+
+  $effect(() => {
+    if (!isEditingName) return;
+    const handler = handleNameClickOutside;
+    window.addEventListener('click', handler, true);
+    return () => window.removeEventListener('click', handler, true);
+  });
+
+  $effect(() => {
+    if (isEditingName && nameInputEl) {
+      nameInputEl.focus();
+      nameInputEl.select();
+    }
+  });
 
   // Routes for the comparison map: one per event with location streams, colored by EVENT_COLORS
   const comparisonRoutes = $derived.by(() => {
@@ -456,9 +542,45 @@
     <!-- Header -->
     <div class="mb-6 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-semibold text-text-primary">
-          {savedComparison?.name || 'Event Comparison'}
-        </h1>
+        <div class="name-editor-root" bind:this={nameEditorRoot}>
+          {#if isEditingName && savedComparison}
+            <div class="flex flex-col gap-1">
+              <input
+                bind:this={nameInputEl}
+                type="text"
+                bind:value={editNameValue}
+                class="min-w-[20rem] rounded-lg border border-border bg-surface px-3 py-2 text-2xl font-semibold text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                placeholder="Comparison name"
+                disabled={isSavingName}
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') commitNameUpdate();
+                  if (e.key === 'Escape') closeNameEditor();
+                }}
+              />
+              {#if nameSaveError}
+                <p class="text-sm text-danger" role="alert">{nameSaveError}</p>
+              {/if}
+            </div>
+          {:else if savedComparison}
+            <button
+              type="button"
+              class="group inline-flex items-center gap-1 rounded px-0.5 py-0.5 text-left text-2xl font-semibold text-text-primary hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+              onclick={openNameEditor}
+            >
+              <span>{savedComparison.name}</span>
+              <span
+                class="material-icons text-xl text-text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                aria-hidden="true"
+              >
+                edit
+              </span>
+            </button>
+          {:else}
+            <h1 class="text-2xl font-semibold text-text-primary">
+              {generateComparisonName()}
+            </h1>
+          {/if}
+        </div>
         {#if savedComparison}
           <p class="mt-1 text-sm text-text-secondary">
             Saved {savedComparison.createdAt

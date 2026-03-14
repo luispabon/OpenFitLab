@@ -7,6 +7,7 @@ import {
   createComparison,
   deleteComparison,
   updateComparisonSettings,
+  updateComparisonName,
 } from '../comparisons';
 import {
   comparisonFixture,
@@ -325,6 +326,44 @@ describe('updateComparisonSettings', () => {
 
     await expect(updateComparisonSettings('cmp-1', {})).rejects.toThrow(
       /Failed to update comparison settings/
+    );
+  });
+});
+
+describe('updateComparisonName', () => {
+  it('sends PATCH to /api/comparisons/:id/name with name body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal('fetch', mockFetch);
+
+    await updateComparisonName('cmp-1', 'New Name');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/comparisons/cmp-1/name',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'New Name' }),
+        credentials: 'include',
+      })
+    );
+  });
+
+  it('throws "Comparison not found" on 404', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+    );
+
+    await expect(updateComparisonName('missing', 'Name')).rejects.toThrow('Comparison not found');
+  });
+
+  it('throws on other non-ok response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Server Error' })
+    );
+
+    await expect(updateComparisonName('cmp-1', 'Name')).rejects.toThrow(
+      /Failed to update comparison name/
     );
   });
 });

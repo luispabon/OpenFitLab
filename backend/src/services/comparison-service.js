@@ -190,6 +190,25 @@ async function updateComparisonSettings(id, settings, opts = {}) {
   return settings;
 }
 
+/**
+ * Update a comparison's name.
+ * @param {string} id
+ * @param {string} name
+ * @param {{ db?: object }} [opts]
+ * @returns {Promise<boolean>} true if updated, false if not found
+ */
+async function updateComparisonName(id, name, opts = {}) {
+  if (!opts.userId) throw new Error('updateComparisonName requires opts.userId');
+  const db = opts.db ?? defaultDb;
+  const repoOpts = { ...opts, db };
+
+  const existing = await comparisonRepository.existsById(id, repoOpts);
+  if (!existing) return false;
+
+  const trimmedName = name.trim();
+  return await comparisonRepository.updateName(id, trimmedName, repoOpts);
+}
+
 module.exports = {
   createComparison,
   getComparisons,
@@ -198,4 +217,5 @@ module.exports = {
   deleteComparisonById,
   updateComparisonFolder,
   updateComparisonSettings,
+  updateComparisonName,
 };
