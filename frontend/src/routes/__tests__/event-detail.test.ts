@@ -86,7 +86,7 @@ describe('EventDetail', () => {
     expect(screen.getByText(/1:00:00/)).toBeInTheDocument();
   });
 
-  it('Back to Workouts button calls push("/")', async () => {
+  it('Back to Workouts button calls push("/") when no back param', async () => {
     mockGetEvent.mockResolvedValue(eventDetailFixture);
     render(EventDetail, { props: { params: { id: 'evt-1' } } });
     await waitFor(() => {
@@ -94,6 +94,28 @@ describe('EventDetail', () => {
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('Back to Workouts button restores folder when back param is set via query prop', async () => {
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    render(EventDetail, { props: { params: { id: 'evt-1' }, query: { back: 'folder-123' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
+    expect(mockPush).toHaveBeenCalledWith('#/?folder=folder-123');
+  });
+
+  it('Back to Workouts button restores folder when back param is in window.location.hash', async () => {
+    vi.stubGlobal('location', { hash: '#/event/evt-1?back=folder-123' });
+    mockGetEvent.mockResolvedValue(eventDetailFixture);
+    render(EventDetail, { props: { params: { id: 'evt-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
+    expect(mockPush).toHaveBeenCalledWith('#/?folder=folder-123');
+    vi.unstubAllGlobals();
   });
 
   it('when id is missing shows Event not found', () => {

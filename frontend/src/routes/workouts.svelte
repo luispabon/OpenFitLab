@@ -248,6 +248,11 @@
     }
   }
 
+  function eventPath(id: string): string {
+    const back = activeFolderId !== 'all' ? `?back=${encodeURIComponent(activeFolderId)}` : '';
+    return `/event/${id}${back}`;
+  }
+
   function handleDeleteClick(eventId: string, event: MouseEvent) {
     event.stopPropagation();
     eventToDelete = eventId;
@@ -451,11 +456,11 @@
         {formatCaloriesCell}
         {formatDistanceCell}
         onSelectAllChange={toggleSelectAll}
-        onRowClick={(id) => push(`/event/${id}`)}
+        onRowClick={(id) => push(eventPath(id))}
         onToggleEventSelection={toggleEventSelection}
         onViewClick={(id, e) => {
           e.stopPropagation();
-          push(`/event/${id}`);
+          push(eventPath(id));
         }}
         onFindComparisonsClick={(id) => compareCandidatesFlow?.openForEvent(id)}
         onMoveClick={(id, e) => {
