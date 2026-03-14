@@ -429,6 +429,41 @@ describe('ComparisonView', () => {
     expect(nameInput).toHaveValue('running / Garmin Forerunner 945 vs Wahoo Elemnt');
   });
 
+  it('Reference Device section shows "View original event" links that navigate with back param', async () => {
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText('running / Garmin Forerunner 945 vs Wahoo Elemnt')
+      ).toBeInTheDocument();
+    });
+    const viewEventButtons = screen.getAllByRole('button', {
+      name: 'View original event',
+    });
+    expect(viewEventButtons.length).toBeGreaterThanOrEqual(2);
+    await fireEvent.click(viewEventButtons[0]);
+    expect(mockPush).toHaveBeenCalledWith(
+      '/event/evt-1?back=' + encodeURIComponent('/compare/new?events=evt-1,evt-2')
+    );
+  });
+
+  it('saved comparison event link includes back path to comparison', async () => {
+    mockGetComparison.mockResolvedValue(comparisonFixture);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+    });
+    const viewEventButtons = screen.getAllByRole('button', {
+      name: 'View original event',
+    });
+    expect(viewEventButtons.length).toBeGreaterThanOrEqual(2);
+    await fireEvent.click(viewEventButtons[0]);
+    expect(mockPush).toHaveBeenCalledWith(
+      '/event/evt-1?back=' + encodeURIComponent('/compare/cmp-1')
+    );
+  });
+
   it('when first device activity is "Other", uses second device activity type for name prefix', async () => {
     const evt1Other = {
       ...eventDetailFixture,

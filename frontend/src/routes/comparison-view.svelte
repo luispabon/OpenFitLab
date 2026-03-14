@@ -156,6 +156,15 @@
 
   // Reference activity / event ID derived from loader state
   const referenceActivityId = $derived(loaderState.referenceActivityId);
+  // Back path for event links: return to this comparison when user clicks Back on event detail
+  const comparisonBackPath = $derived(
+    savedComparison
+      ? `/compare/${savedComparison.id}`
+      : eventIds.length > 0
+        ? `/compare/new?events=${eventIds.join(',')}`
+        : '/compare/new'
+  );
+
   const referenceEventId = $derived.by(() => {
     const refActId = referenceActivityId;
     if (!refActId) {
@@ -680,23 +689,39 @@
             : eventDetail.event.name || `Event ${i + 1}`}
           {@const isRef = referenceEventId === eventId}
           {@const color = EVENT_COLORS[i % EVENT_COLORS.length]}
-          <button
-            type="button"
+          <div
             class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors {isRef
               ? 'text-text-primary'
-              : 'border-border bg-transparent text-text-secondary hover:bg-card-hover'}"
+              : 'border-border bg-transparent text-text-secondary'}"
             style={isRef ? `background-color: ${color}20; border-color: ${color}80` : ''}
-            onclick={() => activityId && handleReferenceChange(activityId)}
           >
-            <span class="h-2 w-2 rounded-full" style="background-color: {color};"></span>
-            {deviceName}
-            {#if isRef}
-              <span
-                class="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
-                >Ref</span
-              >
-            {/if}
-          </button>
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-full -m-1.5 p-1.5 text-inherit hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent {!isRef
+                ? 'hover:bg-card-hover'
+                : ''}"
+              onclick={() => activityId && handleReferenceChange(activityId)}
+            >
+              <span class="h-2 w-2 rounded-full" style="background-color: {color};"></span>
+              {deviceName}
+              {#if isRef}
+                <span
+                  class="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+                  >Ref</span
+                >
+              {/if}
+            </button>
+            <button
+              type="button"
+              class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+              title="View original event"
+              aria-label="View original event"
+              onclick={() =>
+                push(`/event/${eventId}?back=${encodeURIComponent(comparisonBackPath)}`)}
+            >
+              <span class="material-icons text-sm" aria-hidden="true">open_in_new</span>
+            </button>
+          </div>
         {/each}
       </div>
     </div>
@@ -742,6 +767,8 @@
       {calculateDelta}
       onHideStat={toggleHiddenStat}
       referenceEventId={referenceEventId ?? undefined}
+      onNavigateToEvent={(eventId) =>
+        push(`/event/${eventId}?back=${encodeURIComponent(comparisonBackPath)}`)}
     />
 
     <!-- Comparison map: all devices' routes with EVENT_COLORS -->

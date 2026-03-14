@@ -43,7 +43,14 @@
     backFolderId = match?.[1] ? decodeURIComponent(match[1]).trim() || null : null;
   });
 
-  const backPath = $derived(backFolderId ? buildFolderHash(backFolderId) : '/');
+  // If back is a path (e.g. /compare/123), use it directly; otherwise treat as folder id
+  const backPath = $derived(
+    !backFolderId
+      ? '/'
+      : backFolderId.startsWith('/')
+        ? backFolderId
+        : buildFolderHash(backFolderId)
+  );
 
   let eventDetail = $state<EventDetailType | null>(null);
   let loading = $state(true);
