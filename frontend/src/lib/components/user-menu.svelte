@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { push } from 'svelte-spa-router';
+  import { push, replace } from 'svelte-spa-router';
   import { logout } from '../stores/auth.svelte';
   const props = $props<{
     displayName: string | null;
@@ -35,9 +35,14 @@
         <button class="text-accent hover:underline" onclick={() => push('/account')} type="button">
           Account
         </button>
-        <button class="text-accent hover:underline" onclick={() => logout()} type="button">
-          Logout
-        </button>
+        <button
+          class="text-accent hover:underline"
+          onclick={async () => {
+            await logout();
+            replace('/');
+          }}
+          type="button">Logout</button
+        >
       </div>
     </div>
   {/if}

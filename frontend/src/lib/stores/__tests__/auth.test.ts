@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkAuth, logout, state, setCurrentUser } from '../../stores/auth.svelte';
+import {
+  checkAuth,
+  logout,
+  state,
+  setCurrentUser,
+  urlHasSignupPending,
+} from '../../stores/auth.svelte';
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -10,6 +16,7 @@ describe('auth store', () => {
     state.authLoading = true;
     state.pendingSignup = false;
     state.pendingProfile = null;
+    window.location.hash = '';
   });
 
   it('sets current user and csrfToken on successful /api/auth/me', async () => {
@@ -92,6 +99,45 @@ describe('auth store', () => {
 
     expect(state.user).toBeNull();
     expect(state.csrfToken).toBeNull();
+  });
+
+  it('urlHasSignupPending returns true when hash contains signup=pending or signup-pending', () => {
+    expect(urlHasSignupPending()).toBe(false);
+    window.location.hash = '#/?signup=pending';
+    expect(urlHasSignupPending()).toBe(true);
+    window.location.hash = '#/other?signup=pending';
+    expect(urlHasSignupPending()).toBe(true);
+    window.location.hash = '#/signup-pending';
+    expect(urlHasSignupPending()).toBe(true);
+    window.location.hash = '';
+    expect(urlHasSignupPending()).toBe(false);
+  });
+
+  it('retries /api/auth/me when 401 and URL has signup=pending then applies pendingSignup', async () => {
+    window.location.hash = '#/?signup=pending';
+    const fetchSpy = vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch');
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 401 }) as unknown as Response)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            pendingSignup: true,
+            profile: { displayName: 'New User', avatarUrl: 'https://avatar' },
+            csrfToken: 'token-pending',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        ) as unknown as Response
+      );
+
+    await checkAuth();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(state.pendingSignup).toBe(true);
+    expect(state.pendingProfile).toEqual({
+      displayName: 'New User',
+      avatarUrl: 'https://avatar',
+    });
+    window.location.hash = '';
   });
 
   it('clears session on logout via apiFetch', async () => {

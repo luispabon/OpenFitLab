@@ -156,9 +156,9 @@
       <!-- Logo/Branding -->
       <div class="flex items-center border-b border-border px-4 py-4">
         {#if sidebarCollapsed}
-          <img src={logoIcon} alt="OpenFitLab" class="h-8" />
+          <img src={logoIcon} alt="OpenFitLab" class="h-16" />
         {:else}
-          <img src={logoBig} alt="OpenFitLab" class="h-8" />
+          <img src={logoBig} alt="OpenFitLab" class="h-16" />
         {/if}
       </div>
 
