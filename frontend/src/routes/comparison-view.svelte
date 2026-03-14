@@ -23,7 +23,7 @@
   import { calculateDelta } from '../lib/utils/comparison-chart-data';
   import {
     state as loaderState,
-    load as loaderLoad,
+    reload as loaderReload,
     loadStreams as loaderLoadStreams,
     setSelectedActivities,
     setSelectedStreamTypes,
@@ -100,9 +100,23 @@
   const eventIdsFromQuery = $derived(eventIdsFromQueryState);
   const folderIdForNewComparison = $derived(folderIdFromQueryState);
 
-  // Trigger loader when comparisonId or (for 'new') eventIdsFromQueryState change
+  // Trigger loader when comparisonId or (for 'new') eventIdsFromQueryState change.
+  // Use reload() so we refetch when returning to this page (e.g. after editing event device name).
   $effect(() => {
-    loaderLoad(comparisonId, eventIdsFromQueryState);
+    loaderReload(comparisonId, eventIdsFromQueryState);
+  });
+
+  // Also reload when user returns to this tab (visibility visible) to pick up external edits.
+  $effect(() => {
+    const id = comparisonId;
+    const eventIds = eventIdsFromQueryState;
+    const handler = () => {
+      if (document.visibilityState === 'visible') {
+        loaderReload(id, eventIds);
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
   });
 
   const EVENT_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899'];
