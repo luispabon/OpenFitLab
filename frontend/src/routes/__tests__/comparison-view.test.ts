@@ -14,6 +14,7 @@ const mockGetComparison = vi.fn();
 const mockCreateComparison = vi.fn();
 const mockDeleteComparison = vi.fn();
 const mockUpdateComparisonSettings = vi.fn();
+const mockUpdateComparisonName = vi.fn();
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
 
@@ -24,6 +25,7 @@ vi.mock('../../lib/api', () => ({
   createComparison: (...args: unknown[]) => mockCreateComparison(...args),
   deleteComparison: (...args: unknown[]) => mockDeleteComparison(...args),
   updateComparisonSettings: (...args: unknown[]) => mockUpdateComparisonSettings(...args),
+  updateComparisonName: (...args: unknown[]) => mockUpdateComparisonName(...args),
 }));
 
 vi.mock('svelte-spa-router', () => ({
@@ -53,6 +55,7 @@ describe('ComparisonView', () => {
     vi.clearAllMocks();
     mockGetStreams.mockResolvedValue([]);
     mockUpdateComparisonSettings.mockResolvedValue(undefined);
+    mockUpdateComparisonName.mockResolvedValue(undefined);
     mockGetEvent.mockImplementation((id: string) =>
       Promise.resolve(id === 'evt-1' ? eventDetailFixture : eventDetailEvt2Fixture)
     );
@@ -109,7 +112,9 @@ describe('ComparisonView', () => {
       );
     });
     await waitFor(() => {
-      expect(screen.getByText('Event Comparison')).toBeInTheDocument();
+      expect(
+        screen.getByText('running / Garmin Forerunner 945 vs Wahoo Elemnt')
+      ).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
     });
   });
@@ -119,7 +124,9 @@ describe('ComparisonView', () => {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
     await waitFor(() => {
-      expect(screen.getByText('Event Comparison')).toBeInTheDocument();
+      expect(
+        screen.getByText('running / Garmin Forerunner 945 vs Wahoo Elemnt')
+      ).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('/');
@@ -130,7 +137,9 @@ describe('ComparisonView', () => {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2', back: 'folder-abc' } },
     });
     await waitFor(() => {
-      expect(screen.getByText('Event Comparison')).toBeInTheDocument();
+      expect(
+        screen.getByText('running / Garmin Forerunner 945 vs Wahoo Elemnt')
+      ).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
     expect(mockPush).toHaveBeenCalledWith('#/?folder=folder-abc');
@@ -328,5 +337,121 @@ describe('ComparisonView', () => {
     expect(elapsedBtn).toBeInTheDocument();
     expect(wallClockBtn).toBeInTheDocument();
     await fireEvent.click(wallClockBtn);
+  });
+
+  describe('inline name editing (saved comparison)', () => {
+    it('clicking comparison name opens name editor with current value', async () => {
+      mockGetComparison.mockResolvedValue(comparisonFixture);
+      render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByText('Run vs Ride'));
+      await waitFor(() => {
+        const input = screen.getByPlaceholderText('Comparison name');
+        expect(input).toBeInTheDocument();
+        expect(input).toHaveValue('Run vs Ride');
+      });
+    });
+
+    it('Enter key in name editor calls updateComparisonName and updates displayed name', async () => {
+      mockGetComparison.mockResolvedValue(comparisonFixture);
+      render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByText('Run vs Ride'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Comparison name')).toHaveValue('Run vs Ride');
+      });
+      const input = screen.getByPlaceholderText('Comparison name');
+      await fireEvent.input(input, { target: { value: 'New Name' } });
+      await fireEvent.keyDown(input, { key: 'Enter' });
+      await waitFor(() => {
+        expect(mockUpdateComparisonName).toHaveBeenCalledWith('cmp-1', 'New Name');
+      });
+      await waitFor(() => {
+        expect(screen.getByText('New Name')).toBeInTheDocument();
+      });
+    });
+
+    it('Escape key in name editor closes without saving', async () => {
+      mockGetComparison.mockResolvedValue(comparisonFixture);
+      render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByText('Run vs Ride'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Comparison name')).toBeInTheDocument();
+      });
+      const input = screen.getByPlaceholderText('Comparison name');
+      await fireEvent.keyDown(input, { key: 'Escape' });
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText('Comparison name')).not.toBeInTheDocument();
+        expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+      });
+      expect(mockUpdateComparisonName).not.toHaveBeenCalled();
+    });
+
+    it('shows error message when updateComparisonName fails', async () => {
+      mockGetComparison.mockResolvedValue(comparisonFixture);
+      mockUpdateComparisonName.mockRejectedValue(new Error('Network error'));
+      render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+      });
+      await fireEvent.click(screen.getByText('Run vs Ride'));
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Comparison name')).toBeInTheDocument();
+      });
+      const input = screen.getByPlaceholderText('Comparison name');
+      await fireEvent.input(input, { target: { value: 'New Name' } });
+      await fireEvent.keyDown(input, { key: 'Enter' });
+      await waitFor(() => {
+        expect(screen.getByText('Network error')).toBeInTheDocument();
+      });
+    });
+  });
+
+  it('auto-generated comparison name includes activity type when available', async () => {
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save Comparison' }));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const nameInput = screen.getByPlaceholderText('Enter comparison name');
+    expect(nameInput).toHaveValue('running / Garmin Forerunner 945 vs Wahoo Elemnt');
+  });
+
+  it('when first device activity is "Other", uses second device activity type for name prefix', async () => {
+    const evt1Other = {
+      ...eventDetailFixture,
+      activities: [{ ...eventDetailFixture.activities[0], type: 'Other' }],
+    };
+    const evt2Cycling = {
+      ...eventDetailEvt2Fixture,
+      activities: [{ ...eventDetailEvt2Fixture.activities[0], type: 'Cycling' }],
+    };
+    mockGetEvent.mockImplementation((id: string) =>
+      Promise.resolve(id === 'evt-1' ? evt1Other : evt2Cycling)
+    );
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save Comparison' }));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    const nameInput = screen.getByPlaceholderText('Enter comparison name');
+    expect(nameInput).toHaveValue('Cycling / Garmin Forerunner 945 vs Wahoo Elemnt');
   });
 });

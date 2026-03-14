@@ -218,3 +218,21 @@ export async function updateComparisonFolder(id: string, folderId: string | null
     throw new Error(`Failed to update comparison folder: ${response.statusText}`);
   }
 }
+
+export async function updateComparisonName(id: string, name: string): Promise<void> {
+  const response = await apiFetch(`${API_BASE}/comparisons/${id}/name`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  if (response.status === 404) {
+    throw new Error('Comparison not found');
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to update comparison name: ${response.statusText}`);
+  }
+}

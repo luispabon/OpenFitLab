@@ -161,4 +161,57 @@ describe('Comparisons routes HTTP handler coverage', () => {
       delete require.cache[COMPARISONS_ROUTER_PATH];
     }
   });
+
+  it('PATCH /:id/name returns 204 when updated', async () => {
+    mock.method(comparisonService, 'updateComparisonName', async () => true);
+    try {
+      const router = getFreshRouter();
+      const app = createApp(router);
+      await request(app)
+        .patch(`/api/comparisons/${COMPARISON_ID}/name`)
+        .send({ name: 'Renamed Comparison' })
+        .expect(204);
+    } finally {
+      comparisonService.updateComparisonName.mock.restore();
+      delete require.cache[COMPARISONS_ROUTER_PATH];
+    }
+  });
+
+  it('PATCH /:id/name returns 404 when comparison not found', async () => {
+    mock.method(comparisonService, 'updateComparisonName', async () => false);
+    try {
+      const router = getFreshRouter();
+      const app = createApp(router);
+      const res = await request(app)
+        .patch(`/api/comparisons/${COMPARISON_ID}/name`)
+        .send({ name: 'Renamed' })
+        .expect(404);
+      deepStrictEqual(res.body, { error: 'Comparison not found' });
+    } finally {
+      comparisonService.updateComparisonName.mock.restore();
+      delete require.cache[COMPARISONS_ROUTER_PATH];
+    }
+  });
+
+  it('PATCH /:id/name returns 400 when name is missing', async () => {
+    const router = getFreshRouter();
+    const app = createApp(router);
+    const res = await request(app)
+      .patch(`/api/comparisons/${COMPARISON_ID}/name`)
+      .send({})
+      .expect(400);
+    ok(res.body.error);
+    delete require.cache[COMPARISONS_ROUTER_PATH];
+  });
+
+  it('PATCH /:id/name returns 400 when name is empty after trim', async () => {
+    const router = getFreshRouter();
+    const app = createApp(router);
+    const res = await request(app)
+      .patch(`/api/comparisons/${COMPARISON_ID}/name`)
+      .send({ name: '   ' })
+      .expect(400);
+    ok(res.body.error);
+    delete require.cache[COMPARISONS_ROUTER_PATH];
+  });
 });
