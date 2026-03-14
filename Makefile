@@ -2,7 +2,7 @@ REGISTRY       = ghcr.io/luispabon
 BACKEND_IMAGE  = $(REGISTRY)/openfitlab-backend
 FRONTEND_IMAGE = $(REGISTRY)/openfitlab-frontend
 BACKUP_IMAGE   = $(REGISTRY)/openfitlab-backup
-TAG ?= latest
+DOCKER_TAG ?= $(shell git rev-parse --abbrev-ref HEAD)
 
 # Re-initialise the database from scratch: remove DB volume, then start the stack.
 # The API runs db.initializeSchema() on startup, so the schema is applied to the fresh DB.
@@ -14,30 +14,30 @@ db-reset:
 
 .PHONY: docker-build-backend
 docker-build-backend:
-	docker build --target prod -t $(BACKEND_IMAGE):$(TAG) backend/
+	docker build --target prod -t $(BACKEND_IMAGE):$(DOCKER_TAG) backend/
 
 .PHONY: docker-build-frontend
 docker-build-frontend:
-	docker build --target prod -t $(FRONTEND_IMAGE):$(TAG) frontend/
+	docker build --target prod -t $(FRONTEND_IMAGE):$(DOCKER_TAG) frontend/
 
 .PHONY: docker-build-backup
 docker-build-backup:
-	docker build -t $(BACKUP_IMAGE):$(TAG) backup/
+	docker build -t $(BACKUP_IMAGE):$(DOCKER_TAG) backup/
 
 .PHONY: docker-build
 docker-build: docker-build-backend docker-build-frontend docker-build-backup
 
 .PHONY: docker-push-backend
 docker-push-backend: docker-build-backend
-	docker push $(BACKEND_IMAGE):$(TAG)
+	docker push $(BACKEND_IMAGE):$(DOCKER_TAG)
 
 .PHONY: docker-push-frontend
 docker-push-frontend: docker-build-frontend
-	docker push $(FRONTEND_IMAGE):$(TAG)
+	docker push $(FRONTEND_IMAGE):$(DOCKER_TAG)
 
 .PHONY: docker-push-backup
 docker-push-backup: docker-build-backup
-	docker push $(BACKUP_IMAGE):$(TAG)
+	docker push $(BACKUP_IMAGE):$(DOCKER_TAG)
 
 .PHONY: docker-push
 docker-push: docker-push-backend docker-push-frontend docker-push-backup
