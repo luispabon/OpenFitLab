@@ -75,8 +75,10 @@
     {@const rating = getCorrelationRating(stats.r)}
     <div class="grid gap-6 lg:grid-cols-2">
       <!-- Scatter chart -->
-      <div>
-        <p class="mb-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
+      <div class="flex flex-col">
+        <p
+          class="mb-2 flex min-h-[3rem] items-start text-xs font-medium uppercase tracking-wider text-text-secondary"
+        >
           Scatter / Correlation
           <span
             class="ml-2 inline-flex flex-col items-center rounded px-2 py-0.5 leading-tight align-middle"
@@ -100,8 +102,10 @@
       </div>
 
       <!-- Delta chart -->
-      <div>
-        <p class="mb-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
+      <div class="flex flex-col">
+        <p
+          class="mb-2 flex min-h-[3rem] items-start text-xs font-medium uppercase tracking-wider text-text-secondary"
+        >
           Delta over time ({secDeviceName} − {refDeviceName})
         </p>
         <DeltaChart

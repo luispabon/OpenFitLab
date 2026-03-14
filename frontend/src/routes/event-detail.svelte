@@ -1,8 +1,9 @@
 <script lang="ts">
   interface Props {
     params?: { id?: string };
+    query?: { back?: string };
   }
-  let { params = {} }: Props = $props();
+  let { params = {}, query = {} }: Props = $props();
 
   import { push } from 'svelte-spa-router';
   import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api';
@@ -27,8 +28,22 @@
   import StatCard from '../lib/components/StatCard.svelte';
   import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte';
   import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte';
+  import { buildFolderHash } from '../lib/stores/folders.svelte';
 
   const id = $derived(params?.id ?? '');
+
+  let backFolderId = $state<string | null>(null);
+
+  $effect(() => {
+    if (query?.back?.trim()) {
+      backFolderId = query.back.trim();
+      return;
+    }
+    const match = window.location.hash.match(/[?&]back=([^&]*)/);
+    backFolderId = match?.[1] ? decodeURIComponent(match[1]).trim() || null : null;
+  });
+
+  const backPath = $derived(backFolderId ? buildFolderHash(backFolderId) : '/');
 
   let eventDetail = $state<EventDetailType | null>(null);
   let loading = $state(true);
@@ -389,7 +404,7 @@
   <button
     type="button"
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
-    onclick={() => push('/')}
+    onclick={() => push(backPath)}
   >
     ← Back to Workouts
   </button>

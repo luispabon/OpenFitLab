@@ -131,13 +131,23 @@ describe('Workouts', () => {
     });
   });
 
-  it('pushes to event detail when row View is clicked', async () => {
+  it('pushes to event detail when row View is clicked (no folder)', async () => {
     render(Workouts);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(mockPush).toHaveBeenCalledWith('/event/evt-1');
+  });
+
+  it('includes back param when row View is clicked inside a folder', async () => {
+    setFolderHash('#/?folder=folder-123');
+    render(Workouts);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
+    });
+    await fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    expect(mockPush).toHaveBeenCalledWith('/event/evt-1?back=folder-123');
   });
 
   it('opens single-delete flow when row Delete is clicked', async () => {
