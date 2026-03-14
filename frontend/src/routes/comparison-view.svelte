@@ -44,9 +44,13 @@
   import StreamAnalysisSection from '../lib/components/comparison/StreamAnalysisSection.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
   import PowerCurveChart from '../lib/components/event-detail/PowerCurveChart.svelte';
+  import ExportButton from '../lib/components/ExportButton.svelte';
+  import { exportAsPng } from '../lib/utils/export-image';
   import { foldersState, buildFolderHash } from '../lib/stores/folders.svelte';
 
   const comparisonId = $derived(params?.id ?? '');
+
+  let powerCurveSectionEl = $state<HTMLElement | null>(null);
 
   const currentLocation = $derived($location);
 
@@ -916,12 +920,18 @@
     <!-- Power Curve Section -->
     {#if powerCurveSeries.length > 0}
       <div
+        bind:this={powerCurveSectionEl}
         class="mb-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
       >
-        <h3 class="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
-          <span class="material-icons text-xl text-text-muted">bolt</span>
-          Power Curve
-        </h3>
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-base font-semibold text-text-primary">Power Curve</h3>
+          {#if powerCurveSectionEl}
+            <ExportButton
+              onExport={() => exportAsPng(powerCurveSectionEl!, 'power-curve-comparison')}
+              title="Export chart as PNG"
+            />
+          {/if}
+        </div>
         <PowerCurveChart
           series={powerCurveSeries}
           showToggleButtons={true}
