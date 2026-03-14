@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { mock } = require('node:test');
 const FileParser = require('../../../src/parsers/file-parser');
-const { processUpload } = require('../../../src/services/event-upload-service');
+const {
+  processUpload,
+  buildActivityRecord,
+} = require('../../../src/services/event-upload-service');
 
 const FIXTURES_DIR = path.join(__dirname, '..', '..', 'fixtures');
 const BASE_MS = 1609459200000;
@@ -138,5 +141,24 @@ describe('event-upload-service processUpload', () => {
     } finally {
       FileParser.parseFile.mock.restore();
     }
+  });
+});
+
+describe('event-upload-service buildActivityRecord', () => {
+  it('defaults type to "Other" when activityJson.type is null or undefined', () => {
+    const aid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const eventId = 'ffffffff-gggg-hhhh-iiii-jjjjjjjjjjjj';
+    const withNull = buildActivityRecord(
+      { name: 'A', startDate: BASE_MS, endDate: BASE_MS + 60000, type: null },
+      aid,
+      eventId
+    );
+    strictEqual(withNull.type, 'Other');
+    const withUndefined = buildActivityRecord(
+      { name: 'B', startDate: BASE_MS, endDate: BASE_MS + 60000 },
+      aid,
+      eventId
+    );
+    strictEqual(withUndefined.type, 'Other');
   });
 });
