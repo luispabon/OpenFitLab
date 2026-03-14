@@ -145,6 +145,13 @@ describe('formatDuration', () => {
 });
 
 describe('formatStatValue', () => {
+  it('returns empty string for PowerCurve (displayed as chart instead)', () => {
+    const powerCurveData = [
+      { duration: 1, power: 417 },
+      { duration: 60, power: 362 },
+    ] as unknown as Parameters<typeof formatStatValue>[0];
+    expect(formatStatValue(powerCurveData, 'PowerCurve')).toBe('');
+  });
   it('returns empty string for null', () => {
     expect(formatStatValue(null, 'Duration')).toBe('');
   });

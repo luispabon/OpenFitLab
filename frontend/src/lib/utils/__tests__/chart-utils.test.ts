@@ -13,7 +13,11 @@ import {
   formatElapsedTime,
   formatWallClockTime,
   formatYValue,
+  formatDurationCompact,
+  CHART_POWER_COLOR,
+  getPowerCurveSplits,
   getSmoothPath,
+  POWER_CURVE_SPLITS,
 } from '../chart-utils';
 
 describe('formatElapsedTime', () => {
@@ -67,9 +71,50 @@ describe('formatYValue', () => {
   });
 });
 
+describe('getPowerCurveSplits', () => {
+  it('returns only breakpoints within the given range', () => {
+    expect(getPowerCurveSplits(10, 120)).toEqual([10, 15, 20, 30, 60, 120]);
+    expect(getPowerCurveSplits(1, 30)).toEqual([1, 2, 5, 10, 15, 20, 30]);
+  });
+  it('returns the full array when range covers all breakpoints', () => {
+    expect(getPowerCurveSplits(1, 7200)).toEqual(POWER_CURVE_SPLITS);
+    expect(getPowerCurveSplits(0, 10000)).toEqual(POWER_CURVE_SPLITS);
+  });
+  it('returns empty when range is outside all breakpoints', () => {
+    expect(getPowerCurveSplits(0.5, 0.9)).toEqual([]);
+    expect(getPowerCurveSplits(10000, 20000)).toEqual([]);
+  });
+});
+
 describe('getSmoothPath', () => {
   it('returns linear path builder when spline is missing (fallback)', () => {
     const pathBuilder = getSmoothPath();
     expect(typeof pathBuilder).toBe('function');
+  });
+});
+
+describe('formatDurationCompact', () => {
+  it('formats seconds with s suffix', () => {
+    expect(formatDurationCompact(1)).toBe('1s');
+    expect(formatDurationCompact(5)).toBe('5s');
+    expect(formatDurationCompact(59)).toBe('59s');
+  });
+  it('formats minutes with m suffix', () => {
+    expect(formatDurationCompact(60)).toBe('1m');
+    expect(formatDurationCompact(300)).toBe('5m');
+    expect(formatDurationCompact(3599)).toBe('60m');
+  });
+  it('formats hours with h suffix', () => {
+    expect(formatDurationCompact(3600)).toBe('1.0h');
+    expect(formatDurationCompact(7200)).toBe('2.0h');
+  });
+  it('clamps negative to 0s', () => {
+    expect(formatDurationCompact(-10)).toBe('0s');
+  });
+});
+
+describe('CHART_POWER_COLOR', () => {
+  it('is a hex color string', () => {
+    expect(CHART_POWER_COLOR).toMatch(/^#[0-9a-fA-F]{6}$/);
   });
 });

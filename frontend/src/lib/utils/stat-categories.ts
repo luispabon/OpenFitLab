@@ -131,6 +131,7 @@ export function getGroupedDeduplicatedStats(entries: StatEntry[]): StatsByCatego
   });
 
   for (const entry of sorted) {
+    if (entry.statType === 'PowerCurve') continue;
     const parsed = parseStat(entry.statType);
     if (!getStatIcon(entry.statType)) continue;
     const key = metricAggregationKeyNormalized(parsed);
