@@ -57,6 +57,20 @@ describe('Comparisons', () => {
     expect(screen.getByText(/Nov 14, 2023/)).toBeInTheDocument();
   });
 
+  it('shows Activity Date column and reference activity date when present', async () => {
+    const withRefDate = {
+      ...comparisonFixture,
+      referenceActivityStartDate: 1704067200000,
+    };
+    mockGetComparisons.mockResolvedValue([withRefDate]);
+    render(Comparisons);
+    await waitFor(() => {
+      expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Activity Date')).toBeInTheDocument();
+    expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
+  });
+
   it('navigates to compare view when row is clicked', async () => {
     mockGetComparisons.mockResolvedValue([comparisonFixture]);
     render(Comparisons);

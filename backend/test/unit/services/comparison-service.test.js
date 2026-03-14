@@ -109,6 +109,7 @@ describe('comparison-service', () => {
             return [
               {
                 id: 'c1',
+                folder_id: null,
                 name: 'C1',
                 settings: '{}',
                 created_at: new Date('2025-01-01T00:00:00Z'),
@@ -119,6 +120,12 @@ describe('comparison-service', () => {
             return [
               { comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' },
               { comparison_id: 'c1', event_id: 'e2', activity_id: 'a2' },
+            ];
+          }
+          if (sql.includes('FROM activities')) {
+            return [
+              { id: 'a1', start_date: 1704067200000 },
+              { id: 'a2', start_date: 1704153600000 },
             ];
           }
           return [];
@@ -134,6 +141,7 @@ describe('comparison-service', () => {
       deepStrictEqual(result[0].activityIds, ['a1', 'a2']);
       deepStrictEqual(result[0].settings, {});
       strictEqual(result[0].createdAt, new Date('2025-01-01T00:00:00Z').getTime());
+      strictEqual(result[0].referenceActivityStartDate, 1704067200000);
     });
 
     it('returns empty array when no comparisons exist', async () => {
@@ -157,6 +165,7 @@ describe('comparison-service', () => {
             return [
               {
                 id: 'c1',
+                folder_id: null,
                 name: 'C1',
                 settings: null,
                 created_at: new Date('2025-01-01T00:00:00Z'),
@@ -169,6 +178,12 @@ describe('comparison-service', () => {
               { event_id: 'e2', activity_id: 'a2' },
             ];
           }
+          if (sql.includes('FROM activities')) {
+            return [
+              { id: 'a1', start_date: 1704067200000 },
+              { id: 'a2', start_date: 1704153600000 },
+            ];
+          }
           return [];
         },
       };
@@ -179,6 +194,7 @@ describe('comparison-service', () => {
       deepStrictEqual(result.eventIds, ['e1', 'e2']);
       deepStrictEqual(result.activityIds, ['a1', 'a2']);
       strictEqual(result.settings, null);
+      strictEqual(result.referenceActivityStartDate, 1704067200000);
     });
   });
 
