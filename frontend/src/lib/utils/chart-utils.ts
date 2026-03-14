@@ -9,6 +9,35 @@ export const CHART_TEXT_COLOR = '#d1d5db';
 /** Grid line color for chart axes. */
 export const CHART_GRID_COLOR = 'rgba(255,255,255,0.12)';
 
+/** Default color for power curves (matches Power stream in stream-config). */
+export const CHART_POWER_COLOR = '#a855f7';
+
+/**
+ * Human-meaningful duration breakpoints (seconds) for Power Curve x-axis gridlines.
+ * Labels: 1s, 2s, 5s, 10s, 15s, 20s, 30s, 1m, 2m, 5m, 10m, 20m, 30m, 1h, 1.5h, 2h.
+ */
+export const POWER_CURVE_SPLITS = [
+  1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 5400, 7200,
+];
+
+/**
+ * Returns Power Curve x-axis splits (gridline positions) within the visible scale range.
+ */
+export function getPowerCurveSplits(scaleMin: number, scaleMax: number): number[] {
+  return POWER_CURVE_SPLITS.filter((v) => v >= scaleMin && v <= scaleMax);
+}
+
+/**
+ * Format duration in seconds for PowerCurve X-axis labels (e.g. "1s", "5m", "1h").
+ * Used on logarithmic duration axis.
+ */
+export function formatDurationCompact(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  return `${(s / 3600).toFixed(1)}h`;
+}
+
 /**
  * Format milliseconds since epoch or elapsed ms as H:MM:SS or M:SS.
  * Input is treated as elapsed time (e.g. relative to activity start).

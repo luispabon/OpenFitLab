@@ -43,6 +43,7 @@
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
   import StreamAnalysisSection from '../lib/components/comparison/StreamAnalysisSection.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
+  import PowerCurveChart from '../lib/components/event-detail/PowerCurveChart.svelte';
   import { foldersState, buildFolderHash } from '../lib/stores/folders.svelte';
 
   const comparisonId = $derived(params?.id ?? '');
@@ -287,6 +288,57 @@
       else next.add(type);
       return next;
     });
+  }
+
+  const powerCurveSeries = $derived.by(() => {
+    const result: Array<{
+      activityId: string;
+      activityName: string;
+      color: string;
+      data: Array<{ duration: number; power: number }>;
+    }> = [];
+    events.forEach((eventDetail, index) => {
+      const eventId = eventDetail.event.id;
+      const activityId = selectedActivities[eventId];
+      if (!activityId) return;
+      const activity = eventDetail.activities.find((a) => a.id === activityId);
+      if (!activity) return;
+      const pc = activity.stats?.['PowerCurve'];
+      if (!Array.isArray(pc) || pc.length === 0) return;
+      result.push({
+        activityId,
+        activityName:
+          getActivityDeviceName(activity) || eventDetail.event.name || `Activity ${index + 1}`,
+        color: EVENT_COLORS[index % EVENT_COLORS.length],
+        data: pc as unknown as Array<{ duration: number; power: number }>,
+      });
+    });
+    return result;
+  });
+
+  const powerCurveMaxDuration = $derived.by(() => {
+    let maxDuration = 0;
+    for (const eventDetail of events) {
+      const eventId = eventDetail.event.id;
+      const activityId = selectedActivities[eventId];
+      if (!activityId) continue;
+      const activity = eventDetail.activities.find((a) => a.id === activityId);
+      if (!activity?.startDate || !activity?.endDate) continue;
+      const duration = Math.round((activity.endDate - activity.startDate) / 1000);
+      if (duration > maxDuration) maxDuration = duration;
+    }
+    return maxDuration > 0 ? maxDuration : undefined;
+  });
+
+  let selectedPowerCurveIds = $state<Set<string>>(new Set());
+
+  function togglePowerCurveActivity(activityId: string) {
+    selectedPowerCurveIds = (() => {
+      const next = new Set(selectedPowerCurveIds);
+      if (next.has(activityId)) next.delete(activityId);
+      else next.add(activityId);
+      return next;
+    })();
   }
 
   function toggleHiddenStat(statType: string) {
@@ -860,6 +912,25 @@
         </div>
       {/if}
     </div>
+
+    <!-- Power Curve Section -->
+    {#if powerCurveSeries.length > 0}
+      <div
+        class="mb-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
+      >
+        <h3 class="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+          <span class="material-icons text-xl text-text-muted">bolt</span>
+          Power Curve
+        </h3>
+        <PowerCurveChart
+          series={powerCurveSeries}
+          showToggleButtons={true}
+          selectedActivityIds={selectedPowerCurveIds}
+          onToggleActivity={togglePowerCurveActivity}
+          maxDuration={powerCurveMaxDuration}
+        />
+      </div>
+    {/if}
 
     <!-- Stream Analysis Section -->
     <StreamAnalysisSection

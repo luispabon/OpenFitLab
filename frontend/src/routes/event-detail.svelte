@@ -28,6 +28,7 @@
   import StatCard from '../lib/components/StatCard.svelte';
   import EventDetailMoreStats from '../lib/components/event-detail/EventDetailMoreStats.svelte';
   import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte';
+  import PowerCurveChart from '../lib/components/event-detail/PowerCurveChart.svelte';
   import { buildFolderHash } from '../lib/stores/folders.svelte';
 
   const id = $derived(params?.id ?? '');
@@ -305,6 +306,25 @@
 
   const locationAvailable = $derived(hasLocationStreams(streams));
 
+  const powerCurveSeries = $derived.by(() => {
+    const pc = selectedActivity?.stats?.['PowerCurve'] ?? event?.stats?.['PowerCurve'];
+    if (!Array.isArray(pc) || pc.length === 0) return [];
+    const curve = pc as unknown as Array<{ duration: number; power: number }>;
+    return [
+      {
+        activityId: selectedActivity?.id ?? event?.id ?? '',
+        activityName: 'Power',
+        data: curve,
+      },
+    ];
+  });
+
+  const powerCurveMaxDuration = $derived.by(() => {
+    const activity = selectedActivity;
+    if (!activity?.startDate || !activity?.endDate) return undefined;
+    return Math.round((activity.endDate - activity.startDate) / 1000);
+  });
+
   // Filter to only selected streams (order: Heart Rate first, then rest)
   const visibleStreams = $derived(
     chartableStreamsOrdered.filter((s) => selectedStreamTypes.has(s.type))
@@ -577,6 +597,18 @@
     {#if locationAvailable && !streamsLoading}
       <div class="mt-6 overflow-hidden rounded-xl border border-border shadow-sm">
         <RouteMap {streams} />
+      </div>
+    {/if}
+
+    {#if powerCurveSeries.length > 0}
+      <div
+        class="mt-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
+      >
+        <h3 class="mb-4 flex items-center gap-2 text-base font-semibold text-text-primary">
+          <span class="material-icons text-xl text-text-muted">bolt</span>
+          Power Curve
+        </h3>
+        <PowerCurveChart series={powerCurveSeries} maxDuration={powerCurveMaxDuration} />
       </div>
     {/if}
 

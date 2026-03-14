@@ -130,6 +130,9 @@ export function formatStatValue(
   statType?: string
 ): string {
   if (value == null) return '';
+  if (statType === 'PowerCurve') {
+    return '';
+  }
   if (statType) {
     const n = typeof value === 'string' ? Number(value) : value;
     if (typeof n === 'number' && Number.isFinite(n)) {
