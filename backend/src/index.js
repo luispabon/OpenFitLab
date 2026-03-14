@@ -16,6 +16,11 @@ const metaRouter = require('./routes/meta');
 
 const app = express();
 
+// Trust proxy headers in production (Traefik sets X-Forwarded-* headers)
+if (config.server.isProduction) {
+  app.set('trust proxy', 1);
+}
+
 // Security headers
 app.use(
   helmet({

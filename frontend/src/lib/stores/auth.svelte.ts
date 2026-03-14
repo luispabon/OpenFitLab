@@ -34,31 +34,43 @@ export const state = $state({
   pendingProfile: null as PendingProfile | null,
 });
 
+export function urlHasSignupPending(): boolean {
+  const hash = window.location.hash;
+  return hash.includes('signup=pending') || hash.includes('signup-pending');
+}
+
+function applyAuthData(data: unknown) {
+  assertAuthResponse(data);
+  if (data.pendingSignup) {
+    state.pendingSignup = true;
+    state.pendingProfile = {
+      displayName: data.profile?.displayName ?? null,
+      avatarUrl: data.profile?.avatarUrl ?? null,
+    };
+    state.user = null;
+    state.csrfToken = data.csrfToken ?? null;
+  } else {
+    state.user = {
+      id: data.id ?? '',
+      displayName: data.displayName ?? null,
+      avatarUrl: data.avatarUrl ?? null,
+    };
+    state.csrfToken = data.csrfToken ?? null;
+    state.pendingSignup = false;
+    state.pendingProfile = null;
+  }
+}
+
 export async function checkAuth(): Promise<void> {
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    let res = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!res.ok && res.status === 401 && urlHasSignupPending()) {
+      await new Promise((r) => setTimeout(r, 500));
+      res = await fetch('/api/auth/me', { credentials: 'include' });
+    }
     if (res.ok) {
       const data = await res.json();
-      assertAuthResponse(data);
-
-      if (data.pendingSignup) {
-        state.pendingSignup = true;
-        state.pendingProfile = {
-          displayName: data.profile?.displayName ?? null,
-          avatarUrl: data.profile?.avatarUrl ?? null,
-        };
-        state.user = null;
-        state.csrfToken = data.csrfToken ?? null;
-      } else {
-        state.user = {
-          id: data.id ?? '',
-          displayName: data.displayName ?? null,
-          avatarUrl: data.avatarUrl ?? null,
-        };
-        state.csrfToken = data.csrfToken ?? null;
-        state.pendingSignup = false;
-        state.pendingProfile = null;
-      }
+      applyAuthData(data);
     } else {
       state.user = null;
       state.csrfToken = null;

@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/svelte';
 import UserMenu from '../../components/user-menu.svelte';
 
+vi.mock('svelte-spa-router', () => ({ push: vi.fn(), replace: vi.fn() }));
+
 describe('user-menu', () => {
   it('renders initials "U" when displayName is null', () => {
     const { getByText } = render(UserMenu, {
@@ -36,5 +38,17 @@ describe('user-menu', () => {
       '/api/auth/logout',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     );
+  });
+
+  it('calls replace("/") after logout', async () => {
+    const { replace } = await import('svelte-spa-router');
+    vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValue(
+      new Response(null, { status: 200 }) as unknown as Response
+    );
+    const { getByText } = render(UserMenu, {
+      props: { displayName: 'Alice', avatarUrl: null, collapsed: false },
+    });
+    await fireEvent.click(getByText('Logout'));
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
   });
 });
