@@ -173,6 +173,15 @@ async function loadEventsAndStreams(
 }
 
 /**
+ * Force a fresh load (e.g. when returning from event detail after edits).
+ * Resets the loaded key so the next load() will re-fetch.
+ */
+export function reload(comparisonId: string, eventIdsFromQuery: string[]): void {
+  lastLoadedKey = '';
+  load(comparisonId, eventIdsFromQuery);
+}
+
+/**
  * Called by the route when comparisonId or eventIdsFromQuery change.
  * Uses a single "loaded key" to avoid duplicate or infinite loads.
  */

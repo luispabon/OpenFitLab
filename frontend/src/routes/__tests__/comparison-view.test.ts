@@ -489,4 +489,23 @@ describe('ComparisonView', () => {
     const nameInput = screen.getByPlaceholderText('Enter comparison name');
     expect(nameInput).toHaveValue('Cycling / Garmin Forerunner 945 vs Wahoo Elemnt');
   });
+
+  it('reloads data when page becomes visible again (visibilitychange)', async () => {
+    render(ComparisonView, {
+      props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
+    });
+    const getEventCallsBefore = mockGetEvent.mock.calls.length;
+    expect(getEventCallsBefore).toBeGreaterThanOrEqual(2);
+
+    // Simulate tab becoming visible again (e.g. user switched back to this tab)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(mockGetEvent.mock.calls.length).toBeGreaterThan(getEventCallsBefore);
+    });
+  });
 });
