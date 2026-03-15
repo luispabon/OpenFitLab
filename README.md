@@ -43,7 +43,7 @@ The application uses a relational database structure:
 - **Activities**: Individual activities within an event
 - **Activity Stats**: Relational storage for activity-level statistics
 - **Streams**: Stream metadata (heart rate, cadence, pace, etc.)
-- **Stream Data Points**: Timestamped data points for each stream (stored relationally with time_ms)
+- **Stream Data**: Packed JSON array of `{ time, value }` points stored in `streams.data` (compressed, ~30-50x size reduction)
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
 

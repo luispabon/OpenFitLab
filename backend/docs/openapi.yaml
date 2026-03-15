@@ -1211,7 +1211,6 @@ paths:
                   - comparisons
                   - comparisonEventActivities
                   - streams
-                  - streamDataPoints
                 properties:
                   user:
                     type: object
@@ -1233,8 +1232,7 @@ paths:
                     type: array
                   streams:
                     type: array
-                  streamDataPoints:
-                    type: array
+                    description: Stream metadata. When `includeStreams=true`, each element includes a `data` property (array of `{ time, value }`).
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":

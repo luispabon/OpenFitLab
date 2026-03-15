@@ -8,9 +8,9 @@ DOCKER_TAG ?= $(shell git rev-parse --abbrev-ref HEAD)
 # The API runs db.initializeSchema() on startup, so the schema is applied to the fresh DB.
 .PHONY: db-reset
 db-reset:
-	docker compose down -v db valkey
-	docker compose up -d
-	docker compose restart api
+	docker-compose down -v db valkey
+	docker-compose up -d
+	docker-compose restart api
 
 .PHONY: docker-build-backend
 docker-build-backend:
@@ -46,16 +46,16 @@ docker-push: docker-push-backend docker-push-frontend docker-push-backup
 
 .PHONY: backup-list
 backup-list:
-	docker compose --profile backup exec backup restic snapshots
+	docker-compose --profile backup exec backup restic snapshots
 
 .PHONY: backup-now
 backup-now:
-	docker compose --profile backup exec backup /backup.sh
+	docker-compose --profile backup exec backup /backup.sh
 
 # Restore latest snapshot. Safety-dumps current DB first.
 .PHONY: backup-restore
 backup-restore:
-	docker compose --profile backup exec backup /restore.sh latest
+	docker-compose --profile backup exec backup /restore.sh latest
 
 # Restore a specific snapshot: make backup-restore-snapshot SNAPSHOT=abc12345
 .PHONY: backup-restore-snapshot
@@ -63,12 +63,12 @@ backup-restore-snapshot:
 ifndef SNAPSHOT
 	$(error SNAPSHOT is required. Usage: make backup-restore-snapshot SNAPSHOT=<id>)
 endif
-	docker compose --profile backup exec backup /restore.sh $(SNAPSHOT)
+	docker-compose --profile backup exec backup /restore.sh $(SNAPSHOT)
 
 # Copy the most recent safety dump out of the Docker volume to the current directory
 .PHONY: backup-fetch-safety-dump
 backup-fetch-safety-dump:
-	docker compose --profile backup run --rm backup sh -c \
+	docker-compose --profile backup exec backup sh -c \
 	  'ls -t /restores/*.sql | head -1 | xargs cat' > safety-dump-$(shell date +%Y%m%dT%H%M%S).sql
 
 # ── DAST (ZAP API scan) ───────────────────────────────────────────────────────
@@ -90,9 +90,9 @@ DAST_PROJECT     = openfitlab-dast
 DAST_API_PORT   ?= 3099
 DAST_DB_PORT    ?= 3307
 
-# Shorthand so every docker compose call in a DAST target uses the same flags.
+# Shorthand so every docker-compose call in a DAST target uses the same flags.
 DAST_COMPOSE = DB_HOST_PORT=$(DAST_DB_PORT) API_HOST_PORT=$(DAST_API_PORT) \
-               docker compose -p $(DAST_PROJECT) -f compose.yaml -f compose.dast.yaml
+               docker-compose -p $(DAST_PROJECT) -f compose.yaml -f compose.dast.yaml
 
 .PHONY: dast-up
 dast-up:
