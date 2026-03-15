@@ -126,7 +126,7 @@ Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET
 
 - Event stats live in `event_stats`.
 - Activity stats live in `activity_stats`.
-- Stream points live in `stream_data_points` with `time_ms` and `sequence_index`.
+- Stream points are stored as packed JSON arrays in `streams.data` (compressed). Each entry is `{ time, value }`.
 - Comparison membership is relational in `comparison_event_activities`.
 - Sessions are stored in Valkey, not in MariaDB.
 
@@ -142,7 +142,6 @@ erDiagram
     EVENTS ||--o{ ACTIVITIES : tracks
     ACTIVITIES ||--o{ ACTIVITY_STATS : measured_by
     ACTIVITIES ||--o{ STREAMS : produces
-    STREAMS ||--o{ STREAM_DATA_POINTS : generates
     FOLDERS ||--o{ COMPARISONS : includes
     COMPARISONS ||--o{ COMPARISON_EVENT_ACTIVITIES : consists_of
 
@@ -218,15 +217,7 @@ erDiagram
         varchar36 activity_id FK
         varchar36 event_id FK
         varchar type
-        timestamp created_at
-    }
-
-    STREAM_DATA_POINTS {
-        bigint id PK
-        varchar128 stream_id FK
-        bigint time_ms
-        json value
-        int sequence_index
+        json data
     }
 
     COMPARISONS {
@@ -477,7 +468,7 @@ Primary route usage:
 - **Backend parsing:** files are parsed on the server with `@sports-alliance/sports-lib`.
 - **No original file storage:** uploaded files are discarded after parsing.
 - **Relational stats:** event/activity stats are normalized into separate tables.
-- **Relational stream points:** stream data is stored row-by-row for ordering and time filtering.
+- **Packed stream data:** stream samples are stored as compressed JSON arrays in `streams.data` for efficiency (~30-50x size reduction).
 - **Server-managed auth:** OAuth plus server sessions, not client-managed tokens.
 - **Lightweight migration runner:** SQL files in `backend/sql/migrations/` applied in order on startup with an advisory lock, enabling schema evolution without data loss.
 

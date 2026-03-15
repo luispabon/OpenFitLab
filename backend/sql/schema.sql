@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS streams (
   activity_id VARCHAR(36) NOT NULL,
   event_id VARCHAR(36) NOT NULL,
   type VARCHAR(128) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  data JSON COMPRESSED NOT NULL DEFAULT ('[]'),
   INDEX idx_activity_id (activity_id),
   INDEX idx_event_id (event_id),
   INDEX idx_type (type),
@@ -128,7 +128,9 @@ CREATE TABLE IF NOT EXISTS streams (
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
+-- data: packed array of { time, value } per sample (replaces stream_data_points)
 
+-- Deprecated: will be dropped by migration 003. Data lives in streams.data.
 CREATE TABLE IF NOT EXISTS stream_data_points (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   stream_id VARCHAR(128) NOT NULL,
@@ -141,7 +143,6 @@ CREATE TABLE IF NOT EXISTS stream_data_points (
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
--- idx_stream_sequence: supports getStreamsForActivity ORDER BY stream_id, sequence_index ASC, time_ms ASC
 
 CREATE TABLE IF NOT EXISTS comparisons (
   id VARCHAR(36) PRIMARY KEY,

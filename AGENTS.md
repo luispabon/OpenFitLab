@@ -60,7 +60,7 @@
 - Return `404` for missing or not-owned resources by ID to avoid leaking existence.
 - Files are parsed on the backend (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`) and discarded. Do not store originals after upload.
 - Stats stay relational in `event_stats` and `activity_stats`. Do not collapse them into JSON blobs.
-- Stream points stay relational in `stream_data_points` with `time_ms` and `sequence_index`.
+- Stream points are stored as packed JSON arrays in `streams.data` (compressed). Each entry is `{ time, value }`.
 - Comparison membership stays relational in `comparison_event_activities`.
 - Deleting an event must remove comparisons that reference it before the event delete completes.
 - New foreign keys must use `ON DELETE CASCADE` unless there is a specific reason to unfile rather than delete (like `folder_id` which uses `SET NULL`).

@@ -4,6 +4,7 @@ const eventRepository = require('../repositories/event-repository');
 const activityRepository = require('../repositories/activity-repository');
 const comparisonRepository = require('../repositories/comparison-repository');
 const streamRepository = require('../repositories/stream-repository');
+const { parseJSONField } = require('../utils/transforms');
 
 const defaultDb = require('../db');
 
@@ -60,16 +61,6 @@ async function exportUserData(userId, opts = {}) {
       : Promise.resolve([]),
   ]);
 
-  // Level 5: stream data points (depend on streamIds, only if requested)
-  let streamDataPointRows = [];
-  if (includeStreams && streamRows.length > 0) {
-    const streamIds = streamRows.map((s) => s.id);
-    streamDataPointRows = await streamRepository.findDataPointsByStreamIdsOrdered(
-      streamIds,
-      dbOpts
-    );
-  }
-
   return {
     user: {
       id: user.id,
@@ -85,8 +76,9 @@ async function exportUserData(userId, opts = {}) {
     activityStats: activityStatRows,
     comparisons: comparisonRows,
     comparisonEventActivities: comparisonEventActivityRows,
-    streams: streamRows,
-    streamDataPoints: includeStreams ? streamDataPointRows : [],
+    streams: includeStreams
+      ? streamRows.map((row) => ({ ...row, data: parseJSONField(row.data, []) }))
+      : streamRows.map(({ data: _data, ...rest }) => rest),
   };
 }
 

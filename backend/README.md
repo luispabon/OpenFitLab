@@ -47,5 +47,5 @@ See `sql/schema.sql`. Key indexes:
 - **`user_identities`**: unique (provider, provider_user_id); index on `user_id`.
 - **`events`**: `start_date`; `user_id`; composite (user_id, start_date).
 - **`activities`**: indexes on `event_id`, `type`, `device_name`, `start_date`.
-- **`stream_data_points`**: (stream_id, time_ms) and (stream_id, sequence_index, time_ms) for stream fetch order.
+- **`streams`**: (activity_id), (event_id), (type); stream data stored as compressed JSON in `data` column.
 - **`comparisons`**: `created_at`; `user_id`; composite (user_id, created_at).

@@ -113,24 +113,15 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
         );
 
         for (const streamInfo of streamDataPoints) {
-          if (
-            !streamInfo ||
-            !streamInfo.type ||
-            !streamInfo.dataPoints ||
-            streamInfo.dataPoints.length === 0
-          ) {
-            continue;
-          }
-          const streamId = `${aid}_${streamInfo.type}`;
-          await streamRepository.insertStream(streamId, aid, eventId, streamInfo.type, tOpts);
+          if (!streamInfo?.type || !streamInfo.dataPoints?.length) continue;
+          if (streamInfo.type === 'Time') continue;
 
-          const dataPointValues = streamInfo.dataPoints.map((dp, index) => [
-            streamId,
-            dp.time,
-            JSON.stringify(dp.value),
-            index,
-          ]);
-          await streamRepository.insertStreamDataPointsBatch(streamId, dataPointValues, tOpts);
+          const streamId = `${aid}_${streamInfo.type}`;
+          const data = streamInfo.dataPoints.map((dp) => ({
+            time: dp.time,
+            value: dp.value,
+          }));
+          await streamRepository.insertStream(streamId, aid, eventId, streamInfo.type, data, tOpts);
         }
       }
     }

@@ -54,7 +54,6 @@ describe('account-service', () => {
       deepStrictEqual(result.comparisons, []);
       deepStrictEqual(result.comparisonEventActivities, []);
       deepStrictEqual(result.streams, []);
-      deepStrictEqual(result.streamDataPoints, []);
     });
 
     it('returns events, activities, stats, comparisons in batched queries', async () => {
@@ -128,7 +127,7 @@ describe('account-service', () => {
               activity_id: 'a1',
               event_id: 'e1',
               type: 'heartrate',
-              created_at: new Date('2025-01-01'),
+              data: '[]',
             },
           ];
         }
@@ -145,10 +144,10 @@ describe('account-service', () => {
       strictEqual(result.comparisons.length, 1);
       strictEqual(result.comparisonEventActivities.length, 1);
       strictEqual(result.streams.length, 1);
-      deepStrictEqual(result.streamDataPoints, []);
+      ok(!('data' in result.streams[0]), 'streams without includeStreams should not have data');
     });
 
-    it('includes stream data points when includeStreams is true', async () => {
+    it('includes stream data when includeStreams is true', async () => {
       const db = makeFakeDb(async (sql) => {
         if (sql.includes('FROM users WHERE')) {
           return [
@@ -197,22 +196,26 @@ describe('account-service', () => {
         if (sql.includes('FROM comparisons WHERE')) return [];
         if (sql.includes('FROM streams ') && sql.includes('activity_id')) {
           return [
-            { id: 's1', activity_id: 'a1', event_id: 'e1', type: 'hr', created_at: new Date() },
+            {
+              id: 's1',
+              activity_id: 'a1',
+              event_id: 'e1',
+              type: 'hr',
+              data: '[{"time":100,"value":72}]',
+            },
           ];
-        }
-        if (sql.includes('stream_data_points')) {
-          return [{ stream_id: 's1', time_ms: 100, value: '72', sequence_index: 0 }];
         }
         return [];
       });
 
       const result = await exportUserData('u1', { includeStreams: true, db });
 
-      strictEqual(result.streamDataPoints.length, 1);
-      strictEqual(result.streamDataPoints[0].stream_id, 's1');
+      strictEqual(result.streams.length, 1);
+      strictEqual(result.streams[0].id, 's1');
+      deepStrictEqual(result.streams[0].data, [{ time: 100, value: 72 }]);
     });
 
-    it('does not include stream data points when includeStreams is false', async () => {
+    it('strips stream data when includeStreams is false', async () => {
       const db = makeFakeDb(async (sql) => {
         if (sql.includes('FROM users WHERE')) {
           return [
@@ -261,7 +264,13 @@ describe('account-service', () => {
         if (sql.includes('FROM comparisons WHERE')) return [];
         if (sql.includes('FROM streams ') && sql.includes('activity_id')) {
           return [
-            { id: 's1', activity_id: 'a1', event_id: 'e1', type: 'hr', created_at: new Date() },
+            {
+              id: 's1',
+              activity_id: 'a1',
+              event_id: 'e1',
+              type: 'hr',
+              data: '[{"time":100,"value":72}]',
+            },
           ];
         }
         return [];
@@ -269,7 +278,8 @@ describe('account-service', () => {
 
       const result = await exportUserData('u1', { includeStreams: false, db });
 
-      deepStrictEqual(result.streamDataPoints, []);
+      strictEqual(result.streams.length, 1);
+      ok(!('data' in result.streams[0]), 'streams should not include data when includeStreams is false');
     });
   });
 
