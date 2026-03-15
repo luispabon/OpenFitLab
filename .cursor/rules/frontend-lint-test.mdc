@@ -42,5 +42,6 @@ Before marking any frontend task complete, confirm:
 - [ ] All checks passed with exit code 0
 - [ ] I did not skip or ignore any failures
 - [ ] New/changed behavior has test coverage
+- [ ] If my changes affect API, schema, or architecture, I updated the relevant docs (e.g. `backend/docs/openapi.yaml`, `docs/ARCHITECTURE.md`, `frontend/README.md`, `AGENTS.md` per `.cursor/rules/documentation-updates.mdc`)
 
 **If checks failed and I couldn't fix them:** I must report this to the user and NOT mark the task done.

@@ -118,6 +118,18 @@ Key points:
 - API modules: `frontend/src/lib/api/`
 - Shared types: `frontend/src/lib/types/event.ts`
 
+## Documentation
+
+When you change behavior that the project’s authoritative docs describe, update those docs in the same change. See `.cursor/rules/documentation-updates.mdc` for the full rule.
+
+| Change type | Update |
+|---|---|
+| New or changed REST endpoints, request/response shapes, auth | `backend/docs/openapi.yaml` |
+| Schema (migrations) | New migration file only; update `backend/sql/schema.sql` as reference snapshot; update `docs/ARCHITECTURE.md` if it affects documented architecture |
+| Config, env, deployment | `docs/ARCHITECTURE.md`, and `backend/README.md` or `frontend/README.md` if they reference it |
+| Key commands, invariants, entry points | `AGENTS.md`, and the relevant README |
+| Product scope or features | `docs/PRD.md` (if the PRD describes them) |
+
 ## Validation checklist
 
 After meaningful refactors, verify:
@@ -134,6 +146,7 @@ After meaningful refactors, verify:
 
 | Topic | Read |
 |---|---|
+| Which doc to update when I change code | "Documentation" subsection above, `.cursor/rules/documentation-updates.mdc` |
 | Technical reference | `docs/ARCHITECTURE.md` |
 | Product intent | `docs/PRD.md` |
 | API contract | `backend/docs/openapi.yaml` |

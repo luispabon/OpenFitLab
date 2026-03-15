@@ -1,0 +1,26 @@
+---
+description: Keep authoritative docs in sync when behavior, API, schema, or commands change
+alwaysApply: true
+---
+
+# Documentation updates
+
+When you change behavior, API, schema, or commands that are described in the project’s authoritative documentation, you **must** update the corresponding doc in the same change set. Do not leave docs out of date.
+
+## Authoritative docs
+
+- **API contract:** `backend/docs/openapi.yaml` (OpenAPI 3.1). Update when adding, changing, or removing endpoints, request/response shapes, or auth/CSRF behavior.
+- **Technical architecture:** `docs/ARCHITECTURE.md`. Update when changing system design, data flow, configuration, deployment, or schema (and keep `backend/sql/schema.sql` in sync as the reference snapshot when migrations change).
+- **Product intent:** `docs/PRD.md`. Update when changing or adding product-level features or scope (if the change affects what the PRD describes).
+- **Agent and quickstart:** `AGENTS.md`. Update when changing key commands, invariants, API contract summary, entry points, or the “When unsure” / Documentation guidance.
+- **Backend conventions and usage:** `backend/README.md`. Update when changing how to run, test, or configure the backend.
+- **Frontend conventions and usage:** `frontend/README.md`. Update when changing how to run, test, or build the frontend.
+
+## When to update
+
+- New or changed REST endpoints or response shapes → update `backend/docs/openapi.yaml`.
+- New or changed schema (migrations) → new migration file only; update `backend/sql/schema.sql` as the reference snapshot; update `docs/ARCHITECTURE.md` if the change affects documented architecture.
+- New or changed config, env, or deployment → update `docs/ARCHITECTURE.md` and any README that references them.
+- New or changed key commands (e.g. make targets, npm scripts) or invariants → update `AGENTS.md` and the relevant README.
+
+When in doubt, see the “Documentation” subsection in `AGENTS.md` for which doc to touch.

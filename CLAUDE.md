@@ -19,6 +19,7 @@ This project uses Cursor-style `.mdc` files in `.cursor/rules/` with YAML frontm
 
 Read relevant `.cursor/rules/*.mdc` files based on your task. Key files:
 - `commit-messages.mdc` — Always apply
+- `documentation-updates.mdc` — Always apply (keep docs in sync when behavior/API/schema changes)
 - `backend-lint-test.mdc` — Backend work (mandatory checks)
 - `frontend-lint-test.mdc` — Frontend work (mandatory checks)
 - `backend-architecture.mdc` — Backend patterns
