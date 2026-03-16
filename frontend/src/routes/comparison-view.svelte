@@ -34,11 +34,7 @@
     toggleHiddenStat as loaderToggleHiddenStat,
     clearHiddenStats as loaderClearHiddenStats,
   } from '../lib/stores/comparison-loader.svelte';
-  import { parseStat } from '../lib/utils/stat-parsing';
-  import {
-    keepStatByPreferredUnit,
-    metricAggregationKeyNormalized,
-  } from '../lib/utils/stat-categories';
+  import { getComparisonStatTypes } from '../lib/utils/stat-categories';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import ComparisonChartCard from '../lib/components/comparison/ComparisonChartCard.svelte';
   import ComparisonStatsTable from '../lib/components/comparison/ComparisonStatsTable.svelte';
@@ -229,58 +225,9 @@
   });
 
   // Get all unique stat types across all events, but only include stats where at least 2 devices have data
-  const allStatTypes = $derived.by(() => {
-    const statCounts = new Map<string, number>();
-
-    // Count how many devices have each stat
-    for (const eventDetail of events) {
-      const activityId = selectedActivities[eventDetail.event.id];
-      if (!activityId) continue;
-      const activity = eventDetail.activities.find((a) => a.id === activityId);
-      if (activity?.stats) {
-        Object.keys(activity.stats).forEach((key) => {
-          const value = activity.stats[key];
-          // Only count if the value is not null/undefined and is meaningful
-          if (value != null && value !== '' && value !== 'N/A') {
-            statCounts.set(key, (statCounts.get(key) || 0) + 1);
-          }
-        });
-      }
-    }
-
-    // Filter to only include stats where at least 2 devices have data
-    // Also deduplicate by (metric + aggregation) key, keeping only preferred variants
-    // This filters out unit-specific Maximum/Minimum Speed variants (keeps only base versions)
-
-    // Sort entries: base versions (no unit variant) first, then preferred unit variants, then others
-    const entriesWithPreference = Array.from(statCounts.entries())
-      .map(([statType, count]) => {
-        if (count < 2) return null;
-        const parsed = parseStat(statType);
-        const key = metricAggregationKeyNormalized(parsed); // case-insensitive so "Average Pace" and "Average pace in ..." collapse
-        const preferred = keepStatByPreferredUnit(parsed);
-        const isBaseVersion = parsed.unitVariant === null;
-        return { statType, count, key, preferred, isBaseVersion };
-      })
-      .filter((e): e is NonNullable<typeof e> => e !== null)
-      .sort((a, b) => {
-        // Base versions (no unit variant) always come first
-        if (a.isBaseVersion && !b.isBaseVersion) return -1;
-        if (!a.isBaseVersion && b.isBaseVersion) return 1;
-        // Then preferred variants
-        return (b.preferred ? 1 : 0) - (a.preferred ? 1 : 0);
-      });
-
-    const byKey = new Map<string, string>();
-    for (const entry of entriesWithPreference) {
-      if (!byKey.has(entry.key)) {
-        byKey.set(entry.key, entry.statType);
-      }
-    }
-
-    const filteredTypes = Array.from(byKey.values()).sort();
-    return filteredTypes.filter((t) => !loaderState.hiddenStats.has(t));
-  });
+  const allStatTypes = $derived(
+    getComparisonStatTypes(events, selectedActivities, loaderState.hiddenStats)
+  );
 
   function toggleStream(type: string) {
     setSelectedStreamTypes((prev) => {

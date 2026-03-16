@@ -7,8 +7,10 @@ import {
   findStatByMetric,
   selectKeyMetrics,
   getGroupedDeduplicatedStats,
+  getComparisonStatTypes,
   type StatEntry,
 } from '../stat-categories';
+import type { EventDetail } from '../../types';
 
 describe('metricAggregationKey', () => {
   it('returns aggregation + metric when aggregation present', () => {
@@ -246,5 +248,66 @@ describe('selectKeyMetrics preferred speed', () => {
     const speedEntry = result.find((e) => e.statType.includes('Speed'));
     expect(speedEntry).toBeDefined();
     expect(speedEntry!.statType).toContain('Kilometers per Hour');
+  });
+});
+
+type ActivityStats = Record<
+  string,
+  number | string | number[] | string[] | Record<string, unknown>
+>;
+
+function makeEvent(id: string, activityStats: ActivityStats): EventDetail {
+  return {
+    event: { id, name: id, startDate: 0, stats: {} },
+    activities: [{ id: `act-${id}`, eventID: id, stats: activityStats }],
+  };
+}
+
+describe('getComparisonStatTypes', () => {
+  it('includes stat when both events have it', () => {
+    const events = [makeEvent('e1', { Duration: 3600 }), makeEvent('e2', { Duration: 1800 })];
+    const selectedActivities = { e1: 'act-e1', e2: 'act-e2' };
+    const result = getComparisonStatTypes(events, selectedActivities, new Set());
+    expect(result).toContain('Duration');
+  });
+
+  it('excludes stat present in only one event', () => {
+    const events = [makeEvent('e1', { Duration: 3600 }), makeEvent('e2', { Distance: 5000 })];
+    const selectedActivities = { e1: 'act-e1', e2: 'act-e2' };
+    const result = getComparisonStatTypes(events, selectedActivities, new Set());
+    expect(result).not.toContain('Duration');
+    expect(result).not.toContain('Distance');
+  });
+
+  it('excludes stat when key is in hiddenStats', () => {
+    const events = [makeEvent('e1', { Duration: 3600 }), makeEvent('e2', { Duration: 1800 })];
+    const selectedActivities = { e1: 'act-e1', e2: 'act-e2' };
+    const result = getComparisonStatTypes(events, selectedActivities, new Set(['Duration']));
+    expect(result).not.toContain('Duration');
+  });
+
+  it('deduplicates by preferred unit variant, keeping only preferred', () => {
+    const stats = {
+      'Average Speed in Kilometers per Hour': 12,
+      'Average Speed in Knots': 6,
+    };
+    const events = [makeEvent('e1', stats), makeEvent('e2', stats)];
+    const selectedActivities = { e1: 'act-e1', e2: 'act-e2' };
+    const result = getComparisonStatTypes(events, selectedActivities, new Set());
+    const speedEntries = result.filter((t) => t.includes('Speed'));
+    expect(speedEntries).toHaveLength(1);
+    expect(speedEntries[0]).toContain('Kilometers per Hour');
+  });
+
+  it('returns empty array for empty events', () => {
+    const result = getComparisonStatTypes([], {}, new Set());
+    expect(result).toEqual([]);
+  });
+
+  it('excludes stats with empty string values', () => {
+    const events = [makeEvent('e1', { Duration: '' }), makeEvent('e2', { Duration: '' })];
+    const selectedActivities = { e1: 'act-e1', e2: 'act-e2' };
+    const result = getComparisonStatTypes(events, selectedActivities, new Set());
+    expect(result).not.toContain('Duration');
   });
 });

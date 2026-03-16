@@ -1,5 +1,6 @@
 import type { ParsedStat } from './stat-parsing';
 import { parseStat } from './stat-parsing';
+import type { EventDetail } from '../types';
 import { getStatIcon, getStatUnit } from './stat-icons';
 import { formatStatValue } from './stat-formatting';
 
@@ -229,4 +230,57 @@ export function selectKeyMetrics(
     }
   }
   return entries;
+}
+
+/**
+ * Returns stat type keys that are present in at least 2 of the provided events'
+ * selected activities, after deduplication by preferred unit variant.
+ * Keys in hiddenStats are excluded.
+ */
+export function getComparisonStatTypes(
+  events: EventDetail[],
+  selectedActivities: Record<string, string>,
+  hiddenStats: Set<string>
+): string[] {
+  const statCounts = new Map<string, number>();
+
+  for (const eventDetail of events) {
+    const activityId = selectedActivities[eventDetail.event.id];
+    if (!activityId) continue;
+    const activity = eventDetail.activities.find((a) => a.id === activityId);
+    if (activity?.stats) {
+      Object.keys(activity.stats).forEach((key) => {
+        const value = activity.stats[key];
+        if (value != null && value !== '' && value !== 'N/A') {
+          statCounts.set(key, (statCounts.get(key) || 0) + 1);
+        }
+      });
+    }
+  }
+
+  const entriesWithPreference = Array.from(statCounts.entries())
+    .map(([statType, count]) => {
+      if (count < 2) return null;
+      const parsed = parseStat(statType);
+      const key = metricAggregationKeyNormalized(parsed);
+      const preferred = keepStatByPreferredUnit(parsed);
+      const isBaseVersion = parsed.unitVariant === null;
+      return { statType, count, key, preferred, isBaseVersion };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .sort((a, b) => {
+      if (a.isBaseVersion && !b.isBaseVersion) return -1;
+      if (!a.isBaseVersion && b.isBaseVersion) return 1;
+      return (b.preferred ? 1 : 0) - (a.preferred ? 1 : 0);
+    });
+
+  const byKey = new Map<string, string>();
+  for (const entry of entriesWithPreference) {
+    if (!byKey.has(entry.key)) {
+      byKey.set(entry.key, entry.statType);
+    }
+  }
+
+  const filteredTypes = Array.from(byKey.values()).sort();
+  return filteredTypes.filter((t) => !hiddenStats.has(t));
 }
