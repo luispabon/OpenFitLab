@@ -27,7 +27,7 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Generate a fresh SESSION_SECRET for this ephemeral stack.
       # It only needs to be internally consistent (seed script + running API both use it).
