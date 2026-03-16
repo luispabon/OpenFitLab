@@ -4,3 +4,4 @@ export * from './stream-config';
 export * from './geo';
 export * from './activity-device';
 export * from './env';
+export * from './hash-query';

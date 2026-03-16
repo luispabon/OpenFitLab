@@ -19,6 +19,7 @@
     getStreamConfig,
     getActivityDeviceName,
     hasLocationStreams,
+    parseHashParam,
   } from '../lib/utils';
   import { calculateDelta } from '../lib/utils/comparison-chart-data';
   import {
@@ -77,17 +78,13 @@
     }
     try {
       const hash = window.location.hash;
-      const hashMatch = hash.match(/\?events=([^&]+)/);
-      const folderMatch = hash.match(/[?&]folder=([^&]*)/);
-      const folderFromHash = folderMatch?.[1]
-        ? decodeURIComponent(folderMatch[1]).trim() || null
-        : null;
+      const eventsRaw = parseHashParam(hash, 'events');
+      const folderFromHash = parseHashParam(hash, 'folder');
       if (folderFromHash !== folderIdFromQueryState) folderIdFromQueryState = folderFromHash;
-      const backMatch = hash.match(/[?&]back=([^&]*)/);
-      const backFromHash = backMatch?.[1] ? decodeURIComponent(backMatch[1]).trim() || null : null;
+      const backFromHash = parseHashParam(hash, 'back');
       if (backFromHash !== backFolderFromQueryState) backFolderFromQueryState = backFromHash;
-      if (hashMatch?.[1]) {
-        const ids = decodeURIComponent(hashMatch[1])
+      if (eventsRaw) {
+        const ids = eventsRaw
           .split(',')
           .map((id) => id.trim())
           .filter((id) => id.length > 0);

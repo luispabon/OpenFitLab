@@ -18,6 +18,7 @@
     isSmoothVariantToHide,
     hasLocationStreams,
     getActivityDeviceName,
+    parseHashParam,
   } from '../lib/utils';
   import { getStatUnit } from '../lib/utils/stat-icons';
   import { formatStatValue } from '../lib/utils/stat-formatting';
@@ -39,12 +40,7 @@
   let powerCurveSectionEl = $state<HTMLElement | null>(null);
 
   $effect(() => {
-    if (query?.back?.trim()) {
-      backFolderId = query.back.trim();
-      return;
-    }
-    const match = window.location.hash.match(/[?&]back=([^&]*)/);
-    backFolderId = match?.[1] ? decodeURIComponent(match[1]).trim() || null : null;
+    backFolderId = query?.back?.trim() || parseHashParam(window.location.hash, 'back');
   });
 
   // If back is a path (e.g. /compare/123), use it directly; otherwise treat as folder id
