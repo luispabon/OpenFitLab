@@ -22,15 +22,11 @@ describe('getPrivacyConfig', () => {
   });
 
   it('derives hasAnalytics from analyticsConfig.isValid (via env)', () => {
-    const cfgDisabled = getPrivacyConfig({
-      VITE_GA_ENABLED: 'false',
-      VITE_GA_MEASUREMENT_ID: 'G-TEST',
-    });
+    const cfgDisabled = getPrivacyConfig({});
     expect(cfgDisabled.hasAnalytics).toBe(false);
     expect(cfgDisabled.analyticsConfig).toBeNull();
 
     const cfgEnabled = getPrivacyConfig({
-      VITE_GA_ENABLED: 'true',
       VITE_GA_MEASUREMENT_ID: 'G-TEST123',
     });
     expect(cfgEnabled.hasAnalytics).toBe(true);
