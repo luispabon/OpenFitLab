@@ -94,9 +94,9 @@ async function callLimiterNTimes(limiter, times, ip) {
 }
 
 describe('rate-limit middleware', () => {
-  it('apiLimiter blocks after 100 requests per minute from same IP', async () => {
-    const { nextCount, lastRes } = await callLimiterNTimes(apiLimiter, 101, '10.0.0.1');
-    strictEqual(nextCount, 100);
+  it('apiLimiter blocks after 500 requests per minute from same IP', async () => {
+    const { nextCount, lastRes } = await callLimiterNTimes(apiLimiter, 501, '10.0.0.1');
+    strictEqual(nextCount, 500);
     strictEqual(lastRes.statusCode, 429);
     ok(lastRes.body && typeof lastRes.body === 'object', 'should send JSON body');
     strictEqual(lastRes.body.error.includes('Too many requests'), true);
@@ -116,9 +116,9 @@ describe('rate-limit middleware', () => {
     strictEqual(lastRes.statusCode, 429);
   });
 
-  it('uploadLimiter blocks after 30 uploads per 15 minutes', async () => {
-    const { nextCount, lastRes } = await callLimiterNTimes(uploadLimiter, 31, '10.0.0.4');
-    strictEqual(nextCount, 30);
+  it('uploadLimiter blocks after 50 uploads per 5 minutes', async () => {
+    const { nextCount, lastRes } = await callLimiterNTimes(uploadLimiter, 51, '10.0.0.4');
+    strictEqual(nextCount, 50);
     strictEqual(lastRes.statusCode, 429);
     ok(lastRes.body && typeof lastRes.body === 'object');
     strictEqual(lastRes.body.error.includes('Upload limit'), true);
