@@ -12,6 +12,14 @@ db-reset:
 	docker-compose up -d
 	docker-compose restart api
 
+# Print an ASCII summary of users, events, and activities (requires stack up).
+.PHONY: stats-summary
+stats-summary:
+	@echo "Metric                  | Value"
+	@echo "------------------------+-------"
+	@docker-compose exec -T db sh -c 'mariadb -u "$$MARIADB_USER" -p"$$MARIADB_PASSWORD" "$$MARIADB_DATABASE" -N -e "SELECT (SELECT COUNT(*) FROM users), (SELECT COUNT(*) FROM events), (SELECT COUNT(*) FROM activities), COALESCE(ROUND((SELECT COUNT(*) FROM events)/NULLIF((SELECT COUNT(*) FROM users),0),2),0), COALESCE(ROUND((SELECT COUNT(*) FROM activities)/NULLIF((SELECT COUNT(*) FROM users),0),2),0)"' | \
+	awk 'BEGIN {FS="\t"} {printf "%-24s | %6s\n", "Users", $$1; printf "%-24s | %6s\n", "Total events", $$2; printf "%-24s | %6s\n", "Total activities", $$3; printf "%-24s | %6s\n", "Avg events per user", $$4; printf "%-24s | %6s\n", "Avg activities per user", $$5}'
+
 .PHONY: docker-build-backend
 docker-build-backend:
 	docker build --target prod -t $(BACKEND_IMAGE):$(DOCKER_TAG) backend/

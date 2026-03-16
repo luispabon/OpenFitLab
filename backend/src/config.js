@@ -148,7 +148,7 @@ const oauth = {
 };
 
 const rateLimit = {
-  api: parseRateLimit(API_RATE_LIMIT_MAX, API_RATE_LIMIT_WINDOW_MS, 100, 60_000),
+  api: parseRateLimit(API_RATE_LIMIT_MAX, API_RATE_LIMIT_WINDOW_MS, 500, 60_000),
   auth: parseRateLimit(AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, 10, 15 * 60_000),
   authCallback: parseRateLimit(
     AUTH_CALLBACK_RATE_LIMIT_MAX,
@@ -156,7 +156,7 @@ const rateLimit = {
     20,
     15 * 60_000
   ),
-  upload: parseRateLimit(UPLOAD_RATE_LIMIT_MAX, UPLOAD_RATE_LIMIT_WINDOW_MS, 30, 15 * 60_000),
+  upload: parseRateLimit(UPLOAD_RATE_LIMIT_MAX, UPLOAD_RATE_LIMIT_WINDOW_MS, 50, 5 * 60_000),
 };
 
 const termsOfService = {
