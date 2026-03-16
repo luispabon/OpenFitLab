@@ -126,6 +126,24 @@
   let saveError = $state<string | null>(null);
   let deleteError = $state<string | null>(null);
 
+  let settingsSaveError = $state<string | null>(null);
+  let settingsSaveErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  function showSettingsError(message: string) {
+    settingsSaveError = message;
+    if (settingsSaveErrorTimeout) clearTimeout(settingsSaveErrorTimeout);
+    settingsSaveErrorTimeout = setTimeout(() => {
+      settingsSaveError = null;
+      settingsSaveErrorTimeout = null;
+    }, 5000);
+  }
+
+  $effect(() => {
+    return () => {
+      if (settingsSaveErrorTimeout) clearTimeout(settingsSaveErrorTimeout);
+    };
+  });
+
   // Inline name editing (saved comparisons only)
   let isEditingName = $state(false);
   let editNameValue = $state('');
@@ -298,7 +316,9 @@
         hiddenStats: Array.from(loaderState.hiddenStats),
         referenceActivityId: loaderState.referenceActivityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
+        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+      });
     }
   }
 
@@ -311,7 +331,9 @@
         hiddenStats: [],
         referenceActivityId: loaderState.referenceActivityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
+        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+      });
     }
   }
 
@@ -329,7 +351,9 @@
         hiddenStats: Array.from(loaderState.hiddenStats),
         referenceActivityId: activityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch(() => {});
+      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
+        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+      });
     }
   }
 
@@ -739,6 +763,15 @@
         {/each}
       </div>
     </div>
+
+    {#if settingsSaveError}
+      <div
+        class="mb-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger"
+        role="alert"
+      >
+        {settingsSaveError}
+      </div>
+    {/if}
 
     {#if loaderState.hiddenStats.size > 0}
       <div class="mb-4 flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2">
