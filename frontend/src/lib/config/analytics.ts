@@ -2,22 +2,12 @@
  * Google Analytics configuration
  *
  * Reads from Vite environment variables:
- * - VITE_GA_ENABLED: Master toggle (default: false)
- * - VITE_GA_MEASUREMENT_ID: GA4 ID like G-XXXXXXXXXX
+ * - VITE_GA_MEASUREMENT_ID: GA4 ID like G-XXXXXXXXXX (presence enables analytics)
  */
 
 export interface AnalyticsConfig {
-  enabled: boolean;
   measurementId: string | null;
   isValid: boolean;
-}
-
-function getBooleanEnv(key: string, defaultValue: boolean, env: Record<string, unknown>): boolean {
-  const value = env[key];
-  if (value === undefined || value === null || value === '') {
-    return defaultValue;
-  }
-  return String(value).toLowerCase() === 'true';
 }
 
 function getStringEnv(key: string, defaultValue: string, env: Record<string, unknown>): string {
@@ -32,21 +22,18 @@ function getStringEnv(key: string, defaultValue: string, env: Record<string, unk
 export function getAnalyticsConfig(
   env: Record<string, unknown> = import.meta.env as Record<string, unknown>
 ): AnalyticsConfig {
-  const enabled = getBooleanEnv('VITE_GA_ENABLED', false, env);
   const measurementId = getStringEnv('VITE_GA_MEASUREMENT_ID', '', env);
 
   // Validate measurement ID format (GA4 IDs start with G-)
-  const isValid = enabled && measurementId !== '' && /^G-[A-Z0-9]+$/i.test(measurementId);
+  const isValid = measurementId !== '' && /^G-[A-Z0-9]+$/i.test(measurementId);
 
-  if (enabled && !isValid) {
+  if (measurementId !== '' && !isValid) {
     console.warn(
-      '[Analytics] VITE_GA_ENABLED is true but VITE_GA_MEASUREMENT_ID ' +
-        'is missing or invalid. Expected format: G-XXXXXXXXXX'
+      '[Analytics] VITE_GA_MEASUREMENT_ID is set but invalid. Expected format: G-XXXXXXXXXX'
     );
   }
 
   return {
-    enabled,
     measurementId: measurementId || null,
     isValid,
   };
