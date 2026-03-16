@@ -6,7 +6,7 @@
 import { getEvent, getStreams, getComparison } from '../api';
 import { isAbortError } from '../api/client';
 import type { EventDetail, StreamData, Comparison } from '../types';
-import { isChartableStream, isSmoothVariantToHide } from './stream-config';
+import { isChartableStream, isSmoothVariantToHide } from '../utils/stream-config';
 
 const EMPTY_EVENTS: EventDetail[] = [];
 const EMPTY_STREAMS: Record<string, StreamData[]> = {};

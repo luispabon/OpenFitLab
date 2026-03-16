@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { state, load, reset } from '../comparison-loader.svelte';
+import { state, load, reset } from '../../stores/comparison-loader.svelte';
 import { eventDetailFixture, eventDetailEvt2Fixture } from '../../../test/fixtures/event-detail';
 import { streamsNoLocationFixture } from '../../../test/fixtures/streams';
 

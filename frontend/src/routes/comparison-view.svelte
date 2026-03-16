@@ -33,7 +33,7 @@
     setReferenceActivityId,
     toggleHiddenStat as loaderToggleHiddenStat,
     clearHiddenStats as loaderClearHiddenStats,
-  } from '../lib/utils/comparison-loader.svelte';
+  } from '../lib/stores/comparison-loader.svelte';
   import { parseStat } from '../lib/utils/stat-parsing';
   import {
     keepStatByPreferredUnit,
