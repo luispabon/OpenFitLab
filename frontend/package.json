@@ -45,7 +45,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "html-to-image": "^1.11.13",
-    "maplibre-gl": "^5.18.0",
+    "maplibre-gl": "^5.20.1",
     "svelte-maplibre-gl": "^1.0.3",
     "svelte-spa-router": "^4.0.1",
     "tailwindcss": "^4.1.18",
