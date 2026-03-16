@@ -4,6 +4,59 @@ const comparisonRepository = require('../repositories/comparison-repository');
 const activityRepository = require('../repositories/activity-repository');
 const { parseJSONField } = require('../utils/transforms');
 
+/** Resolve reference activity ID from a row with activity_ids and settings. */
+function getReferenceActivityId(row) {
+  const activityIds = row.activity_ids || [];
+  if (activityIds.length === 0) return null;
+  let refId = null;
+  if (row.settings != null) {
+    const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings;
+    refId = settings?.referenceActivityId ?? null;
+  }
+  if (refId && activityIds.includes(refId)) return refId;
+  return activityIds[0];
+}
+
+/**
+ * Enriches raw comparison rows with event_ids, activity_ids, and
+ * reference_activity_start_date by fetching link and activity data.
+ */
+async function _enrichComparisons(comparisons, repoOpts) {
+  if (comparisons.length === 0) return [];
+  const ids = comparisons.map((r) => r.id);
+  const linkRows = await comparisonRepository.findEventActivitiesByComparisonIds(ids, repoOpts);
+
+  const eventIdsByComparison = {};
+  const activityIdsByComparison = {};
+  for (const link of linkRows) {
+    if (!eventIdsByComparison[link.comparison_id]) eventIdsByComparison[link.comparison_id] = [];
+    eventIdsByComparison[link.comparison_id].push(link.event_id);
+    if (!activityIdsByComparison[link.comparison_id])
+      activityIdsByComparison[link.comparison_id] = [];
+    activityIdsByComparison[link.comparison_id].push(link.activity_id);
+  }
+
+  const allActivityIds = [...new Set(Object.values(activityIdsByComparison).flat())];
+  let startDateByActivityId = {};
+  if (allActivityIds.length > 0) {
+    const activityRows = await activityRepository.findStartDatesByIds(allActivityIds, repoOpts);
+    startDateByActivityId = Object.fromEntries(activityRows.map((r) => [r.id, r.start_date]));
+  }
+
+  return comparisons.map((row) => {
+    const activityIds = activityIdsByComparison[row.id] || [];
+    const rowWithIds = {
+      ...row,
+      event_ids: eventIdsByComparison[row.id] || [],
+      activity_ids: activityIds,
+    };
+    const refActivityId = getReferenceActivityId(rowWithIds);
+    const reference_activity_start_date =
+      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
+    return { ...rowWithIds, reference_activity_start_date };
+  });
+}
+
 /**
  * @param {string} name
  * @param {string[]} activityIds
@@ -28,6 +81,17 @@ async function createComparison(name, activityIds, settings, opts = {}) {
       const err = new Error('One or more activities not found');
       err.statusCode = 404;
       throw err;
+    }
+
+    // Enforce: at most one activity per event per comparison (schema PK constraint)
+    const eventIdsSeen = new Set();
+    for (const a of activities) {
+      if (eventIdsSeen.has(a.event_id)) {
+        const err = new Error('A comparison cannot include more than one activity per event');
+        err.statusCode = 400;
+        throw err;
+      }
+      eventIdsSeen.add(a.event_id);
     }
 
     const activityRows = activities.map((a) => ({
@@ -66,9 +130,12 @@ async function getComparisons(limit = 100, opts = {}) {
   const repoOpts = { ...opts, db };
   const folderId =
     opts.folderId != null && opts.folderId !== '' && opts.folderId !== 'all' ? opts.folderId : null;
-  const rows = folderId
+  const rawRows = folderId
     ? await comparisonRepository.findAllForFolder(folderId, limit, repoOpts)
     : await comparisonRepository.findAll(limit, repoOpts);
+
+  if (rawRows.length === 0) return [];
+  const rows = await _enrichComparisons(rawRows, repoOpts);
 
   const ids = rows.map((r) => r.id);
   const folderIdsByComparison =
@@ -106,8 +173,10 @@ async function getComparisonById(id, opts = {}) {
   if (!opts.userId) throw new Error('getComparisonById requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
-  const row = await comparisonRepository.findById(id, repoOpts);
-  if (!row) return null;
+  const rawRow = await comparisonRepository.findById(id, repoOpts);
+  if (!rawRow) return null;
+
+  const [enriched] = await _enrichComparisons([rawRow], repoOpts);
   const folderIdsByComparison = await comparisonRepository.getEventFolderIdsForComparisons(
     [id],
     repoOpts
@@ -115,18 +184,18 @@ async function getComparisonById(id, opts = {}) {
   const eventFolderIds = folderIdsByComparison[id];
   const mixed = eventFolderIds ? eventFolderIds.size > 1 : false;
   const referenceActivityStartDate =
-    row.reference_activity_start_date != null
-      ? Number(row.reference_activity_start_date)
+    enriched.reference_activity_start_date != null
+      ? Number(enriched.reference_activity_start_date)
       : undefined;
   return {
-    id: row.id,
-    name: row.name,
-    eventIds: row.event_ids,
-    activityIds: row.activity_ids,
-    settings: parseJSONField(row.settings, null),
-    folderId: row.folder_id ?? null,
+    id: enriched.id,
+    name: enriched.name,
+    eventIds: enriched.event_ids,
+    activityIds: enriched.activity_ids,
+    settings: parseJSONField(enriched.settings, null),
+    folderId: enriched.folder_id ?? null,
     mixed,
-    createdAt: row.created_at ? new Date(row.created_at).getTime() : undefined,
+    createdAt: enriched.created_at ? new Date(enriched.created_at).getTime() : undefined,
     referenceActivityStartDate,
   };
 }
@@ -158,10 +227,7 @@ async function deleteComparisonById(id, opts = {}) {
   if (!opts.userId) throw new Error('deleteComparisonById requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
-  const existing = await comparisonRepository.existsById(id, repoOpts);
-  if (!existing) return false;
-  await comparisonRepository.deleteById(id, repoOpts);
-  return true;
+  return comparisonRepository.deleteById(id, repoOpts);
 }
 
 /**
@@ -175,12 +241,8 @@ async function updateComparisonFolder(id, folderId, opts = {}) {
   if (!opts.userId) throw new Error('updateComparisonFolder requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
-
-  const existing = await comparisonRepository.existsById(id, repoOpts);
-  if (!existing) return false;
-
   const newFolderId = folderId != null && folderId !== '' ? folderId : null;
-  return await comparisonRepository.updateFolderId(id, newFolderId, repoOpts);
+  return comparisonRepository.updateFolderId(id, newFolderId, repoOpts);
 }
 
 /**
@@ -211,12 +273,8 @@ async function updateComparisonName(id, name, opts = {}) {
   if (!opts.userId) throw new Error('updateComparisonName requires opts.userId');
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
-
-  const existing = await comparisonRepository.existsById(id, repoOpts);
-  if (!existing) return false;
-
   const trimmedName = name.trim();
-  return await comparisonRepository.updateName(id, trimmedName, repoOpts);
+  return comparisonRepository.updateName(id, trimmedName, repoOpts);
 }
 
 module.exports = {

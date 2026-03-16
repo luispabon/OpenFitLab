@@ -106,6 +106,13 @@ export interface ComparisonSettings {
   referenceActivityId?: string | null;
 }
 
+/** A named route for multi-route map display (comparison view). */
+export interface NamedRoute {
+  label: string;
+  color: string;
+  streams: StreamData[];
+}
+
 export interface Comparison {
   id: string;
   name: string;

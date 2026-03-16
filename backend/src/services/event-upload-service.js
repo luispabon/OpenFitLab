@@ -139,4 +139,47 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
   };
 }
 
-module.exports = { processUpload, buildEventRecord, buildActivityRecord };
+/**
+ * Processes a batch of uploaded files and returns per-file results.
+ * @param {Array<{ buffer: Buffer, originalname?: string }>} files
+ * @param {string} userId
+ * @param {Function} processUploadFn - (buffer, extension, filename, opts) => Promise
+ * @param {{ folderId?: string | null }} [options]
+ * @returns {Promise<Array<{ success: boolean, filename: string, id?: string, event?: object, activities?: array, error?: string }>>}
+ */
+async function buildUploadResults(files, userId, processUploadFn, options = {}) {
+  const results = [];
+  const folderId = options.folderId != null && options.folderId !== '' ? options.folderId : null;
+  for (const file of files) {
+    const filename = file.originalname || 'file';
+    const extension = FileParser.getExtension(filename);
+    if (!extension) {
+      results.push({ success: false, filename, error: 'Unsupported file type' });
+      continue;
+    }
+    try {
+      const { eventId, eventJson, activities } = await processUploadFn(
+        file.buffer,
+        extension,
+        filename,
+        { userId, folderId: folderId || undefined }
+      );
+      results.push({
+        success: true,
+        filename,
+        id: eventId,
+        event: eventJson,
+        activities,
+      });
+    } catch (err) {
+      results.push({
+        success: false,
+        filename,
+        error: err.message || 'Failed to parse file',
+      });
+    }
+  }
+  return results;
+}
+
+module.exports = { processUpload, buildEventRecord, buildActivityRecord, buildUploadResults };

@@ -72,19 +72,15 @@ describe('comparison-repository', () => {
       deepStrictEqual(result, []);
     });
 
-    it('joins activity links to comparisons', async () => {
-      let callCount = 0;
+    it('returns raw comparison rows', async () => {
       const db = {
-        query: async () => {
-          callCount++;
-          if (callCount === 1) return [{ id: 'c1', name: 'Test', folder_id: null }];
-          return [{ comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' }];
-        },
+        query: async () => [{ id: 'c1', name: 'Test', folder_id: null, settings: null, created_at: null }],
       };
       const result = await findAll(10, { db, userId: 'u1' });
       strictEqual(result.length, 1);
-      deepStrictEqual(result[0].event_ids, ['e1']);
-      deepStrictEqual(result[0].activity_ids, ['a1']);
+      strictEqual(result[0].id, 'c1');
+      strictEqual(result[0].event_ids, undefined);
+      strictEqual(result[0].activity_ids, undefined);
     });
   });
 
@@ -102,20 +98,15 @@ describe('comparison-repository', () => {
       strictEqual(result, null);
     });
 
-    it('returns comparison with event and activity ids', async () => {
-      let callCount = 0;
+    it('returns raw comparison row without event/activity ids', async () => {
       const db = {
-        query: async () => {
-          callCount++;
-          if (callCount === 1)
-            return [{ id: 'c1', name: 'Test', folder_id: null, settings: null }];
-          return [{ event_id: 'e1', activity_id: 'a1' }];
-        },
+        query: async () => [{ id: 'c1', name: 'Test', folder_id: null, settings: null }],
       };
       const result = await findById('c1', { db, userId: 'u1' });
       ok(result);
-      deepStrictEqual(result.event_ids, ['e1']);
-      deepStrictEqual(result.activity_ids, ['a1']);
+      strictEqual(result.id, 'c1');
+      strictEqual(result.event_ids, undefined);
+      strictEqual(result.activity_ids, undefined);
     });
   });
 

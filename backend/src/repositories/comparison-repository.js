@@ -1,18 +1,5 @@
 const { runQuery, placeholders } = require('./query-helper');
 
-/** Resolve reference activity ID from comparison row (settings + activity_ids). */
-function getReferenceActivityId(row) {
-  const activityIds = row.activity_ids || [];
-  if (activityIds.length === 0) return null;
-  let refId = null;
-  if (row.settings != null) {
-    const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings;
-    refId = settings?.referenceActivityId ?? null;
-  }
-  if (refId && activityIds.includes(refId)) return refId;
-  return activityIds[0];
-}
-
 async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');
   const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
@@ -60,59 +47,7 @@ async function findAll(limit, opts = {}) {
     [opts.userId, limit],
     opts
   );
-  const comparisons = Array.isArray(rows) ? rows : [];
-  if (comparisons.length === 0) return [];
-
-  const ids = comparisons.map((r) => r.id);
-  const linkRows = await runQuery(
-    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
-      ids.length
-    )})`,
-    ids,
-    opts
-  );
-  const linkArr = Array.isArray(linkRows) ? linkRows : [];
-
-  const eventIdsByComparison = {};
-  const activityIdsByComparison = {};
-  for (const link of linkArr) {
-    if (!eventIdsByComparison[link.comparison_id]) {
-      eventIdsByComparison[link.comparison_id] = [];
-    }
-    eventIdsByComparison[link.comparison_id].push(link.event_id);
-    if (!activityIdsByComparison[link.comparison_id]) {
-      activityIdsByComparison[link.comparison_id] = [];
-    }
-    activityIdsByComparison[link.comparison_id].push(link.activity_id);
-  }
-
-  const allActivityIds = [...new Set(Object.values(activityIdsByComparison).flat())];
-  let startDateByActivityId = {};
-  if (allActivityIds.length > 0) {
-    const activityRows = await runQuery(
-      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(allActivityIds.length)})`,
-      allActivityIds,
-      opts
-    );
-    const arr = Array.isArray(activityRows) ? activityRows : [];
-    startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
-  }
-
-  return comparisons.map((row) => {
-    const activityIds = activityIdsByComparison[row.id] || [];
-    const rowWithIds = {
-      ...row,
-      event_ids: eventIdsByComparison[row.id] || [],
-      activity_ids: activityIds,
-    };
-    const refActivityId = getReferenceActivityId(rowWithIds);
-    const reference_activity_start_date =
-      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
-    return {
-      ...rowWithIds,
-      reference_activity_start_date,
-    };
-  });
+  return Array.isArray(rows) ? rows : [];
 }
 
 /**
@@ -121,75 +56,18 @@ async function findAll(limit, opts = {}) {
 async function findAllForFolder(folderId, limit, opts = {}) {
   if (!opts.userId) throw new Error('findAllForFolder requires opts.userId');
   const rows = await runQuery(
-    `SELECT c.id, c.folder_id, c.name, c.settings, c.created_at
+    `SELECT DISTINCT c.id, c.folder_id, c.name, c.settings, c.created_at
      FROM comparisons c
+     LEFT JOIN comparison_event_activities cea ON cea.comparison_id = c.id
+     LEFT JOIN events e ON e.id = cea.event_id AND e.user_id = ?
      WHERE c.user_id = ?
-       AND (
-         c.folder_id = ?
-         OR c.id IN (
-           SELECT cea.comparison_id FROM comparison_event_activities cea
-           INNER JOIN events e ON e.id = cea.event_id AND e.user_id = ?
-           WHERE e.folder_id = ?
-         )
-       )
+       AND (c.folder_id = ? OR e.folder_id = ?)
      ORDER BY c.created_at DESC
      LIMIT ?`,
-    [opts.userId, folderId, opts.userId, folderId, limit],
+    [opts.userId, opts.userId, folderId, folderId, limit],
     opts
   );
-  const comparisons = Array.isArray(rows) ? rows : [];
-  if (comparisons.length === 0) return [];
-
-  const ids = comparisons.map((r) => r.id);
-  const linkRows = await runQuery(
-    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
-      ids.length
-    )})`,
-    ids,
-    opts
-  );
-  const linkArr = Array.isArray(linkRows) ? linkRows : [];
-
-  const eventIdsByComparison = {};
-  const activityIdsByComparison = {};
-  for (const link of linkArr) {
-    if (!eventIdsByComparison[link.comparison_id]) {
-      eventIdsByComparison[link.comparison_id] = [];
-    }
-    eventIdsByComparison[link.comparison_id].push(link.event_id);
-    if (!activityIdsByComparison[link.comparison_id]) {
-      activityIdsByComparison[link.comparison_id] = [];
-    }
-    activityIdsByComparison[link.comparison_id].push(link.activity_id);
-  }
-
-  const allActivityIds = [...new Set(Object.values(activityIdsByComparison).flat())];
-  let startDateByActivityId = {};
-  if (allActivityIds.length > 0) {
-    const activityRows = await runQuery(
-      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(allActivityIds.length)})`,
-      allActivityIds,
-      opts
-    );
-    const arr = Array.isArray(activityRows) ? activityRows : [];
-    startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
-  }
-
-  return comparisons.map((row) => {
-    const activityIds = activityIdsByComparison[row.id] || [];
-    const rowWithIds = {
-      ...row,
-      event_ids: eventIdsByComparison[row.id] || [],
-      activity_ids: activityIds,
-    };
-    const refActivityId = getReferenceActivityId(rowWithIds);
-    const reference_activity_start_date =
-      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
-    return {
-      ...rowWithIds,
-      reference_activity_start_date,
-    };
-  });
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function findById(id, opts = {}) {
@@ -199,37 +77,7 @@ async function findById(id, opts = {}) {
     [id, opts.userId],
     opts
   );
-  const row = Array.isArray(rows) ? (rows[0] ?? null) : null;
-  if (!row) return null;
-
-  const linkRows = await runQuery(
-    'SELECT event_id, activity_id FROM comparison_event_activities WHERE comparison_id = ?',
-    [id],
-    opts
-  );
-  if (Array.isArray(linkRows)) {
-    row.event_ids = linkRows.map((r) => r.event_id);
-    row.activity_ids = linkRows.map((r) => r.activity_id);
-  } else {
-    row.event_ids = [];
-    row.activity_ids = [];
-  }
-  const activityIds = row.activity_ids || [];
-  if (activityIds.length > 0) {
-    const activityRows = await runQuery(
-      `SELECT id, start_date FROM activities WHERE id IN (${placeholders(activityIds.length)})`,
-      activityIds,
-      opts
-    );
-    const arr = Array.isArray(activityRows) ? activityRows : [];
-    const startDateByActivityId = Object.fromEntries(arr.map((r) => [r.id, r.start_date]));
-    const refActivityId = getReferenceActivityId(row);
-    row.reference_activity_start_date =
-      refActivityId != null ? (startDateByActivityId[refActivityId] ?? null) : null;
-  } else {
-    row.reference_activity_start_date = null;
-  }
-  return row;
+  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 /**

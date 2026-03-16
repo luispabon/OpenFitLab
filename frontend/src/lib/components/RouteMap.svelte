@@ -10,7 +10,7 @@
   } from 'svelte-maplibre-gl';
   import type { Map as MapLibreMap } from 'maplibre-gl';
   import 'maplibre-gl/dist/maplibre-gl.css';
-  import type { StreamData } from '../types';
+  import type { StreamData, NamedRoute } from '../types';
   import { buildRouteGeoJSON, mergeBounds } from '../utils/geo';
   import { exportAsPng } from '../utils/export-image';
   import ExportButton from './ExportButton.svelte';
@@ -21,12 +21,6 @@
   /** Right-pointing solid triangle (24×24), white so SDF tint (icon-color) applies */
   const ARROW_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#ffffff" d="M6 6L6 18L20 12Z"/></svg>';
-
-  export interface NamedRoute {
-    label: string;
-    color: string;
-    streams: StreamData[];
-  }
 
   type MapTheme = 'dark' | 'positron' | 'bright' | 'liberty' | 'fiord';
 

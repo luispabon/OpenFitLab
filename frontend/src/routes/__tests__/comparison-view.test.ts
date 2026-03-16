@@ -6,7 +6,7 @@ import {
   eventDetailEvt2Fixture,
   comparisonFixture,
 } from '../../test/fixtures/comparison-view';
-import { reset as resetLoader } from '../../lib/utils/comparison-loader.svelte';
+import { reset as resetLoader } from '../../lib/stores/comparison-loader.svelte';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();

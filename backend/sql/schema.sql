@@ -2,10 +2,10 @@
 --
 -- This file is a human-readable snapshot of the schema. It is NOT applied on startup.
 -- The source of truth is backend/sql/migrations/. New schema changes must be added as a
--- new migration file (e.g. 002_description.sql) — never edit existing migration files.
+-- new migration file (e.g. 005_description.sql) — never edit existing migration files.
 --
 -- Tables: users, user_identities, folders, events, event_stats, activities, activity_stats,
---         streams, stream_data_points, comparisons, comparison_event_activities
+--         streams, comparisons, comparison_event_activities
 -- Sessions are stored in Valkey (not in DB).
 -- Foreign keys with ON DELETE CASCADE so deleting a user or event removes all related rows.
 
@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS user_identities (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_identity (provider, provider_user_id),
   INDEX idx_user_id (user_id),
+  INDEX idx_email (email),
   CONSTRAINT fk_identity_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 )
 DEFAULT CHARSET = utf8mb4
@@ -97,11 +98,14 @@ CREATE TABLE IF NOT EXISTS activities (
   INDEX idx_type (type),
   INDEX idx_device_name (device_name),
   INDEX idx_start_date (start_date),
+  INDEX idx_event_id_type (event_id, type),
+  INDEX idx_event_id_device (event_id, device_name),
   CONSTRAINT fk_activities_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 -- idx_start_date: supports getActivityRows ORDER BY COALESCE(a.start_date, e.start_date) and date filters
+-- idx_event_id_type, idx_event_id_device: support index-only scans for getDistinctTypes/getDistinctDeviceNames
 
 CREATE TABLE IF NOT EXISTS activity_stats (
   activity_id VARCHAR(36) NOT NULL,
@@ -126,20 +130,6 @@ CREATE TABLE IF NOT EXISTS streams (
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;
 -- data: packed array of { time, value } per sample (replaces stream_data_points)
-
--- Deprecated: will be dropped by migration 003. Data lives in streams.data.
-CREATE TABLE IF NOT EXISTS stream_data_points (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  stream_id VARCHAR(128) NOT NULL,
-  time_ms BIGINT NOT NULL,
-  value JSON NOT NULL,
-  sequence_index INT,
-  INDEX idx_stream_time (stream_id, time_ms),
-  INDEX idx_stream_sequence (stream_id, sequence_index, time_ms),
-  CONSTRAINT fk_stream_data_points_stream FOREIGN KEY (stream_id) REFERENCES streams (id) ON DELETE CASCADE
-)
-DEFAULT CHARSET = utf8mb4
-COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comparisons (
   id VARCHAR(36) PRIMARY KEY,
