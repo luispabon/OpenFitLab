@@ -137,7 +137,7 @@ describe('event-upload-service processUpload', () => {
     try {
       await processUpload(Buffer.from('x'), 'tcx', 'test.tcx', { db, userId: 'u1' });
       strictEqual(streamInserts.length, 1, 'only the valid stream (Heart Rate) should be inserted');
-      strictEqual(streamInserts[0].params[3], 'Heart Rate');
+      strictEqual(streamInserts[0].params[2], 'Heart Rate');
     } finally {
       FileParser.parseFile.mock.restore();
     }

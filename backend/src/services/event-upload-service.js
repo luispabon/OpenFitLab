@@ -121,7 +121,7 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
             time: dp.time,
             value: dp.value,
           }));
-          await streamRepository.insertStream(streamId, aid, eventId, streamInfo.type, data, tOpts);
+          await streamRepository.insertStream(streamId, aid, streamInfo.type, data, tOpts);
         }
       }
     }

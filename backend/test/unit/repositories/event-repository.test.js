@@ -192,6 +192,19 @@ describe('event-repository', () => {
       const result = await getStatsByEventId('e1', { db, userId: 'u1' });
       strictEqual(result.length, 1);
     });
+
+    it('binds params in SQL order (eventId, userId)', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ stat_type: 'Distance', value: 5000 }];
+        },
+      };
+      await getStatsByEventId('e1', { db, userId: 'u1' });
+      strictEqual(queries[0].params[0], 'e1', 'first param is eventId');
+      strictEqual(queries[0].params[1], 'u1', 'second param is userId');
+    });
   });
 
   describe('updateFolderId', () => {

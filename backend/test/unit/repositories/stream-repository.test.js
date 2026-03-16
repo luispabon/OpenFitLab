@@ -16,12 +16,13 @@ describe('stream-repository', () => {
         return { affectedRows: 1 };
       });
       const data = [{ time: 1000, value: 120 }];
-      await insertStream('s1', 'a1', 'e1', 'Heart Rate', data, { db });
+      await insertStream('s1', 'a1', 'Heart Rate', data, { db });
       ok(queries[0].sql.includes('INSERT INTO streams'));
       ok(queries[0].sql.includes('ON DUPLICATE KEY'));
       ok(queries[0].sql.includes('data'));
+      ok(!queries[0].sql.includes('event_id'));
       strictEqual(queries[0].params[0], 's1');
-      strictEqual(queries[0].params[4], JSON.stringify(data));
+      strictEqual(queries[0].params[3], JSON.stringify(data));
     });
   });
 
@@ -43,10 +44,11 @@ describe('stream-repository', () => {
       const db = {
         query: async (sql, params) => {
           queries.push({ sql, params });
-          return [{ id: 's1', activity_id: 'a1', event_id: 'e1', type: 'HR', data: '[]' }];
+          return [{ id: 's1', activity_id: 'a1', type: 'HR', data: '[]' }];
         },
       };
       const result = await findAllByActivityIds(['a1'], { db, userId: 'u1' });
+      ok(queries[0].sql.includes('JOIN activities'));
       ok(queries[0].sql.includes('JOIN events'));
       ok(queries[0].sql.includes('s.data'));
       ok(!queries[0].sql.includes('created_at'));
@@ -71,8 +73,12 @@ describe('stream-repository', () => {
         },
       };
       const result = await findByActivityAndEvent('a1', 'e1', null, { db, userId: 'u1' });
+      ok(queries[0].sql.includes('JOIN activities'));
       ok(queries[0].sql.includes('s.data'));
       ok(!queries[0].sql.includes('s.type IN'));
+      strictEqual(queries[0].params[0], 'u1', 'first param is userId');
+      strictEqual(queries[0].params[1], 'a1', 'second param is activityId');
+      strictEqual(queries[0].params[2], 'e1', 'third param is eventId');
       strictEqual(result.length, 1);
     });
 
@@ -86,7 +92,11 @@ describe('stream-repository', () => {
       };
       await findByActivityAndEvent('a1', 'e1', ['HR', 'Distance'], { db, userId: 'u1' });
       ok(queries[0].sql.includes('s.type IN'));
-      ok(queries[0].params.includes('HR'));
+      strictEqual(queries[0].params[0], 'u1', 'first param is userId');
+      strictEqual(queries[0].params[1], 'a1', 'second param is activityId');
+      strictEqual(queries[0].params[2], 'e1', 'third param is eventId');
+      strictEqual(queries[0].params[3], 'HR');
+      strictEqual(queries[0].params[4], 'Distance');
     });
   });
 });

@@ -215,7 +215,6 @@ erDiagram
     STREAMS {
         varchar128 id PK
         varchar36 activity_id FK
-        varchar36 event_id FK
         varchar type
         json data
     }
