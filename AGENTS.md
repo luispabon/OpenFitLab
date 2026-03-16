@@ -25,6 +25,10 @@
 - Coverage: `npm run test:coverage`
 - Runtime: Node 24+
 
+### DB / stats
+
+- Print summary table (users, events, activities, averages): `make stats-summary` (requires stack up)
+
 ### Frontend
 
 - Run: `npm run dev` in `frontend/`

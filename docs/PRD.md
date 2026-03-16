@@ -178,6 +178,12 @@ Requirements:
 - filter dashboard and comparison views by folder
 - pinned folders appear first in navigation
 
+### 3.8 Site activity reporting
+
+**Status:** Planned
+
+Some form of reporting on site activity (e.g. number of users, events, activities, and trends over time) may be added later. Possible directions include an admin or privileged user who can see these aggregates and richer analytics (e.g. events and activities created over time), or metrics export / a Grafana (or similar) dashboard for self-hosting operators to monitor usage without an in-app admin UI. Design and delivery mechanism are not yet decided.
+
 ---
 
 ## 4. Product constraints
@@ -262,6 +268,10 @@ Requirements:
 ### Phase 5
 
 - integration and end-to-end testing
+
+### Phase 6 (future)
+
+- site activity reporting and optional admin or metrics dashboard
 
 Backend integration tests (real MariaDB container via `testcontainers-node`, separate CI job):
 
