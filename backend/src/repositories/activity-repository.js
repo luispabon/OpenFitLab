@@ -205,6 +205,16 @@ async function getActivityRowPairs(params, opts = {}) {
   return { pairRows: Array.isArray(pairRows) ? pairRows : [], total };
 }
 
+async function findStartDatesByIds(ids, opts = {}) {
+  if (!ids.length) return [];
+  const rows = await runQuery(
+    `SELECT id, start_date FROM activities WHERE id IN (${placeholders(ids.length)})`,
+    ids,
+    opts
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function getDistinctTypes(opts = {}) {
   if (!opts.userId) throw new Error('getDistinctTypes requires opts.userId');
   const rows = await runQuery(
@@ -232,6 +242,7 @@ module.exports = {
   findByIdAndEventId,
   findManyByIds,
   findManyByEventIds,
+  findStartDatesByIds,
   updateType,
   updateDeviceName,
   getTypesByEventId,

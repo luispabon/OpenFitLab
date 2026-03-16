@@ -1,4 +1,4 @@
-const { runQuery } = require('./query-helper');
+const { runQuery, placeholders } = require('./query-helper');
 
 const FOLDER_COLUMNS = 'id, user_id, name, color, pinned, created_at';
 
@@ -116,6 +116,30 @@ async function getComparisonCountByFolderId(folderId, opts = {}) {
   return row && row.n != null ? Number(row.n) : 0;
 }
 
+async function getEventCountsByFolderIds(folderIds, opts = {}) {
+  if (!folderIds.length) return {};
+  const rows = await runQuery(
+    `SELECT folder_id, COUNT(*) AS n FROM events WHERE folder_id IN (${placeholders(folderIds.length)}) GROUP BY folder_id`,
+    folderIds,
+    opts
+  );
+  return Object.fromEntries(
+    (Array.isArray(rows) ? rows : []).map((r) => [r.folder_id, Number(r.n)])
+  );
+}
+
+async function getComparisonCountsByFolderIds(folderIds, opts = {}) {
+  if (!folderIds.length) return {};
+  const rows = await runQuery(
+    `SELECT folder_id, COUNT(*) AS n FROM comparisons WHERE folder_id IN (${placeholders(folderIds.length)}) GROUP BY folder_id`,
+    folderIds,
+    opts
+  );
+  return Object.fromEntries(
+    (Array.isArray(rows) ? rows : []).map((r) => [r.folder_id, Number(r.n)])
+  );
+}
+
 async function findEventIdsByFolderId(folderId, opts = {}) {
   if (!opts.userId) throw new Error('findEventIdsByFolderId requires opts.userId');
   const rows = await runQuery(
@@ -164,6 +188,8 @@ module.exports = {
   deleteById,
   getEventCountByFolderId,
   getComparisonCountByFolderId,
+  getEventCountsByFolderIds,
+  getComparisonCountsByFolderIds,
   findEventIdsByFolderId,
   clearEventsFolderId,
   clearComparisonsFolderId,

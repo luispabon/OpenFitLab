@@ -94,8 +94,8 @@ describe('folder-service', () => {
             },
           ];
         }
-        if (sql.includes('events WHERE folder_id')) return [{ n: 3 }];
-        if (sql.includes('comparisons WHERE folder_id')) return [{ n: 1 }];
+        if (sql.includes('FROM events WHERE folder_id IN')) return [{ folder_id: 'f1', n: 3 }];
+        if (sql.includes('FROM comparisons WHERE folder_id IN')) return [{ folder_id: 'f1', n: 1 }];
         return [];
       });
 

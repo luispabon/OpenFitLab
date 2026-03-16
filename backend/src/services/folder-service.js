@@ -25,9 +25,15 @@ async function listFolders(opts = {}) {
   const repoOpts = { ...opts, db };
   const rows = await folderRepository.listAll(opts.userId, repoOpts);
   const folders = rows.map(mapFolderRow);
+  if (folders.length === 0) return [];
+  const folderIds = folders.map((f) => f.id);
+  const [eventCounts, comparisonCounts] = await Promise.all([
+    folderRepository.getEventCountsByFolderIds(folderIds, repoOpts),
+    folderRepository.getComparisonCountsByFolderIds(folderIds, repoOpts),
+  ]);
   for (const f of folders) {
-    f.eventCount = await folderRepository.getEventCountByFolderId(f.id, repoOpts);
-    f.comparisonCount = await folderRepository.getComparisonCountByFolderId(f.id, repoOpts);
+    f.eventCount = eventCounts[f.id] ?? 0;
+    f.comparisonCount = comparisonCounts[f.id] ?? 0;
   }
   return folders;
 }
@@ -39,8 +45,12 @@ async function getFolderById(id, opts = {}) {
   const row = await folderRepository.findById(id, repoOpts);
   if (!row) return null;
   const folder = mapFolderRow(row);
-  folder.eventCount = await folderRepository.getEventCountByFolderId(id, repoOpts);
-  folder.comparisonCount = await folderRepository.getComparisonCountByFolderId(id, repoOpts);
+  const [eventCounts, comparisonCounts] = await Promise.all([
+    folderRepository.getEventCountsByFolderIds([id], repoOpts),
+    folderRepository.getComparisonCountsByFolderIds([id], repoOpts),
+  ]);
+  folder.eventCount = eventCounts[id] ?? 0;
+  folder.comparisonCount = comparisonCounts[id] ?? 0;
   return folder;
 }
 
@@ -130,9 +140,12 @@ async function deleteFolder(id, contentsMode, opts = {}) {
     });
   }
 
-  await folderRepository.clearEventsFolderId(id, repoOpts);
-  await folderRepository.clearComparisonsFolderId(id, repoOpts);
-  return folderRepository.deleteById(id, repoOpts);
+  return db.transaction(async (conn) => {
+    const txOpts = { ...repoOpts, conn };
+    await folderRepository.clearEventsFolderId(id, txOpts);
+    await folderRepository.clearComparisonsFolderId(id, txOpts);
+    return folderRepository.deleteById(id, txOpts);
+  });
 }
 
 module.exports = {

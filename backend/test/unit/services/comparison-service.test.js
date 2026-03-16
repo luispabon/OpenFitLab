@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { strictEqual, deepStrictEqual } = require('node:assert/strict');
+const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const {
   createComparison,
   getComparisons,
@@ -73,6 +73,29 @@ describe('comparison-service', () => {
       strictEqual(Boolean(insertComp), true);
       strictEqual(insertComp.params[4], null);
       strictEqual(result.settings, null);
+    });
+
+    it('rejects with statusCode 400 when two activities from the same event are included', async () => {
+      const db = makeFakeDb(async (sql) => {
+        if (sql.includes('FROM activities a')) {
+          return [
+            { id: 'a1', event_id: 'e1' },
+            { id: 'a2', event_id: 'e1' }, // same event
+          ];
+        }
+        return { affectedRows: 1 };
+      });
+
+      await assert.rejects(
+        async () => {
+          await createComparison('Test', ['a1', 'a2'], null, { db, userId: 'u1' });
+        },
+        (err) => {
+          strictEqual(err.statusCode, 400);
+          ok(err.message.includes('more than one activity per event'));
+          return true;
+        }
+      );
     });
 
     it('rejects with statusCode 404 when fewer activities found than requested (transaction rolls back)', async () => {
@@ -174,8 +197,8 @@ describe('comparison-service', () => {
           }
           if (sql.includes('FROM comparison_event_activities')) {
             return [
-              { event_id: 'e1', activity_id: 'a1' },
-              { event_id: 'e2', activity_id: 'a2' },
+              { comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' },
+              { comparison_id: 'c1', event_id: 'e2', activity_id: 'a2' },
             ];
           }
           if (sql.includes('FROM activities')) {
@@ -230,10 +253,8 @@ describe('comparison-service', () => {
   });
 
   describe('deleteComparisonById', () => {
-    it('returns false when comparison not found', async () => {
-      const db = {
-        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
-      };
+    it('returns false when comparison not found (affectedRows 0)', async () => {
+      const db = { query: async () => ({ affectedRows: 0 }) };
       const result = await deleteComparisonById('missing', { db, userId: 'u1' });
       strictEqual(result, false);
     });
@@ -243,9 +264,7 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql) => {
           calls.push(sql);
-          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
-          if (sql.includes('DELETE')) return { affectedRows: 1 };
-          return [];
+          return { affectedRows: 1 };
         },
       };
       const result = await deleteComparisonById('c1', { db, userId: 'u1' });
@@ -258,10 +277,8 @@ describe('comparison-service', () => {
   });
 
   describe('updateComparisonFolder', () => {
-    it('returns false when comparison not found', async () => {
-      const db = {
-        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
-      };
+    it('returns false when comparison not found (affectedRows 0)', async () => {
+      const db = { query: async () => ({ affectedRows: 0 }) };
       const result = await updateComparisonFolder('missing', 'f1', { db, userId: 'u1' });
       strictEqual(result, false);
     });
@@ -271,14 +288,13 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql, params) => {
           calls.push({ sql, params });
-          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
           if (sql.includes('UPDATE comparisons SET folder_id')) {
             strictEqual(params[0], 'f2');
             strictEqual(params[1], 'c1');
             strictEqual(params[2], 'u1');
             return { affectedRows: 1 };
           }
-          return [];
+          return { affectedRows: 0 };
         },
       };
       const result = await updateComparisonFolder('c1', 'f2', { db, userId: 'u1' });
@@ -294,12 +310,11 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql, params) => {
           calls.push({ sql, params });
-          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
           if (sql.includes('UPDATE comparisons SET folder_id')) {
             strictEqual(params[0], null);
             return { affectedRows: 1 };
           }
-          return [];
+          return { affectedRows: 0 };
         },
       };
       const result = await updateComparisonFolder('c1', null, { db, userId: 'u1' });
@@ -367,10 +382,8 @@ describe('comparison-service', () => {
   });
 
   describe('updateComparisonName', () => {
-    it('returns false when comparison not found', async () => {
-      const db = {
-        query: async (sql) => (sql.includes('SELECT id FROM') ? [] : { affectedRows: 0 }),
-      };
+    it('returns false when comparison not found (affectedRows 0)', async () => {
+      const db = { query: async () => ({ affectedRows: 0 }) };
       const result = await updateComparisonName('missing', 'New Name', { db, userId: 'u1' });
       strictEqual(result, false);
     });
@@ -380,14 +393,13 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql, params) => {
           calls.push({ sql, params });
-          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
           if (sql.includes('UPDATE comparisons SET name')) {
             strictEqual(params[0], 'New Name');
             strictEqual(params[1], 'c1');
             strictEqual(params[2], 'u1');
             return { affectedRows: 1 };
           }
-          return [];
+          return { affectedRows: 0 };
         },
       };
       const result = await updateComparisonName('c1', 'New Name', { db, userId: 'u1' });
@@ -403,12 +415,11 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql, params) => {
           calls.push({ sql, params });
-          if (sql.includes('SELECT id FROM')) return [{ id: 'c1' }];
           if (sql.includes('UPDATE comparisons SET name')) {
             strictEqual(params[0], 'Trimmed Name');
             return { affectedRows: 1 };
           }
-          return [];
+          return { affectedRows: 0 };
         },
       };
       const result = await updateComparisonName('c1', '  Trimmed Name  ', { db, userId: 'u1' });
@@ -416,7 +427,7 @@ describe('comparison-service', () => {
     });
 
     it('throws when userId is not provided', async () => {
-      const db = { query: async () => [{ id: 'c1' }] };
+      const db = { query: async () => ({ affectedRows: 1 }) };
       await assert.rejects(
         async () => updateComparisonName('c1', 'Name', { db }),
         /updateComparisonName requires opts\.userId/

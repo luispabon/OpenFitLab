@@ -356,8 +356,8 @@ Comparison responses include:
 - `activityIds`
 - optional `settings` — includes `selectedStreams`, `xAxisMode`, `hiddenStats`, `referenceActivityId`
 - optional `folderId`
-- optional `mixed`
-- optional `surfaced`
+- optional `mixed` — `true` when the comparison's activities span more than one folder (events in different folders). Computed from `events.folder_id` for each activity at query time.
+- optional `surfaced` — `true` when a folder-filtered list includes a comparison whose own `folder_id` differs from the requested folder, because one of its events belongs to that folder. Surfaced comparisons appear in the folder view but are not filed there.
 - optional `createdAt`
 
 ### Stream analysis (frontend-only)

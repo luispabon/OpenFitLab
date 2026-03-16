@@ -1,18 +1,16 @@
 const express = require('express');
 const multer = require('multer');
-const FileParser = require('../parsers/file-parser');
 const {
   listEvents,
   getEventById,
   getActivityRows,
   getComparisonCandidates,
 } = require('../services/event-query-service');
-const { processUpload } = require('../services/event-upload-service');
+const { processUpload, buildUploadResults } = require('../services/event-upload-service');
 const { deleteEventById } = require('../services/event-delete-service');
 const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
-const eventRepository = require('../repositories/event-repository');
-const folderRepository = require('../repositories/folder-repository');
+const { updateEventFolder } = require('../services/event-update-service');
 const { asyncHandler } = require('../middleware/async-handler');
 const { uploadLimiter } = require('../middleware/rate-limit');
 const { ValidationError, NotFoundError } = require('../errors');
@@ -101,49 +99,6 @@ router.get(
   })
 );
 
-/**
- * Build batch upload results for 1–10 files. Used by POST /api/events and by tests.
- * @param {Array<{ buffer: Buffer, originalname?: string }>} files
- * @param {string} userId
- * @param {Function} processUploadFn - (buffer, extension, filename, opts) => Promise<{ eventId, eventJson, activities }>
- * @param {{ folderId?: string | null }} [options] - optional folderId for new events
- * @returns {Promise<Array<{ success: boolean, filename: string, id?: string, event?: object, activities?: array, error?: string }>>}
- */
-async function buildUploadResults(files, userId, processUploadFn, options = {}) {
-  const results = [];
-  const folderId = options.folderId != null && options.folderId !== '' ? options.folderId : null;
-  for (const file of files) {
-    const filename = file.originalname || 'file';
-    const extension = FileParser.getExtension(filename);
-    if (!extension) {
-      results.push({ success: false, filename, error: 'Unsupported file type' });
-      continue;
-    }
-    try {
-      const { eventId, eventJson, activities } = await processUploadFn(
-        file.buffer,
-        extension,
-        filename,
-        { userId, folderId: folderId || undefined }
-      );
-      results.push({
-        success: true,
-        filename,
-        id: eventId,
-        event: eventJson,
-        activities,
-      });
-    } catch (err) {
-      results.push({
-        success: false,
-        filename,
-        error: err.message || 'Failed to parse file',
-      });
-    }
-  }
-  return results;
-}
-
 // POST /api/events (multipart: files, optional folderId in body; response always { results })
 router.post(
   '/',
@@ -224,16 +179,8 @@ router.patch(
       if (!isValidUUID(folderId)) {
         throw new ValidationError('folderId must be a valid UUID or null');
       }
-      const folder = await folderRepository.findById(folderId, { userId: req.userId });
-      if (!folder) throw new NotFoundError('Folder not found');
     }
-    const updated = await eventRepository.updateFolderId(
-      id,
-      folderId === undefined || folderId === null || folderId === '' ? null : folderId,
-      { userId: req.userId }
-    );
-    if (!updated) throw new NotFoundError('Event not found');
-    const result = await getEventById(id, { userId: req.userId });
+    const result = await updateEventFolder(id, folderId, { userId: req.userId });
     res.json(result);
   })
 );
@@ -250,4 +197,3 @@ router.delete(
 );
 
 module.exports = router;
-module.exports.buildUploadResults = buildUploadResults;

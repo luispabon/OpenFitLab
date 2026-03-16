@@ -18,9 +18,11 @@ const {
 const { deleteEventById } = require('../../../src/services/event-delete-service');
 const { getStreamsForActivity } = require('../../../src/services/stream-service');
 const { updateActivity } = require('../../../src/services/activity-service');
-const { processUpload } = require('../../../src/services/event-upload-service');
+const {
+  processUpload,
+  buildUploadResults,
+} = require('../../../src/services/event-upload-service');
 const eventsRouterModule = require('../../../src/routes/events');
-const { buildUploadResults } = eventsRouterModule;
 const { errorHandler } = require('../../../src/middleware/error-handler');
 const fs = require('fs');
 const path = require('path');
