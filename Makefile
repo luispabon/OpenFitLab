@@ -26,7 +26,9 @@ docker-build-backend:
 
 .PHONY: docker-build-frontend
 docker-build-frontend:
-	docker build --target prod -t $(FRONTEND_IMAGE):$(DOCKER_TAG) frontend/
+	docker build --target prod \
+	  $(if $(VITE_GA_MEASUREMENT_ID),--build-arg VITE_GA_MEASUREMENT_ID=$(VITE_GA_MEASUREMENT_ID)) \
+	  -t $(FRONTEND_IMAGE):$(DOCKER_TAG) frontend/
 
 .PHONY: docker-build-backup
 docker-build-backup:
