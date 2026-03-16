@@ -125,7 +125,6 @@ describe('account-service', () => {
             {
               id: 's1',
               activity_id: 'a1',
-              event_id: 'e1',
               type: 'heartrate',
               data: '[]',
             },
@@ -199,7 +198,6 @@ describe('account-service', () => {
             {
               id: 's1',
               activity_id: 'a1',
-              event_id: 'e1',
               type: 'hr',
               data: '[{"time":100,"value":72}]',
             },
@@ -267,7 +265,6 @@ describe('account-service', () => {
             {
               id: 's1',
               activity_id: 'a1',
-              event_id: 'e1',
               type: 'hr',
               data: '[{"time":100,"value":72}]',
             },

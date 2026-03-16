@@ -9,6 +9,23 @@ describe('getStreamsForActivity', () => {
     deepStrictEqual(result, []);
   });
 
+  it('passes userId, activityId, eventId to repository in correct order', async () => {
+    let capturedParams;
+    const db = {
+      query: async (sql, params) => {
+        if (sql.includes('FROM streams')) {
+          capturedParams = params;
+          return [];
+        }
+        return [];
+      },
+    };
+    await getStreamsForActivity('evt-1', 'act-1', {}, { db, userId: 'user-1' });
+    strictEqual(capturedParams[0], 'user-1', 'first param is userId');
+    strictEqual(capturedParams[1], 'act-1', 'second param is activityId');
+    strictEqual(capturedParams[2], 'evt-1', 'third param is eventId');
+  });
+
   it('returns streams with data from packed data column', async () => {
     const db = {
       query: async (sql, params) => {

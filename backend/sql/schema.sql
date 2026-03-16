@@ -116,15 +116,12 @@ COLLATE = utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS streams (
   id VARCHAR(128) PRIMARY KEY,
   activity_id VARCHAR(36) NOT NULL,
-  event_id VARCHAR(36) NOT NULL,
   type VARCHAR(128) NOT NULL,
   data JSON COMPRESSED NOT NULL DEFAULT ('[]'),
   INDEX idx_activity_id (activity_id),
-  INDEX idx_event_id (event_id),
   INDEX idx_type (type),
   UNIQUE KEY unique_activity_stream_type (activity_id, type),
-  CONSTRAINT fk_streams_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE,
-  CONSTRAINT fk_streams_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+  CONSTRAINT fk_streams_activity FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE
 )
 DEFAULT CHARSET = utf8mb4
 COLLATE = utf8mb4_unicode_ci;

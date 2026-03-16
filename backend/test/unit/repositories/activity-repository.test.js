@@ -99,6 +99,20 @@ describe('activity-repository', () => {
       const result = await findByIdAndEventId('a1', 'e1', { db, userId: 'u1' });
       strictEqual(result.id, 'a1');
     });
+
+    it('binds params in SQL order (activityId, eventId, userId)', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ id: 'a1', event_id: 'e1' }];
+        },
+      };
+      await findByIdAndEventId('a1', 'e1', { db, userId: 'u1' });
+      strictEqual(queries[0].params[0], 'a1', 'first param is activityId');
+      strictEqual(queries[0].params[1], 'e1', 'second param is eventId');
+      strictEqual(queries[0].params[2], 'u1', 'third param is userId');
+    });
   });
 
   describe('findManyByIds', () => {
