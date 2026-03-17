@@ -33,8 +33,17 @@
   import ExportButton from '../lib/components/ExportButton.svelte';
   import { exportAsPng } from '../lib/utils/export-image';
   import { buildFolderHash } from '../lib/stores/folders.svelte';
+  import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
+  import type { ActivityRow } from '../lib/types';
 
   const id = $derived(params?.id ?? '');
+
+  let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined);
+
+  const eventActivityRows = $derived.by((): ActivityRow[] => {
+    if (!eventDetail) return [];
+    return [{ event: eventDetail.event, activity: eventDetail.activities[0] }];
+  });
 
   let backFolderId = $state<string | null>(null);
   let powerCurveSectionEl = $state<HTMLElement | null>(null);
@@ -554,13 +563,35 @@
     </div>
 
     <!-- Related Comparisons Section -->
-    {#if relatedComparisons.length > 0}
-      <div class="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div class="border-b border-border px-6 py-4">
-          <h3 class="text-base font-semibold text-text-primary">
-            In comparisons ({relatedComparisons.length})
-          </h3>
+    <div class="mt-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div class="flex items-center justify-between border-b border-border px-6 py-4">
+        <h3 class="text-base font-semibold text-text-primary">
+          In comparisons ({relatedComparisons.length})
+        </h3>
+        <button
+          type="button"
+          class="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+          onclick={() => compareCandidatesFlow?.openForEvent(id)}
+        >
+          <span class="material-icons text-[1.15em] leading-none" aria-hidden="true">compare</span>
+          Compare with another event
+        </button>
+      </div>
+      {#if relatedComparisonsLoading}
+        <div class="p-4">
+          <div class="flex items-center gap-2 text-text-secondary">
+            <span class="material-icons animate-spin text-base">refresh</span>
+            <span class="text-sm">Loading related comparisons...</span>
+          </div>
         </div>
+      {:else if relatedComparisonsError}
+        <div class="p-4">
+          <div class="flex items-center gap-2 text-danger">
+            <span class="material-icons text-base">error_outline</span>
+            <span class="text-sm">{relatedComparisonsError}</span>
+          </div>
+        </div>
+      {:else if relatedComparisons.length > 0}
         <div class="divide-y divide-border">
           {#each relatedComparisons as comparison (comparison.id)}
             <div class="flex items-center justify-between px-6 py-3 hover:bg-surface/50">
@@ -576,22 +607,10 @@
             </div>
           {/each}
         </div>
-      </div>
-    {:else if relatedComparisonsLoading}
-      <div class="mt-6 rounded-xl border border-border bg-card p-4">
-        <div class="flex items-center gap-2 text-text-secondary">
-          <span class="material-icons animate-spin text-base">refresh</span>
-          <span class="text-sm">Loading related comparisons...</span>
-        </div>
-      </div>
-    {:else if relatedComparisonsError}
-      <div class="mt-6 rounded-xl border border-border bg-card p-4">
-        <div class="flex items-center gap-2 text-danger">
-          <span class="material-icons text-base">error_outline</span>
-          <span class="text-sm">{relatedComparisonsError}</span>
-        </div>
-      </div>
-    {/if}
+      {:else}
+        <div class="px-6 py-4 text-sm text-text-secondary">Not in any comparisons yet.</div>
+      {/if}
+    </div>
 
     {#if locationAvailable && !streamsLoading}
       <div class="mt-6 overflow-hidden rounded-xl border border-border shadow-sm">
@@ -638,3 +657,14 @@
     <p class="text-text-secondary">Event not found.</p>
   {/if}
 </section>
+
+<CompareCandidatesFlow
+  bind:this={compareCandidatesFlow}
+  activityRows={eventActivityRows}
+  onCompare={(eventIds, suggestedFolderId) => {
+    const params = new URLSearchParams();
+    params.set('events', eventIds.join(','));
+    if (suggestedFolderId) params.set('folder', suggestedFolderId);
+    push(`/compare/new?${params.toString()}`);
+  }}
+/>
