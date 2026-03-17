@@ -184,6 +184,24 @@ Requirements:
 
 Some form of reporting on site activity (e.g. number of users, events, activities, and trends over time) may be added later. Possible directions include an admin or privileged user who can see these aggregates and richer analytics (e.g. events and activities created over time), or metrics export / a Grafana (or similar) dashboard for self-hosting operators to monitor usage without an in-app admin UI. Design and delivery mechanism are not yet decided.
 
+### 3.9 Activity file export
+
+**Status:** Planned
+
+Users may be able to export activity data back to standard file formats. The most likely direction is TCX export reconstructed from stored event and stream data, with an optional GPX route export for events that include GPS streams.
+
+### 3.10 Third-party platform import
+
+**Status:** Planned
+
+Users may be able to import activity data directly from third-party fitness platforms via their public APIs, removing the need to manually export and upload files. Likely candidates are Strava, Polar Flow, and Fitbit, all of which provide OAuth 2.0 APIs that expose activity data and streams compatible with what OpenFitLab already stores.
+
+### 3.11 Single-user passphrase mode
+
+**Status:** Planned
+
+For personal deployments where configuring an OAuth2 provider is impractical, a single-user mode may be offered. The operator would set a passphrase via an environment variable and use it to log in directly, with no external identity provider required. This follows a pattern common in self-hosted tools (e.g. Miniflux, Stirling-PDF) and removes the main barrier to entry for simple homelab setups.
+
 ---
 
 ## 4. Product constraints
