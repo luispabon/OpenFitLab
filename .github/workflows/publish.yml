@@ -1,5 +1,8 @@
 name: Publish Docker images
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -8,8 +11,18 @@ on:
       - 'v*'
 
 jobs:
+  backend-checks:
+    uses: ./.github/workflows/backend-checks.yml
+
+  frontend-checks:
+    uses: ./.github/workflows/frontend-checks.yml
+
+  e2e:
+    uses: ./.github/workflows/e2e-checks.yml
+
   build:
     name: Build and push ${{ matrix.name }} image
+    needs: [backend-checks, frontend-checks, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read
