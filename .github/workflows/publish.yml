@@ -1,5 +1,8 @@
 name: Publish Docker images
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
