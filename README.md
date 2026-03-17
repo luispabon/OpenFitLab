@@ -2,6 +2,8 @@
 
 A self-hosted fitness activity tracking and comparison platform. Upload activity files (TCX, FIT, GPX) from your fitness devices, visualize your workouts with interactive graphs, and compare activities side-by-side to analyze performance and compare data from different fitness trackers.
 
+**Hosted instance:** https://openfitlab.org
+
 ## Features
 
 - **File Upload**: Upload activity files in multiple formats (TCX, FIT, GPX, JSON, SML)
@@ -9,6 +11,18 @@ A self-hosted fitness activity tracking and comparison platform. Upload activity
 - **Activity Comparison**: Compare two or more workouts side-by-side with merged views
 - **Stream Analysis**: Analyze relationships between different data streams (correlation, XY plots, correlation indices)
 - **Tracker Comparison**: Compare data from different fitness trackers to evaluate device accuracy
+
+<img src="docs/screenshots/screenshot.png" width="800" alt="Dashboard">
+
+<details>
+<summary>More screenshots</summary>
+
+| | |
+|---|---|
+| ![Comparison 1](docs/screenshots/screenshot_comparison_1.png) | ![Comparison 2](docs/screenshots/screenshot_comparison_2.png) |
+| ![Stats](docs/screenshots/screenshot_event_stacking_stats.png) | ![Comparison list](docs/screenshots/screenshot_comparisons.png)|
+
+</details>
 
 ## Architecture
 
