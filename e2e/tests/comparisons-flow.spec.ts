@@ -5,37 +5,38 @@
 import { test, expect } from '../fixtures/auth.js';
 import { resolve } from 'node:path';
 
-test('can create and view a saved comparison', async ({ page, csrfToken, sessionCookie, apiBase, eventId }) => {
-  // Upload a second event via API (faster than UI)
+test('can create and view a saved comparison', async ({ page, csrfToken, sessionCookie, apiBase }) => {
+  // Upload both events specifically for this test so it is self-contained and unaffected
+  // by other parallel tests that share the same user session (e.g. delete-event deleting
+  // the seeded event between load and save).
   const tcxPath = resolve(__dirname, '../../backend/test/fixtures/minimal.tcx');
   const { readFileSync } = await import('node:fs');
   const tcxBytes = readFileSync(tcxPath);
 
-  const formData = new FormData();
-  formData.append('files', new Blob([tcxBytes], { type: 'application/octet-stream' }), 'minimal2.tcx');
+  async function uploadEvent(filename: string): Promise<string> {
+    const formData = new FormData();
+    formData.append('files', new Blob([tcxBytes], { type: 'application/octet-stream' }), filename);
+    const res = await fetch(`${apiBase}/api/events`, {
+      method: 'POST',
+      headers: { Cookie: `ofl.sid=${sessionCookie}`, 'CSRF-Token': csrfToken },
+      body: formData,
+    });
+    expect(res.ok).toBe(true);
+    const body = (await res.json()) as {
+      results: Array<{ success: boolean; event?: { id: string } }>;
+    };
+    const id = body.results.find((r) => r.success && r.event)?.event?.id;
+    expect(id).toBeDefined();
+    return id!;
+  }
 
-  const uploadRes = await fetch(`${apiBase}/api/events`, {
-    method: 'POST',
-    headers: {
-      Cookie: `ofl.sid=${sessionCookie}`,
-      'CSRF-Token': csrfToken,
-    },
-    body: formData,
-  });
-  expect(uploadRes.ok).toBe(true);
-
-  const uploadBody = (await uploadRes.json()) as {
-    results: Array<{ success: boolean; event?: { id: string; activities: Array<{ id: string }> } }>;
-  };
-  const secondEvent = uploadBody.results.find((r) => r.success && r.event)?.event;
-  expect(secondEvent).toBeDefined();
-
-  const secondEventId = secondEvent!.id;
+  const [firstEventId, secondEventId] = await Promise.all([
+    uploadEvent('compare-a.tcx'),
+    uploadEvent('compare-b.tcx'),
+  ]);
 
   // Navigate directly to the comparison URL using the known event IDs.
-  // Selecting via the workouts UI checkboxes is flaky when parallel tests are also
-  // uploading/deleting events (shared user session), so we build the URL here.
-  await page.goto(`/#/compare/new?events=${eventId},${secondEventId}`);
+  await page.goto(`/#/compare/new?events=${firstEventId},${secondEventId}`);
 
   // Open the save dialog — button only renders once events have loaded
   await expect(page.getByRole('button', { name: /save comparison/i })).toBeVisible({ timeout: 15000 });
@@ -56,12 +57,13 @@ test('can create and view a saved comparison', async ({ page, csrfToken, session
   // The comparisons list should show content (heading or table/list)
   await expect(page.getByText(/saved comparisons|e2e delete test|e2e/i).first()).toBeVisible({ timeout: 10000 });
 
-  // Clean up: delete the second event via API
-  await fetch(`${apiBase}/api/events/${secondEventId}`, {
-    method: 'DELETE',
-    headers: {
-      Cookie: `ofl.sid=${sessionCookie}`,
-      'CSRF-Token': csrfToken,
-    },
-  });
+  // Clean up: delete both events (cascade-deletes the saved comparison too)
+  await Promise.all(
+    [firstEventId, secondEventId].map((id) =>
+      fetch(`${apiBase}/api/events/${id}`, {
+        method: 'DELETE',
+        headers: { Cookie: `ofl.sid=${sessionCookie}`, 'CSRF-Token': csrfToken },
+      })
+    )
+  );
 });
