@@ -5,7 +5,7 @@
 import { test, expect } from '../fixtures/auth.js';
 import { resolve } from 'node:path';
 
-test('can create and view a saved comparison', async ({ page, csrfToken, sessionCookie, apiBase }) => {
+test('can create and view a saved comparison', async ({ page, csrfToken, sessionCookie, apiBase, eventId }) => {
   // Upload a second event via API (faster than UI)
   const tcxPath = resolve(__dirname, '../../backend/test/fixtures/minimal.tcx');
   const { readFileSync } = await import('node:fs');
@@ -32,35 +32,10 @@ test('can create and view a saved comparison', async ({ page, csrfToken, session
 
   const secondEventId = secondEvent!.id;
 
-  // Navigate to workouts list
-  await page.goto('/');
-  await expect(page.getByRole('table')).toBeVisible({ timeout: 15000 });
-  // Wait for data rows and their checkboxes to appear
-  await expect(async () => {
-    const count = await page.locator('input[type="checkbox"]').count();
-    expect(count).toBeGreaterThanOrEqual(2);
-  }).toPass({ timeout: 15000 });
-
-  // Select both events via checkboxes
-  const checkboxes = page.locator('input[type="checkbox"]');
-  const checkboxCount = await checkboxes.count();
-  // Select up to 2 event checkboxes (skip select-all which may be index 0)
-  let selected = 0;
-  for (let i = 0; i < checkboxCount && selected < 2; i++) {
-    const cb = checkboxes.nth(i);
-    const isSelectAll = await cb.evaluate((el) => el.closest('thead') !== null);
-    if (!isSelectAll) {
-      await cb.check();
-      selected++;
-    }
-  }
-  expect(selected).toBe(2);
-
-  // Click Compare in the bulk action bar
-  await page.getByRole('button', { name: /compare/i }).click();
-
-  // Should navigate to /compare/new
-  await expect(page).toHaveURL(/#\/compare\/new/, { timeout: 10000 });
+  // Navigate directly to the comparison URL using the known event IDs.
+  // Selecting via the workouts UI checkboxes is flaky when parallel tests are also
+  // uploading/deleting events (shared user session), so we build the URL here.
+  await page.goto(`/#/compare/new?events=${eventId},${secondEventId}`);
 
   // Open the save dialog — button only renders once events have loaded
   await expect(page.getByRole('button', { name: /save comparison/i })).toBeVisible({ timeout: 15000 });

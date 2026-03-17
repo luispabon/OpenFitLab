@@ -40,20 +40,17 @@ test('deleting an event removes it from the list', async ({
   // Navigate to workouts
   await page.goto('/');
   await expect(page.getByRole('table')).toBeVisible({ timeout: 15000 });
-  // Wait for data to load before capturing baseline row count
-  await expect(async () => {
-    const count = await page.locator('tr').count();
-    expect(count).toBeGreaterThanOrEqual(2);
-  }).toPass({ timeout: 15000 });
+
+  // Wait for the specific 'to-delete' row to appear before capturing baseline count.
+  // Other parallel tests may also have rows in the table; targeting by name avoids
+  // accidentally deleting the shared seeded event.
+  const targetRow = page.locator('tr').filter({ hasText: 'to-delete' });
+  await expect(targetRow).toBeVisible({ timeout: 15000 });
 
   const rowsBefore = await page.locator('tr').count();
 
-  // Find the delete button for the new event row — click on the row's delete action
-  // The WorkoutsActivityTable renders a delete icon button per row
-  // Navigate to the event detail and use back button, or find the delete button directly
-  // We rely on the row containing a delete icon button
-  const deleteButtons = page.locator('button').filter({ has: page.locator('.material-icons', { hasText: 'delete' }) });
-  await deleteButtons.first().click();
+  // Delete only the row for the event this test uploaded
+  await targetRow.getByRole('button', { name: /delete/i }).click();
 
   // Confirm the deletion in the dialog — button is disabled while checking affected comparisons
   const confirmButton = page.getByRole('dialog').getByRole('button', { name: /^delete$/i });
