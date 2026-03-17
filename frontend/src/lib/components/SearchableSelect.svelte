@@ -23,6 +23,17 @@
   let highlightedIndex = $state(0);
   let dropdownStyle = $state('');
 
+  // Portal action: moves the listbox to document.body so that position:fixed
+  // is relative to the viewport, not a backdrop-filter/transform ancestor.
+  function portalAction(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      },
+    };
+  }
+
   function updateDropdownPosition() {
     if (!rootEl || !listboxEl) return;
     const rect = rootEl.getBoundingClientRect();
@@ -163,8 +174,9 @@
   />
 </div>
 
-<!-- Fixed-positioned dropdown that breaks out of overflow:hidden containers -->
+<!-- Fixed-positioned dropdown, portalled to body to escape backdrop-filter/transform ancestors -->
 <div
+  use:portalAction
   bind:this={listboxEl}
   id="searchable-select-listbox"
   role="listbox"
