@@ -12,7 +12,17 @@ A self-hosted fitness activity tracking and comparison platform. Upload activity
 - **Stream Analysis**: Analyze relationships between different data streams (correlation, XY plots, correlation indices)
 - **Tracker Comparison**: Compare data from different fitness trackers to evaluate device accuracy
 
-![OpenFitlab.org](docs/screenshot.png)
+<img src="docs/screenshots/screenshot.png" width="800" alt="Dashboard">
+
+<details>
+<summary>More screenshots</summary>
+
+| | |
+|---|---|
+| ![Comparison 1](docs/screenshots/screenshot_comparison_1.png) | ![Comparison 2](docs/screenshots/screenshot_comparison_2.png) |
+| ![Stats](docs/screenshots/screenshot_event_stacking_stats.png) | |
+
+</details>
 
 ## Architecture
 
