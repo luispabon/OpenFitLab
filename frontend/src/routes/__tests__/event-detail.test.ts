@@ -4,12 +4,14 @@ import EventDetail from '../event-detail.svelte';
 import { eventDetailFixture, activityFixture } from '../../test/fixtures/event-detail';
 import { streamsNoLocationFixture, streamsLatLngFixture } from '../../test/fixtures/streams';
 import type { EventDetail as EventDetailType } from '../../lib/types';
+import type { ComparisonSummary } from '../../lib/api/comparisons';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();
 const mockGetActivityTypes = vi.fn();
 const mockGetDevices = vi.fn();
 const mockUpdateActivity = vi.fn();
+const mockGetComparisonsByEventIds = vi.fn();
 const mockPush = vi.fn();
 
 vi.mock('../../lib/api', () => ({
@@ -18,6 +20,10 @@ vi.mock('../../lib/api', () => ({
   getActivityTypes: (...args: unknown[]) => mockGetActivityTypes(...args),
   getDevices: (...args: unknown[]) => mockGetDevices(...args),
   updateActivity: (...args: unknown[]) => mockUpdateActivity(...args),
+}));
+
+vi.mock('../../lib/api/comparisons', () => ({
+  getComparisonsByEventIds: (...args: unknown[]) => mockGetComparisonsByEventIds(...args),
 }));
 
 vi.mock('svelte-spa-router', () => ({
@@ -29,6 +35,11 @@ vi.mock('../../lib/components/RouteMap.svelte', async () => {
   return { default: mod.default };
 });
 
+vi.mock('../../lib/components/workouts/CompareCandidatesFlow.svelte', async () => {
+  const mod = await import('./CompareCandidatesFlowStub.svelte');
+  return { default: mod.default };
+});
+
 describe('EventDetail', () => {
   beforeEach(() => {
     mockGetEvent.mockReset();
@@ -36,6 +47,7 @@ describe('EventDetail', () => {
     mockGetActivityTypes.mockResolvedValue(['running', 'cycling']);
     mockGetDevices.mockResolvedValue(['Garmin Forerunner 945', 'Wahoo Elemnt']);
     mockUpdateActivity.mockReset();
+    mockGetComparisonsByEventIds.mockReset().mockResolvedValue([]);
     mockPush.mockReset();
     vi.stubGlobal(
       'ResizeObserver',
@@ -375,6 +387,83 @@ describe('EventDetail', () => {
     render(EventDetail, { props: { params: { id: 'evt-1' } } });
     await waitFor(() => {
       expect(screen.getByText('Event not found.')).toBeInTheDocument();
+    });
+  });
+
+  describe('Related comparisons section', () => {
+    it('always renders the comparisons section header and Compare button', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/In comparisons/)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Compare with another event/ })
+      ).toBeInTheDocument();
+    });
+
+    it('shows "Not in any comparisons yet." when comparisons list is empty', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      mockGetComparisonsByEventIds.mockResolvedValue([]);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.getByText('Not in any comparisons yet.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows comparisons loading state inside the section', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      mockGetComparisonsByEventIds.mockReturnValue(new Promise(() => {}));
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.getByText('Loading related comparisons...')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/In comparisons/)).toBeInTheDocument();
+    });
+
+    it('shows comparisons error state inside the section', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      mockGetComparisonsByEventIds.mockRejectedValue(new Error('Failed to fetch comparisons'));
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.getByText('Failed to fetch comparisons')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/In comparisons/)).toBeInTheDocument();
+    });
+
+    it('lists related comparisons when they exist', async () => {
+      const comparisons: ComparisonSummary[] = [
+        { id: 'cmp-1', name: 'Morning Run vs Interval Run' },
+        { id: 'cmp-2', name: 'Easy Run vs Long Run' },
+      ];
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      mockGetComparisonsByEventIds.mockResolvedValue(comparisons);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run vs Interval Run')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Easy Run vs Long Run')).toBeInTheDocument();
+      expect(screen.getByText('In comparisons (2)')).toBeInTheDocument();
+    });
+
+    it('clicking "Compare with another event" does not throw', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      const compareBtn = screen.getByRole('button', { name: /Compare with another event/ });
+      await fireEvent.click(compareBtn);
     });
   });
 });

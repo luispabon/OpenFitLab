@@ -119,7 +119,8 @@ describe('ComparisonView', () => {
     });
   });
 
-  it('Back button when new comparison with no back param pushes to /', async () => {
+  it('Back button when new comparison with no back param calls history.back()', async () => {
+    const mockHistoryBack = vi.spyOn(history, 'back').mockImplementation(() => {});
     render(ComparisonView, {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
@@ -129,7 +130,8 @@ describe('ComparisonView', () => {
       ).toBeInTheDocument();
     });
     await fireEvent.click(screen.getByRole('button', { name: '← Back to Workouts' }));
-    expect(mockPush).toHaveBeenCalledWith('/');
+    expect(mockHistoryBack).toHaveBeenCalled();
+    mockHistoryBack.mockRestore();
   });
 
   it('Back button when new comparison with back param pushes to folder URL', async () => {

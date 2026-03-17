@@ -564,7 +564,7 @@
       } else if (backFolderFromQueryState) {
         push(buildFolderHash(backFolderFromQueryState));
       } else {
-        push('/');
+        history.back();
       }
     }}
   >
