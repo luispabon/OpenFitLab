@@ -8,8 +8,157 @@ on:
       - 'v*'
 
 jobs:
+  backend-checks:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format
+
+      - name: Unit tests
+        run: npm run test:unit
+        env:
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'
+
+      - name: Unit tests (no deprecations)
+        run: npm run test:unit
+        env:
+          NODE_OPTIONS: '--throw-deprecation'
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'
+
+      - name: Coverage
+        run: npm run test:coverage
+        env:
+          SESSION_SECRET: 'test-secret-at-least-32-characters-long'
+
+  frontend-checks:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Svelte check
+        run: npm run check
+
+      - name: Tests with coverage
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    env:
+      E2E_API_PORT: 3098
+      E2E_DB_PORT: 3308
+      E2E_FRONT_PORT: 4201
+      E2E_PROJECT: openfitlab-e2e
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Generate ephemeral SESSION_SECRET
+        run: echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - name: Start E2E stack
+        run: |
+          DB_HOST_PORT=${{ env.E2E_DB_PORT }} \
+          API_HOST_PORT=${{ env.E2E_API_PORT }} \
+          FRONT_HOST_PORT=${{ env.E2E_FRONT_PORT }} \
+          docker compose -p ${{ env.E2E_PROJECT }} -f compose.yaml -f compose.e2e.yaml \
+            up -d db valkey api frontend
+
+      - name: Wait for API health
+        run: |
+          timeout 180 bash -c \
+            'until curl -sf http://localhost:${{ env.E2E_API_PORT }}/health > /dev/null; do sleep 3; done'
+
+      - name: Wait for frontend
+        run: |
+          timeout 120 bash -c \
+            'until curl -sf http://localhost:${{ env.E2E_FRONT_PORT }} > /dev/null; do sleep 3; done'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install Playwright dependencies
+        working-directory: e2e
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: e2e
+        env:
+          SESSION_SECRET: ${{ env.SESSION_SECRET }}
+          E2E_API_PORT: ${{ env.E2E_API_PORT }}
+          E2E_FRONT_PORT: ${{ env.E2E_FRONT_PORT }}
+          E2E_BASE_URL: http://localhost:${{ env.E2E_FRONT_PORT }}
+          E2E_COMPOSE_PROJECT: ${{ env.E2E_PROJECT }}
+        run: npx playwright test
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+
+      - name: Tear down E2E stack
+        if: always()
+        run: |
+          DB_HOST_PORT=${{ env.E2E_DB_PORT }} \
+          API_HOST_PORT=${{ env.E2E_API_PORT }} \
+          FRONT_HOST_PORT=${{ env.E2E_FRONT_PORT }} \
+          docker compose -p ${{ env.E2E_PROJECT }} -f compose.yaml -f compose.e2e.yaml \
+            down -v
+
   build:
     name: Build and push ${{ matrix.name }} image
+    needs: [backend-checks, frontend-checks, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

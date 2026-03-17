@@ -41,6 +41,14 @@
 - Tear down DAST stack and volumes: `make dast-down`
 - Reports are written to `./zap-reports/` (gitignored). Override with `ZAP_REPORT_DIR=/path make dast`.
 
+### E2E (Playwright)
+
+- Run full E2E suite (stack up + seed + tests): `make e2e`
+- Tear down E2E stack and volumes: `make e2e-down`
+- Reports: `e2e/playwright-report/` and `e2e/test-results/` (gitignored).
+- Stack ports: API `3098`, DB `3308`, Frontend `4201` (avoids conflicts with dev stack).
+- Test files live in `e2e/tests/`. Infrastructure: `e2e/global-setup.ts`, `e2e/fixtures/auth.ts`, `backend/scripts/e2e-seed.mjs`.
+
 ### Docker images
 
 - Build both images: `make docker-build`
@@ -55,6 +63,7 @@
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
 - Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
+- E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Docker image publishing (`publish.yml`) requires all three check jobs (backend, frontend, E2E) to pass.
 
 ## Agent-critical invariants
 
@@ -145,6 +154,8 @@ After meaningful refactors, verify:
 5. Comparisons list and comparison view still load.
 6. Folder-filtered views still behave correctly.
 7. Deleting an event removes it cleanly.
+
+For full-stack verification, run `make e2e` — the Playwright suite covers all of the above automatically.
 
 ## When unsure
 

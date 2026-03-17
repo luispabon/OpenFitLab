@@ -50,5 +50,12 @@ backup/secrets/*.json
 # DAST reports
 zap-reports/
 
+# E2E (Playwright) artifacts
+e2e/test-results/
+e2e/playwright-report/
+e2e/storageState.json
+e2e/e2e-context.json
+e2e/node_modules/
+
 # Misc
 tmp/

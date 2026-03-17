@@ -51,7 +51,7 @@
   const unauthenticatedRoutes = {
     '/': LoginPage,
     '/privacy': Privacy,
-    '*': NotFound,
+    '*': LoginPage,
   };
 
   const pendingSignupRoutes = {

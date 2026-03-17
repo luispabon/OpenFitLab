@@ -166,3 +166,61 @@ dast-down:
 
 .PHONY: dast
 dast: dast-up dast-seed dast-scan
+
+# ── E2E (Playwright) ─────────────────────────────────────────────────────────
+#
+# Spins up the full stack (db, valkey, api, frontend) with relaxed rate limits,
+# seeds a disposable test user + session, then runs the Playwright suite.
+#
+# Usage:
+#   make e2e          — full pipeline: install → up → run (stack stays up on pass)
+#   make e2e-install  — install/update Playwright and Chromium browser
+#   make e2e-down     — tear down stack and remove volumes when done
+#
+# Reports are written to ./e2e/playwright-report/ and ./e2e/test-results/ (gitignored).
+
+E2E_API_PORT   ?= 3098
+E2E_DB_PORT    ?= 3308
+E2E_FRONT_PORT ?= 4201
+E2E_PROJECT     = openfitlab-e2e
+E2E_COOKIE_FILE = /tmp/ofl-e2e-cookie
+
+# Shorthand so every docker compose call in an E2E target uses the same flags.
+E2E_COMPOSE = DB_HOST_PORT=$(E2E_DB_PORT) API_HOST_PORT=$(E2E_API_PORT) FRONT_HOST_PORT=$(E2E_FRONT_PORT) \
+              docker compose -p $(E2E_PROJECT) -f compose.yaml -f compose.e2e.yaml
+
+.PHONY: e2e-up
+e2e-up:
+	$(E2E_COMPOSE) up -d db valkey api frontend
+	@echo "Waiting for API to be healthy..."
+	@timeout 180 bash -c 'until curl -sf http://localhost:$(E2E_API_PORT)/health > /dev/null; do sleep 3; done'
+	@echo "API is ready."
+	@echo "Waiting for frontend to be healthy..."
+	@timeout 120 bash -c 'until curl -sf http://localhost:$(E2E_FRONT_PORT) > /dev/null; do sleep 3; done'
+	@echo "Frontend is ready."
+
+.PHONY: e2e-seed
+e2e-seed:
+	@OUTPUT=$$($(E2E_COMPOSE) exec -T api node scripts/e2e-seed.mjs) && \
+	  COOKIE=$$(printf '%s\n' "$$OUTPUT" | grep '^SESSION_COOKIE=' | cut -d'=' -f2-) && \
+	  [ -n "$$COOKIE" ] || { echo "e2e-seed: no SESSION_COOKIE in output" >&2; exit 1; } && \
+	  printf '%s' "$$COOKIE" > $(E2E_COOKIE_FILE) && \
+	  echo "Session cookie saved to $(E2E_COOKIE_FILE)"
+
+.PHONY: e2e-run
+e2e-run:
+	cd e2e && E2E_API_PORT=$(E2E_API_PORT) E2E_FRONT_PORT=$(E2E_FRONT_PORT) \
+	  E2E_BASE_URL=http://localhost:$(E2E_FRONT_PORT) \
+	  E2E_COMPOSE_PROJECT=$(E2E_PROJECT) \
+	  npx playwright test
+
+.PHONY: e2e-install
+e2e-install:
+	cd e2e && npm ci && npx playwright install --with-deps chromium
+
+.PHONY: e2e-down
+e2e-down:
+	$(E2E_COMPOSE) down -v
+
+.PHONY: e2e
+e2e: e2e-install e2e-up e2e-run

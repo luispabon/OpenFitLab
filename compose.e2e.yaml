@@ -1,0 +1,36 @@
+# compose.e2e.yaml — overlay for Playwright E2E runs (docker compose -f compose.yaml -f compose.e2e.yaml)
+#
+# Sets an isolated project name so the E2E stack can run alongside the dev stack
+# without container, volume, or network collisions.  Port collision avoidance is
+# handled by the Makefile passing DB_HOST_PORT, API_HOST_PORT, and FRONT_HOST_PORT.
+#
+# Relaxes rate limits so Playwright's test actions are never throttled.
+# Includes the frontend service (unlike DAST which targets the API directly).
+# Never use in production.
+name: openfitlab-e2e
+
+services:
+  api:
+    environment:
+      API_RATE_LIMIT_MAX: 10000
+      API_RATE_LIMIT_WINDOW_MS: 60000
+      AUTH_RATE_LIMIT_MAX: 1000
+      AUTH_RATE_LIMIT_WINDOW_MS: 60000
+      AUTH_CALLBACK_RATE_LIMIT_MAX: 1000
+      AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS: 60000
+      UPLOAD_RATE_LIMIT_MAX: 1000
+      UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
+      # Disable OAuth so Playwright never follows redirects to external providers
+      GITHUB_CLIENT_ID: ""
+      GITHUB_CLIENT_SECRET: ""
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      APPLE_CLIENT_ID: ""
+      APPLE_TEAM_ID: ""
+      APPLE_KEY_ID: ""
+      APPLE_PRIVATE_KEY: ""
+      FACEBOOK_APP_ID: ""
+      FACEBOOK_APP_SECRET: ""
+
+  # frontend: port controlled by FRONT_HOST_PORT variable in base compose.yaml (default 4200).
+  # The E2E Makefile passes FRONT_HOST_PORT=4201 to avoid colliding with the dev stack.
