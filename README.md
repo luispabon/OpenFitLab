@@ -20,7 +20,7 @@ A self-hosted fitness activity tracking and comparison platform. Upload activity
 | | |
 |---|---|
 | ![Comparison 1](docs/screenshots/screenshot_comparison_1.png) | ![Comparison 2](docs/screenshots/screenshot_comparison_2.png) |
-| ![Stats](docs/screenshots/screenshot_event_stacking_stats.png) | |
+| ![Stats](docs/screenshots/screenshot_event_stacking_stats.png) | ![Comparison list](docs/screenshots/screenshot_comparisons.png)|
 
 </details>
 
