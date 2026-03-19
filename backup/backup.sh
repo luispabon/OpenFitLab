@@ -12,11 +12,13 @@ mysqldump \
   | restic backup \
       --stdin \
       --stdin-filename db.sql \
-      --tag hourly
+      --tag hourly \
+      --host openfitlab-db
 
 echo "[$(date -Iseconds)] Pruning..."
 
 restic forget \
+  --host openfitlab-db \
   --keep-hourly  24 \
   --keep-daily    7 \
   --keep-weekly   4 \
