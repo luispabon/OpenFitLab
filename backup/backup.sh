@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[$(date -Iseconds)] Starting backup..."
+BACKUP_TAG="manual"
+for arg in "$@"; do
+  case "$arg" in
+    --tag=*) BACKUP_TAG="${arg#--tag=}" ;;
+  esac
+done
+
+echo "[$(date -Iseconds)] Starting backup (tag: $BACKUP_TAG)..."
 
 mysqldump \
   -h "$DB_HOST" \
@@ -12,17 +19,17 @@ mysqldump \
   | restic backup \
       --stdin \
       --stdin-filename db.sql \
-      --tag hourly \
+      --tag "$BACKUP_TAG" \
       --host openfitlab-db
 
 echo "[$(date -Iseconds)] Pruning..."
 
-restic forget \
-  --host openfitlab-db \
+restic forget  \
   --keep-hourly  24 \
   --keep-daily    7 \
   --keep-weekly   4 \
   --keep-monthly  6 \
-  --prune
+  --prune \
+  --host openfitlab-db
 
 echo "[$(date -Iseconds)] Done."
