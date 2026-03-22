@@ -23,6 +23,8 @@
   import { FOLDER_SELECTION_ALL, FOLDER_SELECTION_UNFILED } from './lib/types/event';
   import type { Folder } from './lib/types/event';
   import { updateFolder } from './lib/api/folders';
+  import { updateEventFolder } from './lib/api/events';
+  import { workoutDragState, endWorkoutDrag } from './lib/stores/workout-drag.svelte';
   import logoIcon from './assets/logo-icon.svg';
   import logoBig from './assets/logo-big.svg';
   import FolderCreateModal from './lib/components/folders/FolderCreateModal.svelte';
@@ -145,18 +147,56 @@
   });
 
   const sidebarWidth = $derived(sidebarCollapsed ? '4rem' : '16rem');
+  const sidebarEffectivelyExpanded = $derived(!sidebarCollapsed || workoutDragState.isDragging);
+
+  let dragOverFolderId = $state<string | null>(null);
+
+  $effect(() => {
+    const onDragEnd = () => endWorkoutDrag();
+    window.addEventListener('dragend', onDragEnd);
+    return () => window.removeEventListener('dragend', onDragEnd);
+  });
+
+  async function handleWorkoutFolderDrop(e: DragEvent, targetFolderId: string | null) {
+    e.preventDefault();
+    dragOverFolderId = null;
+    endWorkoutDrag();
+    const data = e.dataTransfer?.getData('application/x-openfitlab-workout-ids');
+    if (!data) return;
+    const eventIds: string[] = JSON.parse(data);
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of eventIds) {
+      try {
+        await updateEventFolder(id, targetFolderId);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    const label = targetFolderId
+      ? (foldersState.folders.find((f) => f.id === targetFolderId)?.name ?? 'folder')
+      : 'Unfiled';
+    showFolderToast(
+      failCount > 0
+        ? `Moved ${successCount}, failed ${failCount}`
+        : `Moved ${successCount} workout${successCount !== 1 ? 's' : ''} to ${label}`
+    );
+    loadFolders();
+    window.dispatchEvent(new CustomEvent('workout-moved'));
+  }
 </script>
 
 <div class="min-h-screen flex">
   <!-- Sidebar -->
   <nav
     class="fixed left-0 top-0 z-50 h-screen border-r border-border bg-surface backdrop-blur-xl transition-all duration-300"
-    style="width: {sidebarWidth};"
+    style="width: {sidebarEffectivelyExpanded ? '16rem' : '4rem'};"
   >
     <div class="flex h-full flex-col">
       <!-- Logo/Branding -->
       <div class="flex items-center border-b border-border px-4 py-4">
-        {#if sidebarCollapsed}
+        {#if !sidebarEffectivelyExpanded}
           <img src={logoIcon} alt="OpenFitLab" class="h-16" />
         {:else}
           <img src={logoBig} alt="OpenFitLab" class="h-16" />
@@ -181,11 +221,11 @@
                 : ''}"
             >
               <span class="material-icons">dashboard</span>
-              {#if !sidebarCollapsed}
+              {#if sidebarEffectivelyExpanded}
                 <span>Workouts</span>
               {/if}
             </a>
-            {#if !sidebarCollapsed}
+            {#if sidebarEffectivelyExpanded}
               <button
                 bind:this={newFolderBtnEl}
                 type="button"
@@ -197,7 +237,7 @@
               </button>
             {/if}
           </div>
-          {#if !sidebarCollapsed}
+          {#if sidebarEffectivelyExpanded}
             <div class="mt-1 pl-11">
               <div class="flex items-center gap-0.5 py-0.5">
                 <a
@@ -215,7 +255,20 @@
                   <span>All</span>
                 </a>
               </div>
-              <div class="flex items-center gap-0.5 py-0.5">
+              <div
+                class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === '__unfiled__'
+                  ? 'bg-card-hover ring-1 ring-accent'
+                  : ''}"
+                ondragover={(e) => {
+                  if (!workoutDragState.isDragging) return;
+                  e.preventDefault();
+                  dragOverFolderId = '__unfiled__';
+                }}
+                ondragleave={() => {
+                  dragOverFolderId = null;
+                }}
+                ondrop={(e) => handleWorkoutFolderDrop(e, null)}
+              >
                 <a
                   href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
                   class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
@@ -232,7 +285,20 @@
                 </a>
               </div>
               {#each pinnedFolders as folder (folder.id)}
-                <div class="flex items-center gap-0.5 py-0.5">
+                <div
+                  class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === folder.id
+                    ? 'bg-card-hover ring-1 ring-accent'
+                    : ''}"
+                  ondragover={(e) => {
+                    if (!workoutDragState.isDragging) return;
+                    e.preventDefault();
+                    dragOverFolderId = folder.id;
+                  }}
+                  ondragleave={() => {
+                    dragOverFolderId = null;
+                  }}
+                  ondrop={(e) => handleWorkoutFolderDrop(e, folder.id)}
+                >
                   <a
                     href={buildFolderHash(folder.id)}
                     class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
@@ -270,7 +336,20 @@
                 </div>
               {/each}
               {#each unpinnedFolders as folder (folder.id)}
-                <div class="flex items-center gap-0.5 py-0.5">
+                <div
+                  class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === folder.id
+                    ? 'bg-card-hover ring-1 ring-accent'
+                    : ''}"
+                  ondragover={(e) => {
+                    if (!workoutDragState.isDragging) return;
+                    e.preventDefault();
+                    dragOverFolderId = folder.id;
+                  }}
+                  ondragleave={() => {
+                    dragOverFolderId = null;
+                  }}
+                  ondrop={(e) => handleWorkoutFolderDrop(e, folder.id)}
+                >
                   <a
                     href={buildFolderHash(folder.id)}
                     class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
@@ -313,7 +392,7 @@
               : ''}"
           >
             <span class="material-icons">compare_arrows</span>
-            {#if !sidebarCollapsed}
+            {#if sidebarEffectivelyExpanded}
               <span>Comparisons</span>
             {/if}
           </a>
@@ -426,8 +505,10 @@
           onclick={toggleSidebar}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          <span class="material-icons">{sidebarCollapsed ? 'chevron_right' : 'chevron_left'}</span>
-          {#if !sidebarCollapsed}
+          <span class="material-icons"
+            >{sidebarEffectivelyExpanded ? 'chevron_left' : 'chevron_right'}</span
+          >
+          {#if sidebarEffectivelyExpanded}
             <span>Collapse</span>
           {/if}
         </button>
