@@ -5,14 +5,27 @@
 
   interface Props {
     folder: Folder | null;
+    anchorEl?: HTMLElement | null;
     onDone: () => void;
     onClosed: () => void;
     onError: (message: string) => void;
   }
-  let { folder, onDone, onClosed, onError }: Props = $props();
+  let { folder, anchorEl, onDone, onClosed, onError }: Props = $props();
 
   let color = $state<string>('');
   let submitting = $state(false);
+  let dialogTop = $state(0);
+  let dialogLeft = $state(0);
+
+  $effect(() => {
+    if (folder && anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      const PANEL_WIDTH = 320;
+      const GAP = 8;
+      dialogLeft = Math.min(rect.right + GAP, window.innerWidth - PANEL_WIDTH - GAP);
+      dialogTop = Math.min(rect.top, window.innerHeight - 200);
+    }
+  });
 
   $effect(() => {
     if (folder) {
@@ -37,15 +50,30 @@
   }
 </script>
 
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && folder) onClosed();
+  }}
+/>
+
 {#if folder}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    class="fixed inset-0 z-50 bg-black/50"
     role="dialog"
     aria-modal="true"
     aria-labelledby="folder-color-title"
+    tabindex="-1"
+    onclick={onClosed}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClosed();
+      }
+    }}
   >
     <div
-      class="w-full max-w-sm rounded-lg border border-border bg-surface p-4 shadow-xl"
+      class="fixed w-80 rounded-lg border border-border bg-surface-solid p-4 shadow-xl"
+      style="top: {dialogTop}px; left: {dialogLeft}px;"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
