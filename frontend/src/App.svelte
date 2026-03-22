@@ -119,6 +119,7 @@
   let folderToDelete = $state<Folder | null>(null);
   let folderMenuFolder = $state<Folder | null>(null);
   let menuAnchorEl = $state<HTMLElement | null>(null);
+  let folderActionAnchorEl = $state<HTMLElement | null>(null);
   let folderToastMessage = $state<string | null>(null);
 
   function showFolderToast(message: string) {
@@ -327,17 +328,20 @@
             anchor={menuAnchorEl}
             onRename={() => {
               folderToRename = folderMenuFolder;
+              folderActionAnchorEl = menuAnchorEl;
               folderMenuFolder = null;
               menuAnchorEl = null;
             }}
             onRecolor={() => {
               folderToRecolor = folderMenuFolder;
+              folderActionAnchorEl = menuAnchorEl;
               folderMenuFolder = null;
               menuAnchorEl = null;
             }}
             onPinToggle={handleFolderPinToggle}
             onDelete={() => {
               folderToDelete = folderMenuFolder;
+              folderActionAnchorEl = menuAnchorEl;
               folderMenuFolder = null;
               menuAnchorEl = null;
             }}
@@ -361,18 +365,27 @@
         <FolderRenameModal
           folder={folderToRename}
           existingNames={folderList.map((f) => f.name)}
+          anchorEl={folderActionAnchorEl}
           onDone={loadFolders}
-          onClosed={() => (folderToRename = null)}
+          onClosed={() => {
+            folderToRename = null;
+            folderActionAnchorEl = null;
+          }}
           onError={showFolderToast}
         />
         <FolderColorModal
           folder={folderToRecolor}
+          anchorEl={folderActionAnchorEl}
           onDone={loadFolders}
-          onClosed={() => (folderToRecolor = null)}
+          onClosed={() => {
+            folderToRecolor = null;
+            folderActionAnchorEl = null;
+          }}
           onError={showFolderToast}
         />
         <FolderDeleteModal
           folder={folderToDelete}
+          anchorEl={folderActionAnchorEl}
           onDone={() => {
             const deletedId = folderToDelete?.id;
             loadFolders();
@@ -380,7 +393,10 @@
               window.location.hash = '#/';
             }
           }}
-          onClosed={() => (folderToDelete = null)}
+          onClosed={() => {
+            folderToDelete = null;
+            folderActionAnchorEl = null;
+          }}
           onError={showFolderToast}
         />
         {#if folderToastMessage}

@@ -33,7 +33,8 @@
   import ExportButton from '../lib/components/ExportButton.svelte';
   import EventExportDropdown from '../lib/components/EventExportDropdown.svelte';
   import { exportAsPng } from '../lib/utils/export-image';
-  import { buildFolderHash } from '../lib/stores/folders.svelte';
+  import { buildFolderHash, foldersState } from '../lib/stores/folders.svelte';
+  import { FOLDER_SELECTION_UNFILED } from '../lib/types/event';
   import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
   import type { ActivityRow } from '../lib/types';
 
@@ -72,6 +73,12 @@
   let relatedComparisonsLoading = $state(false);
   let relatedComparisonsError = $state<string | null>(null);
   const event = $derived(eventDetail?.event ?? null);
+
+  const eventFolder = $derived.by(() => {
+    if (!event) return undefined;
+    if (!event.folderId) return null; // unfiled
+    return foldersState.folders.find((f) => f.id === event.folderId) ?? null;
+  });
 
   const mainActivityType = $derived.by(() => {
     const ev = event;
@@ -437,20 +444,45 @@
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
-  <div class="mb-4 flex items-center justify-between">
+  <div class="mb-4 flex items-center gap-4">
     <button
       type="button"
-      class="rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
+      class="rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary shrink-0"
       onclick={() => push(backPath)}
     >
       ← Back to Workouts
     </button>
+    <div class="flex-1 flex justify-center">
+      {#if eventFolder}
+        <a
+          href={buildFolderHash(eventFolder.id)}
+          class="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <span
+            class="material-icons text-base"
+            style="color: {eventFolder.color};"
+            aria-hidden="true">folder</span
+          >
+          <span>{eventFolder.name}</span>
+        </a>
+      {:else if eventFolder === null}
+        <a
+          href={buildFolderHash(FOLDER_SELECTION_UNFILED)}
+          class="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <span class="material-icons text-base" aria-hidden="true">folder_off</span>
+          <span>Unfiled</span>
+        </a>
+      {/if}
+    </div>
     {#if event}
       <EventExportDropdown
         eventId={id}
         eventName={event.name ?? 'event'}
         hasGps={locationAvailable}
       />
+    {:else}
+      <div class="shrink-0"></div>
     {/if}
   </div>
 

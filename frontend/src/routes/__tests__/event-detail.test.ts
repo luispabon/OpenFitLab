@@ -1,10 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import EventDetail from '../event-detail.svelte';
-import { eventDetailFixture, activityFixture } from '../../test/fixtures/event-detail';
+import {
+  eventDetailFixture,
+  activityFixture,
+  eventSummaryFixture,
+} from '../../test/fixtures/event-detail';
 import { streamsNoLocationFixture, streamsLatLngFixture } from '../../test/fixtures/streams';
 import type { EventDetail as EventDetailType } from '../../lib/types';
 import type { ComparisonSummary } from '../../lib/api/comparisons';
+import { foldersState } from '../../lib/stores/folders.svelte';
+import type { Folder } from '../../lib/types/event';
 
 const mockGetEvent = vi.fn();
 const mockGetStreams = vi.fn();
@@ -41,6 +47,10 @@ vi.mock('../../lib/components/workouts/CompareCandidatesFlow.svelte', async () =
 });
 
 describe('EventDetail', () => {
+  afterEach(() => {
+    foldersState.folders = [];
+  });
+
   beforeEach(() => {
     mockGetEvent.mockReset();
     mockGetStreams.mockReset().mockResolvedValue([]);
@@ -464,6 +474,56 @@ describe('EventDetail', () => {
       });
       const compareBtn = screen.getByRole('button', { name: /Compare with another event/ });
       await fireEvent.click(compareBtn);
+    });
+  });
+
+  describe('Folder indicator', () => {
+    it('shows "Unfiled" link when event has no folderId', async () => {
+      mockGetEvent.mockResolvedValue(eventDetailFixture); // no folderId
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      const unfiledLink = screen.getByRole('link', { name: /Unfiled/i });
+      expect(unfiledLink).toBeInTheDocument();
+      expect(unfiledLink).toHaveAttribute('href', '#/?folder=unfiled');
+    });
+
+    it('shows folder name link when event folderId matches a folder in state', async () => {
+      const testFolder: Folder = {
+        id: 'folder-1',
+        name: 'Morning Runs',
+        color: '#3b82f6',
+        pinned: false,
+      };
+      foldersState.folders = [testFolder];
+      const eventWithFolder = {
+        event: { ...eventSummaryFixture, folderId: 'folder-1' },
+        activities: [activityFixture],
+      } satisfies EventDetailType;
+      mockGetEvent.mockResolvedValue(eventWithFolder);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      const folderLink = screen.getByRole('link', { name: /Morning Runs/i });
+      expect(folderLink).toBeInTheDocument();
+      expect(folderLink).toHaveAttribute('href', '#/?folder=folder-1');
+    });
+
+    it('shows "Unfiled" when event folderId is set but folder is not found in state', async () => {
+      foldersState.folders = []; // folder-1 not present
+      const eventWithFolder = {
+        event: { ...eventSummaryFixture, folderId: 'folder-1' },
+        activities: [activityFixture],
+      } satisfies EventDetailType;
+      mockGetEvent.mockResolvedValue(eventWithFolder);
+      render(EventDetail, { props: { params: { id: 'evt-1' } } });
+      await waitFor(() => {
+        expect(screen.getByText('Morning Run')).toBeInTheDocument();
+      });
+      const unfiledLink = screen.getByRole('link', { name: /Unfiled/i });
+      expect(unfiledLink).toBeInTheDocument();
     });
   });
 });

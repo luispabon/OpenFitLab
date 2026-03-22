@@ -117,6 +117,9 @@
             placeholder="Folder name"
             bind:value={name}
             maxlength="100"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') handleSubmit();
+            }}
           />
           {#if nameTaken && nameTrimmed.length > 0}
             <p class="mt-1 text-sm text-amber-600">A folder with this name already exists.</p>
