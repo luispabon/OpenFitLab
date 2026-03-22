@@ -22,6 +22,7 @@ const {
   processUpload,
   buildUploadResults,
 } = require('../../../src/services/event-upload-service');
+const exportService = require('../../../src/services/export-service');
 const eventsRouterModule = require('../../../src/routes/events');
 const { errorHandler } = require('../../../src/middleware/error-handler');
 const fs = require('fs');
@@ -415,6 +416,68 @@ describe('Events route HTTP handler coverage', () => {
       deepStrictEqual(res.body, { error: 'Event not found' });
     } finally {
       eventDeleteService.deleteEventById.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('GET /:id/export/tcx returns 200 with correct headers when service returns result', async () => {
+    mock.method(exportService, 'exportEventAsTcx', async () => ({
+      xml: '<?xml version="1.0"?><TrainingCenterDatabase/>',
+      name: 'Morning Run',
+    }));
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const res = await request(app).get(`/api/events/${EVENT_ID}/export/tcx`).expect(200);
+      strictEqual(res.headers['content-type'], 'application/xml; charset=utf-8');
+      ok(res.headers['content-disposition'].includes('attachment'));
+      ok(res.headers['content-disposition'].includes('Morning Run.tcx'));
+    } finally {
+      exportService.exportEventAsTcx.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('GET /:id/export/tcx returns 404 when service returns null', async () => {
+    mock.method(exportService, 'exportEventAsTcx', async () => null);
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const res = await request(app).get(`/api/events/${EVENT_ID}/export/tcx`).expect(404);
+      deepStrictEqual(res.body, { error: 'Event not found' });
+    } finally {
+      exportService.exportEventAsTcx.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('GET /:id/export/gpx returns 200 with correct headers when service returns result', async () => {
+    mock.method(exportService, 'exportEventAsGpx', async () => ({
+      xml: '<?xml version="1.0"?><gpx/>',
+      name: 'Morning Run',
+    }));
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const res = await request(app).get(`/api/events/${EVENT_ID}/export/gpx`).expect(200);
+      strictEqual(res.headers['content-type'], 'application/gpx+xml; charset=utf-8');
+      ok(res.headers['content-disposition'].includes('attachment'));
+      ok(res.headers['content-disposition'].includes('Morning Run.gpx'));
+    } finally {
+      exportService.exportEventAsGpx.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('GET /:id/export/gpx returns 404 when service returns null', async () => {
+    mock.method(exportService, 'exportEventAsGpx', async () => null);
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const res = await request(app).get(`/api/events/${EVENT_ID}/export/gpx`).expect(404);
+      deepStrictEqual(res.body, { error: 'Event not found or no GPS data' });
+    } finally {
+      exportService.exportEventAsGpx.mock.restore();
       delete require.cache[EVENTS_ROUTER_PATH];
     }
   });
