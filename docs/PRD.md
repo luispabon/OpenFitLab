@@ -300,11 +300,16 @@ Backend integration tests (real MariaDB container via `testcontainers-node`, sep
 
 Frontend + backend end-to-end tests (Playwright against the Docker Compose stack):
 
+**Status:** Implemented. Tests live in `e2e/tests/` and run on every PR targeting `main` via `.github/workflows/e2e-checks.yml`.
+
+Covered flows:
 - full upload → dashboard → event detail → comparison flow
 - folder create, assign, filter, and delete
 - account export and account delete
+- CSRF protection, unauthenticated access, and not-found handling
+- event and comparison deletion, including cascade cleanup
 
-CI integration: separate `integration` and `e2e` workflow jobs, not blocking the fast unit-test pipeline. Requires Docker-in-Docker or service containers in CI.
+CI integration: runs as a separate `e2e` job, not blocking the fast unit-test pipeline. Uses a dedicated Docker Compose stack on ports API `3098`, DB `3308`, Frontend `4201`.
 
 ---
 
