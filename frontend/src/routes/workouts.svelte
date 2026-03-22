@@ -11,6 +11,7 @@
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
   import { foldersState, getFolderFromHash } from '../lib/stores/folders.svelte';
+  import { startWorkoutDrag, endWorkoutDrag } from '../lib/stores/workout-drag.svelte';
   import { getEnvNumber } from '../lib/utils/env';
   import {
     formatDurationCell,
@@ -314,6 +315,26 @@
     selectedEventIds = new Set();
   }
 
+  function handleDragStart(row: ActivityRow, e: DragEvent) {
+    const idsToMove = selectedEventIds.has(row.event.id) ? [...selectedEventIds] : [row.event.id];
+    e.dataTransfer!.setData('application/x-openfitlab-workout-ids', JSON.stringify(idsToMove));
+    e.dataTransfer!.effectAllowed = 'move';
+    startWorkoutDrag(idsToMove);
+  }
+
+  function handleDragEnd() {
+    endWorkoutDrag();
+  }
+
+  $effect(() => {
+    const handler = () => {
+      selectedEventIds = new Set();
+      loadActivityRows();
+    };
+    window.addEventListener('workout-moved', handler);
+    return () => window.removeEventListener('workout-moved', handler);
+  });
+
   function handleBulkDeleteClick() {
     const eventIds = Array.from(selectedEventIds);
     if (eventIds.length === 0) return;
@@ -468,6 +489,8 @@
           eventIdsToMove = [id];
         }}
         onDeleteClick={handleDeleteClick}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       />
     </WorkoutsPaginationWithUrl>
 

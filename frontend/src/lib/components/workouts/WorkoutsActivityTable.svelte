@@ -25,6 +25,8 @@
     onFindComparisonsClick: (eventId: string) => void;
     onMoveClick: (eventId: string, e: MouseEvent) => void;
     onDeleteClick: (eventId: string, e: MouseEvent) => void;
+    onDragStart?: (row: ActivityRow, e: DragEvent) => void;
+    onDragEnd?: () => void;
   }
   let {
     rows,
@@ -45,7 +47,11 @@
     onFindComparisonsClick,
     onMoveClick,
     onDeleteClick,
+    onDragStart,
+    onDragEnd,
   }: Props = $props();
+
+  let draggingEventId = $state<string | null>(null);
 </script>
 
 <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
@@ -116,9 +122,11 @@
           <tr
             role="link"
             tabindex="0"
+            draggable="true"
             class="hover:bg-card-hover"
             class:cursor-pointer={!isLoading}
             class:bg-card-hover={isSelected}
+            class:opacity-50={draggingEventId === row.event.id}
             onclick={() => {
               if (!isLoading) onRowClick(row.event.id);
             }}
@@ -127,6 +135,14 @@
                 e.preventDefault();
                 onRowClick(row.event.id);
               }
+            }}
+            ondragstart={(e) => {
+              draggingEventId = row.event.id;
+              onDragStart?.(row, e);
+            }}
+            ondragend={() => {
+              draggingEventId = null;
+              onDragEnd?.();
             }}
           >
             <td class="px-3 py-4" onclick={(e) => e.stopPropagation()}>
