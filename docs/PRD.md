@@ -186,7 +186,7 @@ Some form of reporting on site activity (e.g. number of users, events, activitie
 
 ### 3.9 Activity file export
 
-**Status:** Planned
+**Status:** Implemented
 
 Users can download activity data reconstructed from stored event, activity, stats, and stream data. The original uploaded file is discarded after processing and is not available for download; exports are a best-effort reconstruction from what was stored.
 

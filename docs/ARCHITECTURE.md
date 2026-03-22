@@ -321,6 +321,12 @@ Account endpoints:
   - optional query `types`
   - returns `[{ type, data: [{ time, value }] }]`
 - `DELETE /api/events/:id`
+- `GET /api/events/:id/export/tcx`
+  - returns a TCX file download with all stored stream data (heart rate, cadence, speed, power, altitude, distance, temperature, GPS where available)
+  - 404 if event not found or not owned
+- `GET /api/events/:id/export/gpx`
+  - returns a GPX file download; only available when the event has GPS streams (Latitude/Longitude or Position)
+  - 404 if event not found, not owned, or has no GPS streams
 
 ### Folders
 
@@ -417,6 +423,34 @@ Reusable component:
   callback; disables itself while the export is in-flight to prevent double-clicks. Carries
   `data-export-exclude` so the button is never included in the captured image.
 
+### File export (TCX/GPX)
+
+Users can download activity data reconstructed from stored event, activity, stats, and
+stream data. The original uploaded file is discarded after processing; exports are a
+best-effort reconstruction from what was stored.
+
+Key backend modules:
+
+- `backend/src/services/export-service.js`: `exportEventAsTcx(eventId, opts)` and
+  `exportEventAsGpx(eventId, opts)` — fetch relational data and delegate to builders.
+- `backend/src/utils/tcx-builder.js`: `buildTcx(event, activities, statsByActivityId,
+  streamsByActivityId)` — produces TCX 2.0 XML with one `<Lap>` per activity.
+- `backend/src/utils/gpx-builder.js`: `buildGpx(event, activities, streamsByActivityId)`
+  — produces GPX 1.1 XML with one `<trkseg>` per activity; returns `null` when no GPS
+  streams are present.
+- `backend/src/utils/trackpoint-builder.js`: `buildTrackpoints(streamMap)` — merges all
+  stream types onto a common timestamp grid using binary-search nearest-neighbour
+  resolution (30-second tolerance).
+
+Key frontend modules:
+
+- `frontend/src/lib/api/export.ts`: `downloadEventTcx` and `downloadEventGpx` — fetch
+  from the export endpoints and trigger browser downloads via blob URL.
+- `frontend/src/lib/components/EventExportDropdown.svelte` — dropdown in the event detail
+  header offering TCX (always) and GPX (only when the event has GPS streams). Carries
+  `data-export-exclude` so it is omitted from PNG exports. Always shows the notice that
+  exports are reconstructed from stored data.
+
 ### Meta
 
 - `GET /api/activity-types`
@@ -433,6 +467,7 @@ Important modules:
 - `frontend/src/lib/utils/export-image.ts`: `exportAsPng` helper for DOM-to-PNG capture (see [Image export (frontend-only)](#image-export-frontend-only))
 - `frontend/src/lib/api/client.ts`: authenticated fetch wrapper with CSRF handling
 - `frontend/src/lib/api/events.ts`: event, activity, stream, and upload API calls
+- `frontend/src/lib/api/export.ts`: TCX and GPX file download functions
 - `frontend/src/lib/api/comparisons.ts`: comparison CRUD and candidate lookup
 - `frontend/src/lib/api/folders.ts`: folder CRUD
 - `frontend/src/lib/api/account.ts`: export and account deletion
