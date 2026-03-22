@@ -750,6 +750,59 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/events/{id}/export/tcx:
+    get:
+      tags: [events]
+      summary: Export event as TCX
+      description: >
+        Returns a TCX file reconstructed from stored event, activity, stats, and stream data.
+        The original uploaded file is not retained; this is a best-effort reconstruction.
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      responses:
+        "200":
+          description: TCX file download
+          content:
+            application/xml:
+              schema:
+                type: string
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="Morning Run.tcx"'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/events/{id}/export/gpx:
+    get:
+      tags: [events]
+      summary: Export event route as GPX
+      description: >
+        Returns a GPX file reconstructed from stored GPS and stream data.
+        Only available when the event contains GPS streams (Latitude + Longitude or Position).
+        Returns 404 if the event has no GPS data.
+      parameters:
+        - $ref: "#/components/parameters/eventId"
+      responses:
+        "200":
+          description: GPX file download
+          content:
+            application/gpx+xml:
+              schema:
+                type: string
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="Morning Run.gpx"'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/events/{id}/activities/{activityId}:
     patch:
       tags: [events]

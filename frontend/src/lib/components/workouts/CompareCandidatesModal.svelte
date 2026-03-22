@@ -107,6 +107,17 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-6">
+        {#if onToggleShowAllFolders}
+          <p class="mb-4">
+            <button
+              type="button"
+              class="text-sm font-medium text-accent hover:underline"
+              onclick={onToggleShowAllFolders}
+            >
+              {showAllFolders ? 'Same folder only' : 'Show all folders'}
+            </button>
+          </p>
+        {/if}
         {#if candidatesLoading}
           <div class="flex justify-center py-8">
             <LoadingSpinner />
@@ -119,17 +130,6 @@
           <p class="mb-2 text-sm text-text-secondary">
             Select events that overlap in time with this event to compare:
           </p>
-          {#if onToggleShowAllFolders}
-            <p class="mb-4">
-              <button
-                type="button"
-                class="text-sm font-medium text-accent hover:underline"
-                onclick={onToggleShowAllFolders}
-              >
-                {showAllFolders ? 'Same folder only' : 'Show all folders'}
-              </button>
-            </p>
-          {/if}
           <div class="space-y-2">
             {#each candidates as candidate (candidate.id)}
               {@const isSelected = selectedCandidateIds.has(candidate.id)}

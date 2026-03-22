@@ -31,6 +31,7 @@
   import EventDetailStreamCharts from '../lib/components/event-detail/EventDetailStreamCharts.svelte';
   import PowerCurveChart from '../lib/components/event-detail/PowerCurveChart.svelte';
   import ExportButton from '../lib/components/ExportButton.svelte';
+  import EventExportDropdown from '../lib/components/EventExportDropdown.svelte';
   import { exportAsPng } from '../lib/utils/export-image';
   import { buildFolderHash } from '../lib/stores/folders.svelte';
   import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
@@ -436,13 +437,22 @@
 </script>
 
 <section class="mx-auto w-[85%] max-w-screen-2xl py-6">
-  <button
-    type="button"
-    class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
-    onclick={() => push(backPath)}
-  >
-    ← Back to Workouts
-  </button>
+  <div class="mb-4 flex items-center justify-between">
+    <button
+      type="button"
+      class="rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
+      onclick={() => push(backPath)}
+    >
+      ← Back to Workouts
+    </button>
+    {#if event}
+      <EventExportDropdown
+        eventId={id}
+        eventName={event.name ?? 'event'}
+        hasGps={locationAvailable}
+      />
+    {/if}
+  </div>
 
   {#if loading}
     <div class="flex justify-center py-12">

@@ -470,7 +470,7 @@ describe('Workouts', () => {
     await fireEvent.click(findButton);
     await waitFor(() => {
       expect(mockGetComparisonCandidates).toHaveBeenCalledWith('evt-1', {
-        sameFolderOnly: true,
+        sameFolderOnly: false,
       });
     });
   });

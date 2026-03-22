@@ -15,7 +15,7 @@
   let candidates = $state<EventSummary[]>([]);
   let candidatesLoading = $state(false);
   let selectedCandidateIds = $state<Set<string>>(new Set());
-  let showAllFolders = $state(false);
+  let showAllFolders = $state(true);
 
   const sourceEventRow = $derived.by(() => {
     if (!sourceEventId) return null;
@@ -43,7 +43,7 @@
 
   export function openForEvent(eventId: string) {
     sourceEventId = eventId;
-    showAllFolders = false;
+    showAllFolders = true;
     void loadCandidates(eventId);
   }
 

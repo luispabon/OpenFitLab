@@ -188,7 +188,27 @@ Some form of reporting on site activity (e.g. number of users, events, activitie
 
 **Status:** Planned
 
-Users may be able to export activity data back to standard file formats. The most likely direction is TCX export reconstructed from stored event and stream data, with an optional GPX route export for events that include GPS streams.
+Users can download activity data reconstructed from stored event, activity, stats, and stream data. The original uploaded file is discarded after processing and is not available for download; exports are a best-effort reconstruction from what was stored.
+
+Requirements:
+
+- provide a TCX export for every event, containing all stored stream data (heart rate, cadence, speed, power, altitude, distance, temperature, and GPS position where available)
+- provide a GPX export only when the event contains GPS streams (Latitude + Longitude or Position); includes route, elevation, and all supported extensions (heart rate, cadence, power, temperature)
+- multi-activity events produce a single file: one `<Lap>` per activity in TCX, one `<trkseg>` per activity in GPX
+- sport type is mapped from the stored activity type to the appropriate TCX or GPX value
+- device name is included in the TCX `<Creator>` element where stored
+- activity stats (total time, distance, max speed, calories, average and max heart rate) populate the TCX lap summary fields
+- trackpoints are built from the union of all stream timestamps; each stream value is resolved by nearest-neighbour lookup for that timestamp
+- exported files are named after the event name
+- the UI makes clear that exports are reconstructed from stored data and the original file was not retained; this notice is always visible near the export controls, not a modal blocker
+- export controls appear in the event detail view, top-right, at the same level as the "Back to Workouts" button, as a dropdown offering the available formats
+- the GPX option in the dropdown is only shown when the event has GPS streams
+- FIT export was considered and deferred: no viable Node.js FIT write library exists at the time of writing; the format's binary complexity and scale/offset requirements make a correct implementation impractical without a quality maintained library
+
+API:
+
+- `GET /api/events/:id/export/tcx` — returns a TCX file download; 404 if event is not found or not owned
+- `GET /api/events/:id/export/gpx` — returns a GPX file download; 404 if event is not found, not owned, or has no GPS streams
 
 ### 3.10 Third-party platform import
 

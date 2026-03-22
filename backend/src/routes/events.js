@@ -11,6 +11,7 @@ const { deleteEventById } = require('../services/event-delete-service');
 const { getStreamsForActivity } = require('../services/stream-service');
 const { updateActivity } = require('../services/activity-service');
 const { updateEventFolder } = require('../services/event-update-service');
+const { exportEventAsTcx, exportEventAsGpx } = require('../services/export-service');
 const { asyncHandler } = require('../middleware/async-handler');
 const { uploadLimiter } = require('../middleware/rate-limit');
 const { ValidationError, NotFoundError } = require('../errors');
@@ -70,6 +71,32 @@ router.get(
       { userId: req.userId }
     );
     res.json(result);
+  })
+);
+
+// GET /api/events/:id/export/tcx (must come before /:id route)
+router.get(
+  '/:id/export/tcx',
+  validateEventId,
+  asyncHandler(async (req, res) => {
+    const result = await exportEventAsTcx(req.params.id, { userId: req.userId });
+    if (!result) throw new NotFoundError('Event not found');
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.name}.tcx"`);
+    res.send(result.xml);
+  })
+);
+
+// GET /api/events/:id/export/gpx (must come before /:id route)
+router.get(
+  '/:id/export/gpx',
+  validateEventId,
+  asyncHandler(async (req, res) => {
+    const result = await exportEventAsGpx(req.params.id, { userId: req.userId });
+    if (!result) throw new NotFoundError('Event not found or no GPS data');
+    res.setHeader('Content-Type', 'application/gpx+xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.name}.gpx"`);
+    res.send(result.xml);
   })
 );
 
