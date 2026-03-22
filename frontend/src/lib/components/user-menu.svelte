@@ -18,32 +18,62 @@
   }
 </script>
 
-<div class="flex items-center gap-3 px-4 py-3">
-  {#if props.avatarUrl}
-    <img src={props.avatarUrl} alt="avatar" class="h-8 w-8 rounded-full object-cover" />
-  {:else}
-    <div
-      class="flex h-8 w-8 items-center justify-center rounded-full bg-card text-sm font-semibold text-text-primary"
-    >
-      {initials(props.displayName)}
-    </div>
-  {/if}
-  {#if !props.collapsed}
+{#if props.collapsed}
+  <div class="mx-2 mb-2 mt-1 flex justify-center rounded-lg border border-border bg-card p-2">
+    {#if props.avatarUrl}
+      <img
+        src={props.avatarUrl}
+        alt="avatar"
+        class="h-9 w-9 rounded-full object-cover ring-2 ring-accent/30 ring-offset-1 ring-offset-card"
+      />
+    {:else}
+      <div
+        class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+      >
+        {initials(props.displayName)}
+      </div>
+    {/if}
+  </div>
+{:else}
+  <div
+    class="mx-2 mb-2 mt-1 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
+  >
+    {#if props.avatarUrl}
+      <img
+        src={props.avatarUrl}
+        alt="avatar"
+        class="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-accent/30 ring-offset-1 ring-offset-card"
+      />
+    {:else}
+      <div
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+      >
+        {initials(props.displayName)}
+      </div>
+    {/if}
     <div class="min-w-0 flex-1">
-      <div class="truncate text-sm text-text-primary">{props.displayName ?? 'User'}</div>
-      <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0 text-xs">
-        <button class="text-accent hover:underline" onclick={() => push('/account')} type="button">
+      <div class="truncate text-sm font-medium text-text-primary">
+        {props.displayName ?? 'User'}
+      </div>
+      <div class="mt-1.5 flex items-center gap-2">
+        <button
+          class="rounded-md bg-accent/15 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+          onclick={() => push('/account')}
+          type="button"
+        >
           Account
         </button>
         <button
-          class="text-accent hover:underline"
+          class="rounded-md bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
           onclick={async () => {
             await logout();
             replace('/');
           }}
-          type="button">Logout</button
+          type="button"
         >
+          Logout
+        </button>
       </div>
     </div>
-  {/if}
-</div>
+  </div>
+{/if}
