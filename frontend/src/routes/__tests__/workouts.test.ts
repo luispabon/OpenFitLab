@@ -150,6 +150,34 @@ describe('Workouts', () => {
     expect(mockPush).toHaveBeenCalledWith('/event/evt-1?back=folder-123');
   });
 
+  it('folder filter reflects hash selection and pushes when changed to All', async () => {
+    const fid = 'folder-for-select';
+    setFolderHash(`#/?folder=${fid}`);
+    foldersState.folders = [{ id: fid, name: 'My Runs', color: '#3b82f6', pinned: false }];
+    foldersState.loading = false;
+    render(Workouts);
+    await waitFor(() => {
+      expect(screen.getByText('Morning Run')).toBeInTheDocument();
+    });
+    const folderSelect = screen.getByRole('combobox', { name: /Folder/i }) as HTMLSelectElement;
+    expect(folderSelect.value).toBe(fid);
+    mockPush.mockClear();
+    fireEvent.change(folderSelect, { target: { value: 'all' } });
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('calls getActivityRows with folderId when hash selects a folder', async () => {
+    setFolderHash('#/?folder=f-99');
+    foldersState.folders = [{ id: 'f-99', name: 'X', color: '#000', pinned: false }];
+    foldersState.loading = false;
+    render(Workouts);
+    await waitFor(() => {
+      expect(mockGetActivityRows).toHaveBeenCalledWith(
+        expect.objectContaining({ folderId: 'f-99' })
+      );
+    });
+  });
+
   it('opens single-delete flow when row Delete is clicked', async () => {
     render(Workouts);
     await waitFor(() => {

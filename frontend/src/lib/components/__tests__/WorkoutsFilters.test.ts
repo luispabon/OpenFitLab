@@ -15,6 +15,10 @@ describe('WorkoutsFilters', () => {
     dateEndStr: '',
     onDateStartChange: vi.fn(),
     onDateEndChange: vi.fn(),
+    navFolders: [] as { id: string; name: string; color: string; pinned: boolean }[],
+    activeFolderId: 'all',
+    orphanFolderId: null as string | null,
+    onFolderChange: vi.fn(),
   };
 
   it('renders search input and activity type filter', () => {
@@ -46,5 +50,32 @@ describe('WorkoutsFilters', () => {
     const startInput = screen.getByLabelText('From');
     await fireEvent.change(startInput, { target: { value: '2024-01-01' } });
     expect(onDateStartChange).toHaveBeenCalledWith('2024-01-01');
+  });
+
+  it('renders folder select and calls onFolderChange', async () => {
+    const onFolderChange = vi.fn();
+    render(WorkoutsFilters, {
+      props: {
+        ...defaultProps,
+        onFolderChange,
+        navFolders: [{ id: 'f1', name: 'Runs', color: '#3b82f6', pinned: true }],
+        activeFolderId: 'all',
+      },
+    });
+    const select = screen.getByRole('combobox', { name: /Folder/i });
+    expect(select).toBeInTheDocument();
+    await fireEvent.change(select, { target: { value: 'unfiled' } });
+    expect(onFolderChange).toHaveBeenCalledWith('unfiled');
+  });
+
+  it('shows unknown folder option when orphanFolderId is set', () => {
+    render(WorkoutsFilters, {
+      props: {
+        ...defaultProps,
+        activeFolderId: 'missing-id',
+        orphanFolderId: 'missing-id',
+      },
+    });
+    expect(screen.getByRole('option', { name: 'Unknown folder' })).toBeInTheDocument();
   });
 });

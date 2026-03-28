@@ -39,3 +39,9 @@ export function buildFolderHash(folderId: 'all' | 'unfiled' | string): string {
   if (folderId === 'all') return '#/';
   return `#/?folder=${encodeURIComponent(folderId)}`;
 }
+
+/** Path for `push()` from svelte-spa-router (hash is applied by the router). */
+export function folderSelectionToPushPath(folderId: 'all' | 'unfiled' | string): string {
+  if (folderId === 'all') return '/';
+  return `/?folder=${encodeURIComponent(folderId)}`;
+}

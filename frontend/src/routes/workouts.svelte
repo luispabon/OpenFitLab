@@ -10,9 +10,14 @@
     updateEventFolder,
   } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
-  import { foldersState, getFolderFromHash } from '../lib/stores/folders.svelte';
+  import {
+    foldersState,
+    getFolderFromHash,
+    folderSelectionToPushPath,
+  } from '../lib/stores/folders.svelte';
   import { startWorkoutDrag, endWorkoutDrag } from '../lib/stores/workout-drag.svelte';
   import { getEnvNumber } from '../lib/utils/env';
+  import { splitFoldersForNav } from '../lib/utils/folder-nav-sort';
   import {
     formatDurationCell,
     formatAvgHeartRateCell,
@@ -124,6 +129,17 @@
       activeFolderId !== 'unfiled' &&
       foldersState.folders.find((f) => f.id === activeFolderId) === undefined
   );
+
+  const navFolders = $derived.by(() => {
+    const { pinned, unpinned } = splitFoldersForNav(foldersState.folders);
+    return [...pinned, ...unpinned];
+  });
+
+  const orphanFolderId = $derived(isFolderNotFound ? activeFolderId : null);
+
+  function handleFolderFilterChange(folderId: string) {
+    push(folderSelectionToPushPath(folderId as 'all' | 'unfiled' | string));
+  }
 
   function showToast(message: string) {
     toastMessage = message;
@@ -441,6 +457,10 @@
           {dateEndStr}
           onDateStartChange={setDateStart}
           onDateEndChange={setDateEnd}
+          {navFolders}
+          {activeFolderId}
+          {orphanFolderId}
+          onFolderChange={handleFolderFilterChange}
         />
       </div>
       {#if selectedEventIds.size > 0}

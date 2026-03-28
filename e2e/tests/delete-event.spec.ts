@@ -41,13 +41,11 @@ test('deleting an event removes it from the list', async ({
   await page.goto('/');
   await expect(page.getByRole('table')).toBeVisible({ timeout: 15000 });
 
-  // Wait for the specific 'to-delete' row to appear before capturing baseline count.
-  // Other parallel tests may also have rows in the table; targeting by name avoids
-  // accidentally deleting the shared seeded event.
+  // Wait for the specific 'to-delete' row to appear. Other parallel tests may also
+  // have rows in the table; targeting by name avoids accidentally deleting the
+  // shared seeded event.
   const targetRow = page.locator('tr').filter({ hasText: 'to-delete' });
   await expect(targetRow).toBeVisible({ timeout: 15000 });
-
-  const rowsBefore = await page.locator('tr').count();
 
   // Delete only the row for the event this test uploaded
   await targetRow.getByRole('button', { name: /delete/i }).click();
@@ -57,9 +55,7 @@ test('deleting an event removes it from the list', async ({
   await expect(confirmButton).toBeEnabled({ timeout: 5000 });
   await confirmButton.click();
 
-  // List should have one fewer row
-  await expect(async () => {
-    const count = await page.locator('tr').count();
-    expect(count).toBe(rowsBefore - 1);
-  }).toPass({ timeout: 15000 });
+  // That row should disappear (assert on this row, not total count — parallel tests
+  // add/remove other rows in the same table).
+  await expect(targetRow).not.toBeVisible({ timeout: 15000 });
 });

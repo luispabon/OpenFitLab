@@ -23,7 +23,9 @@ test('folder create / move / filter / rename / delete flow', async ({
   await page.getByRole('dialog').getByRole('button', { name: /create/i }).click();
 
   // Folder should appear in the sidebar
-  await expect(page.getByText('E2E Folder')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('link', { name: 'E2E Folder' })).toBeVisible({
+    timeout: 10000,
+  });
 
   // --- Move event into folder via API (faster than UI drag) ---
   // First fetch folders to get the new folder id
