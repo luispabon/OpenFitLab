@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { foldersState, loadFolders, getFolderFromHash, buildFolderHash } from '../folders.svelte';
+import {
+  foldersState,
+  loadFolders,
+  getFolderFromHash,
+  buildFolderHash,
+  folderSelectionToPushPath,
+} from '../folders.svelte';
 
 const mockGetFolders = vi.fn();
 
@@ -64,6 +70,17 @@ describe('buildFolderHash', () => {
   it('returns encoded folder hash for "unfiled"', () => {
     const hash = buildFolderHash('unfiled');
     expect(hash).toContain('unfiled');
+  });
+});
+
+describe('folderSelectionToPushPath', () => {
+  it('returns "/" for all', () => {
+    expect(folderSelectionToPushPath('all')).toBe('/');
+  });
+
+  it('returns query path for unfiled and UUIDs', () => {
+    expect(folderSelectionToPushPath('unfiled')).toBe('/?folder=unfiled');
+    expect(folderSelectionToPushPath('abc-123')).toBe('/?folder=abc-123');
   });
 });
 

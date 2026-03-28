@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { push, querystring } from 'svelte-spa-router';
+  import { foldersState, getFolderFromHash } from '../../stores/folders.svelte';
+  import { buildWorkoutsListPushPath } from '../../utils/workouts-list-url';
   import WorkoutsPaginator from './WorkoutsPaginator.svelte';
 
   const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const;
@@ -25,10 +27,8 @@
   }
 
   function buildWorkoutsPath(p: number, ps: number): string {
-    const parts: string[] = [];
-    parts.push(`page=${p}`);
-    if (ps !== 20) parts.push(`pageSize=${ps}`);
-    return `/?${parts.join('&')}`;
+    const folderId = getFolderFromHash(foldersState.currentHash);
+    return buildWorkoutsListPushPath(p, ps, folderId);
   }
 
   $effect(() => {
