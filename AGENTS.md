@@ -164,6 +164,7 @@ For full-stack verification, run `make e2e` — the Playwright suite covers all 
 |---|---|
 | Which doc to update when I change code | "Documentation" subsection above, `.cursor/rules/documentation-updates.mdc` |
 | Technical reference | `docs/ARCHITECTURE.md` |
+| OAuth / Strava integration setup | `docs/INTEGRATIONS_INSTRUCTIONS.md` |
 | Product intent | `docs/PRD.md` |
 | API contract | `backend/docs/openapi.yaml` |
 | API routes | `backend/src/routes/` |
