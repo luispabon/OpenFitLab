@@ -358,6 +358,51 @@ function validateFolderDeleteQuery(req, res, next) {
   next();
 }
 
+function validateStravaActivitiesQuery(req, res, next) {
+  const { page, perPage } = req.query;
+  if (page != null) {
+    const n = Number(page);
+    if (!Number.isInteger(n) || n < 1 || n > 500) {
+      return res.status(400).json({ error: 'page must be an integer between 1 and 500' });
+    }
+  }
+  if (perPage != null) {
+    const n = Number(perPage);
+    if (!Number.isInteger(n) || n < 1 || n > 100) {
+      return res.status(400).json({ error: 'perPage must be an integer between 1 and 100' });
+    }
+  }
+  next();
+}
+
+function validateStravaImportBody(req, res, next) {
+  const b = req.body || {};
+  const { externalIds, folderId } = b;
+  if (!Array.isArray(externalIds)) {
+    return res.status(400).json({ error: 'externalIds must be an array' });
+  }
+  if (externalIds.length === 0) {
+    return res.status(400).json({ error: 'externalIds must not be empty' });
+  }
+  if (externalIds.length > 25) {
+    return res.status(400).json({ error: 'externalIds must not exceed 25 items' });
+  }
+  for (const id of externalIds) {
+    if (id === null || id === undefined || String(id).trim() === '') {
+      return res.status(400).json({ error: 'each externalIds entry must be a non-empty string' });
+    }
+    if (String(id).length > 64) {
+      return res.status(400).json({ error: 'externalIds entries must be at most 64 characters' });
+    }
+  }
+  if (folderId !== undefined && folderId !== null && folderId !== '') {
+    if (!isValidUUID(folderId)) {
+      return res.status(400).json({ error: 'folderId must be a valid UUID' });
+    }
+  }
+  next();
+}
+
 module.exports = {
   isValidUUID,
   validateGetEventsQuery,
@@ -376,4 +421,6 @@ module.exports = {
   validateFolderCreateBody,
   validateFolderUpdateBody,
   validateFolderDeleteQuery,
+  validateStravaActivitiesQuery,
+  validateStravaImportBody,
 };

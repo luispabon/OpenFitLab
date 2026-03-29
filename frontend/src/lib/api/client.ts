@@ -5,7 +5,17 @@ import { setCurrentUser, state as authState } from '../stores/auth.svelte';
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+function urlFromFetchInput(input: string | URL | Request): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.url;
+  return '';
+}
+
+export async function apiFetch(
+  input: string | URL | Request,
+  init: RequestInit = {}
+): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
   if (MUTATION_METHODS.has(method) && authState.csrfToken) {
@@ -13,7 +23,10 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   }
   const res = await fetch(input, { ...init, credentials: 'include', headers });
   if (res.status === 401) {
-    setCurrentUser(null);
+    const url = urlFromFetchInput(input);
+    if (!url.includes('/api/integrations/')) {
+      setCurrentUser(null);
+    }
   }
   if (res.status === 403) {
     authState.csrfToken = null;

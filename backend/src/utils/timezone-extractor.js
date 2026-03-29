@@ -42,9 +42,17 @@ function extractActivityTimezones(activityJson) {
   if (!activityJson || typeof activityJson !== 'object') {
     return { startTimezone: null, endTimezone: null };
   }
+  const explicitStart =
+    typeof activityJson.startTimezone === 'string' && activityJson.startTimezone.trim()
+      ? activityJson.startTimezone.trim()
+      : null;
+  const explicitEnd =
+    typeof activityJson.endTimezone === 'string' && activityJson.endTimezone.trim()
+      ? activityJson.endTimezone.trim()
+      : null;
   return {
-    startTimezone: extractTimezoneFromValue(activityJson.startDate),
-    endTimezone: extractTimezoneFromValue(activityJson.endDate),
+    startTimezone: explicitStart ?? extractTimezoneFromValue(activityJson.startDate),
+    endTimezone: explicitEnd ?? extractTimezoneFromValue(activityJson.endDate),
   };
 }
 

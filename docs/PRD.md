@@ -218,9 +218,9 @@ API:
 
 ### 3.10 Third-party platform import
 
-**Status:** Planned
+**Status:** Implemented (Strava v1)
 
-Users can pull activities from supported fitness platforms into OpenFitLab so they do not have to export files manually. **v1 targets Strava**; **Polar Flow**, **Fitbit**, and similar services are candidates for later releases.
+Users can pull activities from supported fitness platforms into OpenFitLab so they do not have to export files manually. **v1 ships with Strava** (OAuth, Workouts **Import from…** modal, deduplication, same relational model as uploads, **View on Strava** on event detail). **Polar Flow**, **Fitbit**, and similar services remain candidates for later releases.
 
 **Requirements**
 
@@ -228,7 +228,7 @@ Users can pull activities from supported fitness platforms into OpenFitLab so th
 - Integration is **operator-configured** (e.g. API credentials). If nothing is configured, users see **no** import entry point.
 - The user **connects** a platform (standard OAuth-style consent), **browses** their activities, and **chooses** what to import. On **Workouts**, **Import from…** opens a flow that can switch between supported providers as more are added.
 - The same activity from a provider **must not** appear twice in the user’s library; the UI should make already-imported items obvious. **Deleting** the event in OpenFitLab **allows** importing that activity again.
-- **v1** does **not** keep a long-lived stored connection to the provider: when the link expires, the user **reconnects**. Details belong in technical docs.
+- **v1** does **not** persist provider refresh tokens or access tokens in MariaDB: the Strava access token lives in the Valkey-backed session until expiry, then the user **reconnects** (see `docs/ARCHITECTURE.md`).
 - Use of Strava must follow **Strava’s API agreement and branding rules** (including how connection and “view on Strava” links are presented).
 
 **Out of scope**
@@ -291,13 +291,13 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 - users can review workouts in a dashboard
 - users can inspect workout metrics visually
 - users can compare activities side-by-side
+- when the operator configures Strava, users can import activities from Strava without duplicate events for the same source activity (until they delete the local event)
 
 ### 6.2 Future success criteria
 
 - users can analyze stream correlations
 - users can compare trackers effectively
 - the product remains usable with large personal histories
-- users can import activities from configured third-party platforms (v1: Strava) without duplicate events for the same source activity
 
 ---
 

@@ -1,10 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { apiFetch } from '../../api/client';
+import * as auth from '../../stores/auth.svelte';
 import { state as authState } from '../../stores/auth.svelte';
 
 describe('apiFetch', () => {
   beforeEach(() => {
     authState.csrfToken = null;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('includes credentials and propagates response', async () => {
@@ -34,12 +39,26 @@ describe('apiFetch', () => {
   });
 
   it('sets user to null on 401', async () => {
+    const spy = vi.spyOn(auth, 'setCurrentUser');
     const mockRes = new Response('', { status: 401 });
     vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValueOnce(
       mockRes as unknown as Response
     );
     const res = await apiFetch('/api/secret');
     expect(res.status).toBe(401);
+    expect(spy).toHaveBeenCalledWith(null);
+  });
+
+  it('does not clear app session on 401 from Strava integration routes', async () => {
+    const spy = vi.spyOn(auth, 'setCurrentUser');
+    authState.user = { id: 'u1', displayName: 'Test', avatarUrl: null };
+    const mockRes = new Response('', { status: 401 });
+    vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValueOnce(
+      mockRes as unknown as Response
+    );
+    const res = await apiFetch('/api/integrations/strava/status');
+    expect(res.status).toBe(401);
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it('clears csrfToken on 403', async () => {

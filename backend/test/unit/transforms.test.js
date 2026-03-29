@@ -173,8 +173,22 @@ describe('mapEventRow', () => {
     strictEqual('description' in result, false);
     strictEqual('isMerge' in result, false);
     strictEqual('srcFileType' in result, false);
+    strictEqual('importProvider' in result, false);
     strictEqual('startTimezone' in result, false);
     strictEqual('endTimezone' in result, false);
+  });
+
+  it('maps import provenance when provider and external id are set', () => {
+    const row = {
+      id: 'e1',
+      start_date: 0,
+      name: 'Run',
+      import_provider: 'strava',
+      import_external_id: '12345',
+    };
+    const result = mapEventRow(row);
+    strictEqual(result.importProvider, 'strava');
+    strictEqual(result.importExternalId, '12345');
   });
 });
 

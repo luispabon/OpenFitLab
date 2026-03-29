@@ -44,9 +44,19 @@ const uploadLimiter = rateLimit({
   message: { error: 'Upload limit reached, please try again later.' },
 });
 
+/** Strava list/import — same caps as upload (per-user burst to Strava upstream). */
+const integrationLimiter = rateLimit({
+  windowMs: config.rateLimit.upload.windowMs,
+  max: config.rateLimit.upload.max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many import requests, please try again later.' },
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   callbackLimiter,
   uploadLimiter,
+  integrationLimiter,
 };

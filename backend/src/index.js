@@ -13,6 +13,7 @@ const eventsRouter = require('./routes/events');
 const comparisonsRouter = require('./routes/comparisons');
 const foldersRouter = require('./routes/folders');
 const metaRouter = require('./routes/meta');
+const integrationsStravaRouter = require('./routes/integrations-strava');
 
 const app = express();
 
@@ -95,6 +96,7 @@ async function start() {
   app.use('/api/folders', requireAuth, foldersRouter);
   app.use('/api/account', requireAuth, accountRouter);
   app.use('/api', requireAuth, metaRouter);
+  app.use('/api/integrations', integrationsStravaRouter);
 
   // Catch-all: return JSON 404 for any unmatched route
   app.use((_req, res) => {

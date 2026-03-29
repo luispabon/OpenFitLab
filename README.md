@@ -220,6 +220,48 @@ OAUTH_CALLBACK_URL=http://localhost:3000
 OAUTH_CALLBACK_URL=https://fit.example.com
 ```
 
+### Strava activity import (optional)
+
+OpenFitLab can import activities from **Strava** when you register an API application and add credentials to `.env`. This is separate from login OAuth (Google, GitHub, etc.): users connect Strava from **Workouts → Import from…** after signing in normally.
+
+**On the Strava website**
+
+1. Sign in at [strava.com](https://www.strava.com), then open **[Settings → My API Application](https://www.strava.com/settings/api)** (or go directly to that URL).
+2. Click **Create an App** (or **Edit** an existing app).
+3. Fill in:
+   - **Application Name** — any label (e.g. `OpenFitLab (self-hosted)`).
+   - **Website** — optional; often your app’s public URL (e.g. `http://localhost:4200` for local dev, or your production site).
+   - **Application Description** — optional short text.
+   - **Authorization Callback Domain** — must match the **host** of your API’s public base URL (`OAUTH_CALLBACK_URL`), without `http://`/`https://` and without a path:
+     - Local API on port 3000: use **`localhost`** (Strava allows `localhost` for development; any port on localhost is fine for the redirect URI).
+     - Production: use your API hostname only, e.g. **`openfitlab.org`** if the API is served at `https://openfitlab.org`.
+4. Save the app. On the same page, copy the **Client ID** and **Client Secret** (click to reveal the secret).
+
+**Redirect URI you must use**
+
+The OAuth redirect path is fixed by OpenFitLab. It must be exactly:
+
+`{OAUTH_CALLBACK_URL}/api/integrations/strava/callback`
+
+Examples:
+
+- Local: `http://localhost:3000/api/integrations/strava/callback`
+- Production: `https://your-api-host/api/integrations/strava/callback`
+
+Strava validates the `redirect_uri` against your **Authorization Callback Domain**; keep `OAUTH_CALLBACK_URL` in `.env` consistent with the domain you registered.
+
+**In `.env`**
+
+Set both values (import is disabled if either is empty):
+
+```env
+OAUTH_CALLBACK_URL=http://localhost:3000
+STRAVA_CLIENT_ID=your-client-id
+STRAVA_CLIENT_SECRET=your-client-secret
+```
+
+After restarting the API, `GET /api/auth/me` reports `integrations.providers.strava.configured: true` and the Workouts page shows **Import from…**. Strava access tokens are stored in the session (Valkey), not in the database. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Strava import) for behavior details.
+
 ## Backups (production compose stack)
 
 See [`backup/README.md`](backup/README.md) for full details.

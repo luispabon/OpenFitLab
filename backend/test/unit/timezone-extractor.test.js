@@ -89,4 +89,16 @@ describe('extractActivityTimezones', () => {
     strictEqual(result.startTimezone, 'UTC');
     strictEqual(result.endTimezone, null);
   });
+
+  it('prefers explicit startTimezone and endTimezone when set', () => {
+    deepStrictEqual(
+      extractActivityTimezones({
+        startDate: 1705312800000,
+        endDate: 1705316400000,
+        startTimezone: 'Europe/London',
+        endTimezone: 'Europe/London',
+      }),
+      { startTimezone: 'Europe/London', endTimezone: 'Europe/London' }
+    );
+  });
 });

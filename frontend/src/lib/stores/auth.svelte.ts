@@ -7,6 +7,7 @@ function assertAuthResponse(data: unknown): asserts data is {
   displayName?: string | null;
   avatarUrl?: string | null;
   profile?: { displayName?: string | null; avatarUrl?: string | null };
+  integrations?: IntegrationCapabilities;
 } {
   if (!data || typeof data !== 'object') throw new Error('Invalid auth response');
   const d = data as Record<string, unknown>;
@@ -24,6 +25,24 @@ export interface PendingProfile {
   avatarUrl: string | null;
 }
 
+/** From GET /api/auth/me — which third-party integrations the API has credentials for. */
+export interface IntegrationCapabilities {
+  providers: {
+    strava: { configured: boolean };
+  };
+}
+
+function normalizeIntegrations(data: unknown): IntegrationCapabilities {
+  const d = data as Record<string, unknown> | null | undefined;
+  const providers = d?.providers as Record<string, unknown> | undefined;
+  const strava = providers?.strava as Record<string, unknown> | undefined;
+  return {
+    providers: {
+      strava: { configured: strava?.configured === true },
+    },
+  };
+}
+
 // Single state object: only mutate properties so it can be exported
 export const state = $state({
   user: null as AuthUser | null,
@@ -32,6 +51,7 @@ export const state = $state({
   authLoading: true,
   pendingSignup: false,
   pendingProfile: null as PendingProfile | null,
+  integrations: null as IntegrationCapabilities | null,
 });
 
 export function urlHasSignupPending(): boolean {
@@ -41,6 +61,7 @@ export function urlHasSignupPending(): boolean {
 
 function applyAuthData(data: unknown) {
   assertAuthResponse(data);
+  state.integrations = normalizeIntegrations(data.integrations);
   if (data.pendingSignup) {
     state.pendingSignup = true;
     state.pendingProfile = {
@@ -76,12 +97,14 @@ export async function checkAuth(): Promise<void> {
       state.csrfToken = null;
       state.pendingSignup = false;
       state.pendingProfile = null;
+      state.integrations = null;
     }
   } catch {
     state.user = null;
     state.csrfToken = null;
     state.pendingSignup = false;
     state.pendingProfile = null;
+    state.integrations = null;
   } finally {
     state.authChecked = true;
     state.authLoading = false;
@@ -102,6 +125,7 @@ export async function logout(): Promise<void> {
     state.csrfToken = null;
     state.pendingSignup = false;
     state.pendingProfile = null;
+    state.integrations = null;
   }
 }
 
@@ -111,5 +135,6 @@ export function setCurrentUser(u: AuthUser | null) {
     state.csrfToken = null;
     state.pendingSignup = false;
     state.pendingProfile = null;
+    state.integrations = null;
   }
 }

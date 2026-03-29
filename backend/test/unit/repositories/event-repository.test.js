@@ -9,6 +9,7 @@ const {
   getStatsByEventId,
   updateFolderId,
   deleteById,
+  findImportKeyMap,
 } = require('../../../src/repositories/event-repository');
 
 describe('event-repository', () => {
@@ -47,6 +48,37 @@ describe('event-repository', () => {
       ok(queries[0].sql.includes('INSERT INTO events'));
       strictEqual(queries[0].params[0], 'e1');
       strictEqual(queries[0].params[1], 'u1');
+      strictEqual(queries[0].params[9], null);
+      strictEqual(queries[0].params[10], null);
+    });
+
+    it('passes import_provider and import_external_id when set', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return { affectedRows: 1 };
+        },
+      };
+      await insertEvent(
+        {
+          id: 'e1',
+          folder_id: null,
+          start_date: 1000,
+          name: 'Run',
+          end_date: null,
+          description: null,
+          is_merge: 0,
+          src_file_type: null,
+          import_provider: 'strava',
+          import_external_id: '12345',
+          start_timezone: null,
+          end_timezone: null,
+        },
+        { db, userId: 'u1' }
+      );
+      strictEqual(queries[0].params[9], 'strava');
+      strictEqual(queries[0].params[10], '12345');
     });
   });
 
@@ -232,6 +264,35 @@ describe('event-repository', () => {
       const db = { query: async () => ({ affectedRows: 0 }) };
       const result = await deleteById('missing', { db, userId: 'u1' });
       strictEqual(result, false);
+    });
+  });
+
+  describe('findImportKeyMap', () => {
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => [] };
+      await new Promise((resolve, reject) => {
+        findImportKeyMap('strava', ['1'], { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('returns empty map when externalIds is empty', async () => {
+      const db = { query: async () => {
+        throw new Error('should not query');
+      } };
+      const m = await findImportKeyMap('strava', [], { db, userId: 'u1' });
+      strictEqual(m.size, 0);
+    });
+
+    it('returns map of external id to event id', async () => {
+      const db = {
+        query: async () => [
+          { id: 'ev1', import_external_id: '99' },
+          { id: 'ev2', import_external_id: '100' },
+        ],
+      };
+      const m = await findImportKeyMap('strava', ['99', '100'], { db, userId: 'u1' });
+      strictEqual(m.get('99'), 'ev1');
+      strictEqual(m.get('100'), 'ev2');
     });
   });
 });

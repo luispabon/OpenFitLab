@@ -1,11 +1,11 @@
 const { runQuery, placeholders } = require('./query-helper');
 
 const EVENT_COLUMNS =
-  'id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone';
+  'id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, import_provider, import_external_id, start_timezone, end_timezone';
 
 async function insertEvent(row, opts = {}) {
   if (!opts.userId) throw new Error('insertEvent requires opts.userId');
-  const sql = `INSERT INTO events (id, user_id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  const sql = `INSERT INTO events (id, user_id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, import_provider, import_external_id, start_timezone, end_timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
   await runQuery(
     sql,
     [
@@ -18,6 +18,8 @@ async function insertEvent(row, opts = {}) {
       row.description,
       row.is_merge,
       row.src_file_type,
+      row.import_provider ?? null,
+      row.import_external_id ?? null,
       row.start_timezone,
       row.end_timezone,
     ],
@@ -174,6 +176,21 @@ async function deleteById(id, opts = {}) {
   return result && result.affectedRows === 1;
 }
 
+/**
+ * Returns a Map of import_external_id -> event id for rows that already exist.
+ * @param {string} provider
+ * @param {string[]} externalIds
+ */
+async function findImportKeyMap(provider, externalIds, opts = {}) {
+  if (!externalIds.length) return new Map();
+  if (!opts.userId) throw new Error('findImportKeyMap requires opts.userId');
+  const uniq = [...new Set(externalIds.map((id) => String(id)))];
+  const sql = `SELECT id, import_external_id FROM events WHERE user_id = ? AND import_provider = ? AND import_external_id IN (${placeholders(uniq.length)})`;
+  const rows = await runQuery(sql, [opts.userId, provider, ...uniq], opts);
+  const list = Array.isArray(rows) ? rows : [];
+  return new Map(list.map((r) => [String(r.import_external_id), r.id]));
+}
+
 module.exports = {
   insertEvent,
   insertEventStats,
@@ -188,4 +205,5 @@ module.exports = {
   upsertEventStat,
   updateFolderId,
   deleteById,
+  findImportKeyMap,
 };

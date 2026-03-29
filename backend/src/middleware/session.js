@@ -1,6 +1,6 @@
 const session = require('express-session');
 const { RedisStore } = require('connect-redis');
-const { createClient } = require('redis');
+const { getRedisClient } = require('../redis-client');
 const config = require('../config');
 
 /**
@@ -9,13 +9,7 @@ const config = require('../config');
  * @returns {Promise<function>} Promise that resolves to Express session middleware
  */
 async function createSessionMiddleware() {
-  const { valkey: valkeyConfig } = config;
-  const clientOptions = valkeyConfig.url
-    ? { url: valkeyConfig.url }
-    : { socket: { host: valkeyConfig.host, port: valkeyConfig.port } };
-
-  const client = createClient(clientOptions);
-  await client.connect();
+  const client = await getRedisClient();
 
   const store = new RedisStore({
     client,
