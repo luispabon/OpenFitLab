@@ -26,4 +26,39 @@ class NotFoundError extends Error {
   }
 }
 
-module.exports = { ParseError, ValidationError, NotFoundError };
+/** Strava OAuth access token rejected or expired (reconnect required). */
+class StravaTokenExpiredError extends Error {
+  constructor(message = 'Strava connection expired. Please reconnect.') {
+    super(message);
+    this.name = 'StravaTokenExpiredError';
+    this.statusCode = 401;
+  }
+}
+
+/** Strava API rate limit (429). */
+class StravaRateLimitError extends Error {
+  constructor(retryAfterSeconds = null) {
+    super('Strava is temporarily limiting requests. Please try again in a few minutes.');
+    this.name = 'StravaRateLimitError';
+    this.statusCode = 429;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/** Unexpected Strava API failure after retries. */
+class StravaUpstreamError extends Error {
+  constructor(message = 'Strava request failed') {
+    super(message);
+    this.name = 'StravaUpstreamError';
+    this.statusCode = 502;
+  }
+}
+
+module.exports = {
+  ParseError,
+  ValidationError,
+  NotFoundError,
+  StravaTokenExpiredError,
+  StravaRateLimitError,
+  StravaUpstreamError,
+};
