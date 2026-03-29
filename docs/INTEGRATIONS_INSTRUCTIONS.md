@@ -134,3 +134,10 @@ STRAVA_CLIENT_SECRET=your-client-secret
 ```
 
 After restarting the API, `GET /api/auth/me` reports `integrations.providers.strava.configured: true` and the Workouts page shows **Import from…**. Strava access tokens are stored in the session (Valkey), not in the database. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Strava import) for behavior details.
+
+### Strava — product and compliance
+
+- **v1:** Strava access tokens are **not** persisted in MariaDB; they live in the Valkey-backed session until expiry, then the user reconnects.
+- **Deduplication:** the same Strava activity must not appear twice; the UI indicates already-imported items. Deleting the local event allows importing again.
+- **Branding:** follow [Strava’s API agreement](https://www.strava.com/legal/api) and [developer brand guidelines](https://developers.strava.com/guidelines/) for connection UI and “View on Strava” links.
+- **Out of scope:** automatic/background sync; social features beyond reading the user’s own activities.

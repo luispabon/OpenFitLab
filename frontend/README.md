@@ -1,10 +1,10 @@
 # OpenFitLab Frontend
 
-Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router. Run: `npm run dev`. Build: `npm run build`; preview: `npm run preview`. The app uses `/api` for the backend (proxied in dev, same-origin in production).
+Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router. The app calls `/api` (proxied in dev, same-origin in production).
 
-**How it works:** Workouts lists activities via GET /api/events/activity-rows (filters, pagination). Event detail loads the event (GET /api/events/:id) then streams for the selected activity (GET .../streams). Comparisons list and comparison view use the comparisons API; see [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for route → API usage. When the backend reports Strava as configured (`GET /api/auth/me` → `integrations.providers.strava.configured`), Workouts shows **Import from…** and uses `frontend/src/lib/api/strava.ts` for list/import calls.
+**Data flow:** Workouts use `/api/events/activity-rows`; event detail uses `/api/events/:id` and stream endpoints; comparisons use the comparisons API. Strava list/import when `GET /api/auth/me` reports `integrations.providers.strava.configured`. Details: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
-**Quality gate and testing:** Run `npm run format`, `npm run lint`, `npm run check`, `npm run test`, and `npm run build` from `frontend/`. Single command for all checks: `npm run ci`. Tests use Vitest; unit and API tests live in `__tests__/` next to modules, fixtures in `src/test/fixtures/`. See [.cursor/rules/frontend-lint-test.mdc](../.cursor/rules/frontend-lint-test.mdc) for conventions.
+**Commands and quality gate:** [AGENTS.md](../AGENTS.md) (`npm run ci`). Conventions: [.cursor/rules/frontend-lint-test.mdc](../.cursor/rules/frontend-lint-test.mdc), [.cursor/rules/svelte-frontend.mdc](../.cursor/rules/svelte-frontend.mdc).
 
 **Google Analytics (optional):** Set `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` at build time to enable GA4 tracking. Omit the variable (or leave it blank) to disable analytics entirely — no script is injected and no data is sent.
 
@@ -17,4 +17,3 @@ To get a Measurement ID:
 
 The app respects the browser's Do Not Track signal and a per-user opt-out stored in `localStorage`. Page views are tracked automatically on every SPA route change. No advertising features or Google Signals are enabled.
 
-See root [AGENTS.md](../AGENTS.md) for stack and [.cursor/rules/svelte-frontend.mdc](../.cursor/rules/svelte-frontend.mdc) for conventions.

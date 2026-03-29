@@ -23,14 +23,7 @@ SQL in repositories only; services pass `opts.db` or `opts.conn` (inside transac
 
 ## Run locally
 
-```bash
-cd backend
-npm install
-# Set DB_* env if not using defaults (see AGENTS.md)
-npm run dev
-```
-
-API: http://localhost:3000. Health: GET `/health`.
+Install deps, configure `.env` (see root `.env.example` and [AGENTS.md](../AGENTS.md)), then `npm run dev` in this directory. API: `http://localhost:3000`; health: `GET /health`.
 
 ## Strava import (optional)
 

@@ -198,43 +198,28 @@ Users can download activity data reconstructed from stored event, activity, stat
 
 Requirements:
 
-- provide a TCX export for every event, containing all stored stream data (heart rate, cadence, speed, power, altitude, distance, temperature, and GPS position where available)
-- provide a GPX export only when the event contains GPS streams (Latitude + Longitude or Position); includes route, elevation, and all supported extensions (heart rate, cadence, power, temperature)
-- multi-activity events produce a single file: one `<Lap>` per activity in TCX, one `<trkseg>` per activity in GPX
-- sport type is mapped from the stored activity type to the appropriate TCX or GPX value
-- device name is included in the TCX `<Creator>` element where stored
-- activity stats (total time, distance, max speed, calories, average and max heart rate) populate the TCX lap summary fields
-- trackpoints are built from the union of all stream timestamps; each stream value is resolved by nearest-neighbour lookup for that timestamp
-- exported files are named after the event name
-- the UI makes clear that exports are reconstructed from stored data and the original file was not retained; this notice is always visible near the export controls, not a modal blocker
-- export controls appear in the event detail view, top-right, at the same level as the "Back to Workouts" button, as a dropdown offering the available formats
-- the GPX option in the dropdown is only shown when the event has GPS streams
-- FIT export was considered and deferred: no viable Node.js FIT write library exists at the time of writing; the format's binary complexity and scale/offset requirements make a correct implementation impractical without a quality maintained library
+- TCX available for every event; GPX only when GPS streams exist
+- UI explains that exports are reconstructed from stored data (notice always visible near export controls, not a modal blocker)
+- export controls on event detail: dropdown (top-right, same level as back navigation) with TCX always and GPX when applicable
+- FIT export out of scope until a suitable maintained writer exists
 
-API:
-
-- `GET /api/events/:id/export/tcx` — returns a TCX file download; 404 if event is not found or not owned
-- `GET /api/events/:id/export/gpx` — returns a GPX file download; 404 if event is not found, not owned, or has no GPS streams
+API and file format behaviour: [docs/ARCHITECTURE.md](ARCHITECTURE.md) (File export).
 
 ### 3.10 Third-party platform import
 
 **Status:** Implemented (Strava v1)
 
-Users can pull activities from supported fitness platforms into OpenFitLab so they do not have to export files manually. **v1 ships with Strava** (OAuth, Workouts **Import from…** modal, deduplication, same relational model as uploads, **View on Strava** on event detail). **Polar Flow**, **Fitbit**, and similar services remain candidates for later releases.
+Users can pull activities from supported fitness platforms so they do not have to export files manually. **v1 is Strava** (OAuth, Workouts **Import from…**, deduplication, same relational model as uploads, **View on Strava** on event detail). Other providers are candidates for later releases.
 
 **Requirements**
 
-- Imported workouts use the **same underlying data model** as file uploads (events, activities, stats, streams).
-- Integration is **operator-configured** (e.g. API credentials). If nothing is configured, users see **no** import entry point.
-- The user **connects** a platform (standard OAuth-style consent), **browses** their activities, and **chooses** what to import. On **Workouts**, **Import from…** opens a flow that can switch between supported providers as more are added.
-- The same activity from a provider **must not** appear twice in the user’s library; the UI should make already-imported items obvious. **Deleting** the event in OpenFitLab **allows** importing that activity again.
-- **v1** does **not** persist provider refresh tokens or access tokens in MariaDB: the Strava access token lives in the Valkey-backed session until expiry, then the user **reconnects** (see `docs/ARCHITECTURE.md`).
-- Use of Strava must follow **Strava’s API agreement and branding rules** (including how connection and “view on Strava” links are presented).
+- Same data model as file uploads (events, activities, stats, streams).
+- Operator-configured credentials; if not configured, no import entry point.
+- User connects, browses, and chooses imports; no automatic background sync.
+- No duplicate imports for the same provider activity; deleting the local event allows re-import.
+- Strava branding and API terms must be respected.
 
-**Out of scope**
-
-- **Automatic or background sync** (import is always something the user explicitly starts).
-- Treating third-party platforms as social features beyond what is needed to read the user’s own activities.
+Operator setup and technical behaviour: [docs/INTEGRATIONS_INSTRUCTIONS.md](INTEGRATIONS_INSTRUCTIONS.md) and [docs/ARCHITECTURE.md](ARCHITECTURE.md) (Strava import).
 
 ### 3.11 Single-user passphrase mode
 
@@ -291,12 +276,12 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 - users can review workouts in a dashboard
 - users can inspect workout metrics visually
 - users can compare activities side-by-side
+- users can analyze stream correlations (comparison view stream analysis)
+- users can compare trackers effectively (via multi-device imports and comparison)
 - when the operator configures Strava, users can import activities from Strava without duplicate events for the same source activity (until they delete the local event)
 
 ### 6.2 Future success criteria
 
-- users can analyze stream correlations
-- users can compare trackers effectively
 - the product remains usable with large personal histories
 
 ---
@@ -330,29 +315,13 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 
 - integration and end-to-end testing
 
+**Backend integration tests** (real MariaDB via `testcontainers-node`, separate CI job): transaction correctness; cascade deletes; schema constraints; OAuth pending-signup → complete-signup flow.
+
+**End-to-end tests** (Playwright, Docker Compose): **Implemented** — `e2e/tests/`, on every PR to `main` (`.github/workflows/e2e-checks.yml`). Covers upload → dashboard → event detail → comparison; folders; account export/delete; CSRF and auth; deletes. Dedicated stack: API `3098`, DB `3308`, Frontend `4201`.
+
 ### Phase 6 (future)
 
 - site activity reporting and optional admin or metrics dashboard
-
-Backend integration tests (real MariaDB container via `testcontainers-node`, separate CI job):
-
-- transaction correctness: multi-statement writes either fully commit or fully roll back
-- cascade deletes: deleting a user or event removes all child rows
-- schema constraint enforcement: duplicate identity provider rows are rejected at the DB level
-- OAuth session flow: pending signup → complete signup creates exactly one user and one identity
-
-Frontend + backend end-to-end tests (Playwright against the Docker Compose stack):
-
-**Status:** Implemented. Tests live in `e2e/tests/` and run on every PR targeting `main` via `.github/workflows/e2e-checks.yml`.
-
-Covered flows:
-- full upload → dashboard → event detail → comparison flow
-- folder create, assign, filter, and delete
-- account export and account delete
-- CSRF protection, unauthenticated access, and not-found handling
-- event and comparison deletion, including cascade cleanup
-
-CI integration: runs as a separate `e2e` job, not blocking the fast unit-test pipeline. Uses a dedicated Docker Compose stack on ports API `3098`, DB `3308`, Frontend `4201`.
 
 ---
 

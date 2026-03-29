@@ -67,18 +67,18 @@
 
 ## Agent-critical invariants
 
-- Authentication is server-side session auth with OAuth providers and a Valkey-backed session store. Do not introduce JWT or localStorage auth.
-- State-changing requests require the CSRF token returned by `GET /api/auth/me`.
-- All event, comparison, folder, and derived meta queries must be scoped by authenticated ownership using `req.userId`.
-- Return `404` for missing or not-owned resources by ID to avoid leaking existence.
-- Files are parsed on the backend (TCX, FIT, GPX, JSON, SML via `@sports-alliance/sports-lib`) and discarded. Do not store originals after upload.
-- Stats stay relational in `event_stats` and `activity_stats`. Do not collapse them into JSON blobs.
-- Stream points are stored as packed JSON arrays in `streams.data` (compressed). Each entry is `{ time, value }`.
-- Comparison membership stays relational in `comparison_event_activities`.
-- Deleting an event must remove comparisons that reference it before the event delete completes.
-- New foreign keys must use `ON DELETE CASCADE` unless there is a specific reason to unfile rather than delete (like `folder_id` which uses `SET NULL`).
-- Schema is managed by a lightweight migration runner (`db.runMigrations()`). Migration files live in `backend/sql/migrations/` (named `NNN_description.sql`, applied lexicographically). A `schema_migrations` table tracks applied files. A MariaDB advisory lock (`GET_LOCK`) prevents race conditions during rolling deploys. New schema changes require a new migration file — never edit existing ones. `backend/sql/schema.sql` is a human-readable reference snapshot only.
-- Backend configuration must come from `backend/src/config.js`, not direct `process.env` reads elsewhere.
+Rules below are the non-negotiables for agents changing code. **Schema shape, storage layout, migrations, deployment, and security details** are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — read that for full context, not duplicated here.
+
+- Server-side sessions (OAuth + Valkey store). **No** JWT or localStorage auth.
+- State-changing requests need the CSRF token from `GET /api/auth/me`. Send it as **`CSRF-Token`** (SPA default) or **`x-csrf-token`** (also accepted; see [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml)).
+- Scope all event, comparison, folder, and meta queries by authenticated ownership (`req.userId`).
+- **`404`** for missing or not-owned resources by ID (no existence leaks).
+- Parse files only on the backend; **no** retained originals after upload.
+- **Relational** stats (`event_stats`, `activity_stats`); **relational** comparison membership (`comparison_event_activities`); **packed** stream points in `streams.data`.
+- Event delete must clear comparisons that reference the event first (service workflow).
+- New FKs: `ON DELETE CASCADE` unless unfile semantics apply (`folder_id` → `SET NULL`).
+- **New migrations only** — never edit applied migration files; `backend/sql/schema.sql` is a snapshot.
+- Config only via [`backend/src/config.js`](backend/src/config.js).
 
 ## API contract
 
@@ -86,7 +86,7 @@ The full machine-readable API specification is at [`backend/docs/openapi.yaml`](
 
 Key points:
 - All protected endpoints require a valid session cookie (`ofl.sid`).
-- All state-changing requests (POST, PATCH, DELETE) must include the `CSRF-Token` header. Obtain it from `GET /api/auth/me`.
+- All state-changing requests (POST, PATCH, DELETE) must include the CSRF token in a header (**`CSRF-Token`** or **`x-csrf-token`**). Obtain the value from `GET /api/auth/me`.
 - Error responses are always `{ "error": "<message>" }`.
 - Missing or unowned resources return `404`, not `403`.
 - Response shapes for events and activities are produced by `mapEventRow` and `mapActivityRow` in `backend/src/utils/transforms.js` (imported Strava events include optional `importProvider` / `importExternalId`).
