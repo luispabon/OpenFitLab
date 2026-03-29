@@ -12,6 +12,8 @@ const {
   validateComparisonFolderUpdateBody,
   validateComparisonSettingsBody,
   validateExportQuery,
+  validateStravaImportBody,
+  validateStravaActivitiesQuery,
 } = require('../../src/utils/validation');
 
 function mockRes() {
@@ -670,5 +672,45 @@ describe('validateExportQuery', () => {
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'includeStreams must be "true" or "false"' });
     strictEqual(next.called(), false);
+  });
+});
+
+describe('validateStravaActivitiesQuery', () => {
+  it('calls next when query is empty', () => {
+    const req = { query: {} };
+    const res = mockRes();
+    const next = mockNext();
+    validateStravaActivitiesQuery(req, res, next);
+    strictEqual(next.called(), true);
+  });
+
+  it('returns 400 when page is out of range', () => {
+    const req = { query: { page: '0' } };
+    const res = mockRes();
+    const next = mockNext();
+    validateStravaActivitiesQuery(req, res, next);
+    strictEqual(res.statusCode, 400);
+    strictEqual(next.called(), false);
+  });
+});
+
+describe('validateStravaImportBody', () => {
+  it('returns 400 when externalIds missing', () => {
+    const req = { body: {} };
+    const res = mockRes();
+    const next = mockNext();
+    validateStravaImportBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    strictEqual(next.called(), false);
+  });
+
+  it('calls next for valid body', () => {
+    const req = {
+      body: { externalIds: ['1'], folderId: '11111111-1111-4111-8111-111111111111' },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateStravaImportBody(req, res, next);
+    strictEqual(next.called(), true);
   });
 });
