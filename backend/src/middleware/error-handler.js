@@ -14,6 +14,14 @@ function errorHandler(err, req, res, next) {
     statusCode = 403;
     message = 'Invalid or missing CSRF token';
   }
+  if (
+    err &&
+    err.name === 'StravaRateLimitError' &&
+    typeof err.retryAfterSeconds === 'number' &&
+    err.retryAfterSeconds > 0
+  ) {
+    res.set('Retry-After', String(Math.min(err.retryAfterSeconds, 86400)));
+  }
   res.status(statusCode).json({ error: message });
 }
 

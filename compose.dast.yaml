@@ -30,3 +30,5 @@ services:
       APPLE_PRIVATE_KEY: ""
       FACEBOOK_APP_ID: ""
       FACEBOOK_APP_SECRET: ""
+      STRAVA_CLIENT_ID: ""
+      STRAVA_CLIENT_SECRET: ""
