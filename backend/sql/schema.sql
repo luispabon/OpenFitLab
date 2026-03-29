@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS events (
   description TEXT NULL,
   is_merge TINYINT(1) DEFAULT 0,
   src_file_type VARCHAR(16) NULL,
+  import_provider VARCHAR(32) NULL,
+  import_external_id VARCHAR(64) NULL,
   start_timezone VARCHAR(64) NULL,
   end_timezone VARCHAR(64) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -67,6 +69,7 @@ CREATE TABLE IF NOT EXISTS events (
   INDEX idx_user_id (user_id),
   INDEX idx_user_start_date (user_id, start_date),
   INDEX idx_folder_id (folder_id),
+  UNIQUE KEY uk_events_user_import (user_id, import_provider, import_external_id),
   CONSTRAINT fk_events_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_events_folder FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE SET NULL
 )

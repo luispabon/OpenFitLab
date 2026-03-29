@@ -40,6 +40,12 @@ function mapEventRow(row, statsForEvent = {}) {
     ...(row.is_merge === 1 ? { isMerge: true } : {}),
     stats: statsForEvent || {},
     ...(row.src_file_type != null ? { srcFileType: row.src_file_type } : {}),
+    ...(row.import_provider != null && row.import_external_id != null
+      ? {
+          importProvider: row.import_provider,
+          importExternalId: String(row.import_external_id),
+        }
+      : {}),
     ...(row.start_timezone != null ? { startTimezone: row.start_timezone } : {}),
     ...(row.end_timezone != null ? { endTimezone: row.end_timezone } : {}),
     folderId: row.folder_id ?? null,

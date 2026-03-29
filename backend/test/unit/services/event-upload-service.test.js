@@ -35,7 +35,7 @@ describe('event-upload-service processUpload', () => {
     strictEqual(executed.length >= 1, true);
     const eventInsert = executed.find((e) => e.sql.includes('INSERT INTO events'));
     ok(eventInsert, 'should insert into events');
-    strictEqual(eventInsert.params, 11);
+    strictEqual(eventInsert.params, 13);
   });
 
   it('uses filename without extension as event name', async () => {
