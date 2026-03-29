@@ -46,8 +46,9 @@ Health checks ensure `api` and `frontend` only start after `db` and `valkey` are
 
 **Production services** (`compose.prod.yaml`):
 - `db` and `valkey` — same images, restart: unless-stopped
-- `api` — `ghcr.io/luispabon/openfitlab-backend:latest`, 2 replicas, Traefik labels
-- `frontend` — `ghcr.io/luispabon/openfitlab-frontend:latest`, 2 replicas, Traefik labels
+- `api` — `ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}` (default tag `main`), 2 replicas, Traefik labels
+- `frontend` — `ghcr.io/luispabon/openfitlab-frontend:${OPENFITLAB_IMAGE_TAG:-main}`, 2 replicas, Traefik labels
+- `backup` — optional (`profiles: backup`); scheduled DB dumps. `fake-gcs` / `fake-gcs-init` — optional (`profiles: dev-backup`) for local backup testing
 
 ### Dockerfiles
 
@@ -62,9 +63,9 @@ The prod stack uses two named networks:
 - `internal` — db, valkey, api (not exposed externally)
 - `dmz` — api, frontend (attached to an existing external network expected by Traefik)
 
-Traefik terminates TLS and routes:
-- `Host(${DOMAIN}) && PathPrefix(/api/)` → api
-- `Host(${DOMAIN})` → frontend
+Traefik terminates TLS and routes (see `compose.prod.yaml` labels; host is `${OPENFITLAB_DOMAIN:?...}`):
+- `Host(...)` + `PathPrefix(/api/)` → api
+- `Host(...)` (no path prefix) → frontend
 
 Both services are tagged for Watchtower auto-updates.
 
@@ -105,10 +106,10 @@ Reports are written to `./zap-reports/` (gitignored locally; uploaded as a GitHu
 
 `.env.example` is the canonical reference with inline documentation. Copy it to `.env` before starting the dev stack.
 
-Required in production only:
+Required in production only (names in `.env.example`; production compose may use `OPENFITLAB_*` prefixed vars — see `compose.prod.yaml`):
 - `SESSION_SECRET` — min 32 chars, generate with `openssl rand -hex 32`
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
-- `OAUTH_CALLBACK_URL`, `DOMAIN`
+- `OAUTH_CALLBACK_URL` — public API base URL (no trailing slash); used for OAuth redirects
 
 Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), **Strava import** (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` — both required to enable Strava; register redirect `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava app), rate limit overrides, `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
 
@@ -187,6 +188,8 @@ erDiagram
         varchar src_file_type
         varchar start_timezone
         varchar end_timezone
+        varchar import_provider
+        varchar import_external_id
         timestamp created_at
     }
 
@@ -253,7 +256,7 @@ erDiagram
 - Protected routes require a valid session and are scoped to the authenticated user.
 - Resource ownership is enforced with `req.userId`; request bodies do not decide ownership.
 - Missing or not-owned resources return `404`.
-- State-changing requests require `CSRF-Token` or `X-CSRF-Token`.
+- State-changing requests must include the CSRF token in a header (**CSRF-Token** as used by the SPA, or **x-csrf-token**; both accepted — value from `GET /api/auth/me`).
 - JSON responses use millisecond timestamps.
 - Error responses use `{ error: string }` with the appropriate HTTP status code.
 - Backend error classes (`ParseError`, `ValidationError`, `NotFoundError` in `backend/src/errors.js`) set `statusCode`; the central error handler maps it to the HTTP response.
@@ -381,60 +384,11 @@ Comparison responses include:
 
 ### Stream analysis (frontend-only)
 
-Stream analysis runs entirely client-side in `frontend/src/lib/utils/stream-analysis.ts`. No additional API endpoints are needed.
-
-Key functions:
-
-- `alignStreams` — nearest-neighbour alignment of two streams by elapsed time; pairs with gap > 30 s are excluded
-- `buildDeltaSeries` — builds a secondary − reference delta series indexed by elapsed ms
-- `computePearson` — Pearson correlation coefficient
-- `computeLinearRegression` — OLS slope, intercept, and R²
-- `computeStreamAnalysisStats` — aggregated stats (r, r2, slope, intercept, n, meanDiff, maxAbsDiff)
-
-UI components:
-
-- `ScatterChart.svelte` — uPlot XY scatter with optional regression line overlay
-- `DeltaChart.svelte` — uPlot area chart of delta over elapsed time with a zero-baseline dashed line
-- `StreamAnalysisSection.svelte` — orchestrates stream selection, alignment, and chart/stats display for each secondary-vs-reference pair
-- `StreamAnalysisCard.svelte` — renders a single reference-vs-secondary pair card (scatter chart, delta chart, stats row) with a per-card export button
+Stream analysis (alignment, scatter, regression, delta series) runs entirely client-side in `frontend/src/lib/utils/stream-analysis.ts` and related comparison-view components. No API endpoints.
 
 ### Image export (frontend-only)
 
-Users can export sections of the comparison view as PNG files. Export runs entirely
-client-side using `html-to-image`. No API endpoints are involved.
-
-Key utility:
-
-- `export-image.ts` — `exportAsPng(element, filename)`: captures a DOM element (including
-  any embedded `<canvas>`) to a retina-quality PNG and triggers a browser download.
-  - **Background:** uses the `--color-surface-solid` CSS custom property (the opaque dark
-    surface colour) so that the semi-transparent `bg-card` / `bg-surface` values don't
-    produce transparent PNGs when composited without a parent background.
-  - **Filter:** elements with `data-export-exclude` are stripped from the capture so UI
-    controls (e.g. `ExportButton` itself) never appear in the exported image.
-
-Exported sections:
-
-| Section | Trigger | Element captured |
-|---|---|---|
-| Stats table | Button in table header | Outer card div of `ComparisonStatsTable` |
-| Map | Button in map overlay controls | 600 px map container div (includes legend and nav controls) |
-| Stream comparison chart | Button per chart card | `ComparisonChartCard` root div (title + uPlot canvas) |
-| Stream analysis box | Button per pair card | `StreamAnalysisCard` root div (scatter + delta charts + stats row) |
-
-MapLibre requires `preserveDrawingBuffer: true` on the `Map` constructor for the WebGL
-framebuffer to remain readable after each frame. This option is set on the `<MapLibre>`
-component in `RouteMap.svelte`.
-
-Hidden stats rows are naturally excluded from exports because `allStatTypes` is filtered
-by `hiddenStats` before being passed to `ComparisonStatsTable`, so hidden rows are never
-in the DOM.
-
-Reusable component:
-
-- `ExportButton.svelte` — small icon button wrapping an `onExport: () => Promise<void>`
-  callback; disables itself while the export is in-flight to prevent double-clicks. Carries
-  `data-export-exclude` so the button is never included in the captured image.
+Users can export sections of the comparison view as PNG files using client-side DOM capture (`frontend/src/lib/utils/export-image.ts`, `html-to-image`). No API endpoints. Elements marked `data-export-exclude` are omitted from captures (e.g. export controls). Map exports require WebGL readback support where the map component enables it.
 
 ### File export (TCX/GPX)
 
@@ -442,27 +396,22 @@ Users can download activity data reconstructed from stored event, activity, stat
 stream data. The original uploaded file is discarded after processing; exports are a
 best-effort reconstruction from what was stored.
 
-Key backend modules:
+**Behaviour**
 
-- `backend/src/services/export-service.js`: `exportEventAsTcx(eventId, opts)` and
-  `exportEventAsGpx(eventId, opts)` — fetch relational data and delegate to builders.
-- `backend/src/utils/tcx-builder.js`: `buildTcx(event, activities, statsByActivityId,
-  streamsByActivityId)` — produces TCX 2.0 XML with one `<Lap>` per activity.
-- `backend/src/utils/gpx-builder.js`: `buildGpx(event, activities, streamsByActivityId)`
-  — produces GPX 1.1 XML with one `<trkseg>` per activity; returns `null` when no GPS
-  streams are present.
-- `backend/src/utils/trackpoint-builder.js`: `buildTrackpoints(streamMap)` — merges all
-  stream types onto a common timestamp grid using binary-search nearest-neighbour
-  resolution (30-second tolerance).
+- TCX: TCX 2.0 with one `<Lap>` per activity; lap summaries use stored activity stats (time, distance, max speed, calories, heart rate where available); device name in `<Creator>` when stored; sport type mapped from stored activity type.
+- GPX: GPX 1.1 with one `<trkseg>` per activity when GPS streams exist (Latitude/Longitude or Position); extensions include heart rate, cadence, power, temperature where stored; `buildGpx` returns `null` when no GPS streams.
+- Trackpoints: union of stream timestamps; each stream value resolved by nearest-neighbour lookup (30-second tolerance in `trackpoint-builder.js`).
+- Multi-activity events: single download file (multiple laps / track segments).
+- Filenames derive from the event name.
 
-Key frontend modules:
+**Implementation**
 
-- `frontend/src/lib/api/export.ts`: `downloadEventTcx` and `downloadEventGpx` — fetch
-  from the export endpoints and trigger browser downloads via blob URL.
-- `frontend/src/lib/components/EventExportDropdown.svelte` — dropdown in the event detail
-  header offering TCX (always) and GPX (only when the event has GPS streams). Carries
-  `data-export-exclude` so it is omitted from PNG exports. Always shows the notice that
-  exports are reconstructed from stored data.
+- `backend/src/services/export-service.js`: `exportEventAsTcx`, `exportEventAsGpx`.
+- `backend/src/utils/tcx-builder.js`, `backend/src/utils/gpx-builder.js`, `backend/src/utils/trackpoint-builder.js`.
+- `frontend/src/lib/api/export.ts`: `downloadEventTcx`, `downloadEventGpx`.
+- `frontend/src/lib/components/EventExportDropdown.svelte`: event detail export dropdown; always shows that exports are reconstructed from stored data.
+
+FIT export is not implemented (no maintained Node FIT writer suitable for this stack at time of writing).
 
 ### Meta
 

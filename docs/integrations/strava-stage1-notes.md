@@ -1,8 +1,8 @@
 # Strava integration — Stage 1 verification notes
 
-Operator checklist before production (see also [Strava API Agreement](https://www.strava.com/legal/api) and [brand guidelines](https://developers.strava.com/guidelines/)):
+Operator checklist before production (see also [Strava API Agreement](https://www.strava.com/legal/api) and [brand guidelines](https://developers.strava.com/guidelines/)). **Redirect URI:** register the exact URI from [docs/INTEGRATIONS_INSTRUCTIONS.md](../INTEGRATIONS_INSTRUCTIONS.md) (Strava activity import).
 
-- [ ] Register redirect URI in the Strava app (exact match, including `https` and path): `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` (e.g. `http://localhost:3000/api/integrations/strava/callback` for local API).
+- [ ] Register that redirect URI in the Strava app (exact match, including scheme and path).
 - [ ] Decide one Strava app for dev+prod (same callback host) vs separate apps per environment; document in operator runbook.
 - [ ] OAuth authorize with `scope=activity:read_all`; confirm `GET /athlete/activities`, `GET /activities/{id}`, and `GET /activities/{id}/streams` succeed on at least one private activity.
 - [ ] If any required call returns 403, widen scope in the app settings and update the authorize URL in code.

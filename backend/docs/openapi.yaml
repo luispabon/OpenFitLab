@@ -6,11 +6,14 @@ info:
     REST API for the OpenFitLab self-hosted fitness activity tracker.
 
     **Authentication:** All protected endpoints require a valid session cookie
-    (`ofl.sid`). Obtain a session by completing the OAuth flow via
-    `GET /api/auth/google` or `GET /api/auth/github`.
+    (`ofl.sid`). Obtain a session by completing the OAuth flow via one of the
+    configured providers: `GET /api/auth/google`, `GET /api/auth/github`,
+    `GET /api/auth/apple`, or `GET /api/auth/facebook` (only providers with
+    credentials in the environment are usable).
 
     **CSRF:** All state-changing requests (POST, PATCH, DELETE) must include the
-    `x-csrf-token` header. Obtain the token from `GET /api/auth/me`.
+    token in a header: `CSRF-Token` (used by the web app) or `x-csrf-token`
+    (also accepted). Obtain the token from `GET /api/auth/me`.
 
     **Ownership:** All resource endpoints scope data to the authenticated user.
     A missing or unowned resource returns `404` (not `403`) to avoid leaking existence.
@@ -306,7 +309,7 @@ components:
           nullable: true
         csrfToken:
           type: string
-          description: CSRF token — include as x-csrf-token header on all state-changing requests
+          description: CSRF token — send as CSRF-Token or x-csrf-token on state-changing requests
         pendingSignup:
           type: boolean
           description: Present and true when the user has authenticated via OAuth but has not yet accepted terms
@@ -475,7 +478,9 @@ components:
       type: apiKey
       in: header
       name: x-csrf-token
-      description: CSRF token obtained from GET /api/auth/me. Required on all state-changing requests (POST, PATCH, DELETE).
+      description: |
+        CSRF token from GET /api/auth/me. Send as this header or as CSRF-Token
+        (both accepted). Required on state-changing requests (POST, PATCH, DELETE).
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -541,6 +546,63 @@ paths:
       tags: [auth]
       summary: GitHub OAuth callback
       description: Handles the redirect from GitHub. Behaviour mirrors the Google callback.
+      responses:
+        "302":
+          description: Redirect to SPA
+
+  /api/auth/apple:
+    get:
+      tags: [auth]
+      summary: Initiate Apple Sign In flow
+      description: Redirects to Apple. Returns 400 if Apple OAuth is not configured.
+      responses:
+        "302":
+          description: Redirect to Apple authorization endpoint
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/apple/callback:
+    post:
+      tags: [auth]
+      summary: Apple OAuth callback
+      description: |
+        Handles the redirect from Apple (`response_mode: form_post`). On success,
+        creates or resumes a session and redirects to the SPA. Behaviour mirrors
+        the Google callback except the request method is POST.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                id_token:
+                  type: string
+                state:
+                  type: string
+              additionalProperties: true
+      responses:
+        "302":
+          description: Redirect to SPA
+
+  /api/auth/facebook:
+    get:
+      tags: [auth]
+      summary: Initiate Facebook OAuth flow
+      description: Redirects to Facebook. Returns 400 if Facebook OAuth is not configured.
+      responses:
+        "302":
+          description: Redirect to Facebook authorization endpoint
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/facebook/callback:
+    get:
+      tags: [auth]
+      summary: Facebook OAuth callback
+      description: Handles the redirect from Facebook. Behaviour mirrors the Google callback.
       responses:
         "302":
           description: Redirect to SPA

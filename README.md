@@ -26,45 +26,12 @@ A self-hosted fitness activity tracking and comparison platform. Upload activity
 
 ## Architecture
 
-```mermaid
-graph TB
-    User[User] --> Frontend[Svelte Frontend<br/>Port 4200]
-    Frontend --> API[Express API<br/>Port 3000]
-    API --> Parser[File Parser<br/>sports-lib]
-    API --> DB[(MariaDB<br/>Port 3306)]
-    Parser --> DB
-
-    subgraph "Data Flow"
-        Upload[Upload File] --> Parse[Parse File]
-        Parse --> Store[Store in DB]
-        Store --> Visualize[Visualize Data]
-    end
-```
-
-### Technology Stack
-
-- **Backend**: Node.js 24, Express.js, MariaDB
-- **Frontend**: Svelte 5, Vite, Tailwind CSS v4
-- **Parsing**: `@sports-alliance/sports-lib` for TCX/FIT/GPX/JSON/SML parsing
-- **Deployment**: Docker Compose (self-hosted)
-
-### Database Schema
-
-The application uses a relational database structure:
-
-- **Events**: Top-level workout sessions with metadata
-- **Event Stats**: Relational storage for event-level statistics (one row per stat type)
-- **Activities**: Individual activities within an event
-- **Activity Stats**: Relational storage for activity-level statistics
-- **Streams**: Stream metadata (heart rate, cadence, pace, etc.)
-- **Stream Data**: Packed JSON array of `{ time, value }` points stored in `streams.data` (compressed, ~30-50x size reduction)
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+High level: Svelte frontend → Express API → MariaDB; file parsing uses `@sports-alliance/sports-lib` on the API. See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for stack diagram, schema, API behaviour, and deployment.
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- (Optional) Node 22 for frontend, Node 24 for backend if running outside Docker
+- (Optional) Node 20+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
 
 ## Quick Start
 
@@ -75,7 +42,7 @@ docker compose up -d
 ```
 
 This starts:
-- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `docker-compose.yaml`)
+- **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `compose.yaml`)
 - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
 - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
 - **Adminer:** http://localhost:8080 (database admin UI)
@@ -91,13 +58,13 @@ Edit files under `backend/` or `frontend/` on your host and changes are reflecte
 
 ## Testing / Quality checks
 
-- **Backend:** From `backend/`: `npm run lint`, `npm run format`, `npm run test:unit`. See [AGENTS.md](AGENTS.md) for full commands.
+- **Backend:** From `backend/`: `npm run format`, `npm run lint`, `npm run test` (full suite). See [AGENTS.md](AGENTS.md) for coverage and CI alignment.
 - **Frontend:** From `frontend/`: `npm run ci` runs format, lint, typecheck, tests, and build.
 - **CI:** Push and pull requests to `main` run backend checks when backend files change and frontend checks when frontend files change (see `.github/workflows/`).
 
 ## API Documentation
 
-Events API: **GET** `/api/events` (list), **GET** `/api/events/:id` (single + activities), **GET** `/api/events/:id/activities/:activityId/streams` (streams), **POST** `/api/events` (upload), **DELETE** `/api/events/:id` (delete). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for parameters and response shapes.
+Machine-readable contract: [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml). Human-oriented route list and shapes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Production Build
 
@@ -107,7 +74,7 @@ Build the frontend for production:
 cd frontend && npm run build
 ```
 
-Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxied in dev, same-origin in production). Deploy the `dist/` folder to any static host and ensure `/api` routes to the Node API. For cloud deployment (managed database, static frontend, serverless/small compute) on AWS or GCP, see the [hosting guide](docs/HOSTING.md).
+Output is in `frontend/dist/`. The build uses `/api` as the API base URL (proxied in dev, same-origin in production). Deploy the `dist/` folder to any static host and ensure `/api` routes to the Node API.
 
 ## Environment
 
@@ -145,7 +112,6 @@ Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to
 
 - **[AGENTS.md](AGENTS.md)** - AI coding agent context and instructions
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed system architecture
-- **[docs/HOSTING.md](docs/HOSTING.md)** - Cloud hosting guide (AWS and GCP, cost-effective options)
 - **[docs/INTEGRATIONS_INSTRUCTIONS.md](docs/INTEGRATIONS_INSTRUCTIONS.md)** - OAuth providers (Google, GitHub, Apple, Facebook) and Strava import setup
 - **[docs/PRD.md](docs/PRD.md)** - Product Requirements Document
 
