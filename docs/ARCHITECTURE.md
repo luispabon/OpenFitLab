@@ -118,7 +118,7 @@ Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET
 
 ### Core concepts
 
-- **Event**: top-level workout session created from an uploaded file.
+- **Event**: top-level workout session created from an uploaded file or a third-party import (v1: Strava).
 - **Activity**: sport segment within an event.
 - **Stream**: time-series data for an activity, such as heart rate or cadence.
 - **Comparison**: saved selection of activities across events.
@@ -131,6 +131,7 @@ Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET
 - Stream points are stored as packed JSON arrays in `streams.data` (compressed). Each entry is `{ time, value }`.
 - Comparison membership is relational in `comparison_event_activities`.
 - Sessions are stored in Valkey, not in MariaDB.
+- Events may store optional `import_provider` and `import_external_id` (e.g. Strava activity id). A unique index on `(user_id, import_provider, import_external_id)` prevents duplicate imports; both columns are NULL for file uploads.
 
 ### Tables
 
@@ -285,8 +286,8 @@ OAuth callbacks either:
 Other auth endpoints:
 
 - `GET /api/auth/me`
-  - authenticated response: `{ id, displayName, avatarUrl, csrfToken }`
-  - pending-signup response: `{ pendingSignup: true, profile, csrfToken }`
+  - authenticated response: `{ id, displayName, avatarUrl, integrations, csrfToken }` — `integrations.providers.strava.configured` indicates whether Strava OAuth is available (no secrets).
+  - pending-signup response: `{ pendingSignup: true, profile, integrations, csrfToken }`
   - unauthenticated response: `401`
 - `POST /api/auth/logout`
 - `POST /api/auth/complete-signup`
@@ -329,6 +330,16 @@ Account endpoints:
 - `GET /api/events/:id/export/gpx`
   - returns a GPX file download; only available when the event has GPS streams (Latitude/Longitude or Position)
   - 404 if event not found, not owned, or has no GPS streams
+
+### Strava import (v1)
+
+Requires `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in the environment (see `.env.example`). Register redirect URI `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava application settings.
+
+- **OAuth:** `GET /api/integrations/strava/authorize` (session required) redirects to Strava; `GET /api/integrations/strava/callback` exchanges the code and stores `access_token` + expiry **in the session only** (Valkey). Refresh tokens are not persisted.
+- **API:** `GET /api/integrations/strava/status`, `GET /api/integrations/strava/activities`, `POST /api/integrations/strava/import` (CSRF + optional `Idempotency-Key`, outcomes cached in Valkey ~24h).
+- **Driver:** `backend/src/integrations/strava-driver.js` — HTTP to Strava only; bounded concurrency for per-activity requests; maps streams into the same canonical shape as sports-lib for `persistParsedEvent`.
+- **Rate limits:** list/import routes use the same per-window cap as uploads (`UPLOAD_RATE_LIMIT_*`). Strava 429 responses surface a single user-facing message; `Retry-After` is forwarded when Strava sends it.
+- **Timeouts:** Strava HTTP calls use ~45s request timeouts (see driver).
 
 ### Folders
 

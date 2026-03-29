@@ -34,6 +34,8 @@ tags:
     description: Data export and account deletion
   - name: meta
     description: Distinct activity types and device names
+  - name: integrations
+    description: Third-party activity import (Strava v1)
 
 # ---------------------------------------------------------------------------
 # Reusable components
@@ -139,6 +141,14 @@ components:
           type: string
           format: uuid
           nullable: true
+        importProvider:
+          type: string
+          description: Present when the event was imported from a third-party API (e.g. strava)
+          example: strava
+        importExternalId:
+          type: string
+          description: Provider-native activity identifier (e.g. Strava activity id)
+          example: "1024"
         stats:
           $ref: "#/components/schemas/Stats"
 
@@ -310,6 +320,92 @@ components:
             avatarUrl:
               type: string
               nullable: true
+        integrations:
+          type: object
+          description: Which third-party providers have API credentials configured (no secrets)
+          properties:
+            providers:
+              type: object
+              properties:
+                strava:
+                  type: object
+                  properties:
+                    configured:
+                      type: boolean
+
+    StravaActivitySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: integer
+          description: Unix timestamp in milliseconds
+        type:
+          type: string
+          nullable: true
+        sportType:
+          type: string
+          nullable: true
+        distance:
+          type: number
+          nullable: true
+        movingTime:
+          type: integer
+          nullable: true
+        alreadyImported:
+          type: boolean
+        eventId:
+          type: string
+          format: uuid
+          nullable: true
+
+    StravaActivitiesResponse:
+      type: object
+      required: [activities]
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/StravaActivitySummary"
+
+    StravaStatusResponse:
+      type: object
+      required: [configured]
+      properties:
+        configured:
+          type: boolean
+        connected:
+          type: boolean
+        expiresAt:
+          type: integer
+          description: Access token expiry (ms since epoch), when connected
+          nullable: true
+
+    StravaImportResultItem:
+      type: object
+      required: [externalId, success]
+      properties:
+        externalId:
+          type: string
+        success:
+          type: boolean
+        eventId:
+          type: string
+          format: uuid
+        error:
+          type: string
+
+    StravaImportResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/StravaImportResultItem"
 
   parameters:
     eventId:
@@ -1323,6 +1419,138 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  # ── Integrations (Strava) ─────────────────────────────────────────────────
+
+  /api/integrations/strava/callback:
+    get:
+      tags: [integrations]
+      summary: Strava OAuth callback
+      description: |
+        Exchanges the Strava authorization code for a short-lived access token stored
+        in the session (Valkey) only. Requires an existing logged-in app session.
+        Redirects to the SPA with `/#/?import=1&provider=strava` on success, or
+        `importError` query parameters on failure.
+      responses:
+        "302":
+          description: Redirect to SPA
+
+  /api/integrations/strava/authorize:
+    get:
+      tags: [integrations]
+      summary: Start Strava OAuth authorization
+      description: Redirects to Strava. Session required. Returns 400 when Strava env is not configured.
+      responses:
+        "302":
+          description: Redirect to Strava
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/integrations/strava/status:
+    get:
+      tags: [integrations]
+      summary: Strava connection status
+      description: |
+        Returns whether Strava is configured on the server and whether the current session
+        has a non-expired Strava access token.
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StravaStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/integrations/strava/activities:
+    get:
+      tags: [integrations]
+      summary: List recent Strava activities for the connected user
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Activities
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StravaActivitiesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/integrations/strava/import:
+    post:
+      tags: [integrations]
+      summary: Import Strava activities by external id
+      description: |
+        Fetches each activity from Strava and persists using the same model as file upload.
+        Optional `Idempotency-Key` header (stored in Valkey ~24h) replays the same JSON response.
+      security:
+        - csrfToken: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalIds]
+              properties:
+                externalIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 25
+                folderId:
+                  type: string
+                  format: uuid
+                  description: Optional; omit or null for Unfiled
+      responses:
+        "200":
+          description: Per-activity results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StravaImportResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Same Idempotency-Key already in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   # ── Meta ──────────────────────────────────────────────────────────────────
 

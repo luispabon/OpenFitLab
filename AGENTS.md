@@ -63,7 +63,7 @@
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
 - Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
-- E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Docker image publishing (`publish.yml`) requires all three check jobs (backend, frontend, E2E) to pass.
+- E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Docker image publishing (`publish.yml`) requires all three check jobs (backend, frontend, E2E) to pass. The suite does not call live Strava; Strava flows are covered by unit/integration tests and manual checks.
 
 ## Agent-critical invariants
 
@@ -89,7 +89,7 @@ Key points:
 - All state-changing requests (POST, PATCH, DELETE) must include the `CSRF-Token` header. Obtain it from `GET /api/auth/me`.
 - Error responses are always `{ "error": "<message>" }`.
 - Missing or unowned resources return `404`, not `403`.
-- Response shapes for events and activities are produced by `mapEventRow` and `mapActivityRow` in `backend/src/utils/transforms.js`.
+- Response shapes for events and activities are produced by `mapEventRow` and `mapActivityRow` in `backend/src/utils/transforms.js` (imported Strava events include optional `importProvider` / `importExternalId`).
 
 ## Conventions
 
@@ -120,6 +120,7 @@ Key points:
 - Comparisons: `backend/src/routes/comparisons.js`, `backend/src/services/comparison-service.js`
 - Folders: `backend/src/routes/folders.js`, `backend/src/services/folder-service.js`
 - Account: `backend/src/routes/account.js`, `backend/src/services/account-service.js`
+- Strava import: `backend/src/routes/integrations-strava.js`, `backend/src/services/strava-integration-service.js`, `backend/src/services/strava-oauth-service.js`, `backend/src/integrations/strava-driver.js`, `backend/src/services/integration-idempotency.js`, shared Valkey client `backend/src/redis-client.js`
 - Schema/config: `backend/sql/schema.sql`, `backend/src/config.js`
 
 ### Frontend
