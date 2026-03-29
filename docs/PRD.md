@@ -3,8 +3,8 @@
 
 **Role:** Canonical product requirements and planned scope. This document defines vision, user stories, features, constraints, and glossary. Technical implementation lives in [docs/ARCHITECTURE.md](ARCHITECTURE.md). Agent quickstart lives in [AGENTS.md](../AGENTS.md).
 
-### Version: 1.0
-### Date: 2026-02-16
+### Version: 1.1
+### Date: 2026-03-28
 
 ---
 
@@ -16,7 +16,7 @@ OpenFitLab is a self-hosted fitness activity tracking and comparison platform fo
 
 ### 1.2 Mission
 
-Provide a privacy-focused, self-hosted way to upload, visualize, organize, and compare activity data from multiple devices and file formats.
+Provide a privacy-focused, self-hosted way to bring in activity data (file upload and, where configured, third-party import), then visualize, organize, and compare it across multiple devices and sources.
 
 ### 1.3 Target users
 
@@ -73,6 +73,12 @@ Provide a privacy-focused, self-hosted way to upload, visualize, organize, and c
 - **As a** user
 - **I want to** compare the same workout across multiple trackers
 - **So that** I can evaluate device accuracy and consistency
+
+**US-7: Import from a connected platform**
+
+- **As a** user
+- **I want to** import activities from a supported service (e.g. Strava) when my operator has configured it
+- **So that** I can load workouts without exporting files manually
 
 ---
 
@@ -214,7 +220,21 @@ API:
 
 **Status:** Planned
 
-Users may be able to import activity data directly from third-party fitness platforms via their public APIs, removing the need to manually export and upload files. Likely candidates are Strava, Polar Flow, and Fitbit, all of which provide OAuth 2.0 APIs that expose activity data and streams compatible with what OpenFitLab already stores.
+Users can pull activities from supported fitness platforms into OpenFitLab so they do not have to export files manually. **v1 targets Strava**; **Polar Flow**, **Fitbit**, and similar services are candidates for later releases.
+
+**Requirements**
+
+- Imported workouts use the **same underlying data model** as file uploads (events, activities, stats, streams).
+- Integration is **operator-configured** (e.g. API credentials). If nothing is configured, users see **no** import entry point.
+- The user **connects** a platform (standard OAuth-style consent), **browses** their activities, and **chooses** what to import. On **Workouts**, **Import from…** opens a flow that can switch between supported providers as more are added.
+- The same activity from a provider **must not** appear twice in the user’s library; the UI should make already-imported items obvious. **Deleting** the event in OpenFitLab **allows** importing that activity again.
+- **v1** does **not** keep a long-lived stored connection to the provider: when the link expires, the user **reconnects**. Details belong in technical docs.
+- Use of Strava must follow **Strava’s API agreement and branding rules** (including how connection and “view on Strava” links are presented).
+
+**Out of scope**
+
+- **Automatic or background sync** (import is always something the user explicitly starts).
+- Treating third-party platforms as social features beyond what is needed to read the user’s own activities.
 
 ### 3.11 Single-user passphrase mode
 
@@ -229,7 +249,7 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 - The product is self-hosted.
 - Authentication is required for personal data access.
 - Users manage their own data and should be able to export or delete it.
-- The product supports activity files from external devices rather than live device sync.
+- The product supports activity files from external devices and **user-initiated** import from configured third-party APIs; it does **not** perform live or background device sync.
 - Privacy and data ownership take priority over social or cloud-platform features.
 
 ---
@@ -241,7 +261,7 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 1. User starts the application.
 2. User signs in.
 3. User lands on the dashboard.
-4. User uploads activity files.
+4. User adds workouts by **uploading activity files** and/or, when the operator has configured integrations, **importing from a supported third-party platform** (e.g. Strava).
 5. User reviews event detail and charts.
 6. User compares workouts when needed.
 
@@ -251,6 +271,7 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 - Dashboard
 - Event detail
 - Comparison list and comparison view
+- Third-party import modal (from Workouts, when configured)
 - Account/privacy controls
 
 ### 5.3 Design principles
@@ -276,6 +297,7 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 - users can analyze stream correlations
 - users can compare trackers effectively
 - the product remains usable with large personal histories
+- users can import activities from configured third-party platforms (v1: Strava) without duplicate events for the same source activity
 
 ---
 
@@ -300,7 +322,8 @@ For personal deployments where configuring an OAuth2 provider is impractical, a 
 
 ### Phase 4
 
-- broader import support
+- third-party platform import (v1: Strava: OAuth, modal picker, deduplication, same data model as file upload)
+- additional import sources and UX refinements over time
 - continued UX and accessibility improvements
 
 ### Phase 5
@@ -339,12 +362,12 @@ CI integration: runs as a separate `e2e` job, not blocking the fast unit-test pi
 
 - self-hosted deployment
 - authenticated multi-user access
-- support limited to known import formats
+- support limited to known file import formats and **configured** third-party APIs (no arbitrary external services)
 
 ### 8.2 Assumptions
 
 - users are comfortable running a self-hosted app
-- users have access to exported tracker files
+- users have access to exported tracker files and/or accounts on supported third-party platforms (when the operator enables those integrations)
 - users care about privacy and ownership of their workout data
 
 ### 8.3 Out of scope
@@ -361,12 +384,13 @@ CI integration: runs as a separate `e2e` job, not blocking the fast unit-test pi
 - large files or long histories may affect performance
 - inconsistent source files may produce parsing edge cases
 - advanced analysis features may add UI complexity if not designed carefully
+- third-party APIs (rate limits, policy changes, or downtime) may affect import availability or require reconnecting the integration
 
 ---
 
 ## 10. Glossary
 
-- **Event:** top-level workout session created from an upload
+- **Event:** top-level workout session created from a file upload or a third-party import
 - **Activity:** individual sport segment within an event
 - **Stream:** time-series metric such as heart rate, pace, or cadence
 - **Data Point:** one timestamped value inside a stream
