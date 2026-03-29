@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const config = require('../config');
 const { asyncHandler } = require('../middleware/async-handler');
 const { requireAuth } = require('../middleware/require-auth');
-const { callbackLimiter } = require('../middleware/rate-limit');
+const { callbackLimiter, integrationLimiter } = require('../middleware/rate-limit');
 const { ValidationError } = require('../errors');
 const { exchangeAuthorizationCode } = require('../services/strava-oauth-service');
 const {
@@ -114,6 +114,7 @@ router.get(
 
 router.get(
   '/strava/activities',
+  integrationLimiter,
   validateStravaActivitiesQuery,
   asyncHandler(async (req, res) => {
     if (!config.integrations.strava.enabled) {
@@ -132,6 +133,7 @@ router.get(
 
 router.post(
   '/strava/import',
+  integrationLimiter,
   validateStravaImportBody,
   asyncHandler(async (req, res) => {
     if (!config.integrations.strava.enabled) {
