@@ -9,6 +9,9 @@
     isDraggingOver?: boolean;
     /** When provided, show active folder as a pill next to the title. */
     activeFolderDisplay?: { label: string; color: string | null };
+    /** Third-party import (e.g. Strava) when the API reports a configured provider. */
+    showImportFrom?: boolean;
+    onImportFromClick?: () => void;
     children?: Snippet;
   }
   let {
@@ -17,6 +20,8 @@
     accept = '.json,.tcx,.fit,.gpx,.sml',
     isDraggingOver = $bindable(false),
     activeFolderDisplay,
+    showImportFrom = false,
+    onImportFromClick,
     children,
   }: Props = $props();
 
@@ -105,26 +110,37 @@
         </span>
       {/if}
     </h1>
-    <label
-      for="workouts-file-upload"
-      class="shrink-0 inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
-    >
-      <svg
-        class="mr-2 h-5 w-5"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
+    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      {#if showImportFrom && onImportFromClick}
+        <button
+          type="button"
+          class="inline-flex items-center rounded-md border border-border bg-transparent px-4 py-2 text-sm font-medium text-text-primary hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+          onclick={() => onImportFromClick()}
+        >
+          Import from…
+        </button>
+      {/if}
+      <label
+        for="workouts-file-upload"
+        class="inline-flex cursor-pointer items-center rounded-md border-0 bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-        />
-      </svg>
-      Upload Activity Files
-    </label>
+        <svg
+          class="mr-2 h-5 w-5"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          />
+        </svg>
+        Upload Activity Files
+      </label>
+    </div>
   </div>
   <input
     id="workouts-file-upload"

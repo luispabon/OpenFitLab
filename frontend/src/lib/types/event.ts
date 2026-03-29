@@ -46,6 +46,9 @@ export interface EventSummary {
   endTimezone?: string;
   /** Folder this event belongs to; null/undefined = Unfiled. */
   folderId?: string | null;
+  /** Third-party source when imported (e.g. Strava). */
+  importProvider?: string;
+  importExternalId?: string;
 }
 
 export interface EventDetail {

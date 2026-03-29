@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { push } from 'svelte-spa-router';
+  import { push, querystring } from 'svelte-spa-router';
   import {
     getActivityRows,
     getActivityTypes,
@@ -15,6 +15,7 @@
     getFolderFromHash,
     folderSelectionToPushPath,
   } from '../lib/stores/folders.svelte';
+  import { state as authState } from '../lib/stores/auth.svelte';
   import { startWorkoutDrag, endWorkoutDrag } from '../lib/stores/workout-drag.svelte';
   import { getEnvNumber } from '../lib/utils/env';
   import { splitFoldersForNav } from '../lib/utils/folder-nav-sort';
@@ -36,6 +37,7 @@
   import WorkoutsFilters from '../lib/components/workouts/WorkoutsFilters.svelte';
   import WorkoutsPaginationWithUrl from '../lib/components/workouts/WorkoutsPaginationWithUrl.svelte';
   import WorkoutsActivityTable from '../lib/components/workouts/WorkoutsActivityTable.svelte';
+  import WorkoutsStravaImportModal from '../lib/components/workouts/WorkoutsStravaImportModal.svelte';
 
   type ActiveFolderDisplay = { label: string; color: string | null };
 
@@ -107,8 +109,16 @@
   let eventsToBulkDelete = $state<string[]>([]);
   let eventIdsToMove = $state<string[]>([]);
   let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined);
+  let stravaImportOpen = $state(false);
 
   const activeFolderId = $derived(getFolderFromHash(foldersState.currentHash));
+
+  const integrationsImportAvailable = $derived(
+    authState.integrations?.providers?.strava?.configured === true
+  );
+  const importFolderIdForStrava = $derived(
+    activeFolderId === 'all' || activeFolderId === 'unfiled' ? null : activeFolderId
+  );
 
   const activeFolderDisplay = $derived(
     activeFolderId === 'all'
@@ -154,6 +164,41 @@
     return () => {
       if (toastTimeout) clearTimeout(toastTimeout);
     };
+  });
+
+  $effect(() => {
+    const raw = $querystring ?? '';
+    const qs = new URLSearchParams(raw);
+    let dirty = false;
+    if (qs.get('import') === '1' && qs.get('provider') === 'strava') {
+      stravaImportOpen = true;
+      qs.delete('import');
+      qs.delete('provider');
+      dirty = true;
+    }
+    const ie = qs.get('importError');
+    if (ie) {
+      const messages: Record<string, string> = {
+        session: 'Sign in again, then reconnect Strava.',
+        state: 'Strava authorization could not be verified. Try connecting again.',
+        expired: 'Strava authorization expired. Try connecting again.',
+        code: 'Strava did not return an authorization code. Try again.',
+        config: 'Strava is not configured on this server.',
+        strava: 'Strava returned an error.',
+      };
+      const detail = qs.get('detail');
+      showToast(
+        messages[ie] ??
+          (detail ? decodeURIComponent(detail) : 'Something went wrong connecting to Strava.')
+      );
+      qs.delete('importError');
+      qs.delete('detail');
+      dirty = true;
+    }
+    if (dirty) {
+      const next = qs.toString();
+      queueMicrotask(() => push(next ? `/?${next}` : '/'));
+    }
   });
 
   async function loadActivityRows() {
@@ -397,6 +442,10 @@
     onFilesSelected={handleFiles}
     bind:isDraggingOver
     {activeFolderDisplay}
+    showImportFrom={integrationsImportAvailable}
+    onImportFromClick={() => {
+      stravaImportOpen = true;
+    }}
   >
     {#if isFolderNotFound}
       <div
@@ -438,6 +487,18 @@
     />
 
     <WorkoutsToast message={toastMessage} />
+
+    <WorkoutsStravaImportModal
+      open={stravaImportOpen}
+      onClose={() => {
+        stravaImportOpen = false;
+      }}
+      folderId={importFolderIdForStrava}
+      onImported={() => {
+        void loadActivityRows();
+        showToast('Imported from Strava');
+      }}
+    />
 
     <div class="relative">
       <div
