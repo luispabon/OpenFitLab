@@ -16,7 +16,26 @@ describe('auth store', () => {
     state.authLoading = true;
     state.pendingSignup = false;
     state.pendingProfile = null;
+    state.integrations = null;
     window.location.hash = '';
+  });
+
+  it('normalizes integrations to strava not configured when field is omitted', async () => {
+    vi.spyOn(globalThis as unknown as { fetch: typeof fetch }, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: 'u1',
+          displayName: 'Alice',
+          avatarUrl: null,
+          csrfToken: 'token-abc',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      ) as unknown as Response
+    );
+    await checkAuth();
+    expect(state.integrations).toEqual({
+      providers: { strava: { configured: false } },
+    });
   });
 
   it('sets current user and csrfToken on successful /api/auth/me', async () => {
@@ -26,6 +45,7 @@ describe('auth store', () => {
           id: 'u1',
           displayName: 'Alice',
           avatarUrl: null,
+          integrations: { providers: { strava: { configured: true } } },
           csrfToken: 'token-abc',
         }),
         {
@@ -39,6 +59,9 @@ describe('auth store', () => {
 
     expect(state.user).toEqual({ id: 'u1', displayName: 'Alice', avatarUrl: null });
     expect(state.csrfToken).toBe('token-abc');
+    expect(state.integrations).toEqual({
+      providers: { strava: { configured: true } },
+    });
     expect((globalThis as unknown as { fetch: typeof fetch }).fetch).toHaveBeenCalledWith(
       '/api/auth/me',
       {
@@ -53,6 +76,7 @@ describe('auth store', () => {
         JSON.stringify({
           pendingSignup: true,
           profile: { displayName: 'New User', avatarUrl: 'https://avatar' },
+          integrations: { providers: { strava: { configured: false } } },
           csrfToken: 'token-pending',
         }),
         {
@@ -65,6 +89,9 @@ describe('auth store', () => {
     await checkAuth();
 
     expect(state.pendingSignup).toBe(true);
+    expect(state.integrations).toEqual({
+      providers: { strava: { configured: false } },
+    });
     expect(state.pendingProfile).toEqual({
       displayName: 'New User',
       avatarUrl: 'https://avatar',
@@ -123,6 +150,7 @@ describe('auth store', () => {
           JSON.stringify({
             pendingSignup: true,
             profile: { displayName: 'New User', avatarUrl: 'https://avatar' },
+            integrations: { providers: { strava: { configured: false } } },
             csrfToken: 'token-pending',
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -132,6 +160,9 @@ describe('auth store', () => {
     await checkAuth();
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(state.integrations).toEqual({
+      providers: { strava: { configured: false } },
+    });
     expect(state.pendingSignup).toBe(true);
     expect(state.pendingProfile).toEqual({
       displayName: 'New User',

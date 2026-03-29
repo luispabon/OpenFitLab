@@ -32,6 +32,14 @@ npm run dev
 
 API: http://localhost:3000. Health: GET `/health`.
 
+## Strava import (optional)
+
+When `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` are set in the environment (see root `.env.example`), Strava OAuth and import routes are enabled. In the [Strava API application settings](https://www.strava.com/settings/api), set the **Authorization Callback Domain** to your API host and add this **exact** redirect URI:
+
+`{OAUTH_CALLBACK_URL}/api/integrations/strava/callback`
+
+(for example `http://localhost:3000/api/integrations/strava/callback` when the API listens on port 3000).
+
 ## Test coverage
 
 - **`npm run test:coverage`** — Run unit tests with coverage (terminal summary). Uses Node’s `--experimental-test-coverage`.

@@ -7,6 +7,14 @@ const userRepository = require('../repositories/user-repository');
 
 const router = express.Router();
 
+function integrationsCapabilities() {
+  return {
+    providers: {
+      strava: { configured: config.integrations.strava.enabled },
+    },
+  };
+}
+
 /**
  * Helper to check if an OAuth strategy is enabled
  */
@@ -254,6 +262,7 @@ router.get(
           displayName: req.session.pendingSignup.displayName ?? null,
           avatarUrl: req.session.pendingSignup.avatarUrl ?? null,
         },
+        integrations: integrationsCapabilities(),
         csrfToken: req.csrfToken(),
       });
     }
@@ -269,6 +278,7 @@ router.get(
       id: user.id,
       displayName: user.display_name,
       avatarUrl: user.avatar_url,
+      integrations: integrationsCapabilities(),
       csrfToken: req.csrfToken(),
     });
   })
@@ -312,6 +322,7 @@ router.post(
       id: result.user.id,
       displayName: result.user.display_name,
       avatarUrl: result.user.avatar_url,
+      integrations: integrationsCapabilities(),
       csrfToken: req.csrfToken(),
     });
   })

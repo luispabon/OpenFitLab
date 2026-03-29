@@ -36,7 +36,16 @@ describe('config', () => {
     ok(config.session);
     ok(config.valkey);
     ok(config.oauth);
+    ok(config.integrations);
     ok(config.rateLimit);
+  });
+
+  it('integrations.strava has enabled and optional client credentials', () => {
+    strictEqual(typeof config.integrations.strava.enabled, 'boolean');
+    strictEqual(
+      config.integrations.strava.enabled,
+      !!(config.integrations.strava.clientId && config.integrations.strava.clientSecret)
+    );
   });
 
   it('db has host, user, password, database', () => {

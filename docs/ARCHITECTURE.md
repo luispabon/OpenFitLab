@@ -110,7 +110,9 @@ Required in production only:
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
 - `OAUTH_CALLBACK_URL`, `DOMAIN`
 
-Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), rate limit overrides, `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
+Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), **Strava import** (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` — both required to enable Strava; register redirect `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava app), rate limit overrides, `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
+
+`GET /api/auth/me` includes `integrations.providers.strava.configured` (boolean, no secrets) so the frontend can hide the Strava import entry when the API is not configured.
 
 ## Data model
 

@@ -29,6 +29,8 @@ const {
   APPLE_PRIVATE_KEY,
   FACEBOOK_APP_ID,
   FACEBOOK_APP_SECRET,
+  STRAVA_CLIENT_ID,
+  STRAVA_CLIENT_SECRET,
   API_RATE_LIMIT_MAX,
   API_RATE_LIMIT_WINDOW_MS,
   AUTH_RATE_LIMIT_MAX,
@@ -120,6 +122,8 @@ const appleKeyId = APPLE_KEY_ID != null ? String(APPLE_KEY_ID) : '';
 const applePrivateKey = APPLE_PRIVATE_KEY != null ? String(APPLE_PRIVATE_KEY) : '';
 const facebookAppId = FACEBOOK_APP_ID != null ? String(FACEBOOK_APP_ID) : '';
 const facebookAppSecret = FACEBOOK_APP_SECRET != null ? String(FACEBOOK_APP_SECRET) : '';
+const stravaClientId = STRAVA_CLIENT_ID != null ? String(STRAVA_CLIENT_ID).trim() : '';
+const stravaClientSecret = STRAVA_CLIENT_SECRET != null ? String(STRAVA_CLIENT_SECRET).trim() : '';
 
 const oauth = {
   callbackUrl: oauthCallbackUrl,
@@ -147,6 +151,14 @@ const oauth = {
   },
 };
 
+const integrations = {
+  strava: {
+    enabled: !!(stravaClientId && stravaClientSecret),
+    clientId: stravaClientId || undefined,
+    clientSecret: stravaClientSecret || undefined,
+  },
+};
+
 const rateLimit = {
   api: parseRateLimit(API_RATE_LIMIT_MAX, API_RATE_LIMIT_WINDOW_MS, 500, 60_000),
   auth: parseRateLimit(AUTH_RATE_LIMIT_MAX, AUTH_RATE_LIMIT_WINDOW_MS, 10, 15 * 60_000),
@@ -166,6 +178,7 @@ const termsOfService = {
 
 const config = {
   db,
+  integrations,
   server: {
     port,
     uploadDir,
