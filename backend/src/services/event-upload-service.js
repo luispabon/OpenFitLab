@@ -15,7 +15,7 @@ const streamRepository = require('../repositories/stream-repository');
  * @param {number} startDate - Resolved start date timestamp
  * @param {string|null} folderId
  * @param {string|null} extension - File extension (src_file_type)
- * @returns {object} Event row ready for insertEvent (without id, user_id, timezone fields)
+ * @returns {object} Event row ready for insertEvent (without id, user_id, timezone, import fields)
  */
 function buildEventRecord(eventJson, name, startDate, folderId, extension) {
   return {
@@ -57,46 +57,74 @@ function buildActivityRecord(activityJson, aid, eventId) {
 }
 
 /**
- * Parses an uploaded file and persists event, activities, stats, and streams to the DB.
+ * Persists canonical event + activity payloads in one transaction (same DB shape as after FileParser).
+ * `eventJson` / `activityJson` match sports-lib `toJSON()` (stats, streams map/array, timestamps in ms).
+ *
+ * @param {object} params
+ * @param {string} params.userId
+ * @param {string|null|undefined} params.folderId
+ * @param {object} params.eventJson
+ * @param {Array<{ activityJson: object }>} params.activitiesData
+ * @param {string|null} [params.srcFileType]
+ * @param {string|null} [params.importProvider]
+ * @param {string|null} [params.importExternalId]
+ * @param {string} [params.eventName] - Resolved display name (e.g. from filename)
+ * @param {string|null} [params.eventTimezone] - IANA or offset string for event row; falls back to activity JSON
+ * @param {object} [opts]
+ * @param {object} [opts.db]
  */
-async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
-  if (!opts.userId) throw new Error('processUpload requires opts.userId');
-  const db = opts.db ?? defaultDb;
-  const event = await FileParser.parseFile(fileBuffer, extension, originalFilename);
+async function persistParsedEvent(params, opts = {}) {
+  const {
+    userId,
+    folderId,
+    eventJson,
+    activitiesData,
+    srcFileType = null,
+    importProvider = null,
+    importExternalId = null,
+    eventName: eventNameParam,
+    eventTimezone: eventTimezoneParam,
+  } = params;
 
-  const eventId = randomUUID();
-  const startDate = toTimestamp(event.startDate, Date.now());
+  if (!userId) throw new Error('persistParsedEvent requires params.userId');
+  const db = opts.db ?? defaultDb;
+
+  const startDate = toTimestamp(eventJson.startDate, Date.now());
   const name =
-    originalFilename && originalFilename.trim()
-      ? originalFilename.replace(/\.[^/.]+$/, '').trim()
-      : event.name && event.name.trim()
-        ? event.name.trim()
+    eventNameParam != null && String(eventNameParam).trim()
+      ? String(eventNameParam).trim()
+      : eventJson.name != null && String(eventJson.name).trim()
+        ? String(eventJson.name).trim()
         : 'Untitled Event';
 
-  const eventJson = event.toJSON();
   const eventStats = eventJson.stats && typeof eventJson.stats === 'object' ? eventJson.stats : {};
-  const folderId = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
-  const eventTimezone = FileParser.extractEventTimezone(event);
+  const fid = folderId != null && folderId !== '' ? folderId : null;
 
-  const activities = event.getActivities();
+  let eventTz = null;
+  if (eventTimezoneParam != null && String(eventTimezoneParam).trim()) {
+    eventTz = String(eventTimezoneParam).trim();
+  }
+
+  const eventId = randomUUID();
 
   await db.transaction(async (conn) => {
-    const tOpts = { ...opts, db, conn };
-    const eventRow = buildEventRecord(eventJson, name, startDate, folderId, extension);
+    const tOpts = { ...opts, db, conn, userId };
+    const eventRow = buildEventRecord(eventJson, name, startDate, fid, srcFileType);
     await eventRepository.insertEvent(
       {
         id: eventId,
         ...eventRow,
-        start_timezone: eventTimezone,
-        end_timezone: eventTimezone,
+        import_provider: importProvider,
+        import_external_id: importExternalId,
+        start_timezone: eventTz,
+        end_timezone: eventTz,
       },
       tOpts
     );
     await eventRepository.insertEventStats(eventId, eventStats, tOpts);
 
-    for (const activity of activities) {
+    for (const { activityJson } of activitiesData) {
       const aid = randomUUID();
-      const activityJson = activity.toJSON();
       const streams = activityJson.streams;
       const aStats =
         activityJson.stats && typeof activityJson.stats === 'object' ? activityJson.stats : {};
@@ -106,7 +134,7 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
       await activityRepository.insertActivityStats(aid, aStats, tOpts);
 
       if (streams) {
-        const activityStartDate = toTimestamp(activity.startDate, startDate);
+        const activityStartDate = toTimestamp(activityJson.startDate, startDate);
         const streamDataPoints = extractStreamDataPointsFromJSON(
           { ...activityJson, streams },
           activityStartDate
@@ -127,16 +155,50 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
     }
   });
 
-  const responseActivities = activities.map((activity) => {
-    const activityJson = activity.toJSON();
-    return { ...activityJson, id: null };
-  });
+  const responseActivities = activitiesData.map(({ activityJson }) => ({
+    ...activityJson,
+    id: null,
+  }));
 
   return {
     eventId,
-    eventJson: { ...eventJson, id: eventId, startDate, name, folderId: folderId ?? null },
+    eventJson: { ...eventJson, id: eventId, startDate, name, folderId: fid ?? null },
     activities: responseActivities,
   };
+}
+
+/**
+ * Parses an uploaded file and persists event, activities, stats, and streams to the DB.
+ */
+async function processUpload(fileBuffer, extension, originalFilename, opts = {}) {
+  if (!opts.userId) throw new Error('processUpload requires opts.userId');
+  const event = await FileParser.parseFile(fileBuffer, extension, originalFilename);
+
+  const eventName =
+    originalFilename && originalFilename.trim()
+      ? originalFilename.replace(/\.[^/.]+$/, '').trim()
+      : event.name && event.name.trim()
+        ? event.name.trim()
+        : 'Untitled Event';
+
+  const eventJson = event.toJSON();
+  const activities = event.getActivities();
+  const activitiesData = activities.map((activity) => ({ activityJson: activity.toJSON() }));
+
+  return persistParsedEvent(
+    {
+      userId: opts.userId,
+      folderId: opts.folderId,
+      eventJson,
+      activitiesData,
+      srcFileType: extension || null,
+      importProvider: null,
+      importExternalId: null,
+      eventName,
+      eventTimezone: FileParser.extractEventTimezone(event),
+    },
+    opts
+  );
 }
 
 /**
@@ -182,4 +244,10 @@ async function buildUploadResults(files, userId, processUploadFn, options = {}) 
   return results;
 }
 
-module.exports = { processUpload, buildEventRecord, buildActivityRecord, buildUploadResults };
+module.exports = {
+  processUpload,
+  persistParsedEvent,
+  buildEventRecord,
+  buildActivityRecord,
+  buildUploadResults,
+};

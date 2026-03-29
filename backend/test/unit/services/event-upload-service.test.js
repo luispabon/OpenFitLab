@@ -6,6 +6,7 @@ const { mock } = require('node:test');
 const FileParser = require('../../../src/parsers/file-parser');
 const {
   processUpload,
+  persistParsedEvent,
   buildActivityRecord,
 } = require('../../../src/services/event-upload-service');
 
@@ -141,6 +142,57 @@ describe('event-upload-service processUpload', () => {
     } finally {
       FileParser.parseFile.mock.restore();
     }
+  });
+});
+
+describe('persistParsedEvent', () => {
+  it('inserts import_provider and import_external_id on the event row', async () => {
+    const eventInserts = [];
+    const conn = {
+      execute: async (sql, params) => {
+        if (sql.includes('INSERT INTO events')) {
+          eventInserts.push(params);
+        }
+        return [{}];
+      },
+    };
+    const db = { transaction: async (fn) => fn(conn) };
+    const base = 1609459200000;
+    await persistParsedEvent(
+      {
+        userId: 'u1',
+        folderId: null,
+        eventJson: {
+          name: 'S',
+          startDate: base,
+          endDate: base + 60_000,
+          stats: {},
+          description: null,
+          isMerge: false,
+        },
+        activitiesData: [
+          {
+            activityJson: {
+              name: 'A',
+              startDate: base,
+              endDate: base + 60_000,
+              type: 'Run',
+              stats: {},
+              streams: null,
+              creator: null,
+            },
+          },
+        ],
+        srcFileType: null,
+        importProvider: 'strava',
+        importExternalId: '999',
+        eventTimezone: 'Europe/London',
+      },
+      { db }
+    );
+    strictEqual(eventInserts.length, 1);
+    strictEqual(eventInserts[0][9], 'strava');
+    strictEqual(eventInserts[0][10], '999');
   });
 });
 
