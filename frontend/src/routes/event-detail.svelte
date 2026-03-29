@@ -576,6 +576,18 @@
               <span class="text-text-secondary truncate" title={event.name || undefined}>
                 {event.name || '—'}
               </span>
+              {#if event.importProvider === 'strava' && event.importExternalId}
+                <a
+                  href="https://www.strava.com/activities/{encodeURIComponent(
+                    event.importExternalId
+                  )}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="shrink-0 text-sm font-semibold text-[#FC5200] underline"
+                >
+                  View on Strava
+                </a>
+              {/if}
             </div>
           </div>
         </div>
