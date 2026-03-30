@@ -172,6 +172,12 @@ describe('integrations-strava routes', () => {
         secret: 'test-secret-at-least-32-characters-long',
         resave: false,
         saveUninitialized: true,
+        cookie: {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        },
       })
     );
     app.use((req, res, next) => {

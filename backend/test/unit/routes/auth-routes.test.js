@@ -5,6 +5,7 @@ const request = require('supertest');
 const session = require('express-session');
 const authRouter = require('../../../src/routes/auth');
 const authService = require('../../../src/services/auth-service');
+const { csrfProtection } = require('../../../src/middleware/csrf');
 const { errorHandler } = require('../../../src/middleware/error-handler');
 
 describe('auth routes', () => {
@@ -28,13 +29,15 @@ describe('auth routes', () => {
         secret: 'test-secret-at-least-32-characters-long',
         resave: false,
         saveUninitialized: true,
-        cookie: { httpOnly: true },
+        cookie: {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        },
       })
     );
-    app.use((req, res, next) => {
-      req.csrfToken = () => 'csrf-test';
-      next();
-    });
+    app.use(csrfProtection);
     app.use('/api/auth', authRouter);
     app.use(errorHandler);
     return app;
@@ -54,17 +57,19 @@ describe('auth routes', () => {
         secret: 'test-secret-at-least-32-characters-long',
         resave: false,
         saveUninitialized: true,
-        cookie: { httpOnly: true },
+        cookie: {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        },
       })
     );
-    app.use((req, res, next) => {
-      req.csrfToken = () => 'csrf-test';
-      next();
-    });
     app.use((req, res, next) => {
       req.session.userId = 'ghost';
       next();
     });
+    app.use(csrfProtection);
     app.use('/api/auth', authRouter);
     app.use(errorHandler);
     const res2 = await request(app).get('/api/auth/me');
@@ -85,24 +90,27 @@ describe('auth routes', () => {
         secret: 'test-secret-at-least-32-characters-long',
         resave: false,
         saveUninitialized: true,
-        cookie: { httpOnly: true },
+        cookie: {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        },
       })
     );
-    app.use((req, res, next) => {
-      req.csrfToken = () => 'csrf-test';
-      next();
-    });
     app.use((req, res, next) => {
       req.session.userId = 'u1';
       next();
     });
+    app.use(csrfProtection);
     app.use('/api/auth', authRouter);
     app.use(errorHandler);
     const res = await request(app).get('/api/auth/me');
     strictEqual(res.status, 200);
     strictEqual(res.body.id, 'u1');
     strictEqual(res.body.displayName, 'Alice');
-    strictEqual(res.body.csrfToken, 'csrf-test');
+    strictEqual(typeof res.body.csrfToken, 'string');
+    ok(res.body.csrfToken.length > 0);
   });
 
   it('GET /me returns pending signup shape', async () => {
@@ -112,17 +120,21 @@ describe('auth routes', () => {
         secret: 'test-secret-at-least-32-characters-long',
         resave: false,
         saveUninitialized: true,
-        cookie: { httpOnly: true },
+        cookie: {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        },
       })
     );
     app.use((req, res, next) => {
-      req.csrfToken = () => 'csrf-test';
-      next();
-    });
-    app.use((req, res, next) => {
       req.session.pendingSignup = { displayName: 'P', avatarUrl: null };
+      // Ensure CSRF middleware is not ignored so it can generate a token.
+      req.session.userId = 'pending-user';
       next();
     });
+    app.use(csrfProtection);
     app.use('/api/auth', authRouter);
     app.use(errorHandler);
     const res = await request(app).get('/api/auth/me');
