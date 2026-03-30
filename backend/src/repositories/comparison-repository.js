@@ -1,4 +1,4 @@
-const { runQuery, placeholders } = require('./query-helper');
+const { runQuery, runQueryOne, placeholders } = require('./query-helper');
 
 async function create(id, name, activityRows, settings, opts = {}) {
   if (!opts.userId) throw new Error('create comparison requires opts.userId');
@@ -30,11 +30,13 @@ async function findAllByUserId(userId, opts = {}) {
 
 async function findEventActivitiesByComparisonIds(comparisonIds, opts = {}) {
   if (!comparisonIds.length) return [];
+  if (!opts.userId) throw new Error('findEventActivitiesByComparisonIds requires opts.userId');
   const rows = await runQuery(
-    `SELECT comparison_id, event_id, activity_id FROM comparison_event_activities WHERE comparison_id IN (${placeholders(
-      comparisonIds.length
-    )})`,
-    comparisonIds,
+    `SELECT cea.comparison_id, cea.event_id, cea.activity_id
+     FROM comparison_event_activities cea
+     INNER JOIN comparisons c ON cea.comparison_id = c.id
+     WHERE cea.comparison_id IN (${placeholders(comparisonIds.length)}) AND c.user_id = ?`,
+    [...comparisonIds, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];
@@ -72,12 +74,11 @@ async function findAllForFolder(folderId, limit, opts = {}) {
 
 async function findById(id, opts = {}) {
   if (!opts.userId) throw new Error('findById comparison requires opts.userId');
-  const rows = await runQuery(
+  return runQueryOne(
     'SELECT id, folder_id, name, settings, created_at FROM comparisons WHERE id = ? AND user_id = ?',
     [id, opts.userId],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 /**
@@ -100,12 +101,12 @@ async function findByEventIds(eventIds, opts = {}) {
 
 async function existsById(id, opts = {}) {
   if (!opts.userId) throw new Error('existsById comparison requires opts.userId');
-  const rows = await runQuery(
+  const row = await runQueryOne(
     'SELECT id FROM comparisons WHERE id = ? AND user_id = ?',
     [id, opts.userId],
     opts
   );
-  return Array.isArray(rows) ? rows.length > 0 : false;
+  return row != null;
 }
 
 async function deleteById(id, opts = {}) {

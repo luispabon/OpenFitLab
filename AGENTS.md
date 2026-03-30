@@ -116,7 +116,7 @@ Key points:
 
 - App bootstrap: `backend/src/index.js`
 - Auth/session: `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js`, `backend/src/middleware/passport.js`
-- Events: `backend/src/routes/events.js`, `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js`, `backend/src/services/event-delete-service.js`
+- Events: `backend/src/routes/events.js`, `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js`, `backend/src/services/event-persistence.js` (shared persist for uploads + Strava import), `backend/src/services/event-delete-service.js`
 - Comparisons: `backend/src/routes/comparisons.js`, `backend/src/services/comparison-service.js`
 - Folders: `backend/src/routes/folders.js`, `backend/src/services/folder-service.js`
 - Account: `backend/src/routes/account.js`, `backend/src/services/account-service.js`
@@ -169,7 +169,7 @@ For full-stack verification, run `make e2e` — the Playwright suite covers all 
 | API contract | `backend/docs/openapi.yaml` |
 | API routes | `backend/src/routes/` |
 | Auth flow | `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js` |
-| Events and uploads | `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js` |
+| Events and uploads | `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js`, `backend/src/services/event-persistence.js` |
 | Comparisons | `backend/src/services/comparison-service.js`, `backend/src/routes/comparisons.js` |
 | Folders | `backend/src/services/folder-service.js`, `backend/src/routes/folders.js` |
 | Schema | `backend/sql/schema.sql` |

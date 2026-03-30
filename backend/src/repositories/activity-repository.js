@@ -1,4 +1,4 @@
-const { runQuery, placeholders } = require('./query-helper');
+const { runQuery, runQueryOne, placeholders } = require('./query-helper');
 
 const ACTIVITY_COLUMNS =
   'a.id, a.event_id, a.name, a.start_date, a.end_date, a.type, a.device_name, a.start_timezone, a.end_timezone, a.created_at';
@@ -56,7 +56,7 @@ async function findByEventId(eventId, opts = {}) {
 
 async function findByIdAndEventId(activityId, eventId, opts = {}) {
   if (!opts.userId) throw new Error('findByIdAndEventId requires opts.userId');
-  const rows = await runQuery(
+  return runQueryOne(
     `SELECT ${ACTIVITY_COLUMNS}
      FROM activities a
      JOIN events e ON e.id = a.event_id
@@ -64,7 +64,6 @@ async function findByIdAndEventId(activityId, eventId, opts = {}) {
     [activityId, eventId, opts.userId],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function findManyByIds(ids, opts = {}) {
@@ -90,17 +89,25 @@ async function findManyByEventIds(eventIds, opts = {}) {
 }
 
 async function updateType(activityId, eventId, type, opts = {}) {
+  if (!opts.userId) throw new Error('updateType requires opts.userId');
   await runQuery(
-    'UPDATE activities SET type = ? WHERE id = ? AND event_id = ?',
-    [type, activityId, eventId],
+    `UPDATE activities a
+     INNER JOIN events e ON a.event_id = e.id
+     SET a.type = ?
+     WHERE a.id = ? AND a.event_id = ? AND e.user_id = ?`,
+    [type, activityId, eventId, opts.userId],
     opts
   );
 }
 
 async function updateDeviceName(activityId, eventId, deviceName, opts = {}) {
+  if (!opts.userId) throw new Error('updateDeviceName requires opts.userId');
   await runQuery(
-    'UPDATE activities SET device_name = ? WHERE id = ? AND event_id = ?',
-    [deviceName, activityId, eventId],
+    `UPDATE activities a
+     INNER JOIN events e ON a.event_id = e.id
+     SET a.device_name = ?
+     WHERE a.id = ? AND a.event_id = ? AND e.user_id = ?`,
+    [deviceName, activityId, eventId, opts.userId],
     opts
   );
 }
@@ -192,10 +199,8 @@ async function getActivityRowPairs(params, opts = {}) {
 
   if (!opts.userId) throw new Error('getActivityRowPairs requires opts.userId');
   const countSql = `SELECT COUNT(*) AS total ${sql}`;
-  const countResult = await runQuery(countSql, queryParams, opts);
-  const total = Number(
-    Array.isArray(countResult) ? countResult[0]?.total : (countResult?.[0]?.total ?? 0)
-  );
+  const countRow = await runQueryOne(countSql, queryParams, opts);
+  const total = Number(countRow?.total ?? 0);
   if (total === 0) return { pairRows: [], total: 0 };
 
   const orderAndPage = ' ORDER BY COALESCE(a.start_date, e.start_date) DESC LIMIT ? OFFSET ?';
@@ -207,9 +212,12 @@ async function getActivityRowPairs(params, opts = {}) {
 
 async function findStartDatesByIds(ids, opts = {}) {
   if (!ids.length) return [];
+  if (!opts.userId) throw new Error('findStartDatesByIds requires opts.userId');
   const rows = await runQuery(
-    `SELECT id, start_date FROM activities WHERE id IN (${placeholders(ids.length)})`,
-    ids,
+    `SELECT a.id, a.start_date FROM activities a
+     INNER JOIN events e ON a.event_id = e.id
+     WHERE a.id IN (${placeholders(ids.length)}) AND e.user_id = ?`,
+    [...ids, opts.userId],
     opts
   );
   return Array.isArray(rows) ? rows : [];

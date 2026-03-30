@@ -1,5 +1,5 @@
 const { describe, it } = require('node:test');
-const { strictEqual, deepStrictEqual, throws } = require('node:assert/strict');
+const { strictEqual, deepStrictEqual } = require('node:assert/strict');
 const {
   parseJSONField,
   toTimestamp,
@@ -26,11 +26,9 @@ describe('parseJSONField', () => {
     deepStrictEqual(parseJSONField('{"x":1}'), { x: 1 });
   });
 
-  it('throws on invalid JSON string', () => {
-    throws(
-      () => parseJSONField('not json'),
-      (err) => err instanceof SyntaxError
-    );
+  it('returns defaultValue on invalid JSON string', () => {
+    strictEqual(parseJSONField('not json', 'fallback'), 'fallback');
+    strictEqual(parseJSONField('not json'), null);
   });
 
   it('uses null as default when not provided', () => {

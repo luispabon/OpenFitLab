@@ -5,6 +5,7 @@ const {
   findAll,
   findById,
   findByEventIds,
+  findEventActivitiesByComparisonIds,
   existsById,
   deleteById,
   updateFolderId,
@@ -155,6 +156,36 @@ describe('comparison-repository', () => {
       const result = await findByEventIds(['e1'], { db, userId: 'u1' });
       ok(queries[0].sql.includes('IN ('));
       strictEqual(result.length, 1);
+    });
+  });
+
+  describe('findEventActivitiesByComparisonIds', () => {
+    it('returns empty array for empty comparison ids', async () => {
+      const result = await findEventActivitiesByComparisonIds([], { userId: 'u1' });
+      deepStrictEqual(result, []);
+    });
+
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => [] };
+      await new Promise((resolve, reject) => {
+        findEventActivitiesByComparisonIds(['c1'], { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('joins comparisons and filters by user_id', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ comparison_id: 'c1', event_id: 'e1', activity_id: 'a1' }];
+        },
+      };
+      const result = await findEventActivitiesByComparisonIds(['c1'], { db, userId: 'u1' });
+      ok(queries[0].sql.includes('INNER JOIN comparisons'));
+      ok(queries[0].sql.includes('c.user_id'));
+      strictEqual(queries[0].params[0], 'c1');
+      strictEqual(queries[0].params[1], 'u1');
+      strictEqual(result[0].activity_id, 'a1');
     });
   });
 

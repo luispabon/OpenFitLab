@@ -3,6 +3,7 @@ const { strictEqual, ok, deepStrictEqual } = require('node:assert/strict');
 const { makeFakeDb } = require('../../helpers/fake-db');
 const {
   insertStream,
+  insertStreams,
   findAllByActivityIds,
   findByActivityAndEvent,
 } = require('../../../src/repositories/stream-repository');
@@ -23,6 +24,39 @@ describe('stream-repository', () => {
       ok(!queries[0].sql.includes('event_id'));
       strictEqual(queries[0].params[0], 's1');
       strictEqual(queries[0].params[3], JSON.stringify(data));
+    });
+  });
+
+  describe('insertStreams', () => {
+    it('inserts multiple rows in one statement', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        return { affectedRows: 2 };
+      });
+      await insertStreams(
+        [
+          { id: 's1', activityId: 'a1', type: 'HR', data: [{ time: 1, value: 1 }] },
+          { id: 's2', activityId: 'a1', type: 'Cadence', data: [{ time: 1, value: 90 }] },
+        ],
+        { db }
+      );
+      strictEqual(queries.length, 1);
+      ok(queries[0].sql.includes('(?, ?, ?, ?), (?, ?, ?, ?)'));
+      ok(queries[0].sql.includes('ON DUPLICATE KEY'));
+      strictEqual(queries[0].params.length, 8);
+      strictEqual(queries[0].params[1], 'a1');
+      strictEqual(queries[0].params[5], 'a1');
+    });
+
+    it('no-ops for empty array', async () => {
+      let calls = 0;
+      const db = makeFakeDb(async () => {
+        calls += 1;
+        return { affectedRows: 0 };
+      });
+      await insertStreams([], { db });
+      strictEqual(calls, 0);
     });
   });
 

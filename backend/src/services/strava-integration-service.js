@@ -6,7 +6,7 @@ const {
   fetchActivityBundle,
   normalizeStravaToCanonical,
 } = require('../integrations/strava-driver');
-const { persistParsedEvent } = require('./event-upload-service');
+const { persistParsedEvent } = require('./event-persistence');
 const { NotFoundError, StravaTokenExpiredError } = require('../errors');
 
 const PROVIDER = 'strava';

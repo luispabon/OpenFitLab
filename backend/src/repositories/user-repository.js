@@ -1,14 +1,13 @@
 const { randomUUID } = require('node:crypto');
-const { runQuery } = require('./query-helper');
+const { runQuery, runQueryOne } = require('./query-helper');
 const { normalizeEmail } = require('../utils/email');
 
 async function findById(id, opts = {}) {
-  const rows = await runQuery(
+  return runQueryOne(
     'SELECT id, display_name, avatar_url, created_at, updated_at FROM users WHERE id = ?',
     [id],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function deleteById(id, opts = {}) {
@@ -21,12 +20,11 @@ async function deleteById(id, opts = {}) {
  * @returns {{ user_id: string } | null}
  */
 async function findIdentityByProvider(provider, providerUserId, opts = {}) {
-  const rows = await runQuery(
+  return runQueryOne(
     'SELECT user_id FROM user_identities WHERE provider = ? AND provider_user_id = ?',
     [provider, providerUserId],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 /**
@@ -117,13 +115,13 @@ async function createFromPendingProfile(profile, opts = {}) {
       txOpts
     );
 
-    const user = await runQuery(
+    const user = await runQueryOne(
       'SELECT id, display_name, avatar_url, created_at, updated_at FROM users WHERE id = ?',
       [userId],
       txOpts
     );
     return {
-      user: Array.isArray(user) ? user[0] : user,
+      user,
       created: true,
     };
   });

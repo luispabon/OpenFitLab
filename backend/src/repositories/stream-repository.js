@@ -8,6 +8,18 @@ async function insertStream(streamId, activityId, type, data, opts = {}) {
   );
 }
 
+/**
+ * @param {Array<{ id: string, activityId: string, type: string, data: unknown }>} rows
+ */
+async function insertStreams(rows, opts = {}) {
+  if (!rows.length) return;
+  const sql = `INSERT INTO streams (id, activity_id, type, data) VALUES ${rows
+    .map(() => '(?, ?, ?, ?)')
+    .join(', ')} ON DUPLICATE KEY UPDATE data = VALUES(data)`;
+  const params = rows.flatMap((r) => [r.id, r.activityId, r.type, JSON.stringify(r.data)]);
+  await runQuery(sql, params, opts);
+}
+
 async function findAllByActivityIds(activityIds, opts = {}) {
   if (!activityIds.length) return [];
   if (!opts.userId) throw new Error('findAllByActivityIds requires opts.userId');
@@ -36,6 +48,7 @@ async function findByActivityAndEvent(activityId, eventId, types, opts = {}) {
 
 module.exports = {
   insertStream,
+  insertStreams,
   findAllByActivityIds,
   findByActivityAndEvent,
 };

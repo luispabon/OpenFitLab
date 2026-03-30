@@ -7,6 +7,7 @@ const {
   findByIdAndEventId,
   findManyByIds,
   findManyByEventIds,
+  findStartDatesByIds,
   updateType,
   updateDeviceName,
   getStatsByActivityIds,
@@ -143,7 +144,14 @@ describe('activity-repository', () => {
   });
 
   describe('updateType', () => {
-    it('executes UPDATE with type', async () => {
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => ({ affectedRows: 1 }) };
+      await new Promise((resolve, reject) => {
+        updateType('a1', 'e1', 'Cycling', { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('executes UPDATE with type scoped by user_id', async () => {
       const queries = [];
       const db = {
         query: async (sql, params) => {
@@ -151,14 +159,25 @@ describe('activity-repository', () => {
           return { affectedRows: 1 };
         },
       };
-      await updateType('a1', 'e1', 'Cycling', { db });
-      ok(queries[0].sql.includes('UPDATE activities'));
+      await updateType('a1', 'e1', 'Cycling', { db, userId: 'u1' });
+      ok(queries[0].sql.includes('INNER JOIN events'));
+      ok(queries[0].sql.includes('e.user_id'));
       strictEqual(queries[0].params[0], 'Cycling');
+      strictEqual(queries[0].params[1], 'a1');
+      strictEqual(queries[0].params[2], 'e1');
+      strictEqual(queries[0].params[3], 'u1');
     });
   });
 
   describe('updateDeviceName', () => {
-    it('executes UPDATE with device name', async () => {
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => ({ affectedRows: 1 }) };
+      await new Promise((resolve, reject) => {
+        updateDeviceName('a1', 'e1', 'Garmin', { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('executes UPDATE with device name scoped by user_id', async () => {
       const queries = [];
       const db = {
         query: async (sql, params) => {
@@ -166,9 +185,41 @@ describe('activity-repository', () => {
           return { affectedRows: 1 };
         },
       };
-      await updateDeviceName('a1', 'e1', 'Garmin', { db });
-      ok(queries[0].sql.includes('UPDATE activities'));
+      await updateDeviceName('a1', 'e1', 'Garmin', { db, userId: 'u1' });
+      ok(queries[0].sql.includes('INNER JOIN events'));
+      ok(queries[0].sql.includes('e.user_id'));
       strictEqual(queries[0].params[0], 'Garmin');
+      strictEqual(queries[0].params[3], 'u1');
+    });
+  });
+
+  describe('findStartDatesByIds', () => {
+    it('returns empty array for empty ids', async () => {
+      const result = await findStartDatesByIds([], { userId: 'u1' });
+      deepStrictEqual(result, []);
+    });
+
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => [] };
+      await new Promise((resolve, reject) => {
+        findStartDatesByIds(['a1'], { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('joins events and filters by user_id', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ id: 'a1', start_date: 1000 }];
+        },
+      };
+      const result = await findStartDatesByIds(['a1'], { db, userId: 'u1' });
+      ok(queries[0].sql.includes('INNER JOIN events'));
+      ok(queries[0].sql.includes('e.user_id'));
+      strictEqual(queries[0].params[0], 'a1');
+      strictEqual(queries[0].params[1], 'u1');
+      strictEqual(result[0].id, 'a1');
     });
   });
 

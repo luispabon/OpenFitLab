@@ -86,8 +86,12 @@ async function start() {
   // Auth routes (public — session middleware is applied above)
   app.use('/api/auth/google', authLimiter);
   app.use('/api/auth/github', authLimiter);
+  app.use('/api/auth/apple', authLimiter);
+  app.use('/api/auth/facebook', authLimiter);
   app.use('/api/auth/google/callback', callbackLimiter);
   app.use('/api/auth/github/callback', callbackLimiter);
+  app.use('/api/auth/apple/callback', callbackLimiter);
+  app.use('/api/auth/facebook/callback', callbackLimiter);
   app.use('/api/auth', authRouter);
 
   // Protected routes (require auth)

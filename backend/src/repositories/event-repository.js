@@ -1,4 +1,4 @@
-const { runQuery, placeholders } = require('./query-helper');
+const { runQuery, runQueryOne, placeholders } = require('./query-helper');
 
 const EVENT_COLUMNS =
   'id, folder_id, start_date, name, end_date, description, is_merge, src_file_type, import_provider, import_external_id, start_timezone, end_timezone';
@@ -43,22 +43,20 @@ async function insertEventStats(eventId, stats, opts = {}) {
 
 async function findById(id, opts = {}) {
   if (!opts.userId) throw new Error('findById requires opts.userId');
-  const rows = await runQuery(
+  return runQueryOne(
     `SELECT ${EVENT_COLUMNS} FROM events WHERE id = ? AND user_id = ?`,
     [id, opts.userId],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function getDateRange(id, opts = {}) {
   if (!opts.userId) throw new Error('getDateRange requires opts.userId');
-  const rows = await runQuery(
+  return runQueryOne(
     'SELECT start_date, end_date, folder_id FROM events WHERE id = ? AND user_id = ?',
     [id, opts.userId],
     opts
   );
-  return Array.isArray(rows) ? (rows[0] ?? null) : null;
 }
 
 async function findMany(filters, opts = {}) {
