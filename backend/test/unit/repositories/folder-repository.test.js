@@ -11,6 +11,8 @@ const {
   deleteById,
   getEventCountByFolderId,
   getComparisonCountByFolderId,
+  getEventCountsByFolderIds,
+  getComparisonCountsByFolderIds,
   findEventIdsByFolderId,
   clearEventsFolderId,
   clearComparisonsFolderId,
@@ -193,6 +195,63 @@ describe('folder-repository', () => {
       const db = { query: async () => [{ n: 1 }] };
       const result = await getComparisonCountByFolderId('f1', { db, userId: 'u1' });
       strictEqual(result, 1);
+    });
+  });
+
+  describe('getEventCountsByFolderIds', () => {
+    it('returns empty object for empty folder ids', async () => {
+      const result = await getEventCountsByFolderIds([], { userId: 'u1' });
+      deepStrictEqual(result, {});
+    });
+
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => [] };
+      await new Promise((resolve, reject) => {
+        getEventCountsByFolderIds(['f1'], { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('includes user_id in WHERE clause', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ folder_id: 'f1', n: 2 }];
+        },
+      };
+      const result = await getEventCountsByFolderIds(['f1'], { db, userId: 'u1' });
+      ok(queries[0].sql.includes('user_id = ?'));
+      strictEqual(queries[0].params[0], 'f1');
+      strictEqual(queries[0].params[1], 'u1');
+      strictEqual(result.f1, 2);
+    });
+  });
+
+  describe('getComparisonCountsByFolderIds', () => {
+    it('returns empty object for empty folder ids', async () => {
+      const result = await getComparisonCountsByFolderIds([], { userId: 'u1' });
+      deepStrictEqual(result, {});
+    });
+
+    it('throws when opts.userId is missing', async () => {
+      const db = { query: async () => [] };
+      await new Promise((resolve, reject) => {
+        getComparisonCountsByFolderIds(['f1'], { db }).then(reject).catch(resolve);
+      });
+    });
+
+    it('includes user_id in WHERE clause', async () => {
+      const queries = [];
+      const db = {
+        query: async (sql, params) => {
+          queries.push({ sql, params });
+          return [{ folder_id: 'f1', n: 1 }];
+        },
+      };
+      const result = await getComparisonCountsByFolderIds(['f1'], { db, userId: 'u1' });
+      ok(queries[0].sql.includes('user_id = ?'));
+      strictEqual(queries[0].params[1], 'u1');
+      strictEqual(result.f1, 1);
     });
   });
 

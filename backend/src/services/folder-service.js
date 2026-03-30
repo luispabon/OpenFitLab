@@ -125,15 +125,17 @@ async function deleteFolder(id, contentsMode, opts = {}) {
     return db.transaction(async (conn) => {
       const txOpts = { ...repoOpts, conn };
       const eventIds = await folderRepository.findEventIdsByFolderId(id, txOpts);
-      for (const eventId of eventIds) {
-        const linked = await comparisonRepository.findByEventIds([eventId], txOpts);
+      if (eventIds.length > 0) {
+        const linked = await comparisonRepository.findByEventIds(eventIds, txOpts);
         if (linked.length > 0) {
           await comparisonRepository.deleteByIds(
             linked.map((c) => c.id),
             txOpts
           );
         }
-        await eventRepository.deleteById(eventId, txOpts);
+        for (const eventId of eventIds) {
+          await eventRepository.deleteById(eventId, txOpts);
+        }
       }
       await folderRepository.deleteComparisonsByFolderId(id, txOpts);
       return folderRepository.deleteById(id, txOpts);

@@ -3,6 +3,7 @@ const defaultDb = require('../db');
 const comparisonRepository = require('../repositories/comparison-repository');
 const activityRepository = require('../repositories/activity-repository');
 const { parseJSONField } = require('../utils/transforms');
+const { NotFoundError, ValidationError } = require('../errors');
 
 /** Resolve reference activity ID from a row with activity_ids and settings. */
 function getReferenceActivityId(row) {
@@ -10,7 +11,14 @@ function getReferenceActivityId(row) {
   if (activityIds.length === 0) return null;
   let refId = null;
   if (row.settings != null) {
-    const settings = typeof row.settings === 'string' ? JSON.parse(row.settings) : row.settings;
+    let settings = row.settings;
+    if (typeof settings === 'string') {
+      try {
+        settings = JSON.parse(settings);
+      } catch {
+        settings = null;
+      }
+    }
     refId = settings?.referenceActivityId ?? null;
   }
   if (refId && activityIds.includes(refId)) return refId;
@@ -78,18 +86,14 @@ async function createComparison(name, activityIds, settings, opts = {}) {
     const activities = await activityRepository.findManyByIds(activityIds, txOpts);
     const ownedActivityIds = new Set(activities.map((a) => a.id));
     if (ownedActivityIds.size !== activityIds.length) {
-      const err = new Error('One or more activities not found');
-      err.statusCode = 404;
-      throw err;
+      throw new NotFoundError('One or more activities not found');
     }
 
     // Enforce: at most one activity per event per comparison (schema PK constraint)
     const eventIdsSeen = new Set();
     for (const a of activities) {
       if (eventIdsSeen.has(a.event_id)) {
-        const err = new Error('A comparison cannot include more than one activity per event');
-        err.statusCode = 400;
-        throw err;
+        throw new ValidationError('A comparison cannot include more than one activity per event');
       }
       eventIdsSeen.add(a.event_id);
     }

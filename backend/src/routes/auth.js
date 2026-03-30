@@ -3,17 +3,9 @@ const passport = require('passport');
 const { asyncHandler } = require('../middleware/async-handler');
 const config = require('../config');
 const { ValidationError } = require('../errors');
-const userRepository = require('../repositories/user-repository');
+const authService = require('../services/auth-service');
 
 const router = express.Router();
-
-function integrationsCapabilities() {
-  return {
-    providers: {
-      strava: { configured: config.integrations.strava.enabled },
-    },
-  };
-}
 
 /**
  * Helper to check if an OAuth strategy is enabled
@@ -46,39 +38,8 @@ router.get(
     })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    if (req.user.pendingSignup) {
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      req.session.pendingSignup = req.user.profile;
-      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
-      return;
-    }
-    const userId = req.user.user.id;
-    await new Promise((resolve, reject) => {
-      req.session.regenerate((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    req.session.userId = userId;
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+    const redirectUrl = await authService.handleOAuthCallback(req);
+    res.redirect(redirectUrl);
   })
 );
 
@@ -102,39 +63,8 @@ router.get(
     })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    if (req.user.pendingSignup) {
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      req.session.pendingSignup = req.user.profile;
-      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
-      return;
-    }
-    const userId = req.user.user.id;
-    await new Promise((resolve, reject) => {
-      req.session.regenerate((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    req.session.userId = userId;
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+    const redirectUrl = await authService.handleOAuthCallback(req);
+    res.redirect(redirectUrl);
   })
 );
 
@@ -159,39 +89,8 @@ router.post(
     })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    if (req.user.pendingSignup) {
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      req.session.pendingSignup = req.user.profile;
-      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
-      return;
-    }
-    const userId = req.user.user.id;
-    await new Promise((resolve, reject) => {
-      req.session.regenerate((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    req.session.userId = userId;
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+    const redirectUrl = await authService.handleOAuthCallback(req);
+    res.redirect(redirectUrl);
   })
 );
 
@@ -215,39 +114,8 @@ router.get(
     })(req, res, next);
   },
   asyncHandler(async (req, res) => {
-    if (req.user.pendingSignup) {
-      await new Promise((resolve, reject) => {
-        req.session.regenerate((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      req.session.pendingSignup = req.user.profile;
-      req.session.cookie.maxAge = config.termsOfService.pendingSignupExpiryMs;
-      await new Promise((resolve, reject) => {
-        req.session.save((err) => {
-          if (err) return reject(err);
-          resolve();
-        });
-      });
-      res.redirect(`${config.server.oauthRedirectBase}/#/?signup=pending`);
-      return;
-    }
-    const userId = req.user.user.id;
-    await new Promise((resolve, reject) => {
-      req.session.regenerate((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    req.session.userId = userId;
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-    res.redirect(`${config.server.oauthRedirectBase}/#/?login=success`);
+    const redirectUrl = await authService.handleOAuthCallback(req);
+    res.redirect(redirectUrl);
   })
 );
 
@@ -256,29 +124,19 @@ router.get(
   '/me',
   asyncHandler(async (req, res) => {
     if (req.session?.pendingSignup) {
-      return res.json({
-        pendingSignup: true,
-        profile: {
-          displayName: req.session.pendingSignup.displayName ?? null,
-          avatarUrl: req.session.pendingSignup.avatarUrl ?? null,
-        },
-        integrations: integrationsCapabilities(),
-        csrfToken: req.csrfToken(),
-      });
+      return res.json(authService.buildPendingSignupMeResponse(req));
     }
     if (!req.session?.userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const user = await userRepository.findById(req.session.userId);
+    const user = await authService.getCurrentUserForMe(req.session.userId);
     if (!user) {
       req.session.destroy(() => {});
       return res.status(401).json({ error: 'User not found' });
     }
     res.json({
-      id: user.id,
-      displayName: user.display_name,
-      avatarUrl: user.avatar_url,
-      integrations: integrationsCapabilities(),
+      ...user,
+      integrations: authService.integrationsCapabilities(),
       csrfToken: req.csrfToken(),
     });
   })
@@ -288,12 +146,7 @@ router.get(
 router.post(
   '/logout',
   asyncHandler(async (req, res) => {
-    await new Promise((resolve, reject) => {
-      req.session.destroy((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
+    await authService.destroySession(req);
     res.clearCookie('ofl.sid', { path: '/' });
     res.json({ ok: true });
   })
@@ -303,26 +156,10 @@ router.post(
 router.post(
   '/complete-signup',
   asyncHandler(async (req, res) => {
-    const pendingProfile = req.session?.pendingSignup;
-    if (!pendingProfile) {
-      return res.status(400).json({ error: 'No pending signup found. Please sign in again.' });
-    }
-    const db = require('../db');
-    const result = await userRepository.createFromPendingProfile(pendingProfile, { db });
-    delete req.session.pendingSignup;
-    req.session.userId = result.user.id;
-    req.session.cookie.maxAge = config.termsOfService.normalSessionExpiryMs;
-    await new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
+    const user = await authService.completeSignup(req);
     res.status(201).json({
-      id: result.user.id,
-      displayName: result.user.display_name,
-      avatarUrl: result.user.avatar_url,
-      integrations: integrationsCapabilities(),
+      ...user,
+      integrations: authService.integrationsCapabilities(),
       csrfToken: req.csrfToken(),
     });
   })
@@ -332,12 +169,7 @@ router.post(
 router.post(
   '/decline-signup',
   asyncHandler(async (req, res) => {
-    await new Promise((resolve, reject) => {
-      req.session.destroy((err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
+    await authService.destroySession(req);
     res.clearCookie('ofl.sid', { path: '/' });
     res.json({ ok: true });
   })

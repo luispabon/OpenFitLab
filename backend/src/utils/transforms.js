@@ -1,6 +1,11 @@
 function parseJSONField(value, defaultValue = null) {
   if (value === null || value === undefined) return defaultValue;
-  return typeof value === 'object' ? value : JSON.parse(value);
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return defaultValue;
+  }
 }
 
 function toTimestamp(value, defaultValue = null) {

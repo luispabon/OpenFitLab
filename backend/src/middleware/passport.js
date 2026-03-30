@@ -8,6 +8,51 @@ const { normalizeEmail } = require('../utils/email');
 const config = require('../config');
 
 /**
+ * Shared OAuth account resolution: existing identity, link by verified email, or pending signup.
+ * @param {import('passport').DoneCallback} done
+ */
+async function handleOAuthVerify(
+  { provider, providerId, email, emailVerified, displayName, avatarUrl },
+  done
+) {
+  try {
+    const existing = await userRepository.findIdentityByProvider(provider, providerId);
+    if (existing) {
+      const user = await userRepository.findById(existing.user_id);
+      return done(null, { user, pendingSignup: false });
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (normalizedEmail && emailVerified) {
+      const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
+      if (byEmail.length === 1) {
+        await userRepository.linkIdentity(byEmail[0].user_id, {
+          provider,
+          providerUserId: providerId,
+          email: normalizedEmail,
+          displayName,
+          avatarUrl,
+        });
+        const user = await userRepository.findById(byEmail[0].user_id);
+        return done(null, { user, pendingSignup: false });
+      }
+    }
+    done(null, {
+      pendingSignup: true,
+      profile: {
+        provider,
+        providerUserId: providerId,
+        displayName,
+        avatarUrl,
+        email: normalizedEmail,
+        emailVerified,
+      },
+    });
+  } catch (err) {
+    done(err);
+  }
+}
+
+/**
  * Configures Passport with Google, GitHub, Apple, and Facebook OAuth strategies.
  * Strategies are only registered when the corresponding config is enabled.
  */
@@ -44,48 +89,17 @@ function configurePassport() {
           scope: ['profile', 'email'],
         },
         async (accessToken, refreshToken, profile, done) => {
-          try {
-            const existingIdentity = await userRepository.findIdentityByProvider(
-              'google',
-              profile.id
-            );
-            if (existingIdentity) {
-              const user = await userRepository.findById(existingIdentity.user_id);
-              done(null, { user, pendingSignup: false });
-              return;
-            }
-            const normalizedEmail = normalizeEmail(profile.emails?.[0]?.value);
-            const emailVerified = profile._json?.email_verified === true;
-            if (normalizedEmail && emailVerified) {
-              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
-              if (byEmail.length === 1) {
-                const existingUserId = byEmail[0].user_id;
-                await userRepository.linkIdentity(existingUserId, {
-                  provider: 'google',
-                  providerUserId: profile.id,
-                  email: normalizedEmail,
-                  displayName: profile.displayName || null,
-                  avatarUrl: profile.photos?.[0]?.value || null,
-                });
-                const user = await userRepository.findById(existingUserId);
-                done(null, { user, pendingSignup: false });
-                return;
-              }
-            }
-            done(null, {
-              pendingSignup: true,
-              profile: {
-                provider: 'google',
-                providerUserId: profile.id,
-                displayName: profile.displayName || null,
-                avatarUrl: profile.photos?.[0]?.value || null,
-                email: normalizedEmail,
-                emailVerified,
-              },
-            });
-          } catch (err) {
-            done(err);
-          }
+          await handleOAuthVerify(
+            {
+              provider: 'google',
+              providerId: profile.id,
+              email: profile.emails?.[0]?.value,
+              emailVerified: profile._json?.email_verified === true,
+              displayName: profile.displayName || null,
+              avatarUrl: profile.photos?.[0]?.value || null,
+            },
+            done
+          );
         }
       )
     );
@@ -131,43 +145,17 @@ function configurePassport() {
             } else {
               emailVerified = true;
             }
-            const existingIdentity = await userRepository.findIdentityByProvider(
-              'github',
-              profile.id
-            );
-            if (existingIdentity) {
-              const user = await userRepository.findById(existingIdentity.user_id);
-              done(null, { user, pendingSignup: false });
-              return;
-            }
-            const normalizedEmail = normalizeEmail(email);
-            if (normalizedEmail && emailVerified) {
-              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
-              if (byEmail.length === 1) {
-                const existingUserId = byEmail[0].user_id;
-                await userRepository.linkIdentity(existingUserId, {
-                  provider: 'github',
-                  providerUserId: profile.id,
-                  email: normalizedEmail,
-                  displayName: profile.displayName || profile.username || null,
-                  avatarUrl: profile.photos?.[0]?.value || null,
-                });
-                const user = await userRepository.findById(existingUserId);
-                done(null, { user, pendingSignup: false });
-                return;
-              }
-            }
-            done(null, {
-              pendingSignup: true,
-              profile: {
+            await handleOAuthVerify(
+              {
                 provider: 'github',
-                providerUserId: profile.id,
+                providerId: profile.id,
+                email,
+                emailVerified,
                 displayName: profile.displayName || profile.username || null,
                 avatarUrl: profile.photos?.[0]?.value || null,
-                email: normalizedEmail,
-                emailVerified,
               },
-            });
+              done
+            );
           } catch (err) {
             done(err);
           }
@@ -192,46 +180,19 @@ function configurePassport() {
             if (!providerId) {
               return done(new Error('Apple did not return a user identifier'));
             }
-            const existingIdentity = await userRepository.findIdentityByProvider(
-              'apple',
-              providerId
-            );
-            if (existingIdentity) {
-              const user = await userRepository.findById(existingIdentity.user_id);
-              done(null, { user, pendingSignup: false });
-              return;
-            }
             // Email is only present on the first login
             const rawEmail = idToken?.email ?? profile?.email ?? null;
-            const normalizedEmail = normalizeEmail(rawEmail);
-            const emailVerified = idToken?.email_verified === true;
-            if (normalizedEmail && emailVerified) {
-              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
-              if (byEmail.length === 1) {
-                const existingUserId = byEmail[0].user_id;
-                await userRepository.linkIdentity(existingUserId, {
-                  provider: 'apple',
-                  providerUserId: providerId,
-                  email: normalizedEmail,
-                  displayName: profile?.displayName || null,
-                  avatarUrl: null,
-                });
-                const user = await userRepository.findById(existingUserId);
-                done(null, { user, pendingSignup: false });
-                return;
-              }
-            }
-            done(null, {
-              pendingSignup: true,
-              profile: {
+            await handleOAuthVerify(
+              {
                 provider: 'apple',
-                providerUserId: providerId,
+                providerId,
+                email: rawEmail,
+                emailVerified: idToken?.email_verified === true,
                 displayName: profile?.displayName || null,
                 avatarUrl: null,
-                email: normalizedEmail,
-                emailVerified,
               },
-            });
+              done
+            );
           } catch (err) {
             done(err);
           }
@@ -250,49 +211,20 @@ function configurePassport() {
           profileFields: ['id', 'displayName', 'photos', 'email'],
         },
         async (accessToken, refreshToken, profile, done) => {
-          try {
-            const existingIdentity = await userRepository.findIdentityByProvider(
-              'facebook',
-              profile.id
-            );
-            if (existingIdentity) {
-              const user = await userRepository.findById(existingIdentity.user_id);
-              done(null, { user, pendingSignup: false });
-              return;
-            }
-            const normalizedEmail = normalizeEmail(profile.emails?.[0]?.value);
-            // Facebook emails from the API are considered verified
-            const emailVerified = !!normalizedEmail;
-            if (normalizedEmail && emailVerified) {
-              const byEmail = await userRepository.findIdentitiesByEmail(normalizedEmail);
-              if (byEmail.length === 1) {
-                const existingUserId = byEmail[0].user_id;
-                await userRepository.linkIdentity(existingUserId, {
-                  provider: 'facebook',
-                  providerUserId: profile.id,
-                  email: normalizedEmail,
-                  displayName: profile.displayName || null,
-                  avatarUrl: profile.photos?.[0]?.value || null,
-                });
-                const user = await userRepository.findById(existingUserId);
-                done(null, { user, pendingSignup: false });
-                return;
-              }
-            }
-            done(null, {
-              pendingSignup: true,
-              profile: {
-                provider: 'facebook',
-                providerUserId: profile.id,
-                displayName: profile.displayName || null,
-                avatarUrl: profile.photos?.[0]?.value || null,
-                email: normalizedEmail,
-                emailVerified,
-              },
-            });
-          } catch (err) {
-            done(err);
-          }
+          const rawEmail = profile.emails?.[0]?.value;
+          // Facebook emails from the API are considered verified when present
+          const emailVerified = Boolean(normalizeEmail(rawEmail));
+          await handleOAuthVerify(
+            {
+              provider: 'facebook',
+              providerId: profile.id,
+              email: rawEmail,
+              emailVerified,
+              displayName: profile.displayName || null,
+              avatarUrl: profile.photos?.[0]?.value || null,
+            },
+            done
+          );
         }
       )
     );

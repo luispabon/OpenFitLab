@@ -7,7 +7,7 @@ globs: backend/**
 
 ## Data access
 
-- **All SQL lives in repositories** (`src/repositories/*`). Services call repositories and pass `opts` (with `opts.db`, or `opts.conn` when inside a transaction). Repositories use `runQuery(sql, params, opts)` from `repositories/query-helper.js` (which uses `opts.conn.execute` when set, else `opts.db.query`). Do not put SQL in services or routes.
+- **All SQL lives in repositories** (`src/repositories/*`). Services call repositories and pass `opts` (with `opts.db`, or `opts.conn` when inside a transaction). Repositories use `runQuery(sql, params, opts)` from `repositories/query-helper.js` (which uses `opts.conn.execute` when set, else `opts.db.query`). Use `runQueryOne` for single-row reads (first row or `null`). Do not put SQL in services or routes.
 - **All services that touch the DB must accept optional dependency injection** so they can be unit-tested: accept `opts` and use `const db = opts?.db ?? defaultDb`; pass `{ ...opts, db }` (or `{ ...opts, db, conn }` inside a transaction) to repository calls.
 - **Use transactions for multi-statement writes** that must be atomic. Services call `db.transaction(async (conn) => { ... })` and pass `{ ...opts, db, conn }` to repository methods so repos use the same connection.
 
@@ -26,3 +26,7 @@ globs: backend/**
 
 - **Every service that uses the DB must be unit-testable** with an injected fake `db` (provide `query`, `queryOne`, `transaction`, and where used `getPool` with the same contract as `db.js`). Add or update unit tests under `backend/test/unit/` for new or changed behavior; do not leave new services or branches untested.
 - **Do not introduce circular dependencies.** Services must not require other services; routes may require multiple services and validation.
+
+## Accepted exceptions
+
+- **`event-update-service` imports `event-query-service.getEventById`** to build the API response shape after an update. This avoids duplicating event-loading orchestration. Prefer repositories over adding new cross-service imports elsewhere.

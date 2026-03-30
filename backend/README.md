@@ -5,9 +5,9 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 ## Structure
 
 - **Entry**: `src/index.js` — Express app, CORS, JSON body, mounts routes, central error handler.
-- **Routes**: `src/routes/events.js`, `comparisons.js`, `meta.js` — validation + service calls only; no direct DB access.
-- **Services**: `src/services/*` — business logic; they call **repositories** and orchestrate transactions. Each service accepts optional `opts.db` for test injection.
-- **Repositories**: `src/repositories/*` — all SQL lives here. `event-repository`, `activity-repository`, `stream-repository`, `comparison-repository`; each uses `query-helper.runQuery(sql, params, opts)` so that `opts.conn` (inside a transaction) or `opts.db` is used.
+- **Routes**: `src/routes/events.js`, `comparisons.js`, `folders.js`, `account.js`, `auth.js`, `integrations-strava.js`, `meta.js` — validation + service calls only; no direct DB access.
+- **Services**: `src/services/*` — business logic; they call **repositories** and orchestrate transactions. Each service accepts optional `opts.db` for test injection. Examples: `event-query-service` / `event-upload-service` / `event-persistence` (shared persist), `event-delete-service`, `event-update-service`, `comparison-service`, `folder-service`, `account-service`, `auth-service`, `strava-oauth-service`, `strava-integration-service`.
+- **Repositories**: `src/repositories/*` — all SQL lives here. `event-repository`, `activity-repository`, `stream-repository`, `comparison-repository`, `folder-repository`, `user-repository`; each uses `query-helper.runQuery` / `runQueryOne` so that `opts.conn` (inside a transaction) or `opts.db` is used.
 - **DB layer**: `src/db.js` — `query`, `queryOne`, `transaction`, `runMigrations`; migrations in `sql/migrations/` (applied in order on startup via advisory lock).
 - **Parsers**: `src/parsers/file-parser.js` — file parsing (TCX, FIT, GPX, JSON, SML) via sports-lib.
 - **Utils**: `src/utils/` — validation (Express middleware), transforms (row → API shape), stream-extractor, json-sanitizer.
@@ -19,7 +19,16 @@ SQL in repositories only; services pass `opts.db` or `opts.conn` (inside transac
 
 ## Errors
 
-- **ParseError** (`src/errors.js`): thrown for file parse failures. Central handler maps `err.statusCode` (400) to HTTP 400; otherwise 500.
+Defined in `src/errors.js`. The central error handler maps these to HTTP responses (`{ "error": "<message>" }`):
+
+- **ParseError** (400): file parse failures.
+- **ValidationError** (400): invalid input.
+- **NotFoundError** (404): missing or not-owned resources (by ID).
+- **StravaTokenExpiredError** (401): Strava session token unusable; client should reconnect.
+- **StravaRateLimitError** (429): Strava upstream rate limit; may set `Retry-After`.
+- **StravaUpstreamError** (502): Strava API/network failure.
+
+Generic `Error` with `statusCode` is also respected when set.
 
 ## Run locally
 

@@ -2,8 +2,8 @@
 --
 -- Tables: users, user_identities, folders, events, event_stats, activities, activity_stats,
 --         streams, stream_data_points, comparisons, comparison_event_activities
--- Sessions are stored in Valkey (not in DB). Applied on API startup via db.initializeSchema().
--- No migrations; schema changes require DB recreate.
+-- Sessions are stored in Valkey (not in DB). Migrations run on API startup via `db.runMigrations()`.
+-- For new changes, add a numbered file under `sql/migrations/` and update `sql/schema.sql`.
 -- Foreign keys with ON DELETE CASCADE so deleting a user or event removes all related rows.
 
 CREATE TABLE IF NOT EXISTS users (
