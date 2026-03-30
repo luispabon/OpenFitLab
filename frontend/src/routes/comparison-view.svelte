@@ -563,7 +563,7 @@
   }
 </script>
 
-<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
+<section class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6">
   <button
     type="button"
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"

@@ -6,23 +6,11 @@
   let { params = {}, query = {} }: Props = $props();
 
   import { push } from 'svelte-spa-router';
-  import { getEvent, getStreams, updateActivity } from '../lib/api';
-  import { getComparisonsByEventIds } from '../lib/api/comparisons';
-  import type { ComparisonSummary } from '../lib/api/comparisons';
-  import { isAbortError } from '../lib/api/client';
-  import type { EventDetail as EventDetailType, StreamData } from '../lib/types';
   import {
     formatDateWithOriginalTimezone,
-    getActivityIcon,
-    isChartableStream,
-    isSmoothVariantToHide,
-    hasLocationStreams,
     getActivityDeviceName,
     parseHashParam,
   } from '../lib/utils';
-  import { getStatUnit } from '../lib/utils/stat-icons';
-  import { formatStatValue } from '../lib/utils/stat-formatting';
-  import { selectKeyMetrics, getGroupedDeduplicatedStats } from '../lib/utils/stat-categories';
   import LoadingSpinner from '../lib/components/LoadingSpinner.svelte';
   import RouteMap from '../lib/components/RouteMap.svelte';
   import SearchableSelect from '../lib/components/SearchableSelect.svelte';
@@ -38,8 +26,21 @@
   import { FOLDER_SELECTION_UNFILED } from '../lib/types/event';
   import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
   import type { ActivityRow } from '../lib/types';
+  import {
+    state as eventDetailLoaderState,
+    loadEventDetail,
+    setSelectedActivityId,
+    toggleStream,
+    commitActivityType as commitActivityTypeLoader,
+    commitDevice as commitDeviceLoader,
+  } from '../lib/stores/event-detail-loader.svelte';
 
   const id = $derived(params?.id ?? '');
+
+  // Centralized data + stream loading for this route.
+  $effect(() => {
+    void loadEventDetail(id);
+  });
 
   let compareCandidatesFlow: CompareCandidatesFlow | undefined = $state(undefined);
 
@@ -64,16 +65,16 @@
         : buildFolderHash(backFolderId)
   );
 
-  let eventDetail = $state<EventDetailType | null>(null);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let streams = $state<StreamData[]>([]);
-  let streamsLoading = $state(false);
-  let streamsError = $state<string | null>(null);
-  let relatedComparisons = $state<ComparisonSummary[]>([]);
-  let relatedComparisonsLoading = $state(false);
-  let relatedComparisonsError = $state<string | null>(null);
-  const event = $derived(eventDetail?.event ?? null);
+  const eventDetail = $derived(eventDetailLoaderState.eventDetail);
+  const loading = $derived(eventDetailLoaderState.loading);
+  const error = $derived(eventDetailLoaderState.error);
+  const streams = $derived(eventDetailLoaderState.streams);
+  const streamsLoading = $derived(eventDetailLoaderState.streamsLoading);
+  const streamsError = $derived(eventDetailLoaderState.streamsError);
+  const relatedComparisons = $derived(eventDetailLoaderState.relatedComparisons);
+  const relatedComparisonsLoading = $derived(eventDetailLoaderState.relatedComparisonsLoading);
+  const relatedComparisonsError = $derived(eventDetailLoaderState.relatedComparisonsError);
+  const event = $derived(eventDetailLoaderState.event);
 
   const eventFolder = $derived.by(() => {
     if (!event) return undefined;
@@ -81,47 +82,12 @@
     return foldersState.folders.find((f) => f.id === event.folderId) ?? null;
   });
 
-  const mainActivityType = $derived.by(() => {
-    const ev = event;
-    if (!ev) return '';
-    const activities = eventDetail?.activities ?? [];
-    const fromActivities = activities[0]?.type;
-    if (fromActivities) return fromActivities;
-    const activityTypes = ev.stats?.['Activity Types'];
-    if (Array.isArray(activityTypes) && activityTypes.length > 0) return String(activityTypes[0]);
-    if (typeof activityTypes === 'string') return activityTypes;
-    return '';
-  });
-
-  const activityTypeIcon = $derived(getActivityIcon(mainActivityType));
-
-  /** Key metrics for this activity type (4–6 stats), used in the header bar. */
-  const keyMetrics = $derived.by(() => {
-    const ev = event;
-    if (!ev?.stats) return [];
-    return selectKeyMetrics(ev.stats, mainActivityType);
-  });
-
-  const statEntries = $derived.by(() => {
-    const ev = event;
-    if (!ev?.stats) return [];
-    return Object.entries(ev.stats).map(([statType, raw]) => ({
-      statType,
-      value: formatStatValue(raw, statType),
-      unit: getStatUnit(statType),
-    }));
-  });
-
-  const groupedStatsSections = $derived(getGroupedDeduplicatedStats(statEntries));
-
-  const keyMetricTypes = $derived(new Set(keyMetrics.map((e) => e.statType)));
-
-  /** Whether there are any grouped stats to show (excluding key metrics). */
-  const hasMoreStats = $derived(
-    groupedStatsSections.some((section) =>
-      section.entries.some((e) => !keyMetricTypes.has(e.statType))
-    )
-  );
+  const mainActivityType = $derived(eventDetailLoaderState.mainActivityType);
+  const activityTypeIcon = $derived(eventDetailLoaderState.activityTypeIcon);
+  const keyMetrics = $derived(eventDetailLoaderState.keyMetrics);
+  const groupedStatsSections = $derived(eventDetailLoaderState.groupedStatsSections);
+  const keyMetricTypes = $derived(eventDetailLoaderState.keyMetricTypes);
+  const hasMoreStats = $derived(eventDetailLoaderState.hasMoreStats);
   let moreStatsOpen = $state(false);
 
   // Inline edit: activity type and device
@@ -130,31 +96,14 @@
   const activityTypesCache = $derived(metaState.activityTypes);
   const devicesCache = $derived(metaState.devices);
   let optionsLoading = $state(false);
-  let saving = $state(false);
   let saveError = $state<string | null>(null);
+  const saving = $derived(eventDetailLoaderState.saving);
 
-  // Selected activity (defaults to first)
-  let selectedActivityId = $state<string | null>(null);
-
-  // Activities list
-  const activities = $derived(eventDetail?.activities ?? []);
-
-  // Selected activity (or first if none selected)
-  const selectedActivity = $derived.by(() => {
-    if (selectedActivityId) {
-      return activities.find((a) => a.id === selectedActivityId) ?? activities[0] ?? null;
-    }
-    return activities[0] ?? null;
-  });
-
-  // Initialize selected activity when activities load
-  $effect(() => {
-    if (activities.length > 0 && !selectedActivityId) {
-      selectedActivityId = activities[0].id;
-    }
-  });
-
-  const activityStartDate = $derived(selectedActivity?.startDate ?? event?.startDate ?? Date.now());
+  // Activity + stream selection comes from the loader store.
+  const selectedActivityId = $derived(eventDetailLoaderState.selectedActivityId);
+  const activities = $derived(eventDetailLoaderState.activities);
+  const selectedActivity = $derived(eventDetailLoaderState.selectedActivity);
+  const activityStartDate = $derived(eventDetailLoaderState.activityStartDate);
 
   // Device name from selected activity (or first activity)
   const deviceName = $derived.by(() => {
@@ -202,249 +151,40 @@
   }
 
   async function commitActivityType(newType: string) {
-    const ev = event;
-    const firstActivity = activities[0];
-    if (!id || !ev || !firstActivity) return;
-    saving = true;
+    if (!id) return;
     saveError = null;
     try {
-      const updated = await updateActivity(id, firstActivity.id, { type: newType });
-      if (eventDetail) {
-        const nextActivities = eventDetail.activities.map((a) =>
-          a.id === updated.id ? updated : a
-        );
-        const types = [
-          ...new Set(nextActivities.map((a) => a.type).filter((t): t is string => Boolean(t))),
-        ].sort();
-        eventDetail = {
-          ...eventDetail,
-          activities: nextActivities,
-          event: {
-            ...eventDetail.event,
-            stats: {
-              ...eventDetail.event.stats,
-              'Activity Types': types as unknown as
-                | string
-                | number
-                | number[]
-                | Record<string, unknown>,
-            },
-          },
-        };
-      }
+      await commitActivityTypeLoader(newType);
       editField = null;
     } catch (e) {
       saveError = e instanceof Error ? e.message : 'Failed to update activity type';
-    } finally {
-      saving = false;
     }
   }
 
   async function commitDevice(newDevice: string) {
-    const act = selectedActivity;
-    if (!id || !act) return;
-    saving = true;
+    if (!id) return;
     saveError = null;
     try {
-      const updated = await updateActivity(id, act.id, { deviceName: newDevice });
-      if (eventDetail) {
-        eventDetail = {
-          ...eventDetail,
-          activities: eventDetail.activities.map((a) => (a.id === updated.id ? updated : a)),
-        };
-      }
+      await commitDeviceLoader(newDevice);
       editField = null;
     } catch (e) {
       saveError = e instanceof Error ? e.message : 'Failed to update device';
-    } finally {
-      saving = false;
     }
   }
 
-  // Filter to chartable streams only; hide "X Smooth" when "X" is also present
-  const allStreamTypes = $derived(streams.map((s) => s.type));
-  const chartableStreams = $derived(
-    streams.filter(
-      (s) =>
-        isChartableStream(s.type) &&
-        s.data &&
-        s.data.length > 0 &&
-        !isSmoothVariantToHide(s.type, allStreamTypes)
-    )
-  );
-
-  // Heart Rate first, then rest in original order (for toggles and chart order)
-  const chartableStreamsOrdered = $derived.by(() => {
-    const list = [...chartableStreams];
-    const hr = list.find((s) => s.type === 'Heart Rate');
-    if (!hr) return list;
-    return [hr, ...list.filter((s) => s.type !== 'Heart Rate')];
-  });
-
-  // Selected streams for visibility toggle (only Heart Rate selected by default)
-  let selectedStreamTypes = $state<Set<string>>(new Set());
-  let hasInitializedSelection = $state(false);
+  const chartableStreams = $derived(eventDetailLoaderState.chartableStreams);
+  const chartableStreamsOrdered = $derived(eventDetailLoaderState.chartableStreamsOrdered);
+  const visibleStreams = $derived(eventDetailLoaderState.visibleStreams);
+  const selectedStreamTypes = $derived(eventDetailLoaderState.selectedStreamTypes);
+  const locationAvailable = $derived(eventDetailLoaderState.locationAvailable);
+  const powerCurveSeries = $derived(eventDetailLoaderState.powerCurveSeries);
+  const powerCurveMaxDuration = $derived(eventDetailLoaderState.powerCurveMaxDuration);
 
   // View mode: 'stacked' or 'overlay'
   let viewMode = $state<'stacked' | 'overlay'>('stacked');
-
-  const lastActivityIdRef = { current: null as string | null };
-
-  // When activity changes, allow re-initializing selection for the new activity's streams
-  $effect(() => {
-    const aid = selectedActivity?.id ?? null;
-    if (aid !== lastActivityIdRef.current) {
-      lastActivityIdRef.current = aid;
-      hasInitializedSelection = false;
-    }
-  });
-
-  // Initialize selected streams when chartableStreams load: only Heart Rate by default
-  $effect(() => {
-    if (chartableStreams.length > 0 && !hasInitializedSelection) {
-      hasInitializedSelection = true;
-      const hasHeartRate = chartableStreams.some((s) => s.type === 'Heart Rate');
-      selectedStreamTypes = hasHeartRate
-        ? new Set(['Heart Rate'])
-        : new Set([chartableStreams[0].type]);
-    }
-  });
-
-  // Toggle stream visibility
-  function toggleStream(type: string) {
-    const newSet = new Set(selectedStreamTypes);
-    if (newSet.has(type)) {
-      newSet.delete(type);
-    } else {
-      newSet.add(type);
-    }
-    selectedStreamTypes = newSet;
-  }
-
-  const locationAvailable = $derived(hasLocationStreams(streams));
-
-  const powerCurveSeries = $derived.by(() => {
-    const pc = selectedActivity?.stats?.['PowerCurve'] ?? event?.stats?.['PowerCurve'];
-    if (!Array.isArray(pc) || pc.length === 0) return [];
-    const curve = pc as unknown as Array<{ duration: number; power: number }>;
-    return [
-      {
-        activityId: selectedActivity?.id ?? event?.id ?? '',
-        activityName: 'Power',
-        data: curve,
-      },
-    ];
-  });
-
-  const powerCurveMaxDuration = $derived.by(() => {
-    const activity = selectedActivity;
-    if (!activity?.startDate || !activity?.endDate) return undefined;
-    return Math.round((activity.endDate - activity.startDate) / 1000);
-  });
-
-  // Filter to only selected streams (order: Heart Rate first, then rest)
-  const visibleStreams = $derived(
-    chartableStreamsOrdered.filter((s) => selectedStreamTypes.has(s.type))
-  );
-
-  // Load event when ID changes (with AbortController so navigating away cancels the request)
-  $effect(() => {
-    const idVal = id;
-    if (!idVal) {
-      eventDetail = null;
-      loading = false;
-      return;
-    }
-    const ac = new AbortController();
-    let cancelled = false;
-    loading = true;
-    error = null;
-    getEvent(idVal, { signal: ac.signal })
-      .then((data) => {
-        if (!cancelled) eventDetail = data;
-      })
-      .catch((e) => {
-        if (isAbortError(e)) return;
-        if (!cancelled) {
-          error = e instanceof Error ? e.message : 'Event not found';
-          eventDetail = null;
-        }
-      })
-      .finally(() => {
-        if (!cancelled) loading = false;
-      });
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
-  });
-
-  // Load streams when event and selected activity are available (with AbortController)
-  $effect(() => {
-    const idVal = id;
-    const activityId = selectedActivity?.id;
-    const ev = eventDetail;
-    if (!idVal || !activityId || !ev || loading) {
-      if (!idVal || !activityId) streams = [];
-      return;
-    }
-    const ac = new AbortController();
-    let cancelled = false;
-    streamsLoading = true;
-    streamsError = null;
-    getStreams(idVal, activityId, undefined, { signal: ac.signal })
-      .then((loadedStreams) => {
-        if (!cancelled) streams = loadedStreams;
-      })
-      .catch((e) => {
-        if (isAbortError(e)) return;
-        if (!cancelled) {
-          streamsError = e instanceof Error ? e.message : 'Failed to load streams';
-          streams = [];
-        }
-      })
-      .finally(() => {
-        if (!cancelled) streamsLoading = false;
-      });
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
-  });
-
-  // Load related comparisons when event ID changes
-  $effect(() => {
-    const idVal = id;
-    if (!idVal) {
-      relatedComparisons = [];
-      return;
-    }
-    const ac = new AbortController();
-    let cancelled = false;
-    relatedComparisonsLoading = true;
-    relatedComparisonsError = null;
-    getComparisonsByEventIds([idVal])
-      .then((comparisons) => {
-        if (!cancelled) relatedComparisons = comparisons;
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          relatedComparisonsError =
-            e instanceof Error ? e.message : 'Failed to load related comparisons';
-          relatedComparisons = [];
-        }
-      })
-      .finally(() => {
-        if (!cancelled) relatedComparisonsLoading = false;
-      });
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
-  });
 </script>
 
-<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
+<section class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6">
   <div class="mb-4 flex items-center gap-4">
     <button
       type="button"
@@ -706,7 +446,7 @@
       onToggleStream={toggleStream}
       onViewModeStacked={() => (viewMode = 'stacked')}
       onViewModeOverlay={() => (viewMode = 'overlay')}
-      onSelectActivity={(activityId) => (selectedActivityId = activityId)}
+      onSelectActivity={(activityId) => setSelectedActivityId(activityId)}
     />
   {:else}
     <p class="text-text-secondary">Event not found.</p>

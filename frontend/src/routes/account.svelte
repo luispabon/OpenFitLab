@@ -65,7 +65,7 @@
   }
 </script>
 
-<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
+<section class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6">
   <h1 class="mb-6 text-2xl font-semibold text-text-primary">Account</h1>
   <p class="mb-8 text-sm text-text-secondary">
     Manage your privacy settings, export your data, or delete your account.
