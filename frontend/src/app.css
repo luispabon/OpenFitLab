@@ -36,3 +36,21 @@ body {
 #app {
   min-height: 100vh;
 }
+
+@layer utilities {
+  @keyframes ofl-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Matches the old component-level keyframes previously used by charts. */
+  .animate-fade-in {
+    animation: ofl-fade-in 0.3s ease-out;
+  }
+}

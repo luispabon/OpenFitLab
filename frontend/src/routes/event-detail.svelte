@@ -6,7 +6,7 @@
   let { params = {}, query = {} }: Props = $props();
 
   import { push } from 'svelte-spa-router';
-  import { getEvent, getStreams, getActivityTypes, getDevices, updateActivity } from '../lib/api';
+  import { getEvent, getStreams, updateActivity } from '../lib/api';
   import { getComparisonsByEventIds } from '../lib/api/comparisons';
   import type { ComparisonSummary } from '../lib/api/comparisons';
   import { isAbortError } from '../lib/api/client';
@@ -34,6 +34,7 @@
   import EventExportDropdown from '../lib/components/EventExportDropdown.svelte';
   import { exportAsPng } from '../lib/utils/export-image';
   import { buildFolderHash, foldersState } from '../lib/stores/folders.svelte';
+  import { metaState, ensureActivityTypes, ensureDevices } from '../lib/stores/meta-store.svelte';
   import { FOLDER_SELECTION_UNFILED } from '../lib/types/event';
   import CompareCandidatesFlow from '../lib/components/workouts/CompareCandidatesFlow.svelte';
   import type { ActivityRow } from '../lib/types';
@@ -126,8 +127,8 @@
   // Inline edit: activity type and device
   type EditField = 'activityType' | 'device' | null;
   let editField = $state<EditField>(null);
-  let activityTypesCache = $state<string[]>([]);
-  let devicesCache = $state<string[]>([]);
+  const activityTypesCache = $derived(metaState.activityTypes);
+  const devicesCache = $derived(metaState.devices);
   let optionsLoading = $state(false);
   let saving = $state(false);
   let saveError = $state<string | null>(null);
@@ -174,7 +175,7 @@
     if (activityTypesCache.length === 0) {
       optionsLoading = true;
       try {
-        activityTypesCache = await getActivityTypes();
+        await ensureActivityTypes();
       } finally {
         optionsLoading = false;
       }
@@ -187,7 +188,7 @@
     if (devicesCache.length === 0) {
       optionsLoading = true;
       try {
-        devicesCache = await getDevices();
+        await ensureDevices();
       } finally {
         optionsLoading = false;
       }

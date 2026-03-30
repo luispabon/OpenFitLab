@@ -1,14 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { push, querystring } from 'svelte-spa-router';
-  import {
-    getActivityRows,
-    getActivityTypes,
-    getDevices,
-    uploadFiles,
-    deleteEvent,
-    updateEventFolder,
-  } from '../lib/api';
+  import { getActivityRows, uploadFiles, deleteEvent, updateEventFolder } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
   import {
     foldersState,
@@ -16,6 +9,7 @@
     folderSelectionToPushPath,
   } from '../lib/stores/folders.svelte';
   import { state as authState } from '../lib/stores/auth.svelte';
+  import { metaState, ensureMetaLoaded } from '../lib/stores/meta-store.svelte';
   import { startWorkoutDrag, endWorkoutDrag } from '../lib/stores/workout-drag.svelte';
   import { getEnvNumber } from '../lib/utils/env';
   import { splitFoldersForNav } from '../lib/utils/folder-nav-sort';
@@ -52,8 +46,8 @@
   let dateEndStr = $state('');
   let page = $state(1);
   let pageSize = $state(20);
-  let activityTypesOptions = $state<string[]>([]);
-  let devicesOptions = $state<string[]>([]);
+  const activityTypesOptions = $derived(metaState.activityTypes);
+  const devicesOptions = $derived(metaState.devices);
   let searchInputValue = $state('');
   let searchDebounceId: ReturnType<typeof setTimeout> | null = null;
 
@@ -321,12 +315,8 @@
   }
 
   $effect(() => {
-    getActivityTypes().then((r) => {
-      activityTypesOptions = r;
-    });
-    getDevices().then((r) => {
-      devicesOptions = r;
-    });
+    // Load shared meta data once per session (cached in `metaState`).
+    void untrack(() => ensureMetaLoaded());
   });
 
   $effect(() => {

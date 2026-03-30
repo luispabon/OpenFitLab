@@ -34,6 +34,16 @@ export async function apiFetch(
   return res;
 }
 
+/** Apply auth-related side effects for non-`fetch()` requests (e.g. XHR uploads). */
+export function handleAuthResponseStatus(status: number): void {
+  if (status === 401) {
+    setCurrentUser(null);
+  }
+  if (status === 403) {
+    authState.csrfToken = null;
+  }
+}
+
 /** Throws if e is AbortError (expected when request is cancelled). */
 export function isAbortError(e: unknown): boolean {
   return e instanceof DOMException && e.name === 'AbortError';
