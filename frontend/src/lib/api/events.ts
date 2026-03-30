@@ -8,7 +8,8 @@ import type {
 
 const API_BASE = '/api';
 import { apiFetch } from './client';
-import { setCurrentUser, state as authState } from '../stores/auth.svelte';
+import { handleAuthResponseStatus } from './client';
+import { state as authState } from '../stores/auth.svelte';
 
 function assertEventDetail(data: unknown): asserts data is EventDetail {
   const d = data as Record<string, unknown>;
@@ -218,12 +219,7 @@ export async function uploadFiles(
     });
 
     xhr.addEventListener('load', () => {
-      if (xhr.status === 401) {
-        setCurrentUser(null);
-      }
-      if (xhr.status === 403) {
-        authState.csrfToken = null;
-      }
+      handleAuthResponseStatus(xhr.status);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const response = JSON.parse(xhr.responseText) as BatchUploadResponse;

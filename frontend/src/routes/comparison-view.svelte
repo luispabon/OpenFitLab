@@ -124,6 +124,7 @@
   let isSaving = $state(false);
   let isDeleting = $state(false);
   let saveError = $state<string | null>(null);
+  let saveDialogNameInputEl = $state<HTMLInputElement | null>(null);
   let deleteError = $state<string | null>(null);
 
   let settingsSaveError = $state<string | null>(null);
@@ -142,6 +143,14 @@
     return () => {
       if (settingsSaveErrorTimeout) clearTimeout(settingsSaveErrorTimeout);
     };
+  });
+
+  // Focus the dialog's primary input when it opens.
+  $effect(() => {
+    if (!showSaveDialog) return;
+    if (!saveDialogNameInputEl) return;
+    saveDialogNameInputEl.focus();
+    saveDialogNameInputEl.select();
   });
 
   // Inline name editing (saved comparisons only)
@@ -554,7 +563,7 @@
   }
 </script>
 
-<section class="mx-auto w-[85%] max-w-screen-2xl py-6">
+<section class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6">
   <button
     type="button"
     class="mb-4 rounded border border-border px-3 py-1.5 text-base text-text-secondary hover:bg-card-hover hover:text-text-primary"
@@ -968,6 +977,7 @@
             id="save-comparison-name"
             type="text"
             class="w-full rounded border border-border bg-card px-3 py-2 text-text-primary"
+            bind:this={saveDialogNameInputEl}
             bind:value={saveName}
             placeholder="Enter comparison name"
             onkeydown={(e) => {

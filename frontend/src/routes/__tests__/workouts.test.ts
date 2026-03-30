@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/sve
 import Workouts from '../workouts.svelte';
 import { activityRowsFixture } from '../../test/fixtures/activity-rows';
 import { setFolderHash, foldersState } from '../../lib/stores/folders.svelte';
+import { resetWorkoutsController } from '../../lib/stores/workouts-controller.svelte';
 
 const mockGetActivityRows = vi.fn();
 const mockUploadFiles = vi.fn();
@@ -35,6 +36,7 @@ vi.mock('svelte-spa-router', () => ({
 
 describe('Workouts', () => {
   beforeEach(() => {
+    resetWorkoutsController();
     mockGetActivityRows.mockReset();
     mockGetActivityRows.mockResolvedValue({
       rows: activityRowsFixture,
@@ -297,13 +299,21 @@ describe('Workouts', () => {
 
   it('second toast clears first toast timeout', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let call = 0;
     mockGetActivityRows.mockReset();
-    mockGetActivityRows.mockRejectedValueOnce(new Error('First error'));
+    mockGetActivityRows.mockImplementation(() => {
+      call += 1;
+      if (call === 1) return Promise.reject(new Error('First error'));
+      if (call === 2) return Promise.reject(new Error('Second error'));
+      return Promise.resolve({
+        rows: activityRowsFixture,
+        total: activityRowsFixture.length,
+      });
+    });
     render(Workouts);
     await waitFor(() => {
       expect(screen.getByText('First error')).toBeInTheDocument();
     });
-    mockGetActivityRows.mockRejectedValueOnce(new Error('Second error'));
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '2024-01-01' } });
     await waitFor(() => {
       expect(screen.getByText('Second error')).toBeInTheDocument();

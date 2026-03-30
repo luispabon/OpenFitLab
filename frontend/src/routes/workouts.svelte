@@ -1,14 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { push, querystring } from 'svelte-spa-router';
-  import {
-    getActivityRows,
-    getActivityTypes,
-    getDevices,
-    uploadFiles,
-    deleteEvent,
-    updateEventFolder,
-  } from '../lib/api';
+  import { uploadFiles, deleteEvent, updateEventFolder } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
   import {
     foldersState,
@@ -16,6 +9,16 @@
     folderSelectionToPushPath,
   } from '../lib/stores/folders.svelte';
   import { state as authState } from '../lib/stores/auth.svelte';
+  import {
+    state as workoutsState,
+    loadActivityRows,
+    setSearch,
+    toggleActivityType,
+    toggleDevice,
+    setDateStart,
+    setDateEnd,
+  } from '../lib/stores/workouts-controller.svelte';
+  import { metaState, ensureMetaLoaded } from '../lib/stores/meta-store.svelte';
   import { startWorkoutDrag, endWorkoutDrag } from '../lib/stores/workout-drag.svelte';
   import { getEnvNumber } from '../lib/utils/env';
   import { splitFoldersForNav } from '../lib/utils/folder-nav-sort';
@@ -41,19 +44,13 @@
 
   type ActiveFolderDisplay = { label: string; color: string | null };
 
-  let activityRowsFromApi = $state<ActivityRow[]>([]);
-  let totalRows = $state(0);
-  let isLoading = $state(false);
-  let loadGeneration = $state(0);
-  let search = $state('');
-  let selectedActivityTypes = $state<string[]>([]);
-  let selectedDevices = $state<string[]>([]);
-  let dateStartStr = $state('');
-  let dateEndStr = $state('');
-  let page = $state(1);
-  let pageSize = $state(20);
-  let activityTypesOptions = $state<string[]>([]);
-  let devicesOptions = $state<string[]>([]);
+  const activityRowsFromApi = $derived(workoutsState.activityRowsFromApi);
+  const totalRows = $derived(workoutsState.totalRows);
+  const isLoading = $derived(workoutsState.isLoading);
+  const selectedActivityTypes = $derived(workoutsState.selectedActivityTypes);
+  const selectedDevices = $derived(workoutsState.selectedDevices);
+  const activityTypesOptions = $derived(metaState.activityTypes);
+  const devicesOptions = $derived(metaState.devices);
   let searchInputValue = $state('');
   let searchDebounceId: ReturnType<typeof setTimeout> | null = null;
 
@@ -62,8 +59,7 @@
       clearTimeout(searchDebounceId);
       searchDebounceId = null;
     }
-    search = searchInputValue;
-    page = 1;
+    setSearch(searchInputValue);
   }
 
   function onSearchInput() {
@@ -71,30 +67,20 @@
     searchDebounceId = setTimeout(commitSearch, 300);
   }
 
-  function toggleActivityType(type: string) {
-    const next = selectedActivityTypes.includes(type)
-      ? selectedActivityTypes.filter((t) => t !== type)
-      : [...selectedActivityTypes, type];
-    selectedActivityTypes = next;
-    page = 1;
+  function onToggleActivityType(type: string) {
+    toggleActivityType(type);
   }
 
-  function toggleDevice(device: string) {
-    const next = selectedDevices.includes(device)
-      ? selectedDevices.filter((d) => d !== device)
-      : [...selectedDevices, device];
-    selectedDevices = next;
-    page = 1;
+  function onToggleDevice(device: string) {
+    toggleDevice(device);
   }
 
-  function setDateStart(value: string) {
-    dateStartStr = value;
-    page = 1;
+  function onDateStartChange(value: string) {
+    setDateStart(value);
   }
 
-  function setDateEnd(value: string) {
-    dateEndStr = value;
-    page = 1;
+  function onDateEndChange(value: string) {
+    setDateEnd(value);
   }
   let isUploading = $state(false);
   let isDraggingOver = $state(false);
@@ -201,44 +187,6 @@
     }
   });
 
-  async function loadActivityRows() {
-    const myGen = untrack(() => {
-      loadGeneration += 1;
-      return loadGeneration;
-    });
-    isLoading = true;
-    try {
-      const offset = (page - 1) * pageSize;
-      const startDate = dateStartStr ? new Date(dateStartStr + 'T00:00:00').getTime() : undefined;
-      const endDate = dateEndStr ? new Date(dateEndStr + 'T23:59:59.999').getTime() : undefined;
-      const params: Parameters<typeof getActivityRows>[0] = {
-        limit: pageSize,
-        offset,
-        startDate,
-        endDate,
-        activityTypes: selectedActivityTypes.length ? selectedActivityTypes : undefined,
-        devices: selectedDevices.length ? selectedDevices : undefined,
-        search: search.trim() || undefined,
-        folderId: activeFolderId === 'all' ? undefined : activeFolderId,
-      };
-      const result = await getActivityRows(params);
-      if (myGen !== loadGeneration) return;
-      activityRowsFromApi = result.rows;
-      totalRows = result.total;
-    } catch (error) {
-      if (myGen !== loadGeneration) return;
-      console.error('Failed to load activity rows:', error);
-      showToast(error instanceof Error ? error.message : 'Failed to load activity rows');
-    } finally {
-      if (myGen === loadGeneration) isLoading = false;
-    }
-  }
-
-  function _resetPageAndLoad() {
-    page = 1;
-    loadActivityRows();
-  }
-
   const UPLOAD_CHUNK_SIZE = getEnvNumber('VITE_UPLOAD_CHUNK_SIZE', {
     default: 5,
     min: 1,
@@ -292,7 +240,7 @@
 
       if (successful > 0) {
         showToast(`Uploaded ${successful} file${successful > 1 ? 's' : ''} successfully`);
-        await loadActivityRows();
+        await loadActivityRows(activeFolderId);
       }
       if (failedFilenames.length > 0) {
         const sorted = [...failedFilenames].sort((a, b) => a.localeCompare(b));
@@ -321,16 +269,14 @@
   }
 
   $effect(() => {
-    getActivityTypes().then((r) => {
-      activityTypesOptions = r;
-    });
-    getDevices().then((r) => {
-      devicesOptions = r;
-    });
+    // Load shared meta data once per session (cached in `metaState`).
+    void untrack(() => ensureMetaLoaded());
   });
 
   $effect(() => {
-    void loadActivityRows();
+    void loadActivityRows(activeFolderId).catch((err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+    });
   });
 
   // Unique event IDs on current page (for select-all)
@@ -390,7 +336,9 @@
   $effect(() => {
     const handler = () => {
       selectedEventIds = new Set();
-      loadActivityRows();
+      void loadActivityRows(activeFolderId).catch((err: unknown) => {
+        showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+      });
     };
     window.addEventListener('workout-moved', handler);
     return () => window.removeEventListener('workout-moved', handler);
@@ -405,7 +353,9 @@
   function handleBulkDeleteDone(successful: number, failed: number) {
     if (successful > 0) {
       showToast(`Deleted ${successful} event${successful > 1 ? 's' : ''} successfully`);
-      loadActivityRows();
+      void loadActivityRows(activeFolderId).catch((err: unknown) => {
+        showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+      });
     }
     if (failed > 0) {
       showToast(`Failed to delete ${failed} event${failed > 1 ? 's' : ''}`);
@@ -419,7 +369,9 @@
 
   function handleMoveDone(movedCount: number) {
     showToast(`Moved ${movedCount} event${movedCount !== 1 ? 's' : ''} successfully`);
-    loadActivityRows();
+    void loadActivityRows(activeFolderId).catch((err: unknown) => {
+      showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+    });
     clearSelection();
   }
 
@@ -434,7 +386,7 @@
 </script>
 
 <section
-  class="mx-auto w-[85%] max-w-screen-2xl py-6 transition-opacity"
+  class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6 transition-opacity"
   class:opacity-50={isDraggingOver && !isUploading}
 >
   <WorkoutsUploadSection
@@ -495,7 +447,9 @@
       }}
       folderId={importFolderIdForStrava}
       onImported={() => {
-        void loadActivityRows();
+        void loadActivityRows(activeFolderId).catch((err: unknown) => {
+          showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+        });
         showToast('Imported from Strava');
       }}
     />
@@ -510,14 +464,14 @@
           {onSearchInput}
           {activityTypesOptions}
           {selectedActivityTypes}
-          onToggleActivityType={toggleActivityType}
+          {onToggleActivityType}
           {devicesOptions}
           {selectedDevices}
-          onToggleDevice={toggleDevice}
-          {dateStartStr}
-          {dateEndStr}
-          onDateStartChange={setDateStart}
-          onDateEndChange={setDateEnd}
+          {onToggleDevice}
+          dateStartStr={workoutsState.dateStartStr}
+          dateEndStr={workoutsState.dateEndStr}
+          {onDateStartChange}
+          {onDateEndChange}
           {navFolders}
           {activeFolderId}
           {orphanFolderId}
@@ -544,7 +498,11 @@
       {/if}
     </div>
 
-    <WorkoutsPaginationWithUrl {totalRows} bind:page bind:pageSize>
+    <WorkoutsPaginationWithUrl
+      {totalRows}
+      bind:page={workoutsState.page}
+      bind:pageSize={workoutsState.pageSize}
+    >
       <WorkoutsActivityTable
         rows={activityRowsFromApi}
         {isLoading}
@@ -580,7 +538,9 @@
       {deleteEvent}
       onDone={() => {
         showToast('Event deleted successfully');
-        loadActivityRows();
+        void loadActivityRows(activeFolderId).catch((err: unknown) => {
+          showToast(err instanceof Error ? err.message : 'Failed to load activity rows');
+        });
       }}
       onClosed={() => {
         eventToDelete = null;
