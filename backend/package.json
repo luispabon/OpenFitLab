@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@dr.pogodin/csurf": "^1.16.8",
-    "@sports-alliance/sports-lib": "^9.4.2",
+    "@sports-alliance/sports-lib": "^9.5.0",
     "@xmldom/xmldom": "^0.9.0",
     "connect-redis": "^9.0.0",
     "cors": "^2.8.5",
