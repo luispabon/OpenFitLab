@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Generate ephemeral SESSION_SECRET
         run: echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
@@ -44,7 +44,7 @@ jobs:
             'until curl -sf http://localhost:${{ env.E2E_FRONT_PORT }} > /dev/null; do sleep 3; done'
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
