@@ -2,9 +2,7 @@
 export const FOLDER_SELECTION_ALL = 'all' as const;
 export const FOLDER_SELECTION_UNFILED = 'unfiled' as const;
 export type FolderSelectionValue =
-  | typeof FOLDER_SELECTION_ALL
-  | typeof FOLDER_SELECTION_UNFILED
-  | string;
+  typeof FOLDER_SELECTION_ALL | typeof FOLDER_SELECTION_UNFILED | string;
 
 export interface Folder {
   id: string;

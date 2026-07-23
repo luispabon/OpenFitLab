@@ -406,10 +406,7 @@ export async function commitActivityType(newType: string): Promise<void> {
           stats: {
             ...state.eventDetail.event.stats,
             'Activity Types': types as unknown as
-              | string
-              | number
-              | number[]
-              | Record<string, unknown>,
+              string | number | number[] | Record<string, unknown>,
           },
         },
       };
