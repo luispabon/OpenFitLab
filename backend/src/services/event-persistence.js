@@ -35,6 +35,36 @@ function buildEventRecord(eventJson, name, startDate, folderId, extension) {
  * @param {string} eventId - Parent event UUID
  * @returns {object} Activity row ready for insertActivity
  */
+/**
+ * Extract a meaningful device name from parsed activity JSON.
+ * Falls back to the first device in `creator.devices` when sports-lib
+ * returns "Unknown" for unrecognised manufacturers (e.g. Amazfit, Zepp).
+ * @param {object} activityJson
+ * @returns {string|null}
+ */
+function getDeviceName(activityJson) {
+  if (!activityJson.creator || typeof activityJson.creator !== 'object') {
+    return null;
+  }
+
+  const creatorName =
+    activityJson.creator.name != null ? String(activityJson.creator.name).trim() : '';
+
+  if (creatorName && creatorName !== 'Unknown') {
+    return creatorName;
+  }
+
+  // Fall back to the first device's name when the creator name is
+  // Unknown or missing (common for unrecognised FIT manufacturers).
+  const devices = activityJson.creator.devices;
+  if (Array.isArray(devices) && devices.length > 0 && devices[0].name != null) {
+    const fallback = String(devices[0].name).trim();
+    if (fallback) return fallback;
+  }
+
+  return creatorName || null;
+}
+
 function buildActivityRecord(activityJson, aid, eventId) {
   const { startTimezone, endTimezone } = extractActivityTimezones(activityJson);
   return {
@@ -44,12 +74,7 @@ function buildActivityRecord(activityJson, aid, eventId) {
     start_date: toTimestamp(activityJson.startDate, null),
     end_date: toTimestamp(activityJson.endDate, null),
     type: activityJson.type != null ? String(activityJson.type) : 'Other',
-    device_name:
-      activityJson.creator &&
-      typeof activityJson.creator === 'object' &&
-      activityJson.creator.name != null
-        ? String(activityJson.creator.name).trim() || null
-        : null,
+    device_name: getDeviceName(activityJson),
     start_timezone: startTimezone,
     end_timezone: endTimezone,
   };
