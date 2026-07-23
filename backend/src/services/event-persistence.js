@@ -47,9 +47,8 @@ function getDeviceName(activityJson) {
     return null;
   }
 
-  const creatorName = activityJson.creator.name != null
-    ? String(activityJson.creator.name).trim()
-    : '';
+  const creatorName =
+    activityJson.creator.name != null ? String(activityJson.creator.name).trim() : '';
 
   if (creatorName && creatorName !== 'Unknown') {
     return creatorName;
