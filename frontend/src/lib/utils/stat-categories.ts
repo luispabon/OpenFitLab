@@ -216,12 +216,7 @@ export function selectKeyMetrics(
     }
     if (found) {
       const raw = stats[found] as
-        | number
-        | string
-        | number[]
-        | Record<string, unknown>
-        | null
-        | undefined;
+        number | string | number[] | Record<string, unknown> | null | undefined;
       entries.push({
         statType: found,
         value: formatStatValue(raw, found),
