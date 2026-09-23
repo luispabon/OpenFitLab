@@ -1,4 +1,4 @@
-const csrf = require('@dr.pogodin/csurf');
+const csrf = require('@dr.pogodin/csurf').default;
 
 /**
  * CSRF protection middleware (session-based).

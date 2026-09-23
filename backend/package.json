@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -18,7 +18,7 @@
     "test:coverage:lcov": "mkdir -p coverage && SESSION_SECRET=test-secret-at-least-32-characters-long node --experimental-test-coverage --test 'test/unit/**/*.test.js' --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "dependencies": {
-    "@dr.pogodin/csurf": "~1.17.1",
+    "@dr.pogodin/csurf": "^1.18.1",
     "@sports-alliance/sports-lib": "^21.2.5",
     "@xmldom/xmldom": "^0.9.0",
     "connect-redis": "^10.0.0",
