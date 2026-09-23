@@ -8,6 +8,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [tailwindcss(), svelte()],
+  // Vite 8 prebundles svelte-maplibre-gl/vite, whose `?worker&url` import crashes the dev server.
+  // Excluding the whole package keeps the worker registration (main.ts) and the map components on
+  // the same maplibre-gl instance, which stays prebundled as a shared dep.
+  optimizeDeps: {
+    exclude: ['svelte-maplibre-gl'],
+    include: ['maplibre-gl'],
+  },
   build: {
     chunkSizeWarningLimit: 1100, // maplibre-gl vendor chunk is ~1 MB; app chunks are under 500 kB
     rollupOptions: {
