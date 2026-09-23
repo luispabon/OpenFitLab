@@ -32,7 +32,7 @@ vi.mock('svelte-spa-router', () => ({
   push: (...args: unknown[]) => mockPush(...args),
   replace: (...args: unknown[]) => mockReplace(...args),
   router: {
-    location: '#/compare/new',
+    location: '/compare/new',
     querystring: '',
   },
 }));

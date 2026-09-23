@@ -23,16 +23,15 @@
 
   const routes = {
     '/': Workouts,
-    // svelte-spa-router wrap() expects Svelte 4 ComponentType; we use Svelte 5. Cast to satisfy typecheck.
     '/event/:id': wrap({
       asyncComponent: () => import('./routes/event-detail.svelte'),
       loadingComponent: LoadingSpinner,
-    } as never),
+    }),
     '/comparisons': Comparisons,
     '/compare/:id': wrap({
       asyncComponent: () => import('./routes/comparison-view.svelte'),
       loadingComponent: LoadingSpinner,
-    } as never),
+    }),
     '/account': Account,
     '/privacy': Privacy,
     '*': NotFound,
