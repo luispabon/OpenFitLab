@@ -36,10 +36,10 @@ Two stacks serve different purposes:
 | Production | `compose.prod.yaml` | Pre-built images from GHCR |
 
 **Development services** (`compose.yaml`):
-- `db` — MariaDB 12.2.2, port 3306, persistent volume `db_data`
-- `valkey` — Valkey 8 Alpine (Redis-compatible session store), persistent volume `valkey_data`
-- `api` — Node 24 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
-- `frontend` — Node 22 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
+- `db` — MariaDB 13.0.2, port 3306, persistent volume `db_data`
+- `valkey` — Valkey 9 Alpine (Redis-compatible session store), persistent volume `valkey_data`
+- `api` — Node 26 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
+- `frontend` — Node 26 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
 - `adminer` — DB admin UI, port 8080
 
 Health checks ensure `api` and `frontend` only start after `db` and `valkey` are healthy.
@@ -54,8 +54,8 @@ Health checks ensure `api` and `frontend` only start after `db` and `valkey` are
 
 Both use multi-stage builds with named targets:
 
-- **`backend/Dockerfile`**: `dev` target (Node 24 Alpine, `npm install`, `npm run dev`) and `prod` target (extends dev, `npm ci --omit=dev`, `node src/index.js`). Runs as non-root `appuser`.
-- **`frontend/Dockerfile`**: `build` target (Node 24 Alpine, runs `npm ci && npm run build`) and `prod` target (Nginx Alpine serving the built `dist/`).
+- **`backend/Dockerfile`**: `dev` target (Node 26 Alpine, `npm install`, `npm run dev`) and `prod` target (extends dev, `npm ci --omit=dev`, `node src/index.js`). Runs as non-root `appuser`.
+- **`frontend/Dockerfile`**: `build` target (Node 26 Alpine, runs `npm ci && npm run build`) and `prod` target (Nginx Alpine serving the built `dist/`).
 
 ### Production networking
 

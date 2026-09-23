@@ -15,7 +15,7 @@ volumes:
 
 services:
   db:
-    image: mariadb:12.2.2
+    image: mariadb:13.0.2
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${OPENFITLAB_MARIADB_ROOT_PASSWORD:?OPENFITLAB_MARIADB_ROOT_PASSWORD is required}
@@ -34,7 +34,7 @@ services:
       start_period: 30s
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:9.1.2-alpine
     restart: unless-stopped
     volumes:
       - valkey_data:/data
@@ -135,7 +135,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   fake-gcs-init:
-    image: alpine:latest
+    image: alpine:3.24
     profiles:
       - dev-backup
     command: mkdir -p /data/backup-openfitlab
@@ -145,7 +145,7 @@ services:
       - fake-gcs-storage:/data
 
   fake-gcs:
-    image: fsouza/fake-gcs-server:latest
+    image: fsouza/fake-gcs-server:1.56.1
     profiles:
       - dev-backup
     command: -scheme http -port 4443 -filesystem-root /data -external-url http://fake-gcs:4443

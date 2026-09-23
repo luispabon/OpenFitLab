@@ -31,7 +31,7 @@ High level: Svelte frontend → Express API → MariaDB; file parsing uses `@spo
 ## Prerequisites
 
 - Docker and Docker Compose
-- (Optional) Node 20+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
+- (Optional) Node 26+ for frontend and backend if running outside Docker (see [AGENTS.md](AGENTS.md))
 
 ## Quick Start
 
@@ -49,7 +49,7 @@ This starts:
 
 ## Development Mode
 
-Compose uses base Node images (`node:24-alpine` for the API, `node:22-alpine` for the frontend) and **mounts** `./backend` and `./frontend` into each container. No Dockerfiles are built.
+Compose uses base Node images (`node:26-alpine` for the API and the frontend) and **mounts** `./backend` and `./frontend` into each container. No Dockerfiles are built.
 
 - **Backend:** `./backend` is mounted at `/app`; `node --watch` restarts the server when files under `src/` change.
 - **Frontend:** `./frontend` is mounted at `/workspace/frontend`; Vite dev server hot-reloads on file changes.

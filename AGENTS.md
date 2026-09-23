@@ -23,7 +23,7 @@
 - Run: `npm run dev` in `backend/`
 - Checks: `npm run format`, `npm run lint`, `npm run test`
 - Coverage: `npm run test:coverage`
-- Runtime: Node 24+
+- Runtime: Node 26+
 
 ### DB / stats
 
@@ -33,7 +33,7 @@
 
 - Run: `npm run dev` in `frontend/`
 - Main quality gate: `npm run ci`
-- Runtime: Node 20+
+- Runtime: Node 26+
 
 ### DAST
 
@@ -59,7 +59,7 @@
 
 ### CI
 
-- Backend: lint, format, unit tests (including Node 24 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
+- Backend: lint, format, unit tests (including Node 26 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
 - Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
