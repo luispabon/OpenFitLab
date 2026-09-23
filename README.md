@@ -106,7 +106,7 @@ See [`backup/README.md`](backup/README.md) for full details, including the safe 
 docker compose down
 ```
 
-Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to remove volumes.
+Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to remove volumes. Before changing the pinned MariaDB image on an existing `db_data` volume, see [MariaDB image upgrades](backup/README.md#mariadb-image-upgrades-existing-data-volumes).
 
 ## Documentation
 

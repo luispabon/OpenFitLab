@@ -48,11 +48,18 @@ Hourly `mysqldump` piped into [Restic](https://restic.net/), stored encrypted on
 
 ## MariaDB image upgrades (existing data volumes)
 
-Compose pins the MariaDB image (`compose.yaml`, `compose.prod.yaml`). Starting a newer major version on an existing `db_data` volume upgrades the data directory in place, after which the previous version may refuse to read it.
+Compose pins the MariaDB image (`compose.yaml`, `compose.prod.yaml`). Starting a newer major version on an existing `db_data` volume upgrades the data directory in place, after which the previous version may refuse to read it. The current pin is MariaDB **12.3.3 LTS**, upgraded from 12.2.2.
 
 Before changing that pin:
 
-1. **Take a verified backup.** Run `make backup-now` and confirm the snapshot appears in `make backup-list`. Do not upgrade without a backup you have checked restores.
-2. **Use the existing backup/restore procedures.** Dump the database from the running version (`mysqldump`, as `restore.sh` does for its safety dump), start the new image on a fresh volume, and load that dump into it (`make backup-restore`, or `mysqldump` + `mysql` directly).
+1. **Take a verified backup.** Run `make backup-now` and confirm the snapshot appears in `make backup-list`. Verify the snapshot restores before touching the pin.
+2. **Restore only from Restic snapshots.** `make backup-restore` restores the **latest Restic snapshot** into the running database (writing a safety dump first); it does not load an arbitrary `mysqldump` file. Use `make backup-restore-snapshot SNAPSHOT=<id>` for a specific snapshot. To move to the new image, start it on a fresh `db_data` volume, then run `make backup-restore`.
 3. **`make db-reset` is for disposable dev data only.** It removes the `db_data` volume (`docker compose down -v`). Never run it against data you need.
-4. **Do not downgrade a volume that has already started MariaDB 13 in place.** The 13.x data directory is not readable by 12.x. Dump from the 13.x container and restore into a fresh volume on the older image, or recreate the volume and restore from backup.
+
+### Recovering a volume started under MariaDB 13
+
+If the `db_data` volume was ever started with MariaDB 13 (the image was briefly pinned to 13.0.2), do **not** downgrade it in place: the 13.x data directory is not readable by 12.3.3.
+
+1. **Preserve the volume.** Stop the stack without deleting volumes (`docker compose down`), then copy the 13.x volume aside.
+2. **Dump from a compatible 13 container.** Start a MariaDB 13 container against that volume and dump the database (`mysqldump`, the same tool `restore.sh` uses for its safety dump).
+3. **Restore into a fresh 12.3.3 volume.** Start the pinned 12.3.3 image on a fresh volume and load the dump (`mysql < dump.sql`), or recreate the volume and restore a Restic snapshot with `make backup-restore`.
