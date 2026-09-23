@@ -26,11 +26,9 @@ vi.mock('../../lib/api/comparisons', () => ({
 
 vi.mock('svelte-spa-router', () => ({
   push: (...args: unknown[]) => mockPush(...args),
-  querystring: {
-    subscribe: (fn: (v: string) => void) => {
-      fn('');
-      return { unsubscribe: () => {} };
-    },
+  router: {
+    location: '/',
+    querystring: '',
   },
 }));
 

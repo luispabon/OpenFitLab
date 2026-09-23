@@ -14,7 +14,7 @@ ENV VITE_GA_MEASUREMENT_ID=$VITE_GA_MEASUREMENT_ID
 
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:alpine AS prod
+FROM nginxinc/nginx-unprivileged:1.31.6-alpine3.24 AS prod
 
 COPY --from=build /app/dist /usr/share/nginx/html
 

@@ -1,5 +1,5 @@
-FROM alpine:3.21
-ARG SUPERCRONIC_VERSION=0.2.33
+FROM alpine:3.24
+ARG SUPERCRONIC_VERSION=0.2.49
 
 RUN apk add --no-cache restic mysql-client bash wget \
     && ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \

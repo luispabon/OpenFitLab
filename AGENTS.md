@@ -13,7 +13,7 @@
    - Frontend: `http://localhost:4200`
    - MariaDB: `localhost:3306`
    - Adminer: `http://localhost:8080`
-4. Reset the database: `make db-reset`
+4. Reset the database: `make db-reset` (disposable dev data only). Before changing the pinned MariaDB image on an existing volume, see [MariaDB image upgrades](backup/README.md#mariadb-image-upgrades-existing-data-volumes).
 5. Stop with `docker compose down` or `docker compose down -v` to remove volumes.
 
 ## Key commands
@@ -33,7 +33,7 @@
 
 - Run: `npm run dev` in `frontend/`
 - Main quality gate: `npm run ci`
-- Runtime: Node 20+
+- Runtime: Node 22.22.2+ locally (Docker and CI use Node 24)
 
 ### DAST
 

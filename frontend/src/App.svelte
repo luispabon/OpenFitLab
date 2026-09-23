@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Router, { location } from 'svelte-spa-router';
+  import Router, { router } from 'svelte-spa-router';
   import { wrap } from 'svelte-spa-router/wrap';
   import Workouts from './routes/workouts.svelte';
   import Comparisons from './routes/comparisons.svelte';
@@ -23,16 +23,15 @@
 
   const routes = {
     '/': Workouts,
-    // svelte-spa-router wrap() expects Svelte 4 ComponentType; we use Svelte 5. Cast to satisfy typecheck.
     '/event/:id': wrap({
       asyncComponent: () => import('./routes/event-detail.svelte'),
       loadingComponent: LoadingSpinner,
-    } as never),
+    }),
     '/comparisons': Comparisons,
     '/compare/:id': wrap({
       asyncComponent: () => import('./routes/comparison-view.svelte'),
       loadingComponent: LoadingSpinner,
-    } as never),
+    }),
     '/account': Account,
     '/privacy': Privacy,
     '*': NotFound,
@@ -79,7 +78,7 @@
     sidebarCollapsed = !sidebarCollapsed;
   }
 
-  const currentLocation = $derived($location);
+  const currentLocation = $derived(router.location);
   const isWorkoutsActive = $derived(currentLocation === '/' || currentLocation === '');
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
 

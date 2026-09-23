@@ -45,13 +45,25 @@ declare global {
 }
 
 vi.mock('svelte-spa-router', async () => {
-  const { writable: w } = await import('svelte/store');
+  const { writable: w, get: getStore } = await import('svelte/store');
+  const { createSubscriber } = await import('svelte/reactivity');
   const { default: AppRouterStub } = await import('./AppRouterStub.svelte');
   const loc = w('/');
   globalThis.__appTestLocationStore = loc;
+  // Bridge the writable location store into rune reactivity so the v5 `router.location`
+  // getter behaves like the real router when read inside $derived/$effect.
+  const subscribeLocation = createSubscriber((update) => loc.subscribe(() => update()));
   return {
     default: AppRouterStub,
-    location: loc,
+    router: {
+      get location() {
+        subscribeLocation();
+        return getStore(loc);
+      },
+      get querystring() {
+        return '';
+      },
+    },
     push: vi.fn(),
     replace: vi.fn(),
   };
@@ -162,7 +174,7 @@ describe('App', () => {
       expect(screen.getByRole('button', { name: 'New folder' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
-      expect(nav).toHaveStyle({ width: '16rem' });
+      expect(nav).toHaveStyle({ width: '256px' });
     });
 
     it('shows sidebar collapsed when localStorage has sidebarCollapsed true', async () => {
@@ -176,7 +188,7 @@ describe('App', () => {
       expect(screen.queryByRole('button', { name: 'New folder' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
       const nav = document.querySelector('nav');
-      expect(nav).toHaveStyle({ width: '4rem' });
+      expect(nav).toHaveStyle({ width: '64px' });
     });
 
     it('toggles sidebar when collapse button is clicked', async () => {

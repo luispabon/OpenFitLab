@@ -31,7 +31,7 @@ High level: Svelte frontend → Express API → MariaDB; file parsing uses `@spo
 ## Prerequisites
 
 - Docker and Docker Compose
-- (Optional) Node 20+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
+- (Optional) Node 22.22.2+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
 
 ## Quick Start
 
@@ -49,7 +49,7 @@ This starts:
 
 ## Development Mode
 
-Compose uses base Node images (`node:24-alpine` for the API, `node:22-alpine` for the frontend) and **mounts** `./backend` and `./frontend` into each container. No Dockerfiles are built.
+Compose uses base Node images (`node:24-alpine` for the API and the frontend) and **mounts** `./backend` and `./frontend` into each container. No Dockerfiles are built.
 
 - **Backend:** `./backend` is mounted at `/app`; `node --watch` restarts the server when files under `src/` change.
 - **Frontend:** `./frontend` is mounted at `/workspace/frontend`; Vite dev server hot-reloads on file changes.
@@ -98,7 +98,7 @@ At least one OAuth provider must be configured for login to work (only providers
 
 ## Backups (production compose stack)
 
-See [`backup/README.md`](backup/README.md) for full details.
+See [`backup/README.md`](backup/README.md) for full details, including the safe upgrade path for an existing MariaDB data volume.
 
 ## Stop
 
@@ -106,7 +106,7 @@ See [`backup/README.md`](backup/README.md) for full details.
 docker compose down
 ```
 
-Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to remove volumes.
+Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to remove volumes. Before changing the pinned MariaDB image on an existing `db_data` volume, see [MariaDB image upgrades](backup/README.md#mariadb-image-upgrades-existing-data-volumes).
 
 ## Documentation
 

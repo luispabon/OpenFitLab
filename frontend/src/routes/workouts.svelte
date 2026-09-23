@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { push, querystring } from 'svelte-spa-router';
+  import { push, router } from 'svelte-spa-router';
   import { uploadFiles, deleteEvent, updateEventFolder } from '../lib/api';
   import type { ActivityRow } from '../lib/types';
   import {
@@ -153,7 +153,7 @@
   });
 
   $effect(() => {
-    const raw = $querystring ?? '';
+    const raw = router.querystring ?? '';
     const qs = new URLSearchParams(raw);
     let dirty = false;
     if (qs.get('import') === '1' && qs.get('provider') === 'strava') {

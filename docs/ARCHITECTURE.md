@@ -36,10 +36,10 @@ Two stacks serve different purposes:
 | Production | `compose.prod.yaml` | Pre-built images from GHCR |
 
 **Development services** (`compose.yaml`):
-- `db` — MariaDB 12.2.2, port 3306, persistent volume `db_data`
-- `valkey` — Valkey 8 Alpine (Redis-compatible session store), persistent volume `valkey_data`
+- `db` — MariaDB 12.3.3, port 3306, persistent volume `db_data`
+- `valkey` — Valkey 9 Alpine (Redis-compatible session store), persistent volume `valkey_data`
 - `api` — Node 24 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
-- `frontend` — Node 22 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
+- `frontend` — Node 24 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
 - `adminer` — DB admin UI, port 8080
 
 Health checks ensure `api` and `frontend` only start after `db` and `valkey` are healthy.
@@ -49,6 +49,8 @@ Health checks ensure `api` and `frontend` only start after `db` and `valkey` are
 - `api` — `ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}` (default tag `main`), 2 replicas, Traefik labels
 - `frontend` — `ghcr.io/luispabon/openfitlab-frontend:${OPENFITLAB_IMAGE_TAG:-main}`, 2 replicas, Traefik labels
 - `backup` — optional (`profiles: backup`); scheduled DB dumps. `fake-gcs` / `fake-gcs-init` — optional (`profiles: dev-backup`) for local backup testing
+
+MariaDB is pinned in both Compose files. Before changing that pin on an existing `db_data` volume, follow the upgrade path in [`backup/README.md`](../backup/README.md#mariadb-image-upgrades-existing-data-volumes).
 
 ### Dockerfiles
 
