@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { push, querystring } from 'svelte-spa-router';
+  import { push, router } from 'svelte-spa-router';
   import { foldersState, getFolderFromHash } from '../../stores/folders.svelte';
   import { buildWorkoutsListPushPath } from '../../utils/workouts-list-url';
   import WorkoutsPaginator from './WorkoutsPaginator.svelte';
@@ -32,7 +32,7 @@
   }
 
   $effect(() => {
-    const qs = $querystring ?? '';
+    const qs = router.querystring ?? '';
     if (lastQuerystringSynced !== undefined && qs === lastQuerystringSynced) return;
     lastQuerystringSynced = qs;
     const parsed = parsePageFromQueryString(qs);
@@ -49,7 +49,7 @@
     const ps = pageSize;
     if (suppressUrlSync) return;
     const target = buildWorkoutsPath(p, ps);
-    const currentQs = $querystring ?? '';
+    const currentQs = router.querystring ?? '';
     const current = parsePageFromQueryString(currentQs);
     if (current.page !== p || current.pageSize !== ps) {
       push(target);
@@ -75,7 +75,7 @@
   );
 
   const currentPageFromUrl = $derived.by(() => {
-    const parsed = parsePageFromQueryString($querystring ?? '');
+    const parsed = parsePageFromQueryString(router.querystring ?? '');
     const total = totalPages;
     return Math.min(Math.max(1, parsed.page), total);
   });

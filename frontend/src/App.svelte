@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Router, { location } from 'svelte-spa-router';
+  import Router, { router } from 'svelte-spa-router';
   import { wrap } from 'svelte-spa-router/wrap';
   import Workouts from './routes/workouts.svelte';
   import Comparisons from './routes/comparisons.svelte';
@@ -79,7 +79,7 @@
     sidebarCollapsed = !sidebarCollapsed;
   }
 
-  const currentLocation = $derived($location);
+  const currentLocation = $derived(router.location);
   const isWorkoutsActive = $derived(currentLocation === '/' || currentLocation === '');
   const isComparisonsActive = $derived(currentLocation.startsWith('/comparisons'));
 

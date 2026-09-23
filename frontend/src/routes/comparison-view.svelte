@@ -5,7 +5,7 @@
   }
   let { params = {}, query = {} }: Props = $props();
 
-  import { push, replace, location } from 'svelte-spa-router';
+  import { push, replace, router } from 'svelte-spa-router';
   import {
     createComparison,
     deleteComparison,
@@ -49,7 +49,7 @@
 
   let powerCurveSectionEl = $state<HTMLElement | null>(null);
 
-  const currentLocation = $derived($location);
+  const currentLocation = $derived(router.location);
 
   // Parse query parameters from URL hash
   let eventIdsFromQueryState = $state<string[]>([]);
