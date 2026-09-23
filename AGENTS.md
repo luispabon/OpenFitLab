@@ -33,7 +33,7 @@
 
 - Run: `npm run dev` in `frontend/`
 - Main quality gate: `npm run ci`
-- Runtime: Node 20+
+- Runtime: Node 22.22.2+ locally (Docker and CI use Node 24)
 
 ### DAST
 

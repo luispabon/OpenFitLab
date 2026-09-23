@@ -31,7 +31,7 @@ High level: Svelte frontend → Express API → MariaDB; file parsing uses `@spo
 ## Prerequisites
 
 - Docker and Docker Compose
-- (Optional) Node 20+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
+- (Optional) Node 22.22.2+ for frontend, Node 24+ for backend if running outside Docker (see [AGENTS.md](AGENTS.md))
 
 ## Quick Start
 
