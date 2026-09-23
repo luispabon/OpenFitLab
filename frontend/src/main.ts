@@ -1,3 +1,4 @@
+import 'svelte-maplibre-gl/vite';
 import { mount } from 'svelte';
 import './app.css';
 import { initAnalytics } from './lib/analytics/gtag.js';
