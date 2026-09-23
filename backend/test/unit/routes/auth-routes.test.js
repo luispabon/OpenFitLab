@@ -2,7 +2,6 @@ const { describe, it, mock, afterEach } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const express = require('express');
 const request = require('supertest');
-const session = require('express-session');
 const authRouter = require('../../../src/routes/auth');
 const authService = require('../../../src/services/auth-service');
 const { csrfProtection } = require('../../../src/middleware/csrf');
@@ -22,21 +21,22 @@ describe('auth routes', () => {
     restores.length = 0;
   });
 
-  function createApp() {
-    const app = express();
-    app.use(
-      session({
-        secret: 'test-secret-at-least-32-characters-long',
-        resave: false,
-        saveUninitialized: true,
-        cookie: {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          path: '/',
+  function stubSession(fields = {}) {
+    return (req, res, next) => {
+      req.session = {
+        destroy(cb) {
+          if (cb) cb();
         },
-      })
-    );
+        cookie: {},
+        ...fields,
+      };
+      next();
+    };
+  }
+
+  function createApp(sessionFields = {}) {
+    const app = express();
+    app.use(stubSession(sessionFields));
     app.use(csrfProtection);
     app.use('/api/auth', authRouter);
     app.use(errorHandler);
@@ -51,27 +51,7 @@ describe('auth routes', () => {
 
   it('GET /me returns 401 when user missing in DB', async () => {
     restores.push(mock.method(authService, 'getCurrentUserForMe', async () => null));
-    const app = express();
-    app.use(
-      session({
-        secret: 'test-secret-at-least-32-characters-long',
-        resave: false,
-        saveUninitialized: true,
-        cookie: {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          path: '/',
-        },
-      })
-    );
-    app.use((req, res, next) => {
-      req.session.userId = 'ghost';
-      next();
-    });
-    app.use(csrfProtection);
-    app.use('/api/auth', authRouter);
-    app.use(errorHandler);
+    const app = createApp({ userId: 'ghost' });
     const res2 = await request(app).get('/api/auth/me');
     strictEqual(res2.status, 401);
   });
@@ -84,27 +64,7 @@ describe('auth routes', () => {
         avatarUrl: null,
       }))
     );
-    const app = express();
-    app.use(
-      session({
-        secret: 'test-secret-at-least-32-characters-long',
-        resave: false,
-        saveUninitialized: true,
-        cookie: {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          path: '/',
-        },
-      })
-    );
-    app.use((req, res, next) => {
-      req.session.userId = 'u1';
-      next();
-    });
-    app.use(csrfProtection);
-    app.use('/api/auth', authRouter);
-    app.use(errorHandler);
+    const app = createApp({ userId: 'u1' });
     const res = await request(app).get('/api/auth/me');
     strictEqual(res.status, 200);
     strictEqual(res.body.id, 'u1');
@@ -114,29 +74,11 @@ describe('auth routes', () => {
   });
 
   it('GET /me returns pending signup shape', async () => {
-    const app = express();
-    app.use(
-      session({
-        secret: 'test-secret-at-least-32-characters-long',
-        resave: false,
-        saveUninitialized: true,
-        cookie: {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          path: '/',
-        },
-      })
-    );
-    app.use((req, res, next) => {
-      req.session.pendingSignup = { displayName: 'P', avatarUrl: null };
-      // Ensure CSRF middleware is not ignored so it can generate a token.
-      req.session.userId = 'pending-user';
-      next();
+    // Ensure CSRF middleware is not ignored so it can generate a token.
+    const app = createApp({
+      userId: 'pending-user',
+      pendingSignup: { displayName: 'P', avatarUrl: null },
     });
-    app.use(csrfProtection);
-    app.use('/api/auth', authRouter);
-    app.use(errorHandler);
     const res = await request(app).get('/api/auth/me');
     strictEqual(res.status, 200);
     strictEqual(res.body.pendingSignup, true);
