@@ -40,7 +40,7 @@ jobs:
 
       - name: Wait for frontend
         run: |
-          timeout 120 bash -c \
+          timeout 300 bash -c \
             'until curl -sf http://localhost:${{ env.E2E_FRONT_PORT }} > /dev/null; do sleep 3; done'
 
       - name: Setup Node
@@ -63,6 +63,20 @@ jobs:
           E2E_BASE_URL: http://localhost:${{ env.E2E_FRONT_PORT }}
           E2E_COMPOSE_PROJECT: ${{ env.E2E_PROJECT }}
         run: npx playwright test
+
+      - name: Diagnose E2E stack on failure
+        if: failure()
+        run: |
+          DB_HOST_PORT=${{ env.E2E_DB_PORT }} \
+          API_HOST_PORT=${{ env.E2E_API_PORT }} \
+          FRONT_HOST_PORT=${{ env.E2E_FRONT_PORT }} \
+          docker compose -p ${{ env.E2E_PROJECT }} -f compose.yaml -f compose.e2e.yaml \
+            ps -a
+          DB_HOST_PORT=${{ env.E2E_DB_PORT }} \
+          API_HOST_PORT=${{ env.E2E_API_PORT }} \
+          FRONT_HOST_PORT=${{ env.E2E_FRONT_PORT }} \
+          docker compose -p ${{ env.E2E_PROJECT }} -f compose.yaml -f compose.e2e.yaml \
+            logs --no-color --timestamps --tail 200 frontend
 
       - name: Upload test artifacts on failure
         if: failure()
