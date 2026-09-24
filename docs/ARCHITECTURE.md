@@ -514,6 +514,15 @@ in `middleware/session.js`) directly from Valkey, and deletes the tracking set i
 This ensures Strava access tokens and `req.session.userId` in any other logged-in
 browser session are invalidated immediately, not just on natural cookie/session expiry.
 
+Session cleanup on deletion is best-effort, not atomic: `destroySession` and
+`revokeUserSessions` are both attempted even when one of them fails, and a failure is
+logged instead of failing the request (the user row is already deleted). Independently,
+`requireAuth` (`backend/src/middleware/require-auth.js`) looks up `req.session.userId`
+before setting `req.userId`; when no matching user row exists it destroys the stale
+session, clears the `ofl.sid` cookie, and returns `401`. A DB error during that lookup
+fails closed. This covers sessions that were never tracked, whose `trackSession` call
+failed at login, or that survived a failed revocation.
+
 ## Architectural decisions
 
 - **Backend parsing:** files are parsed on the server with `@sports-alliance/sports-lib`.

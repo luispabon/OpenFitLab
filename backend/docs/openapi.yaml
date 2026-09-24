@@ -1521,6 +1521,11 @@ paths:
         and every other session tracked for this user (e.g. other logged-in
         browsers, including any stored Strava integration tokens) is also
         revoked in Valkey.
+
+        Session cleanup is best-effort: both steps are attempted and the request
+        still succeeds if one of them fails, because the API verifies on every
+        authenticated request that the session's user still exists and rejects
+        stale sessions with `401`.
       security:
         - csrfToken: []
       responses:

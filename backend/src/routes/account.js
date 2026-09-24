@@ -8,6 +8,20 @@ const { NotFoundError } = require('../errors');
 
 const router = express.Router();
 
+/**
+ * Run one best-effort cleanup step, collecting (instead of throwing) its error so the
+ * remaining steps still run after a partial failure.
+ * @param {() => Promise<void>} step
+ * @param {Array<Error>} errors
+ */
+async function attemptCleanup(step, errors) {
+  try {
+    await step();
+  } catch (err) {
+    errors.push(err);
+  }
+}
+
 // GET /api/account/export?includeStreams=true
 router.get(
   '/export',
@@ -26,8 +40,15 @@ router.delete(
   asyncHandler(async (req, res) => {
     const deleted = await deleteAccount(req.userId);
     if (!deleted) throw new NotFoundError('User not found');
-    await destroySession(req);
-    await revokeUserSessions(req.userId);
+    // The user row is already gone, so cleanup failures must not fail the request. Both steps
+    // are attempted; any session that survives (untracked, or a step that failed) is rejected
+    // by requireAuth's user-existence check on its next request.
+    const cleanupErrors = [];
+    await attemptCleanup(() => destroySession(req), cleanupErrors);
+    await attemptCleanup(() => revokeUserSessions(req.userId), cleanupErrors);
+    if (cleanupErrors.length > 0) {
+      console.error('Account deletion session cleanup failed:', cleanupErrors);
+    }
     res.clearCookie('ofl.sid', { path: '/' });
     res.status(204).send();
   })
