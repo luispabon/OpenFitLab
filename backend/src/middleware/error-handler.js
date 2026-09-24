@@ -1,3 +1,5 @@
+const { StravaUpstreamError } = require('../errors');
+
 /**
  * Central error handler for async routes. Converts thrown errors (e.g. NotFoundError,
  * ValidationError) into JSON responses with appropriate status codes.
@@ -22,7 +24,8 @@ function errorHandler(err, req, res, next) {
   ) {
     res.set('Retry-After', String(Math.min(err.retryAfterSeconds, 86400)));
   }
-  if (statusCode >= 500) {
+  // 5xx text is generic unless the error type carries a fixed, public-safe message.
+  if (statusCode >= 500 && !(err instanceof StravaUpstreamError)) {
     message = 'Internal server error';
   }
   res.status(statusCode).json({ error: message });

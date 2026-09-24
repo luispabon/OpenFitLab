@@ -262,7 +262,7 @@ erDiagram
 - JSON responses use millisecond timestamps.
 - Error responses use `{ error: string }` with the appropriate HTTP status code.
 - Backend error classes (`ParseError`, `ValidationError`, `NotFoundError` in `backend/src/errors.js`) set `statusCode`; the central error handler maps it to the HTTP response.
-- The error handler (`backend/src/middleware/error-handler.js`) only sends `err.message` to clients for typed errors with a `statusCode < 500`. Any 5xx error (including unexpected exceptions and Strava upstream failures) returns the fixed message `Internal server error`; the original error is still logged server-side (`console.error`).
+- The error handler (`backend/src/middleware/error-handler.js`) only sends `err.message` to clients for typed errors with a `statusCode < 500`. Any 5xx error returns the fixed message `Internal server error`, except `StravaUpstreamError` (502), whose message is the fixed `Strava API error (<status>)` (the provider's own message is kept only as `upstreamMessage` for logging); the original error is still logged server-side (`console.error`).
 
 ### Health
 

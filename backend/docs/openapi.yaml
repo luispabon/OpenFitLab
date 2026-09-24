@@ -20,10 +20,10 @@ info:
 
     **Error shape:** All error responses use `{ "error": "<message>" }`. For
     errors handled by the central error handler, 4xx responses include a
-    specific message, while 5xx responses (including unexpected errors and
-    upstream Strava failures) always return the fixed message
-    `"Internal server error"` to avoid leaking internal details; details are
-    logged server-side only. (`GET /health` reports a fixed, non-sensitive
+    specific message, while 5xx responses return the fixed message
+    `"Internal server error"` to avoid leaking internal details (upstream
+    Strava failures return `502` with the fixed text `"Strava API error (<status>)"`,
+    never the provider's own message); details are logged server-side only. (`GET /health` reports a fixed, non-sensitive
     `503` message directly and does not go through the central handler.)
 
 servers:

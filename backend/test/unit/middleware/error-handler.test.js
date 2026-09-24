@@ -92,12 +92,21 @@ describe('error-handler', () => {
     strictEqual(res.getBody().error, 'Internal server error');
   });
 
-  it('hides upstream detail for StravaUpstreamError (502)', () => {
+  it('returns fixed StravaUpstreamError text without upstream detail (502)', () => {
     const res = makeRes();
     const err = new StravaUpstreamError('Strava API error (500)');
     err.upstreamMessage = 'some sensitive upstream detail';
     errorHandler(err, {}, res, () => {});
     strictEqual(res.getStatusCode(), 502);
+    strictEqual(res.getBody().error, 'Strava API error (500)');
+  });
+
+  it('hides message of other 5xx errors', () => {
+    const res = makeRes();
+    const err = new Error('connect ECONNREFUSED 10.0.0.5:3306');
+    err.statusCode = 503;
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 503);
     strictEqual(res.getBody().error, 'Internal server error');
   });
 
