@@ -7,7 +7,11 @@ const {
   normalizeStravaToCanonical,
   stravaGet,
 } = require('../../../src/integrations/strava-driver');
-const { StravaTokenExpiredError, StravaRateLimitError } = require('../../../src/errors');
+const {
+  StravaTokenExpiredError,
+  StravaRateLimitError,
+  StravaUpstreamError,
+} = require('../../../src/errors');
 
 describe('strava-driver', () => {
   describe('parseStravaTimezone', () => {
@@ -35,10 +39,13 @@ describe('strava-driver', () => {
       const m = stravaStreamsToCanonicalMap([
         { type: 'time', data: [0, 1, 2] },
         { type: 'heartrate', data: [120, 121] },
-        { type: 'latlng', data: [
+        {
+          type: 'latlng',
+          data: [
             [51.5, -0.1],
             [51.51, -0.11],
-          ] },
+          ],
+        },
       ]);
       deepStrictEqual(m.Time, [0, 1, 2]);
       deepStrictEqual(m['Heart Rate'], [120, 121]);
@@ -109,6 +116,25 @@ describe('strava-driver', () => {
           .catch((e) => {
             ok(e instanceof StravaRateLimitError);
             strictEqual(e.retryAfterSeconds, 120);
+            resolve();
+          });
+      });
+    });
+
+    it('throws StravaUpstreamError with a fixed message, keeping upstream detail non-public', async () => {
+      mock.method(globalThis, 'fetch', async () => ({
+        ok: false,
+        status: 500,
+        headers: new Map(),
+        text: async () => JSON.stringify({ message: 'internal upstream detail' }),
+      }));
+      await new Promise((resolve, reject) => {
+        stravaGet('token', '/athlete')
+          .then(reject)
+          .catch((e) => {
+            ok(e instanceof StravaUpstreamError);
+            strictEqual(e.message, 'Strava API error (500)');
+            strictEqual(e.upstreamMessage, 'internal upstream detail');
             resolve();
           });
       });

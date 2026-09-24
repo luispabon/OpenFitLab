@@ -1,4 +1,13 @@
 /**
+ * Maximum number of activity/event IDs accepted in a single comparison request.
+ * The workouts table lets a user accumulate a row selection across multiple
+ * pages (up to 50 rows each) before bulk-deleting or comparing, so this is set
+ * well above a single page size (matches the GET /api/events `limit` cap)
+ * while still keeping the SQL `IN (...)` list bounded.
+ */
+const MAX_COMPARISON_ITEMS = 200;
+
+/**
  * Validates UUID format
  */
 function isValidUUID(str) {
@@ -160,7 +169,7 @@ function validateComparisonId(req, res, next) {
  * Validates comparison body for POST /api/comparisons
  */
 function validateComparisonBody(req, res, next) {
-  const { name, activityIds } = req.body;
+  const { name, activityIds, folderId } = req.body;
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return res.status(400).json({ error: 'name must be a non-empty string' });
@@ -172,10 +181,24 @@ function validateComparisonBody(req, res, next) {
       .json({ error: 'activityIds must be an array with at least 2 activity IDs' });
   }
 
+  if (activityIds.length > MAX_COMPARISON_ITEMS) {
+    return res
+      .status(400)
+      .json({ error: `activityIds must not exceed ${MAX_COMPARISON_ITEMS} items` });
+  }
+
   for (const activityId of activityIds) {
     if (!isValidUUID(activityId)) {
       return res.status(400).json({ error: 'All activityIds must be valid UUIDs' });
     }
+  }
+
+  if (new Set(activityIds).size !== activityIds.length) {
+    return res.status(400).json({ error: 'activityIds must not contain duplicates' });
+  }
+
+  if (folderId != null && folderId !== '' && !isValidUUID(folderId)) {
+    return res.status(400).json({ error: 'folderId must be a valid UUID or null' });
   }
 
   next();
@@ -195,6 +218,13 @@ function validateComparisonByEventsBody(req, res, next) {
     if (!isValidUUID(eventId)) {
       return res.status(400).json({ error: 'All eventIds must be valid UUIDs' });
     }
+  }
+
+  req.body.eventIds = [...new Set(eventIds)];
+  if (req.body.eventIds.length > MAX_COMPARISON_ITEMS) {
+    return res
+      .status(400)
+      .json({ error: `eventIds must not exceed ${MAX_COMPARISON_ITEMS} items` });
   }
 
   next();
@@ -404,6 +434,7 @@ function validateStravaImportBody(req, res, next) {
 }
 
 module.exports = {
+  MAX_COMPARISON_ITEMS,
   isValidUUID,
   validateGetEventsQuery,
   validateGetActivityRowsQuery,

@@ -187,15 +187,18 @@ async function throwForStatus(res) {
     throw new StravaRateLimitError(parseRetryAfterSeconds(res));
   }
   if (!res.ok) {
-    let msg = `Strava API error (${res.status})`;
+    const msg = `Strava API error (${res.status})`;
+    let upstreamMessage;
     try {
       const text = await res.text();
       const j = JSON.parse(text);
-      if (j && j.message) msg = String(j.message);
+      if (j && j.message) upstreamMessage = String(j.message);
     } catch {
       /* ignore */
     }
-    throw new StravaUpstreamError(msg);
+    const err = new StravaUpstreamError(msg);
+    if (upstreamMessage) err.upstreamMessage = upstreamMessage;
+    throw err;
   }
 }
 

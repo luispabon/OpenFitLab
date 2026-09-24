@@ -262,6 +262,7 @@ erDiagram
 - JSON responses use millisecond timestamps.
 - Error responses use `{ error: string }` with the appropriate HTTP status code.
 - Backend error classes (`ParseError`, `ValidationError`, `NotFoundError` in `backend/src/errors.js`) set `statusCode`; the central error handler maps it to the HTTP response.
+- The error handler (`backend/src/middleware/error-handler.js`) only sends `err.message` to clients for typed errors with a `statusCode < 500`. Any 5xx error (including unexpected exceptions and Strava upstream failures) returns the fixed message `Internal server error`; the original error is still logged server-side (`console.error`).
 
 ### Health
 
@@ -317,7 +318,7 @@ Account endpoints:
   - returns comparison candidates for the source event
 - `POST /api/events`
   - multipart upload field: `files` (1-10 files; TCX, FIT, GPX, JSON, SML)
-  - optional body field: `folderId`
+  - optional body field: `folderId` — if given, must be owned by the caller (`404` otherwise, checked once before any file is processed)
   - returns `{ results }` where each entry is either:
     - success: `{ success: true, filename, id, event, activities }`
     - failure: `{ success: false, filename, error }`
@@ -364,9 +365,10 @@ Folder semantics:
 
 - `POST /api/comparisons`
   - body: `{ name, activityIds, settings?, folderId? }`
+  - `activityIds` must have 2–200 unique UUIDs (`MAX_COMPARISON_ITEMS` in `backend/src/utils/validation.js`); `folderId`, if given, must be owned by the caller (`404` otherwise)
 - `GET /api/comparisons?folderId=...`
 - `POST /api/comparisons/by-events`
-  - body: `{ eventIds }`
+  - body: `{ eventIds }` — deduped server-side and capped at `MAX_COMPARISON_ITEMS`
 - `GET /api/comparisons/:id`
 - `DELETE /api/comparisons/:id`
 - `PATCH /api/comparisons/:id/settings`
@@ -459,7 +461,8 @@ Primary route usage:
 - Auth, callback, upload, and general API routes are rate-limited.
 - All API responses set `Cache-Control: no-store` to prevent proxy or browser caching of session-scoped data.
 - Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb). Multer's 50 MB `fileSize` limit applies to compressed bytes only.
-- `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint.
+- `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint, and its ownership is checked before any file is processed.
+- Comparison create and folder-assignment endpoints resolve a non-null `folderId` against the caller's own folders (`404` if missing or not owned), the same pattern used for events and Strava import.
 
 ## Architectural decisions
 

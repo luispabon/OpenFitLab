@@ -1,7 +1,7 @@
 const { describe, it } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const { errorHandler } = require('../../../src/middleware/error-handler');
-const { StravaRateLimitError } = require('../../../src/errors');
+const { StravaRateLimitError, StravaUpstreamError } = require('../../../src/errors');
 
 function makeRes() {
   let statusCode = 200;
@@ -38,7 +38,7 @@ describe('error-handler', () => {
     };
     errorHandler(new Error('boom'), {}, res, next);
     strictEqual(res.getStatusCode(), 500);
-    strictEqual(res.getBody().error, 'boom');
+    strictEqual(res.getBody().error, 'Internal server error');
     strictEqual(nextCalled, false);
   });
 
@@ -90,5 +90,23 @@ describe('error-handler', () => {
     const res = makeRes();
     errorHandler({}, {}, res, () => {});
     strictEqual(res.getBody().error, 'Internal server error');
+  });
+
+  it('hides upstream detail for StravaUpstreamError (502)', () => {
+    const res = makeRes();
+    const err = new StravaUpstreamError('Strava API error (500)');
+    err.upstreamMessage = 'some sensitive upstream detail';
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 502);
+    strictEqual(res.getBody().error, 'Internal server error');
+  });
+
+  it('preserves typed 4xx message', () => {
+    const res = makeRes();
+    const err = new Error('name must be a non-empty string');
+    err.statusCode = 400;
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'name must be a non-empty string');
   });
 });

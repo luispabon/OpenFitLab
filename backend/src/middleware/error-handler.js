@@ -22,6 +22,9 @@ function errorHandler(err, req, res, next) {
   ) {
     res.set('Retry-After', String(Math.min(err.retryAfterSeconds, 86400)));
   }
+  if (statusCode >= 500) {
+    message = 'Internal server error';
+  }
   res.status(statusCode).json({ error: message });
 }
 
