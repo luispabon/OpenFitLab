@@ -6,7 +6,6 @@
  */
 
 const redisClient = require('./redis-client');
-const config = require('./config');
 
 /** Must match the `prefix` passed to `RedisStore` in middleware/session.js. */
 const SESSION_KEY_PREFIX = 'ofl:sess:';
@@ -16,16 +15,17 @@ function userSessionsKey(userId) {
 }
 
 /**
- * Record that `sessionId` belongs to `userId`, refreshing the tracking set's TTL.
+ * Record that `sessionId` belongs to `userId`.
+ * The tracking set deliberately has no TTL: connect-redis slides each session's TTL on every
+ * request (touch), so an active session can outlive any fixed expiry set here at login.
+ * Stale IDs are harmless (deleting a missing key is a no-op) and are cleared on revoke.
  * @param {string} userId
  * @param {string} sessionId
  * @param {{ client?: object }} [opts]
  */
 async function trackSession(userId, sessionId, opts = {}) {
   const client = opts.client ?? (await redisClient.getRedisClient());
-  const key = userSessionsKey(userId);
-  await client.sAdd(key, sessionId);
-  await client.expire(key, Math.ceil(config.termsOfService.normalSessionExpiryMs / 1000));
+  await client.sAdd(userSessionsKey(userId), sessionId);
 }
 
 /**

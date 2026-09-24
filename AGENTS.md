@@ -115,8 +115,8 @@ Key points:
 ### Backend
 
 - App bootstrap: `backend/src/index.js`
-- Auth/session: `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js`, `backend/src/middleware/passport.js`
-- Events: `backend/src/routes/events.js`, `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js`, `backend/src/services/event-persistence.js` (shared persist for uploads + Strava import), `backend/src/services/event-delete-service.js`
+- Auth/session: `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js`, `backend/src/middleware/passport.js`, `backend/src/middleware/oauth-state.js` (Apple state cookie), `backend/src/session-registry.js` (per-user session tracking/revocation)
+- Events: `backend/src/routes/events.js`, `backend/src/services/event-query-service.js`, `backend/src/services/event-upload-service.js`, `backend/src/services/event-persistence.js` (shared persist for uploads + Strava import), `backend/src/services/event-delete-service.js`, `backend/src/middleware/upload-guards.js` (upload size/concurrency guards)
 - Comparisons: `backend/src/routes/comparisons.js`, `backend/src/services/comparison-service.js`
 - Folders: `backend/src/routes/folders.js`, `backend/src/services/folder-service.js`
 - Account: `backend/src/routes/account.js`, `backend/src/services/account-service.js`

@@ -46,12 +46,12 @@ describe('session-registry', () => {
     strictEqual(SESSION_KEY_PREFIX, 'ofl:sess:');
   });
 
-  it('trackSession adds the session id to the user set and refreshes TTL', async () => {
+  it('trackSession adds the session id to the user set without a TTL', async () => {
     const { trackSession, userSessionsKey } = require('../../src/session-registry');
     await trackSession('u1', 'sid-1');
     deepStrictEqual(Array.from(sets.get(userSessionsKey('u1'))), ['sid-1']);
-    strictEqual(expirations.length, 1);
-    strictEqual(expirations[0].key, userSessionsKey('u1'));
+    // Sessions slide on touch; a TTL on the set could expire before a live session does.
+    strictEqual(expirations.length, 0);
   });
 
   it('trackSession accumulates multiple sessions for the same user', async () => {

@@ -500,8 +500,9 @@ Primary route usage:
 ### Session revocation on account deletion
 
 Every session that logs a user in is tracked in Valkey: `backend/src/session-registry.js`
-`SADD`s the session ID into `ofl:user-sessions:<userId>` (TTL refreshed to the
-session max age) whenever `req.session.userId` is set — in
+`SADD`s the session ID into `ofl:user-sessions:<userId>` (no TTL: sessions slide on
+every request via connect-redis touch, so a fixed expiry could drop a live session;
+stale IDs are harmless) whenever `req.session.userId` is set — in
 `auth-service.handleOAuthCallback` (normal login) and `auth-service.completeSignup`.
 Pending-signup sessions are not tracked (no `userId` yet).
 
