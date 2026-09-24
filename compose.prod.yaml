@@ -71,6 +71,7 @@ services:
       FACEBOOK_APP_ID: ${OPENFITLAB_FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${OPENFITLAB_FACEBOOK_APP_SECRET:-}
       OAUTH_CALLBACK_URL: ${OPENFITLAB_OAUTH_CALLBACK_URL:?OPENFITLAB_OAUTH_CALLBACK_URL is required}
+      NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +83,9 @@ services:
     deploy:
       mode: replicated
       replicas: 2
+      resources:
+        limits:
+          memory: 1g
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dmz"

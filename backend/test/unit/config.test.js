@@ -84,6 +84,67 @@ describe('config', () => {
     strictEqual(config.rateLimit.api.windowMs >= 1000, true);
   });
 
+  it('upload has maxFileBytes, maxRequestBytes >= maxFileBytes, and maxConcurrentPerUser', () => {
+    strictEqual(typeof config.upload.maxFileBytes, 'number');
+    strictEqual(typeof config.upload.maxRequestBytes, 'number');
+    strictEqual(typeof config.upload.maxConcurrentPerUser, 'number');
+    strictEqual(config.upload.maxFileBytes > 0, true);
+    strictEqual(config.upload.maxRequestBytes >= config.upload.maxFileBytes, true);
+    strictEqual(config.upload.maxConcurrentPerUser >= 1, true);
+  });
+
+  describe('upload env overrides (loaded in child process)', () => {
+    function loadUploadConfigInChild(envOverrides) {
+      const env = { ...process.env, ...envOverrides };
+      if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
+        env.SESSION_SECRET = 'a'.repeat(32);
+      }
+      return spawnSync(
+        process.execPath,
+        [
+          '-e',
+          `
+          const c = require('./src/config');
+          console.log(JSON.stringify(c.upload));
+          `,
+        ],
+        { cwd: backendDir, env, encoding: 'utf8' }
+      );
+    }
+
+    it('uses UPLOAD_MAX_FILE_BYTES and UPLOAD_MAX_CONCURRENT_PER_USER when valid', () => {
+      const result = loadUploadConfigInChild({
+        UPLOAD_MAX_FILE_BYTES: '1000',
+        UPLOAD_MAX_CONCURRENT_PER_USER: '5',
+      });
+      strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const out = JSON.parse(result.stdout.trim());
+      strictEqual(out.maxFileBytes, 1000);
+      strictEqual(out.maxConcurrentPerUser, 5);
+    });
+
+    it('raises maxRequestBytes to maxFileBytes when the configured request cap is smaller', () => {
+      const result = loadUploadConfigInChild({
+        UPLOAD_MAX_FILE_BYTES: '1000',
+        UPLOAD_MAX_REQUEST_BYTES: '10',
+      });
+      strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const out = JSON.parse(result.stdout.trim());
+      strictEqual(out.maxRequestBytes, 1000);
+    });
+
+    it('falls back to defaults when values are invalid', () => {
+      const result = loadUploadConfigInChild({
+        UPLOAD_MAX_FILE_BYTES: 'not-a-number',
+        UPLOAD_MAX_CONCURRENT_PER_USER: '-1',
+      });
+      strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const out = JSON.parse(result.stdout.trim());
+      strictEqual(out.maxFileBytes, 25 * 1024 * 1024);
+      strictEqual(out.maxConcurrentPerUser, 2);
+    });
+  });
+
   it('config is frozen', () => {
     strictEqual(Object.isFrozen(config), true);
   });

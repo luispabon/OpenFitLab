@@ -26,6 +26,33 @@ class NotFoundError extends Error {
   }
 }
 
+/** Content-Length header required for multipart uploads (chunked uploads not supported). */
+class LengthRequiredError extends Error {
+  constructor(message = 'Content-Length header is required', options = {}) {
+    super(message, options);
+    this.name = 'LengthRequiredError';
+    this.statusCode = 411;
+  }
+}
+
+/** Upload exceeds a configured size limit (aggregate request, per-file, or multer parts/fields). */
+class PayloadTooLargeError extends Error {
+  constructor(message = 'Payload too large', options = {}) {
+    super(message, options);
+    this.name = 'PayloadTooLargeError';
+    this.statusCode = 413;
+  }
+}
+
+/** Per-user upload concurrency limit exceeded. */
+class TooManyUploadsError extends Error {
+  constructor(message = 'Too many concurrent uploads, please try again shortly.', options = {}) {
+    super(message, options);
+    this.name = 'TooManyUploadsError';
+    this.statusCode = 429;
+  }
+}
+
 /** Strava OAuth access token rejected or expired (reconnect required). */
 class StravaTokenExpiredError extends Error {
   constructor(message = 'Strava connection expired. Please reconnect.') {
@@ -58,6 +85,9 @@ module.exports = {
   ParseError,
   ValidationError,
   NotFoundError,
+  LengthRequiredError,
+  PayloadTooLargeError,
+  TooManyUploadsError,
   StravaTokenExpiredError,
   StravaRateLimitError,
   StravaUpstreamError,

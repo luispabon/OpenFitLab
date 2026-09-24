@@ -9,6 +9,8 @@ const {
   authLimiter,
   uploadLimiter,
   callbackLimiter,
+  createStore,
+  attachRateLimitClient,
 } = require('../../../src/middleware/rate-limit');
 
 function makeReq(ip = '127.0.0.1', path = '/', method = 'GET') {
@@ -122,6 +124,42 @@ describe('rate-limit middleware', () => {
     strictEqual(lastRes.statusCode, 429);
     ok(lastRes.body && typeof lastRes.body === 'object');
     strictEqual(lastRes.body.error.includes('Upload limit'), true);
+  });
+});
+
+describe('rate-limit store selection', () => {
+  it('returns undefined (in-memory store) when not production', () => {
+    const store = createStore('rl:test:', false);
+    strictEqual(store, undefined);
+  });
+
+  it('returns a RedisStore instance when production', () => {
+    const store = createStore('rl:test:', true);
+    strictEqual(store.constructor.name, 'RedisStore');
+  });
+
+  it('sendCommand waits for attachRateLimitClient before forwarding commands', async () => {
+    const store = createStore('rl:test:shared:', true);
+    const calls = [];
+    const fakeClient = {
+      sendCommand: async (args) => {
+        calls.push(args);
+        if (args[0] === 'SCRIPT') return 'deadbeef';
+        return [1, 1000];
+      },
+    };
+
+    const initPromise = store.init({ windowMs: 1000 });
+    // Give init's SCRIPT LOAD calls a chance to run — they must not resolve without a client.
+    await new Promise((resolve) => setImmediate(resolve));
+    strictEqual(calls.length, 0);
+
+    attachRateLimitClient(fakeClient);
+    await initPromise;
+
+    const result = await store.increment('some-key');
+    strictEqual(result.totalHits, 1);
+    ok(calls.some((args) => args[0] === 'EVALSHA'));
   });
 });
 

@@ -710,6 +710,12 @@ paths:
         persisted, and returned in the results array. Unsupported or unparseable
         files produce a result with `success: false` rather than failing the
         whole request.
+
+        Limits: each file is capped at 25 MiB (`UPLOAD_MAX_FILE_BYTES`), and the
+        aggregate request size (checked via the `Content-Length` header before
+        parsing) is capped at 100 MiB (`UPLOAD_MAX_REQUEST_BYTES`); requests
+        without `Content-Length` are rejected. At most 2 uploads per user may be
+        in flight at a time (`UPLOAD_MAX_CONCURRENT_PER_USER`).
       security:
         - csrfToken: []
       requestBody:
@@ -745,6 +751,20 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "411":
+          description: Content-Length header is required for multipart uploads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Upload exceeds the maximum allowed file or request size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/events/activity-rows:
     get:
