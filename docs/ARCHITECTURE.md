@@ -22,7 +22,7 @@ Core flow:
 ## Configuration, runtime, and deployment
 
 - Backend config is read only from `backend/src/config.js`.
-- Schema is managed by `db.runMigrations()`, which runs on startup. Migration SQL files live in `backend/sql/migrations/` (named `NNN_description.sql`, applied in lexicographic order). Applied filenames are tracked in a `schema_migrations` table. A MariaDB advisory lock (`GET_LOCK('openfitlab_migrations', 30)`) prevents race conditions when multiple replicas start simultaneously.
+- Schema is managed by `db.runMigrations()`, which runs on startup. Migration SQL files live in `backend/sql/migrations/` (named `NNN_description.sql`, applied in lexicographic order). Applied filenames are tracked in a `schema_migrations` table. A MariaDB advisory lock (`GET_LOCK('openfitlab_migrations', 30)`) prevents race conditions when multiple replicas start simultaneously. Migrations run on a dedicated single-connection pool with `multipleStatements: true` (closed after use); the shared application pool used by all other queries does not enable `multipleStatements`, since app SQL is always parameterized and executed one statement at a time.
 - To make a schema change, add a new `NNN_description.sql` file — never edit existing migration files. `backend/sql/schema.sql` is a human-readable reference snapshot and is not applied directly.
 - Local development uses `docker compose up -d`.
 
@@ -46,7 +46,7 @@ Health checks ensure `api` and `frontend` only start after `db` and `valkey` are
 
 **Production services** (`compose.prod.yaml`):
 - `db` and `valkey` — same images, restart: unless-stopped
-- `api` — `ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}` (default tag `main`), 2 replicas, Traefik labels
+- `api` — `ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}` (default tag `main`), 2 replicas, Traefik labels, `deploy.resources.limits.memory: 1g` and `NODE_OPTIONS=--max-old-space-size=512` (headroom below the container limit, since multer's upload buffers live outside the V8 heap)
 - `frontend` — `ghcr.io/luispabon/openfitlab-frontend:${OPENFITLAB_IMAGE_TAG:-main}`, 2 replicas, Traefik labels
 - `backup` — optional (`profiles: backup`); scheduled DB dumps. `fake-gcs` / `fake-gcs-init` — optional (`profiles: dev-backup`) for local backup testing
 
@@ -113,7 +113,7 @@ Required in production only (names in `.env.example`; production compose may use
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
 - `OAUTH_CALLBACK_URL` — public API base URL (no trailing slash); used for OAuth redirects
 
-Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), **Strava import** (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` — both required to enable Strava; register redirect `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava app), rate limit overrides, `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
+Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), **Strava import** (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` — both required to enable Strava; register redirect `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava app), rate limit overrides, upload limit overrides (`UPLOAD_MAX_FILE_BYTES`, `UPLOAD_MAX_REQUEST_BYTES`, `UPLOAD_MAX_CONCURRENT_PER_USER`), `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
 
 `GET /api/auth/me` includes `integrations.providers.strava.configured` (boolean, no secrets) so the frontend can hide the Strava import entry when the API is not configured.
 
@@ -490,9 +490,10 @@ Primary route usage:
   session-based and applied before protected state-changing requests.
 - Repositories and services enforce ownership with `user_id` / `req.userId`.
 - Parameterized SQL is used through repository helpers.
-- Auth, callback, upload, and general API routes are rate-limited.
+- Auth, callback, upload, and general API routes are rate-limited. In production, all limiters share hit counters across API replicas via a Valkey-backed `rate-limit-redis` store (`backend/src/middleware/rate-limit.js`); outside production (including tests), each limiter falls back to express-rate-limit's in-memory store. Store errors fail open (`passOnStoreError: true`), so a store failure never itself returns 429 or 500 — but since sessions use the same Valkey client, a Valkey outage still affects the API (node-redis queues commands while disconnected rather than erroring immediately).
 - All API responses set `Cache-Control: no-store` to prevent proxy or browser caching of session-scoped data.
-- Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb). Multer's 50 MB `fileSize` limit applies to compressed bytes only.
+- Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb).
+- Upload requests (`POST /api/events`) are bounded to limit memory use: multer's per-file `fileSize` limit defaults to 25 MiB (`UPLOAD_MAX_FILE_BYTES`), and a `Content-Length`-based guard rejects the whole request (413) before multer buffers anything if the aggregate size exceeds 128 MiB (`UPLOAD_MAX_REQUEST_BYTES`; sized so the frontend's 5-file upload chunks fit at the per-file cap); multipart uploads without a `Content-Length` header are rejected with 411. A per-user concurrency guard (`UPLOAD_MAX_CONCURRENT_PER_USER`, default 2) limits in-flight uploads per API process and responds 429 above the limit. Multer limit errors (file size, file count, parts, fields) map to 413; other multer errors map to 400.
 - `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint, and its ownership is checked before any file is processed.
 - Comparison create and folder-assignment endpoints resolve a non-null `folderId` against the caller's own folders (`404` if missing or not owned), the same pattern used for events and Strava import.
 

@@ -39,7 +39,16 @@ const {
   AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS,
   UPLOAD_RATE_LIMIT_MAX,
   UPLOAD_RATE_LIMIT_WINDOW_MS,
+  UPLOAD_MAX_FILE_BYTES,
+  UPLOAD_MAX_REQUEST_BYTES,
+  UPLOAD_MAX_CONCURRENT_PER_USER,
 } = process.env;
+
+function parsePositiveInt(raw, defaultValue) {
+  if (raw == null || raw === '') return defaultValue;
+  const n = parseInt(String(raw), 10);
+  return Number.isNaN(n) || n <= 0 ? defaultValue : n;
+}
 
 function parseRateLimit(maxRaw, windowRaw, defaultMax, defaultWindowMs) {
   const max = maxRaw != null && maxRaw !== '' ? parseInt(String(maxRaw), 10) : defaultMax;
@@ -171,6 +180,16 @@ const rateLimit = {
   upload: parseRateLimit(UPLOAD_RATE_LIMIT_MAX, UPLOAD_RATE_LIMIT_WINDOW_MS, 50, 5 * 60_000),
 };
 
+const uploadMaxFileBytes = parsePositiveInt(UPLOAD_MAX_FILE_BYTES, 25 * 1024 * 1024);
+const uploadMaxRequestBytes = parsePositiveInt(UPLOAD_MAX_REQUEST_BYTES, 128 * 1024 * 1024);
+
+const upload = {
+  maxFileBytes: uploadMaxFileBytes,
+  // Aggregate request cap must be able to fit at least one max-size file.
+  maxRequestBytes: Math.max(uploadMaxRequestBytes, uploadMaxFileBytes),
+  maxConcurrentPerUser: parsePositiveInt(UPLOAD_MAX_CONCURRENT_PER_USER, 2),
+};
+
 const termsOfService = {
   pendingSignupExpiryMs: 10 * 60 * 1000, // 10 minutes
   normalSessionExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
@@ -190,6 +209,7 @@ const config = {
   valkey,
   oauth,
   rateLimit,
+  upload,
   termsOfService,
 };
 

@@ -87,7 +87,18 @@ describe('db', () => {
       strictEqual(config.waitForConnections, true);
       strictEqual(config.connectionLimit, 10);
       strictEqual(config.queueLimit, 0);
+      strictEqual(config.multipleStatements, undefined);
+    });
+  });
+
+  describe('getMigrationPoolConfig', () => {
+    it('enables multipleStatements on a single-connection pool, separate from the app pool', () => {
+      const config = db.getMigrationPoolConfig();
+      strictEqual(typeof config.host, 'string');
       strictEqual(config.multipleStatements, true);
+      strictEqual(config.connectionLimit, 1);
+      strictEqual(config.waitForConnections, true);
+      strictEqual(config.queueLimit, 0);
     });
   });
 
@@ -129,6 +140,7 @@ describe('db', () => {
 
     function makeEnv({ files, fileContents = {}, conn, lockResult, appliedRows }) {
       const _conn = conn || makeConn({ lockResult, appliedRows });
+      const migrationPoolEndCalls = [];
       const adminPool = {
         query: async () => [],
         end: async () => {},
@@ -136,7 +148,7 @@ describe('db', () => {
       const mainPool = {
         execute: async () => [[]],
         getConnection: async () => _conn,
-        end: async () => {},
+        end: async () => migrationPoolEndCalls.push(1),
       };
       const mockMysql = {
         createPool(config) {
@@ -150,7 +162,7 @@ describe('db', () => {
           return fileContents[name] || `-- migration ${name}`;
         },
       };
-      return { mockMysql, mockFs, conn: _conn };
+      return { mockMysql, mockFs, conn: _conn, migrationPoolEndCalls };
     }
 
     function withEnv(env, fn) {
@@ -184,6 +196,7 @@ describe('db', () => {
           ['001_initial.sql', '002_add_table.sql']
         );
         strictEqual(env.conn._queryCalls.length, 2);
+        strictEqual(env.migrationPoolEndCalls.length, 1);
       });
     });
 
