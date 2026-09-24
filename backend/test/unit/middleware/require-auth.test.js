@@ -147,6 +147,28 @@ describe('require-auth middleware', () => {
     }
   });
 
+  it('still returns 401 when destroying the stale session throws synchronously', async () => {
+    const findById = mockUser(null);
+    const req = {
+      session: {
+        userId: 'user-123',
+        destroy() {
+          throw new Error('session store unavailable');
+        },
+      },
+    };
+    try {
+      const { res, nextCalls } = await invoke(req);
+
+      strictEqual(res.getStatusCode(), 401);
+      deepStrictEqual(res.getBody(), { error: 'Authentication required' });
+      strictEqual(nextCalls.length, 0);
+      deepStrictEqual(res.getClearedCookies(), [{ name: 'ofl.sid', opts: { path: '/' } }]);
+    } finally {
+      findById.mock.restore();
+    }
+  });
+
   it('still returns 401 when destroying the stale session fails', async () => {
     const findById = mockUser(null);
     const req = {

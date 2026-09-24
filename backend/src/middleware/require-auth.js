@@ -15,11 +15,16 @@ const userRepository = require('../repositories/user-repository');
  */
 function destroySessionQuietly(req) {
   return new Promise((resolve) => {
-    if (typeof req.session?.destroy !== 'function') {
+    try {
+      if (typeof req.session?.destroy !== 'function') {
+        resolve();
+        return;
+      }
+      req.session.destroy(() => resolve());
+    } catch {
+      // Synchronous store error: the request is rejected either way.
       resolve();
-      return;
     }
-    req.session.destroy(() => resolve());
   });
 }
 
