@@ -742,11 +742,14 @@ paths:
         without `Content-Length` are rejected. At most 2 uploads per user may be
         in flight at a time (`UPLOAD_MAX_CONCURRENT_PER_USER`). Each API process
         also enforces a process-wide budget of 256 MiB of in-flight Content-Length
-        bytes (`UPLOAD_MAX_IN_FLIGHT_BYTES`) and 2 concurrent uploads
+        bytes (`UPLOAD_MAX_IN_FLIGHT_BYTES`) and 4 concurrent uploads
         (`UPLOAD_MAX_CONCURRENT_PER_PROCESS`), so uploads may be rejected with 429
-        while other users are uploading; these limits apply per API process, so with
-        multiple replicas the deployment-wide ceiling is multiplied by the replica
-        count.
+        while other users are uploading. The byte budget counts compressed
+        multipart request bodies, is shared across users (one busy user can consume
+        it), and is not a strict memory ceiling: it excludes decompressed size,
+        parsed results, and other heap use. These limits apply per API process, so
+        with multiple replicas the deployment-wide ceiling is multiplied by the
+        replica count.
       security:
         - csrfToken: []
       requestBody:

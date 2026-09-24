@@ -98,7 +98,7 @@ describe('config', () => {
     strictEqual(typeof config.upload.maxConcurrentPerProcess, 'number');
     strictEqual(config.upload.maxInFlightBytes >= config.upload.maxRequestBytes, true);
     strictEqual(config.upload.maxConcurrentPerProcess >= 1, true);
-    strictEqual(config.upload.maxConcurrentPerProcess, 2);
+    strictEqual(config.upload.maxConcurrentPerProcess, 4);
     strictEqual(config.upload.maxInFlightBytes, 256 * 1024 * 1024);
   });
 

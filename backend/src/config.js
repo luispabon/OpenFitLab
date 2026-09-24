@@ -196,7 +196,7 @@ const upload = {
   // Process-wide in-flight budget must admit at least one max-size aggregate request, so a
   // misconfigured budget cannot lock out every upload.
   maxInFlightBytes: Math.max(uploadMaxInFlightBytes, boundedRequestBytes),
-  maxConcurrentPerProcess: parsePositiveInt(UPLOAD_MAX_CONCURRENT_PER_PROCESS, 2),
+  maxConcurrentPerProcess: parsePositiveInt(UPLOAD_MAX_CONCURRENT_PER_PROCESS, 4),
 };
 
 const termsOfService = {

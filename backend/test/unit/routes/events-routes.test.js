@@ -24,6 +24,7 @@ const { ParseError, ValidationError } = require('../../../src/errors');
 const exportService = require('../../../src/services/export-service');
 const eventsRouterModule = require('../../../src/routes/events');
 const { errorHandler } = require('../../../src/middleware/error-handler');
+const config = require('../../../src/config');
 const fs = require('fs');
 const path = require('path');
 
@@ -43,7 +44,7 @@ function createEventsApp(router) {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
-    req.userId = 'u1';
+    req.userId = req.headers['x-test-user'] || 'u1';
     next();
   });
   app.use('/api/events', router);
@@ -395,6 +396,54 @@ describe('Events route HTTP handler coverage', () => {
         .field('folderId', 'a1b2c3d4-e5f6-4789-a012-3456789abcde')
         .expect(404);
       deepStrictEqual(res.body, { error: 'Folder not found' });
+    } finally {
+      uploadService.buildUploadResults.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('POST / enforces the process-wide upload slot cap across users', async () => {
+    const uploadService = require('../../../src/services/event-upload-service');
+    const pending = [];
+    mock.method(
+      uploadService,
+      'buildUploadResults',
+      () =>
+        new Promise((resolve) => {
+          pending.push(() => resolve([{ success: true, filename: 'x.tcx' }]));
+        })
+    );
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const fire = (userId) =>
+        request(app)
+          .post('/api/events')
+          .set('x-test-user', userId)
+          .attach('files', tcxPath, 'minimal.tcx');
+
+      const slots = config.upload.maxConcurrentPerProcess;
+      const inFlight = [];
+      for (let i = 0; i < slots; i++) inFlight.push(fire(`slot-user-${i}`).then((r) => r));
+
+      // Wait until every admitted request has reached the handler, occupying a slot.
+      for (let i = 0; i < 200 && pending.length < slots; i++) {
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      strictEqual(pending.length, slots);
+
+      const rejected = await fire('slot-user-overflow').expect(429);
+      deepStrictEqual(rejected.body, {
+        error: 'Too many concurrent uploads, please try again shortly.',
+      });
+
+      for (const resolvePending of pending) resolvePending();
+      const admitted = await Promise.all(inFlight);
+      for (const res of admitted) {
+        strictEqual(res.status, 201);
+        strictEqual(res.body.results.length, 1);
+      }
     } finally {
       uploadService.buildUploadResults.mock.restore();
       delete require.cache[EVENTS_ROUTER_PATH];
