@@ -6,7 +6,13 @@ const db = require('./db');
 const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
 const { csrfProtection } = require('./middleware/csrf');
-const { apiLimiter, authLimiter, callbackLimiter } = require('./middleware/rate-limit');
+const {
+  apiLimiter,
+  authLimiter,
+  callbackLimiter,
+  attachRateLimitClient,
+} = require('./middleware/rate-limit');
+const { getRedisClient } = require('./redis-client');
 const authRouter = require('./routes/auth');
 const accountRouter = require('./routes/account');
 const eventsRouter = require('./routes/events');
@@ -78,6 +84,7 @@ async function start() {
   const { configurePassport } = require('./middleware/passport');
   const sessionMiddleware = await createSessionMiddleware();
   app.use(sessionMiddleware);
+  attachRateLimitClient(await getRedisClient());
   const passport = configurePassport();
   app.use(passport.initialize());
   app.use(passport.session());

@@ -1,6 +1,6 @@
 const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert');
-const { strictEqual, ok } = require('node:assert/strict');
+const { strictEqual, ok, deepStrictEqual } = require('node:assert/strict');
 const { mock } = require('node:test');
 const config = require('../../../src/config');
 const userRepository = require('../../../src/repositories/user-repository');
@@ -56,8 +56,10 @@ describe('auth-service', () => {
 
   it('handleOAuthCallback sets userId for normal login', async () => {
     const { handleOAuthCallback } = require('../../../src/services/auth-service');
+    const tracked = [];
     const req = {
       user: { user: { id: 'user-uuid' } },
+      sessionID: 'sid-1',
       session: {
         regenerate(fn) {
           fn(null);
@@ -68,9 +70,15 @@ describe('auth-service', () => {
         cookie: {},
       },
     };
-    const url = await handleOAuthCallback(req);
+    const sessionRegistry = {
+      async trackSession(userId, sessionId) {
+        tracked.push({ userId, sessionId });
+      },
+    };
+    const url = await handleOAuthCallback(req, { sessionRegistry });
     ok(url.includes('login=success'));
     strictEqual(req.session.userId, 'user-uuid');
+    deepStrictEqual(tracked, [{ userId: 'user-uuid', sessionId: 'sid-1' }]);
   });
 
   it('getCurrentUserForMe returns mapped user or null', async () => {
@@ -109,7 +117,9 @@ describe('auth-service', () => {
       }))
     );
     const { completeSignup } = require('../../../src/services/auth-service');
+    const tracked = [];
     const req = {
+      sessionID: 'sid-2',
       session: {
         pendingSignup: { provider: 'google', displayName: 'New' },
         cookie: {},
@@ -118,9 +128,15 @@ describe('auth-service', () => {
         },
       },
     };
-    const out = await completeSignup(req, { db: {} });
+    const sessionRegistry = {
+      async trackSession(userId, sessionId) {
+        tracked.push({ userId, sessionId });
+      },
+    };
+    const out = await completeSignup(req, { db: {}, sessionRegistry });
     strictEqual(out.id, 'new-id');
     strictEqual(req.session.userId, 'new-id');
     strictEqual(req.session.pendingSignup, undefined);
+    deepStrictEqual(tracked, [{ userId: 'new-id', sessionId: 'sid-2' }]);
   });
 });

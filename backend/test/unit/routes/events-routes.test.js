@@ -5,6 +5,7 @@
  * HTTP handler tests (Stage 4) mount the router and assert status/body via supertest.
  */
 const { describe, it } = require('node:test');
+const assert = require('node:assert');
 const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const { mock } = require('node:test');
 const request = require('supertest');
@@ -18,13 +19,12 @@ const {
 const { deleteEventById } = require('../../../src/services/event-delete-service');
 const { getStreamsForActivity } = require('../../../src/services/stream-service');
 const { updateActivity } = require('../../../src/services/activity-service');
-const {
-  processUpload,
-  buildUploadResults,
-} = require('../../../src/services/event-upload-service');
+const { processUpload, buildUploadResults } = require('../../../src/services/event-upload-service');
+const { ParseError, ValidationError } = require('../../../src/errors');
 const exportService = require('../../../src/services/export-service');
 const eventsRouterModule = require('../../../src/routes/events');
 const { errorHandler } = require('../../../src/middleware/error-handler');
+const config = require('../../../src/config');
 const fs = require('fs');
 const path = require('path');
 
@@ -44,7 +44,7 @@ function createEventsApp(router) {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
-    req.userId = 'u1';
+    req.userId = req.headers['x-test-user'] || 'u1';
     next();
   });
   app.use('/api/events', router);
@@ -230,16 +230,68 @@ describe('Events route → service parameter mapping', () => {
       strictEqual(results[0].error, 'Unsupported file type');
     });
 
-    it('processUpload throw yields success: false with error message', async () => {
+    it('processUpload throw yields success: false with generic message for non-parse errors', async () => {
       const failingProcessUpload = async () => {
-        throw new Error('Parse failed');
+        throw new Error('some internal detail');
       };
       const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
       const results = await buildUploadResults(files, 'u1', failingProcessUpload);
       strictEqual(results.length, 1);
       strictEqual(results[0].success, false);
       strictEqual(results[0].filename, 'a.tcx');
-      strictEqual(results[0].error, 'Parse failed');
+      strictEqual(results[0].error, 'Failed to process file');
+    });
+
+    it('processUpload throw of ParseError yields success: false with fixed message', async () => {
+      const failingProcessUpload = async () => {
+        throw new ParseError('Invalid JSON format at offset 42');
+      };
+      const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
+      const results = await buildUploadResults(files, 'u1', failingProcessUpload);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, false);
+      strictEqual(results[0].error, 'Could not parse file');
+    });
+
+    it('processUpload throw of ValidationError keeps its message', async () => {
+      const failingProcessUpload = async () => {
+        throw new ValidationError('file must contain at least one activity');
+      };
+      const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
+      const results = await buildUploadResults(files, 'u1', failingProcessUpload);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, false);
+      strictEqual(results[0].error, 'file must contain at least one activity');
+    });
+
+    it('throws NotFoundError once when folderId is not owned by the user', async () => {
+      const db = { query: async () => [] };
+      const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
+      await assert.rejects(
+        async () =>
+          buildUploadResults(files, 'u1', processUploadWithFakeDb, {
+            folderId: 'foreign-folder',
+            db,
+          }),
+        (err) => {
+          strictEqual(err.statusCode, 404);
+          strictEqual(err.message, 'Folder not found');
+          return true;
+        }
+      );
+    });
+
+    it('accepts an owned folderId and processes files', async () => {
+      const db = { query: async () => [{ id: 'f1' }] };
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const buffer = fs.readFileSync(tcxPath);
+      const files = [{ buffer, originalname: 'minimal.tcx' }];
+      const results = await buildUploadResults(files, 'u1', processUploadWithFakeDb, {
+        folderId: 'f1',
+        db,
+      });
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, true);
     });
   });
 });
@@ -326,6 +378,76 @@ describe('Events route HTTP handler coverage', () => {
       .expect(400);
     deepStrictEqual(res.body, { error: 'folderId must be a valid UUID' });
     delete require.cache[EVENTS_ROUTER_PATH];
+  });
+
+  it('POST / returns 404 when folderId is not owned by the user', async () => {
+    const uploadService = require('../../../src/services/event-upload-service');
+    const { NotFoundError } = require('../../../src/errors');
+    mock.method(uploadService, 'buildUploadResults', async () => {
+      throw new NotFoundError('Folder not found');
+    });
+    try {
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const res = await request(app)
+        .post('/api/events')
+        .attach('files', tcxPath, 'minimal.tcx')
+        .field('folderId', 'a1b2c3d4-e5f6-4789-a012-3456789abcde')
+        .expect(404);
+      deepStrictEqual(res.body, { error: 'Folder not found' });
+    } finally {
+      uploadService.buildUploadResults.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
+  });
+
+  it('POST / enforces the process-wide upload slot cap across users', async () => {
+    const uploadService = require('../../../src/services/event-upload-service');
+    const pending = [];
+    mock.method(
+      uploadService,
+      'buildUploadResults',
+      () =>
+        new Promise((resolve) => {
+          pending.push(() => resolve([{ success: true, filename: 'x.tcx' }]));
+        })
+    );
+    try {
+      const router = getFreshEventsRouter();
+      const app = createEventsApp(router);
+      const tcxPath = path.join(FIXTURES_DIR, 'minimal.tcx');
+      const fire = (userId) =>
+        request(app)
+          .post('/api/events')
+          .set('x-test-user', userId)
+          .attach('files', tcxPath, 'minimal.tcx');
+
+      const slots = config.upload.maxConcurrentPerProcess;
+      const inFlight = [];
+      for (let i = 0; i < slots; i++) inFlight.push(fire(`slot-user-${i}`).then((r) => r));
+
+      // Wait until every admitted request has reached the handler, occupying a slot.
+      for (let i = 0; i < 200 && pending.length < slots; i++) {
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      strictEqual(pending.length, slots);
+
+      const rejected = await fire('slot-user-overflow').expect(429);
+      deepStrictEqual(rejected.body, {
+        error: 'Too many concurrent uploads, please try again shortly.',
+      });
+
+      for (const resolvePending of pending) resolvePending();
+      const admitted = await Promise.all(inFlight);
+      for (const res of admitted) {
+        strictEqual(res.status, 201);
+        strictEqual(res.body.results.length, 1);
+      }
+    } finally {
+      uploadService.buildUploadResults.mock.restore();
+      delete require.cache[EVENTS_ROUTER_PATH];
+    }
   });
 
   it('GET streams with types array returns 200 and getStreamsForActivity result', async () => {

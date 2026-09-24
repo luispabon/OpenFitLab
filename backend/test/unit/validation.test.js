@@ -14,6 +14,7 @@ const {
   validateExportQuery,
   validateStravaImportBody,
   validateStravaActivitiesQuery,
+  MAX_COMPARISON_ITEMS,
 } = require('../../src/utils/validation');
 
 function mockRes() {
@@ -370,6 +371,73 @@ describe('validateComparisonBody', () => {
     deepStrictEqual(res.body, { error: 'All activityIds must be valid UUIDs' });
     strictEqual(next.called(), false);
   });
+
+  it('returns 400 when activityIds exceeds MAX_COMPARISON_ITEMS', () => {
+    const activityIds = Array.from(
+      { length: MAX_COMPARISON_ITEMS + 1 },
+      (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+    );
+    const req = { body: { name: 'Compare', activityIds } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, {
+      error: `activityIds must not exceed ${MAX_COMPARISON_ITEMS} items`,
+    });
+    strictEqual(next.called(), false);
+  });
+
+  it('returns 400 when activityIds contains duplicates', () => {
+    const req = {
+      body: {
+        name: 'Compare',
+        activityIds: [
+          'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+          'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+        ],
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'activityIds must not contain duplicates' });
+    strictEqual(next.called(), false);
+  });
+
+  it('calls next when folderId is null, undefined, or empty string', () => {
+    const activityIds = [
+      'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+      'b2c3d4e5-f6a7-4890-b123-456789abcdef',
+    ];
+    for (const folderId of [null, undefined, '']) {
+      const req = { body: { name: 'Compare', activityIds, folderId } };
+      const res = mockRes();
+      const next = mockNext();
+      validateComparisonBody(req, res, next);
+      strictEqual(next.called(), true);
+    }
+  });
+
+  it('returns 400 when folderId is not a valid UUID', () => {
+    const req = {
+      body: {
+        name: 'Compare',
+        activityIds: [
+          'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+          'b2c3d4e5-f6a7-4890-b123-456789abcdef',
+        ],
+        folderId: 'not-a-uuid',
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, { error: 'folderId must be a valid UUID or null' });
+    strictEqual(next.called(), false);
+  });
 });
 
 describe('validateComparisonByEventsBody', () => {
@@ -416,6 +484,35 @@ describe('validateComparisonByEventsBody', () => {
     validateComparisonByEventsBody(req, res, next);
     strictEqual(res.statusCode, 400);
     deepStrictEqual(res.body, { error: 'All eventIds must be valid UUIDs' });
+    strictEqual(next.called(), false);
+  });
+
+  it('dedupes eventIds before calling next', () => {
+    const req = {
+      body: {
+        eventIds: ['a1b2c3d4-e5f6-4789-a012-3456789abcde', 'a1b2c3d4-e5f6-4789-a012-3456789abcde'],
+      },
+    };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
+    strictEqual(next.called(), true);
+    deepStrictEqual(req.body.eventIds, ['a1b2c3d4-e5f6-4789-a012-3456789abcde']);
+  });
+
+  it('returns 400 when eventIds (after dedupe) exceeds MAX_COMPARISON_ITEMS', () => {
+    const eventIds = Array.from(
+      { length: MAX_COMPARISON_ITEMS + 1 },
+      (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+    );
+    const req = { body: { eventIds } };
+    const res = mockRes();
+    const next = mockNext();
+    validateComparisonByEventsBody(req, res, next);
+    strictEqual(res.statusCode, 400);
+    deepStrictEqual(res.body, {
+      error: `eventIds must not exceed ${MAX_COMPARISON_ITEMS} items`,
+    });
     strictEqual(next.called(), false);
   });
 });

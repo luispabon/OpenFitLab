@@ -14,14 +14,41 @@ const { updateEventFolder } = require('../services/event-update-service');
 const { exportEventAsTcx, exportEventAsGpx } = require('../services/export-service');
 const { asyncHandler } = require('../middleware/async-handler');
 const { uploadLimiter } = require('../middleware/rate-limit');
+const {
+  createContentLengthGuard,
+  createUploadConcurrencyGuard,
+  createUploadBudgetGuard,
+  mapMulterError,
+} = require('../middleware/upload-guards');
 const { ValidationError, NotFoundError } = require('../errors');
+const config = require('../config');
 
 const router = express.Router();
 
+const MAX_FILES = 10;
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB limit
+  limits: {
+    fileSize: config.upload.maxFileBytes,
+    files: MAX_FILES,
+    fields: 5,
+    fieldSize: 1024,
+    parts: MAX_FILES + 5,
+  },
 });
+
+const contentLengthGuard = createContentLengthGuard();
+const uploadConcurrencyGuard = createUploadConcurrencyGuard();
+const uploadBudgetGuard = createUploadBudgetGuard();
+
+/** Wraps multer so its errors (LIMIT_FILE_SIZE etc.) map to typed errors with statusCode. */
+function handleUpload(req, res, next) {
+  upload.array('files', MAX_FILES)(req, res, (err) => {
+    if (!err) return next();
+    next(mapMulterError(err));
+  });
+}
 
 const {
   validateGetEventsQuery,
@@ -130,7 +157,10 @@ router.get(
 router.post(
   '/',
   uploadLimiter,
-  upload.array('files', 10),
+  contentLengthGuard,
+  uploadConcurrencyGuard,
+  uploadBudgetGuard,
+  handleUpload,
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {
       throw new ValidationError('No files provided');

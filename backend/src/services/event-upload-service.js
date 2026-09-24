@@ -1,4 +1,7 @@
+const defaultDb = require('../db');
 const FileParser = require('../parsers/file-parser');
+const folderRepository = require('../repositories/folder-repository');
+const { ParseError, ValidationError, NotFoundError } = require('../errors');
 const {
   persistParsedEvent,
   buildEventRecord,
@@ -49,7 +52,14 @@ async function processUpload(fileBuffer, extension, originalFilename, opts = {})
  */
 async function buildUploadResults(files, userId, processUploadFn, options = {}) {
   const results = [];
+  const db = options.db ?? defaultDb;
   const folderId = options.folderId != null && options.folderId !== '' ? options.folderId : null;
+
+  if (folderId !== null) {
+    const folder = await folderRepository.findById(folderId, { db, userId });
+    if (!folder) throw new NotFoundError('Folder not found');
+  }
+
   for (const file of files) {
     const filename = file.originalname || 'file';
     const extension = FileParser.getExtension(filename);
@@ -72,11 +82,15 @@ async function buildUploadResults(files, userId, processUploadFn, options = {}) 
         activities,
       });
     } catch (err) {
-      results.push({
-        success: false,
-        filename,
-        error: err.message || 'Failed to parse file',
-      });
+      if (err instanceof ParseError) {
+        // Parse errors may wrap parser-library internals; return a fixed public message.
+        results.push({ success: false, filename, error: 'Could not parse file' });
+      } else if (err instanceof ValidationError) {
+        results.push({ success: false, filename, error: err.message });
+      } else {
+        console.error(err);
+        results.push({ success: false, filename, error: 'Failed to process file' });
+      }
     }
   }
   return results;

@@ -18,7 +18,17 @@ info:
     **Ownership:** All resource endpoints scope data to the authenticated user.
     A missing or unowned resource returns `404` (not `403`) to avoid leaking existence.
 
-    **Error shape:** All error responses use `{ "error": "<message>" }`.
+    **Error shape:** All error responses use `{ "error": "<message>" }`. The
+    central error handler only returns an error's own message for its allowlisted
+    public types (validation, not-found, upload-limit, and Strava connection
+    errors), which carry intentional, fixed, or validated text. Any
+    other 4xx error returns the fixed message `"Bad request"`, and other 5xx
+    errors return the fixed message `"Internal server error"`, so unexpected
+    details are never reflected to the client (upstream Strava failures return
+    `502` with the fixed text `"Strava API error (<status>)"`, never the
+    provider's own message); details are logged server-side only. (`GET /health`
+    reports a fixed, non-sensitive `503` message directly and does not go through
+    the central handler.)
 
 servers:
   - url: http://localhost:3000
@@ -44,19 +54,6 @@ tags:
 # Reusable components
 # ---------------------------------------------------------------------------
 components:
-  responses:
-    TooManyRequests:
-      description: Rate limit exceeded
-      headers:
-        Retry-After:
-          schema:
-            type: integer
-          description: Seconds until the rate limit resets
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
   schemas:
     Error:
       type: object
@@ -292,7 +289,11 @@ components:
           description: Present when success is true. Activity ids are null in this response.
         error:
           type: string
-          description: Present when success is false
+          description: >-
+            Present when success is false. Fixed text `Unsupported file type`
+            for an unsupported extension, `Could not parse file` for a parse
+            failure, and `Failed to process file` for any other failure.
+            Validation errors return their specific message.
 
     AuthMe:
       type: object
@@ -472,6 +473,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
 
   securitySchemes:
     csrfToken:
@@ -523,9 +535,13 @@ paths:
       tags: [auth]
       summary: Google OAuth callback
       description: |
-        Handles the redirect from Google. On success, creates or resumes a
-        session and redirects to the SPA. On pending signup, stores the profile
-        in session and redirects with `?signup=pending`.
+        Handles the redirect from Google. Validates the OAuth `state` parameter
+        against a nonce stored in the session (set on `GET /api/auth/google`) to
+        prevent login CSRF; a missing or mismatched `state` fails authentication.
+        On success, creates or resumes a session and redirects to the SPA. On
+        pending signup, stores the profile in session and redirects with
+        `?signup=pending`. GitHub and Facebook callbacks validate `state` the
+        same way.
       responses:
         "302":
           description: Redirect to SPA
@@ -554,7 +570,12 @@ paths:
     get:
       tags: [auth]
       summary: Initiate Apple Sign In flow
-      description: Redirects to Apple. Returns 400 if Apple OAuth is not configured.
+      description: |
+        Redirects to Apple. Returns 400 if Apple OAuth is not configured. Sets a
+        short-lived, `HttpOnly` `ofl.apple_state` cookie scoped to
+        `/api/auth/apple/callback`, used to validate the `state` value Apple posts
+        back (Google/GitHub/Facebook instead use a session-backed OAuth `state`
+        nonce, since their callbacks are same-site GETs).
       responses:
         "302":
           description: Redirect to Apple authorization endpoint
@@ -566,9 +587,12 @@ paths:
       tags: [auth]
       summary: Apple OAuth callback
       description: |
-        Handles the redirect from Apple (`response_mode: form_post`). On success,
-        creates or resumes a session and redirects to the SPA. Behaviour mirrors
-        the Google callback except the request method is POST.
+        Handles the redirect from Apple (`response_mode: form_post`). Validates
+        `state` against the `ofl.apple_state` cookie before delegating to Passport
+        (redirects to `/#/login?error=apple` on missing/mismatched state, or on a
+        malformed `user` field); the cookie is cleared either way. On success,
+        creates or resumes a session and redirects to the SPA. Behaviour otherwise
+        mirrors the Google callback except the request method is POST.
       requestBody:
         required: true
         content:
@@ -709,7 +733,23 @@ paths:
         Accepts 1–10 files as `multipart/form-data`. Each file is parsed,
         persisted, and returned in the results array. Unsupported or unparseable
         files produce a result with `success: false` rather than failing the
-        whole request.
+        whole request. Per-file `error` text is fixed for parse and unexpected
+        failures; see `UploadResultItem`.
+
+        Limits: each file is capped at 25 MiB (`UPLOAD_MAX_FILE_BYTES`), and the
+        aggregate request size (checked via the `Content-Length` header before
+        parsing) is capped at 128 MiB (`UPLOAD_MAX_REQUEST_BYTES`); requests
+        without `Content-Length` are rejected. At most 2 uploads per user may be
+        in flight at a time (`UPLOAD_MAX_CONCURRENT_PER_USER`). Each API process
+        also enforces a process-wide budget of 256 MiB of in-flight Content-Length
+        bytes (`UPLOAD_MAX_IN_FLIGHT_BYTES`) and 4 concurrent uploads
+        (`UPLOAD_MAX_CONCURRENT_PER_PROCESS`), so uploads may be rejected with 429
+        while other users are uploading. The byte budget counts compressed
+        multipart request bodies, is shared across users (one busy user can consume
+        it), and is not a strict memory ceiling: it excludes decompressed size,
+        parsed results, and other heap use. These limits apply per API process, so
+        with multiple replicas the deployment-wide ceiling is multiplied by the
+        replica count.
       security:
         - csrfToken: []
       requestBody:
@@ -745,6 +785,22 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: folderId does not exist or is not owned by the caller
+        "411":
+          description: Content-Length header is required for multipart uploads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Upload exceeds the maximum allowed file or request size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/events/activity-rows:
     get:
@@ -1075,6 +1131,8 @@ paths:
                 activityIds:
                   type: array
                   minItems: 2
+                  maxItems: 200
+                  uniqueItems: true
                   items:
                     type: string
                     format: uuid
@@ -1099,7 +1157,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
-          description: One or more activityIds not found or not owned
+          description: One or more activityIds not found/not owned, or folderId not found/not owned
           content:
             application/json:
               schema:
@@ -1123,6 +1181,7 @@ paths:
                 eventIds:
                   type: array
                   minItems: 1
+                  maxItems: 200
                   items:
                     type: string
                     format: uuid
@@ -1190,6 +1249,7 @@ paths:
     patch:
       tags: [comparisons]
       summary: Update comparison folder assignment
+      description: Returns 404 if the comparison, or the target folderId, is not found or not owned by the caller.
       security:
         - csrfToken: []
       parameters:
@@ -1469,7 +1529,15 @@ paths:
       description: |
         Permanently deletes the authenticated user and all associated data
         (events, activities, comparisons, folders, streams). Cascade delete
-        is enforced at the database level. The current session is destroyed.
+        is enforced at the database level. The current session is destroyed,
+        and every other session tracked for this user (e.g. other logged-in
+        browsers, including any stored Strava integration tokens) is also
+        revoked in Valkey.
+
+        Session cleanup is best-effort: both steps are attempted and the request
+        still succeeds if one of them fails, because the API verifies on every
+        authenticated request that the session's user still exists and rejects
+        stale sessions with `401`.
       security:
         - csrfToken: []
       responses:

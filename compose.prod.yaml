@@ -48,7 +48,7 @@ services:
       start_period: 5s
 
   api:
-    image: ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}
+    image: ghcr.io/luispabon/openfitlab-backend@${OPENFITLAB_BACKEND_IMAGE_DIGEST:?OPENFITLAB_BACKEND_IMAGE_DIGEST is required (sha256:... digest, see docs/ARCHITECTURE.md)}
     restart: unless-stopped
     environment:
       PORT: 3000
@@ -71,6 +71,7 @@ services:
       FACEBOOK_APP_ID: ${OPENFITLAB_FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${OPENFITLAB_FACEBOOK_APP_SECRET:-}
       OAUTH_CALLBACK_URL: ${OPENFITLAB_OAUTH_CALLBACK_URL:?OPENFITLAB_OAUTH_CALLBACK_URL is required}
+      NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +83,9 @@ services:
     deploy:
       mode: replicated
       replicas: 2
+      resources:
+        limits:
+          memory: 1g
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dmz"
@@ -89,10 +93,9 @@ services:
       - "traefik.http.routers.api.entrypoints=web-secure"
       - "traefik.http.routers.api.tls.certresolver=lusa"
       - "traefik.http.services.api.loadbalancer.server.port=3000"
-      - "com.centurylinklabs.watchtower.enable=true"
 
   frontend:
-    image: ghcr.io/luispabon/openfitlab-frontend:${OPENFITLAB_IMAGE_TAG:-main}
+    image: ghcr.io/luispabon/openfitlab-frontend@${OPENFITLAB_FRONTEND_IMAGE_DIGEST:?OPENFITLAB_FRONTEND_IMAGE_DIGEST is required (sha256:... digest, see docs/ARCHITECTURE.md)}
     restart: unless-stopped
     networks:
       - dmz
@@ -105,10 +108,9 @@ services:
       - "traefik.http.routers.frontend.entrypoints=web-secure"
       - "traefik.http.routers.frontend.tls.certresolver=lusa"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"
-      - "com.centurylinklabs.watchtower.enable=true"
 
   backup:
-    image: ghcr.io/luispabon/openfitlab-backup:${OPENFITLAB_IMAGE_TAG:-main}
+    image: ghcr.io/luispabon/openfitlab-backup@${OPENFITLAB_BACKUP_IMAGE_DIGEST:?OPENFITLAB_BACKUP_IMAGE_DIGEST is required (sha256:... digest, see docs/ARCHITECTURE.md)}
     restart: unless-stopped
     init: true
     profiles:
@@ -131,8 +133,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
 
   fake-gcs-init:
     image: alpine:3.24

@@ -1,7 +1,7 @@
 process.env.SESSION_SECRET =
   process.env.SESSION_SECRET || 'test-secret-at-least-32-characters-long';
 
-const { describe, it, mock, afterEach } = require('node:test');
+const { describe, it, mock, afterEach, beforeEach } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const express = require('express');
 const request = require('supertest');
@@ -9,6 +9,7 @@ const config = require('../../../src/config');
 const stravaIntegration = require('../../../src/services/strava-integration-service');
 const idempotency = require('../../../src/services/integration-idempotency');
 const stravaOauth = require('../../../src/services/strava-oauth-service');
+const userRepository = require('../../../src/repositories/user-repository');
 const { errorHandler } = require('../../../src/middleware/error-handler');
 
 const STRAVA_ROUTER_PATH = require.resolve('../../../src/routes/integrations-strava');
@@ -21,6 +22,11 @@ function loadStravaRouter() {
 describe('integrations-strava routes', () => {
   const restores = [];
   let stravaEnabled;
+
+  beforeEach(() => {
+    // requireAuth verifies the session user still exists; these routes tests use fake sessions.
+    restores.push(mock.method(userRepository, 'findById', async (id) => ({ id })));
+  });
 
   afterEach(() => {
     for (const r of restores) {
@@ -46,6 +52,19 @@ describe('integrations-strava routes', () => {
       next();
     };
   }
+
+  it('GET /strava/status returns 401 when the session user no longer exists', async () => {
+    restores.push(mock.method(userRepository, 'findById', async () => null));
+    const stravaRouter = loadStravaRouter();
+    const app = express();
+    app.use(express.json());
+    app.use(attachSession('u1'));
+    app.use('/api/integrations', stravaRouter);
+    app.use(errorHandler);
+    const res = await request(app).get('/api/integrations/strava/status');
+    strictEqual(res.status, 401);
+    strictEqual(res.body.error, 'Authentication required');
+  });
 
   it('GET /strava/status returns configured:false when Strava disabled', async () => {
     stravaEnabled = config.integrations.strava.enabled;

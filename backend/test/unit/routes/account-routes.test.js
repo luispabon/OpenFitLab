@@ -1,5 +1,5 @@
 const { describe, it } = require('node:test');
-const { strictEqual, deepStrictEqual } = require('node:assert/strict');
+const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const { mock } = require('node:test');
 const request = require('supertest');
 const express = require('express');
@@ -7,12 +7,17 @@ const { errorHandler } = require('../../../src/middleware/error-handler');
 
 const ACCOUNT_ROUTER_PATH = require.resolve('../../../src/routes/account');
 const accountService = require('../../../src/services/account-service');
+const authService = require('../../../src/services/auth-service');
+const sessionRegistry = require('../../../src/session-registry');
 
-function createApp(router) {
+function createApp(router, { sessionDestroy } = {}) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
     req.userId = 'u1';
+    req.session = {
+      destroy: sessionDestroy ?? ((cb) => cb(null)),
+    };
     next();
   });
   app.use('/api/account', router);
@@ -89,27 +94,125 @@ describe('Account routes HTTP handler coverage', () => {
     }
   });
 
-  it('DELETE / returns 204 when account deleted', async () => {
+  it('DELETE / returns 204, destroys the session before revoking others, and clears the cookie', async () => {
     mock.method(accountService, 'deleteAccount', async () => true);
+    const calls = [];
+    mock.method(authService, 'destroySession', async () => {
+      calls.push('destroySession');
+    });
+    let revokedUserId;
+    mock.method(sessionRegistry, 'revokeUserSessions', async (userId) => {
+      calls.push('revokeUserSessions');
+      revokedUserId = userId;
+    });
     try {
       const router = getFreshRouter();
       const app = createApp(router);
-      await request(app).delete('/api/account').expect(204);
+      const res = await request(app).delete('/api/account').expect(204);
+      strictEqual(revokedUserId, 'u1');
+      deepStrictEqual(calls, ['destroySession', 'revokeUserSessions']);
+      ok(res.headers['set-cookie'].some((c) => c.startsWith('ofl.sid=;')));
     } finally {
       accountService.deleteAccount.mock.restore();
+      authService.destroySession.mock.restore();
+      sessionRegistry.revokeUserSessions.mock.restore();
       delete require.cache[ACCOUNT_ROUTER_PATH];
     }
   });
 
-  it('DELETE / returns 404 when user not found', async () => {
+  it('DELETE / still revokes other sessions and returns 204 when destroying the session fails', async () => {
+    mock.method(accountService, 'deleteAccount', async () => true);
+    mock.method(authService, 'destroySession', async () => {
+      throw new Error('session store unavailable');
+    });
+    let revokedUserId = null;
+    mock.method(sessionRegistry, 'revokeUserSessions', async (userId) => {
+      revokedUserId = userId;
+    });
+    const errorLog = mock.method(console, 'error', () => {});
+    try {
+      const router = getFreshRouter();
+      const app = createApp(router);
+      const res = await request(app).delete('/api/account').expect(204);
+      strictEqual(revokedUserId, 'u1');
+      ok(res.headers['set-cookie'].some((c) => c.startsWith('ofl.sid=;')));
+      strictEqual(errorLog.mock.callCount(), 1);
+    } finally {
+      accountService.deleteAccount.mock.restore();
+      authService.destroySession.mock.restore();
+      sessionRegistry.revokeUserSessions.mock.restore();
+      errorLog.mock.restore();
+      delete require.cache[ACCOUNT_ROUTER_PATH];
+    }
+  });
+
+  it('DELETE / still destroys the session and returns 204 when revoking other sessions fails', async () => {
+    mock.method(accountService, 'deleteAccount', async () => true);
+    let destroyCalled = false;
+    mock.method(authService, 'destroySession', async () => {
+      destroyCalled = true;
+    });
+    mock.method(sessionRegistry, 'revokeUserSessions', async () => {
+      throw new Error('valkey unavailable');
+    });
+    const errorLog = mock.method(console, 'error', () => {});
+    try {
+      const router = getFreshRouter();
+      const app = createApp(router);
+      const res = await request(app).delete('/api/account').expect(204);
+      strictEqual(destroyCalled, true);
+      ok(res.headers['set-cookie'].some((c) => c.startsWith('ofl.sid=;')));
+      strictEqual(errorLog.mock.callCount(), 1);
+    } finally {
+      accountService.deleteAccount.mock.restore();
+      authService.destroySession.mock.restore();
+      sessionRegistry.revokeUserSessions.mock.restore();
+      errorLog.mock.restore();
+      delete require.cache[ACCOUNT_ROUTER_PATH];
+    }
+  });
+
+  it('DELETE / attempts both cleanup steps and returns 204 when both fail', async () => {
+    mock.method(accountService, 'deleteAccount', async () => true);
+    mock.method(authService, 'destroySession', async () => {
+      throw new Error('session store unavailable');
+    });
+    mock.method(sessionRegistry, 'revokeUserSessions', async () => {
+      throw new Error('valkey unavailable');
+    });
+    const errorLog = mock.method(console, 'error', () => {});
+    try {
+      const router = getFreshRouter();
+      const app = createApp(router);
+      const res = await request(app).delete('/api/account').expect(204);
+      strictEqual(authService.destroySession.mock.callCount(), 1);
+      strictEqual(sessionRegistry.revokeUserSessions.mock.callCount(), 1);
+      ok(res.headers['set-cookie'].some((c) => c.startsWith('ofl.sid=;')));
+      strictEqual(errorLog.mock.callCount(), 1);
+    } finally {
+      accountService.deleteAccount.mock.restore();
+      authService.destroySession.mock.restore();
+      sessionRegistry.revokeUserSessions.mock.restore();
+      errorLog.mock.restore();
+      delete require.cache[ACCOUNT_ROUTER_PATH];
+    }
+  });
+
+  it('DELETE / returns 404 when user not found and does not revoke sessions', async () => {
     mock.method(accountService, 'deleteAccount', async () => false);
+    mock.method(authService, 'destroySession', async () => {});
+    mock.method(sessionRegistry, 'revokeUserSessions', async () => {});
     try {
       const router = getFreshRouter();
       const app = createApp(router);
       const res = await request(app).delete('/api/account').expect(404);
       deepStrictEqual(res.body, { error: 'User not found' });
+      strictEqual(authService.destroySession.mock.callCount(), 0);
+      strictEqual(sessionRegistry.revokeUserSessions.mock.callCount(), 0);
     } finally {
       accountService.deleteAccount.mock.restore();
+      authService.destroySession.mock.restore();
+      sessionRegistry.revokeUserSessions.mock.restore();
       delete require.cache[ACCOUNT_ROUTER_PATH];
     }
   });

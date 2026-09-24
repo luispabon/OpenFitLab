@@ -98,6 +98,51 @@ describe('comparison-service', () => {
       );
     });
 
+    it('resolves and persists a folderId owned by the user', async () => {
+      const queries = [];
+      const db = makeFakeDb(async (sql, params) => {
+        queries.push({ sql, params });
+        if (sql.includes('FROM folders')) return [{ id: 'f1' }];
+        if (sql.includes('FROM activities a')) {
+          return [
+            { id: 'a1', event_id: 'e1' },
+            { id: 'a2', event_id: 'e2' },
+          ];
+        }
+        return { affectedRows: 1 };
+      });
+
+      const result = await createComparison('Test', ['a1', 'a2'], null, {
+        db,
+        userId: 'u1',
+        folderId: 'f1',
+      });
+
+      strictEqual(result.folderId, 'f1');
+    });
+
+    it('rejects with statusCode 404 when folderId is not owned by the user', async () => {
+      const db = makeFakeDb(async (sql) => {
+        if (sql.includes('FROM folders')) return [];
+        return { affectedRows: 1 };
+      });
+
+      await assert.rejects(
+        async () => {
+          await createComparison('Test', ['a1', 'a2'], null, {
+            db,
+            userId: 'u1',
+            folderId: 'foreign-folder',
+          });
+        },
+        (err) => {
+          strictEqual(err.statusCode, 404);
+          strictEqual(err.message, 'Folder not found');
+          return true;
+        }
+      );
+    });
+
     it('rejects with statusCode 404 when fewer activities found than requested (transaction rolls back)', async () => {
       const queries = [];
       const db = makeFakeDb(async (sql, params) => {
@@ -278,7 +323,12 @@ describe('comparison-service', () => {
 
   describe('updateComparisonFolder', () => {
     it('returns false when comparison not found (affectedRows 0)', async () => {
-      const db = { query: async () => ({ affectedRows: 0 }) };
+      const db = {
+        query: async (sql) => {
+          if (sql.includes('FROM folders')) return [{ id: 'f1' }];
+          return { affectedRows: 0 };
+        },
+      };
       const result = await updateComparisonFolder('missing', 'f1', { db, userId: 'u1' });
       strictEqual(result, false);
     });
@@ -288,6 +338,7 @@ describe('comparison-service', () => {
       const db = {
         query: async (sql, params) => {
           calls.push({ sql, params });
+          if (sql.includes('FROM folders')) return [{ id: 'f2' }];
           if (sql.includes('UPDATE comparisons SET folder_id')) {
             strictEqual(params[0], 'f2');
             strictEqual(params[1], 'c1');
@@ -319,6 +370,23 @@ describe('comparison-service', () => {
       };
       const result = await updateComparisonFolder('c1', null, { db, userId: 'u1' });
       strictEqual(result, true);
+    });
+
+    it('throws NotFoundError when folder is not owned by the user', async () => {
+      const db = {
+        query: async (sql) => {
+          if (sql.includes('FROM folders')) return [];
+          return { affectedRows: 1 };
+        },
+      };
+      await assert.rejects(
+        async () => updateComparisonFolder('c1', 'foreign-folder', { db, userId: 'u1' }),
+        (err) => {
+          strictEqual(err.statusCode, 404);
+          strictEqual(err.message, 'Folder not found');
+          return true;
+        }
+      );
     });
   });
 

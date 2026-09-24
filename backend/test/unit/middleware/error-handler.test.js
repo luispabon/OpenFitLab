@@ -1,7 +1,13 @@
 const { describe, it } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const { errorHandler } = require('../../../src/middleware/error-handler');
-const { StravaRateLimitError } = require('../../../src/errors');
+const {
+  ValidationError,
+  NotFoundError,
+  ParseError,
+  StravaRateLimitError,
+  StravaUpstreamError,
+} = require('../../../src/errors');
 
 function makeRes() {
   let statusCode = 200;
@@ -38,17 +44,27 @@ describe('error-handler', () => {
     };
     errorHandler(new Error('boom'), {}, res, next);
     strictEqual(res.getStatusCode(), 500);
-    strictEqual(res.getBody().error, 'boom');
+    strictEqual(res.getBody().error, 'Internal server error');
     strictEqual(nextCalled, false);
   });
 
-  it('returns 404 when err.statusCode is 404', () => {
+  it('hides message of untyped 4xx errors (400 Bad request)', () => {
     const res = makeRes();
-    const err = new Error('missing');
-    err.statusCode = 404;
+    const err = new Error('connect ECONNREFUSED 10.0.0.5:3306');
+    err.statusCode = 400;
     errorHandler(err, {}, res, () => {});
-    strictEqual(res.getStatusCode(), 404);
-    strictEqual(res.getBody().error, 'missing');
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'Bad request');
+  });
+
+  it('does not expose messages from non-allowlisted Error subclasses', () => {
+    class CustomClientError extends Error {}
+    const res = makeRes();
+    const err = new CustomClientError('internal parser detail: unexpected token at line 42');
+    err.statusCode = 422;
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 422);
+    strictEqual(res.getBody().error, 'Bad request');
   });
 
   it('maps EBADCSRFTOKEN to 403 with fixed message', () => {
@@ -90,5 +106,47 @@ describe('error-handler', () => {
     const res = makeRes();
     errorHandler({}, {}, res, () => {});
     strictEqual(res.getBody().error, 'Internal server error');
+  });
+
+  it('returns fixed StravaUpstreamError text without upstream detail (502)', () => {
+    const res = makeRes();
+    const err = new StravaUpstreamError('Strava API error (500)');
+    err.upstreamMessage = 'some sensitive upstream detail';
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 502);
+    strictEqual(res.getBody().error, 'Strava API error (500)');
+  });
+
+  it('hides message of other 5xx errors', () => {
+    const res = makeRes();
+    const err = new Error('connect ECONNREFUSED 10.0.0.5:3306');
+    err.statusCode = 503;
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 503);
+    strictEqual(res.getBody().error, 'Internal server error');
+  });
+
+  it('preserves message of allowlisted public 4xx type', () => {
+    const res = makeRes();
+    const err = new NotFoundError('Event not found');
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 404);
+    strictEqual(res.getBody().error, 'Event not found');
+  });
+
+  it('preserves typed 4xx message', () => {
+    const res = makeRes();
+    const err = new ValidationError('name must be a non-empty string');
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'name must be a non-empty string');
+  });
+
+  it('returns generic 400 for ParseError (parser text not allowlisted)', () => {
+    const res = makeRes();
+    const err = new ParseError('Error in line 12 while parsing at offset 42');
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'Bad request');
   });
 });
