@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const defaultDb = require('../db');
 const comparisonRepository = require('../repositories/comparison-repository');
 const activityRepository = require('../repositories/activity-repository');
+const folderRepository = require('../repositories/folder-repository');
 const { parseJSONField } = require('../utils/transforms');
 const { NotFoundError, ValidationError } = require('../errors');
 
@@ -77,8 +78,14 @@ async function createComparison(name, activityIds, settings, opts = {}) {
   const db = opts.db ?? defaultDb;
   const id = randomUUID();
   const trimmedName = name.trim();
+  const fid = opts.folderId != null && opts.folderId !== '' ? opts.folderId : null;
   let eventIds = [];
   let activityIdsOut = [];
+
+  if (fid !== null) {
+    const folder = await folderRepository.findById(fid, { ...opts, db });
+    if (!folder) throw new NotFoundError('Folder not found');
+  }
 
   await db.transaction(async (conn) => {
     const txOpts = { ...opts, db, conn };
@@ -108,7 +115,7 @@ async function createComparison(name, activityIds, settings, opts = {}) {
 
     await comparisonRepository.create(id, trimmedName, activityRows, settings, {
       ...txOpts,
-      folderId: opts.folderId ?? null,
+      folderId: fid,
     });
   });
 
@@ -118,7 +125,7 @@ async function createComparison(name, activityIds, settings, opts = {}) {
     eventIds,
     activityIds: activityIdsOut,
     settings: settings || null,
-    folderId: opts.folderId ?? null,
+    folderId: fid,
     createdAt: Date.now(),
   };
 }
@@ -246,6 +253,10 @@ async function updateComparisonFolder(id, folderId, opts = {}) {
   const db = opts.db ?? defaultDb;
   const repoOpts = { ...opts, db };
   const newFolderId = folderId != null && folderId !== '' ? folderId : null;
+  if (newFolderId !== null) {
+    const folder = await folderRepository.findById(newFolderId, repoOpts);
+    if (!folder) throw new NotFoundError('Folder not found');
+  }
   return comparisonRepository.updateFolderId(id, newFolderId, repoOpts);
 }
 
