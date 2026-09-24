@@ -88,4 +88,57 @@ function createUploadConcurrencyGuard({ maxPerUser = config.upload.maxConcurrent
   };
 }
 
-module.exports = { createContentLengthGuard, createUploadConcurrencyGuard, mapMulterError };
+/**
+ * Reserves process-wide in-flight upload capacity (total Content-Length bytes and upload slots)
+ * for this process before multer buffers anything. Bounds aggregate memory use and concurrent
+ * parser/decompress load across all users, not just per user. Counters are released exactly
+ * once, whether the response finishes normally or the connection closes early.
+ *
+ * The budget is per API process: with multiple replicas the effective deployment-wide ceiling
+ * is the per-process budget multiplied by the number of running replicas.
+ */
+function createUploadBudgetGuard({
+  maxBytes = config.upload.maxInFlightBytes,
+  maxConcurrent = config.upload.maxConcurrentPerProcess,
+} = {}) {
+  let inFlightBytes = 0;
+  let inFlightCount = 0;
+
+  return function uploadBudgetGuard(req, res, next) {
+    if (!req.is('multipart/form-data')) return next();
+
+    const contentLength = req.headers['content-length'];
+    if (contentLength == null) {
+      return next(new LengthRequiredError());
+    }
+    const bytes = Number(contentLength);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return next(new LengthRequiredError('Invalid Content-Length header'));
+    }
+    if (inFlightCount + 1 > maxConcurrent || inFlightBytes + bytes > maxBytes) {
+      return next(new TooManyUploadsError());
+    }
+
+    inFlightCount += 1;
+    inFlightBytes += bytes;
+
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      inFlightCount -= 1;
+      inFlightBytes -= bytes;
+    };
+    res.on('finish', release);
+    res.on('close', release);
+
+    next();
+  };
+}
+
+module.exports = {
+  createContentLengthGuard,
+  createUploadConcurrencyGuard,
+  createUploadBudgetGuard,
+  mapMulterError,
+};

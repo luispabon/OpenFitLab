@@ -731,7 +731,13 @@ paths:
         aggregate request size (checked via the `Content-Length` header before
         parsing) is capped at 128 MiB (`UPLOAD_MAX_REQUEST_BYTES`); requests
         without `Content-Length` are rejected. At most 2 uploads per user may be
-        in flight at a time (`UPLOAD_MAX_CONCURRENT_PER_USER`).
+        in flight at a time (`UPLOAD_MAX_CONCURRENT_PER_USER`). Each API process
+        also enforces a process-wide budget of 256 MiB of in-flight Content-Length
+        bytes (`UPLOAD_MAX_IN_FLIGHT_BYTES`) and 2 concurrent uploads
+        (`UPLOAD_MAX_CONCURRENT_PER_PROCESS`), so uploads may be rejected with 429
+        while other users are uploading; these limits apply per API process, so with
+        multiple replicas the deployment-wide ceiling is multiplied by the replica
+        count.
       security:
         - csrfToken: []
       requestBody:

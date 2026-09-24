@@ -17,6 +17,7 @@ const { uploadLimiter } = require('../middleware/rate-limit');
 const {
   createContentLengthGuard,
   createUploadConcurrencyGuard,
+  createUploadBudgetGuard,
   mapMulterError,
 } = require('../middleware/upload-guards');
 const { ValidationError, NotFoundError } = require('../errors');
@@ -39,6 +40,7 @@ const upload = multer({
 
 const contentLengthGuard = createContentLengthGuard();
 const uploadConcurrencyGuard = createUploadConcurrencyGuard();
+const uploadBudgetGuard = createUploadBudgetGuard();
 
 /** Wraps multer so its errors (LIMIT_FILE_SIZE etc.) map to typed errors with statusCode. */
 function handleUpload(req, res, next) {
@@ -157,6 +159,7 @@ router.post(
   uploadLimiter,
   contentLengthGuard,
   uploadConcurrencyGuard,
+  uploadBudgetGuard,
   handleUpload,
   asyncHandler(async (req, res) => {
     if (!req.files || req.files.length === 0) {

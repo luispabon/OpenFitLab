@@ -42,6 +42,8 @@ const {
   UPLOAD_MAX_FILE_BYTES,
   UPLOAD_MAX_REQUEST_BYTES,
   UPLOAD_MAX_CONCURRENT_PER_USER,
+  UPLOAD_MAX_IN_FLIGHT_BYTES,
+  UPLOAD_MAX_CONCURRENT_PER_PROCESS,
 } = process.env;
 
 function parsePositiveInt(raw, defaultValue) {
@@ -182,12 +184,19 @@ const rateLimit = {
 
 const uploadMaxFileBytes = parsePositiveInt(UPLOAD_MAX_FILE_BYTES, 25 * 1024 * 1024);
 const uploadMaxRequestBytes = parsePositiveInt(UPLOAD_MAX_REQUEST_BYTES, 128 * 1024 * 1024);
+const uploadMaxInFlightBytes = parsePositiveInt(UPLOAD_MAX_IN_FLIGHT_BYTES, 256 * 1024 * 1024);
+
+// Aggregate request cap must be able to fit at least one max-size file.
+const boundedRequestBytes = Math.max(uploadMaxRequestBytes, uploadMaxFileBytes);
 
 const upload = {
   maxFileBytes: uploadMaxFileBytes,
-  // Aggregate request cap must be able to fit at least one max-size file.
-  maxRequestBytes: Math.max(uploadMaxRequestBytes, uploadMaxFileBytes),
+  maxRequestBytes: boundedRequestBytes,
   maxConcurrentPerUser: parsePositiveInt(UPLOAD_MAX_CONCURRENT_PER_USER, 2),
+  // Process-wide in-flight budget must admit at least one max-size aggregate request, so a
+  // misconfigured budget cannot lock out every upload.
+  maxInFlightBytes: Math.max(uploadMaxInFlightBytes, boundedRequestBytes),
+  maxConcurrentPerProcess: parsePositiveInt(UPLOAD_MAX_CONCURRENT_PER_PROCESS, 2),
 };
 
 const termsOfService = {

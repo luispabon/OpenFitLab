@@ -93,6 +93,15 @@ describe('config', () => {
     strictEqual(config.upload.maxConcurrentPerUser >= 1, true);
   });
 
+  it('upload has process-wide budget defaults covering a full request and at least one slot', () => {
+    strictEqual(typeof config.upload.maxInFlightBytes, 'number');
+    strictEqual(typeof config.upload.maxConcurrentPerProcess, 'number');
+    strictEqual(config.upload.maxInFlightBytes >= config.upload.maxRequestBytes, true);
+    strictEqual(config.upload.maxConcurrentPerProcess >= 1, true);
+    strictEqual(config.upload.maxConcurrentPerProcess, 2);
+    strictEqual(config.upload.maxInFlightBytes, 256 * 1024 * 1024);
+  });
+
   describe('upload env overrides (loaded in child process)', () => {
     function loadUploadConfigInChild(envOverrides) {
       const env = { ...process.env, ...envOverrides };
@@ -142,6 +151,24 @@ describe('config', () => {
       const out = JSON.parse(result.stdout.trim());
       strictEqual(out.maxFileBytes, 25 * 1024 * 1024);
       strictEqual(out.maxConcurrentPerUser, 2);
+    });
+
+    it('uses UPLOAD_MAX_IN_FLIGHT_BYTES and UPLOAD_MAX_CONCURRENT_PER_PROCESS when valid', () => {
+      const result = loadUploadConfigInChild({
+        UPLOAD_MAX_IN_FLIGHT_BYTES: '300000000',
+        UPLOAD_MAX_CONCURRENT_PER_PROCESS: '3',
+      });
+      strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const out = JSON.parse(result.stdout.trim());
+      strictEqual(out.maxInFlightBytes, 300000000);
+      strictEqual(out.maxConcurrentPerProcess, 3);
+    });
+
+    it('raises maxInFlightBytes to at least maxRequestBytes when the configured budget is smaller', () => {
+      const result = loadUploadConfigInChild({ UPLOAD_MAX_IN_FLIGHT_BYTES: '10' });
+      strictEqual(result.status, 0, result.stderr || result.error?.message);
+      const out = JSON.parse(result.stdout.trim());
+      strictEqual(out.maxInFlightBytes, out.maxRequestBytes);
     });
   });
 
