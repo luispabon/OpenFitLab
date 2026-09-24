@@ -318,6 +318,7 @@ Both return `{ ok: true }`.
 
 ### Authentication and account
 
+- `GET /api/auth/providers` (public) — booleans for which OAuth login providers are enabled, so the login page renders only usable buttons
 - `GET /api/auth/google`
 - `GET /api/auth/google/callback`
 - `GET /api/auth/github`

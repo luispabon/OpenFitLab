@@ -24,6 +24,18 @@ function isEnabled(strategy) {
   return false;
 }
 
+// GET /api/auth/providers — public capability endpoint.
+// Reports which OAuth login providers are enabled so the login page can render
+// only usable providers. Booleans only; no client IDs, secrets, or other config.
+router.get('/providers', (req, res) => {
+  res.json({
+    google: isEnabled('google'),
+    github: isEnabled('github'),
+    apple: isEnabled('apple'),
+    facebook: isEnabled('facebook'),
+  });
+});
+
 // Google OAuth
 router.get('/google', (req, res, next) => {
   if (!isEnabled('google')) {

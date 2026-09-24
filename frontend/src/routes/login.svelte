@@ -5,6 +5,21 @@
   import githubIcon from '../assets/auth/github-mark.svg';
   import appleIcon from '../assets/auth/apple-logo.svg';
   import facebookIcon from '../assets/auth/facebook-f.svg';
+  import { fetchLoginProviders, type LoginProviders } from '../lib/api/auth';
+
+  // Null until the capability request resolves; provider buttons stay hidden until
+  // then (and on failure) so the page never advertises an unconfigured route.
+  let providers = $state<LoginProviders | null>(null);
+
+  $effect(() => {
+    let cancelled = false;
+    fetchLoginProviders().then((result) => {
+      if (!cancelled) providers = result;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
 
   function signInWith(provider: 'google' | 'github' | 'apple' | 'facebook') {
     // Full page navigation to backend OAuth endpoints
@@ -30,22 +45,30 @@
     </div>
     <p class="mb-6 text-center text-text-secondary">Sign in to continue</p>
     <div class="grid grid-cols-2 gap-3">
-      <button class={googleButtonClasses} onclick={() => signInWith('google')}>
-        <img src={googleIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
-        Google
-      </button>
-      <button class={githubButtonClasses} onclick={() => signInWith('github')}>
-        <img src={githubIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
-        GitHub
-      </button>
-      <button class={appleButtonClasses} onclick={() => signInWith('apple')}>
-        <img src={appleIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
-        Apple
-      </button>
-      <button class={facebookButtonClasses} onclick={() => signInWith('facebook')}>
-        <img src={facebookIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
-        Facebook
-      </button>
+      {#if providers?.google}
+        <button class={googleButtonClasses} onclick={() => signInWith('google')}>
+          <img src={googleIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
+          Google
+        </button>
+      {/if}
+      {#if providers?.github}
+        <button class={githubButtonClasses} onclick={() => signInWith('github')}>
+          <img src={githubIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
+          GitHub
+        </button>
+      {/if}
+      {#if providers?.apple}
+        <button class={appleButtonClasses} onclick={() => signInWith('apple')}>
+          <img src={appleIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
+          Apple
+        </button>
+      {/if}
+      {#if providers?.facebook}
+        <button class={facebookButtonClasses} onclick={() => signInWith('facebook')}>
+          <img src={facebookIcon} alt="" class="h-6 w-6 shrink-0" width="24" height="24" />
+          Facebook
+        </button>
+      {/if}
     </div>
   </div>
 </div>
