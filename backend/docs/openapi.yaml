@@ -523,9 +523,13 @@ paths:
       tags: [auth]
       summary: Google OAuth callback
       description: |
-        Handles the redirect from Google. On success, creates or resumes a
-        session and redirects to the SPA. On pending signup, stores the profile
-        in session and redirects with `?signup=pending`.
+        Handles the redirect from Google. Validates the OAuth `state` parameter
+        against a nonce stored in the session (set on `GET /api/auth/google`) to
+        prevent login CSRF; a missing or mismatched `state` fails authentication.
+        On success, creates or resumes a session and redirects to the SPA. On
+        pending signup, stores the profile in session and redirects with
+        `?signup=pending`. GitHub and Facebook callbacks validate `state` the
+        same way.
       responses:
         "302":
           description: Redirect to SPA
@@ -554,7 +558,12 @@ paths:
     get:
       tags: [auth]
       summary: Initiate Apple Sign In flow
-      description: Redirects to Apple. Returns 400 if Apple OAuth is not configured.
+      description: |
+        Redirects to Apple. Returns 400 if Apple OAuth is not configured. Sets a
+        short-lived, `HttpOnly` `ofl.apple_state` cookie scoped to
+        `/api/auth/apple/callback`, used to validate the `state` value Apple posts
+        back (Google/GitHub/Facebook instead use a session-backed OAuth `state`
+        nonce, since their callbacks are same-site GETs).
       responses:
         "302":
           description: Redirect to Apple authorization endpoint
@@ -566,9 +575,12 @@ paths:
       tags: [auth]
       summary: Apple OAuth callback
       description: |
-        Handles the redirect from Apple (`response_mode: form_post`). On success,
-        creates or resumes a session and redirects to the SPA. Behaviour mirrors
-        the Google callback except the request method is POST.
+        Handles the redirect from Apple (`response_mode: form_post`). Validates
+        `state` against the `ofl.apple_state` cookie before delegating to Passport
+        (redirects to `/#/login?error=apple` on missing/mismatched state, or on a
+        malformed `user` field); the cookie is cleared either way. On success,
+        creates or resumes a session and redirects to the SPA. Behaviour otherwise
+        mirrors the Google callback except the request method is POST.
       requestBody:
         required: true
         content:
@@ -1469,7 +1481,10 @@ paths:
       description: |
         Permanently deletes the authenticated user and all associated data
         (events, activities, comparisons, folders, streams). Cascade delete
-        is enforced at the database level. The current session is destroyed.
+        is enforced at the database level. The current session is destroyed,
+        and every other session tracked for this user (e.g. other logged-in
+        browsers, including any stored Strava integration tokens) is also
+        revoked in Valkey.
       security:
         - csrfToken: []
       responses:

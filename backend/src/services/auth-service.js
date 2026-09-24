@@ -2,6 +2,7 @@ const config = require('../config');
 const { ValidationError } = require('../errors');
 const userRepository = require('../repositories/user-repository');
 const defaultDb = require('../db');
+const sessionRegistry = require('../session-registry');
 
 function integrationsCapabilities() {
   return {
@@ -41,9 +42,11 @@ function destroySession(req) {
 /**
  * After Passport OAuth callback: establish session and return SPA redirect URL.
  * @param {import('express').Request} req
+ * @param {{ sessionRegistry?: object }} [opts]
  * @returns {Promise<string>}
  */
-async function handleOAuthCallback(req) {
+async function handleOAuthCallback(req, opts = {}) {
+  const registry = opts.sessionRegistry ?? sessionRegistry;
   if (req.user.pendingSignup) {
     await regenerateSession(req);
     req.session.pendingSignup = req.user.profile;
@@ -55,6 +58,7 @@ async function handleOAuthCallback(req) {
   await regenerateSession(req);
   req.session.userId = userId;
   await saveSession(req);
+  await registry.trackSession(userId, req.sessionID);
   return `${config.server.oauthRedirectBase}/#/?login=success`;
 }
 
@@ -89,7 +93,7 @@ async function getCurrentUserForMe(userId, opts = {}) {
 /**
  * Create user from pending OAuth profile and attach to session.
  * @param {import('express').Request} req
- * @param {{ db?: object }} [opts]
+ * @param {{ db?: object, sessionRegistry?: object }} [opts]
  * @returns {Promise<{ id: string, displayName: string | null, avatarUrl: string | null }>}
  */
 async function completeSignup(req, opts = {}) {
@@ -98,11 +102,13 @@ async function completeSignup(req, opts = {}) {
     throw new ValidationError('No pending signup found. Please sign in again.');
   }
   const db = opts.db ?? defaultDb;
+  const registry = opts.sessionRegistry ?? sessionRegistry;
   const result = await userRepository.createFromPendingProfile(pendingProfile, { db });
   delete req.session.pendingSignup;
   req.session.userId = result.user.id;
   req.session.cookie.maxAge = config.termsOfService.normalSessionExpiryMs;
   await saveSession(req);
+  await registry.trackSession(result.user.id, req.sessionID);
   return {
     id: result.user.id,
     displayName: result.user.display_name,

@@ -86,7 +86,8 @@ async function exportUserData(userId, opts = {}) {
  * Delete a user account and all associated data.
  * Cascade delete handles child rows via FK constraints.
  * Sessions are stored in Valkey (not in DB); the account route destroys the current
- * session after delete. Other sessions for this user expire naturally.
+ * session and revokes every other tracked session for this user after delete
+ * (see src/session-registry.js).
  *
  * @param {string} userId
  * @param {{ db?: object }} opts

@@ -4,6 +4,12 @@ const { asyncHandler } = require('../middleware/async-handler');
 const config = require('../config');
 const { ValidationError } = require('../errors');
 const authService = require('../services/auth-service');
+const {
+  generateAppleState,
+  setAppleStateCookie,
+  verifyAppleState,
+  validateAppleUser,
+} = require('../middleware/oauth-state');
 
 const router = express.Router();
 
@@ -75,7 +81,9 @@ router.get('/apple', (req, res, next) => {
       'Apple OAuth is not configured. Please set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY in .env'
     );
   }
-  passport.authenticate('apple')(req, res, next);
+  const state = generateAppleState();
+  setAppleStateCookie(res, state);
+  passport.authenticate('apple', { state })(req, res, next);
 });
 
 router.post(
@@ -83,6 +91,11 @@ router.post(
   express.urlencoded({ extended: true }),
   (req, res, next) => {
     if (!isEnabled('apple')) return res.status(404).json({ error: 'Not found' });
+    next();
+  },
+  verifyAppleState,
+  validateAppleUser,
+  (req, res, next) => {
     passport.authenticate('apple', {
       failureRedirect: '/#/login?error=apple',
       session: false,

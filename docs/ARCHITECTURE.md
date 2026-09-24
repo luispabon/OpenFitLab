@@ -286,6 +286,32 @@ OAuth callbacks either:
 - create a normal authenticated session and redirect to the SPA, or
 - create a temporary pending-signup session and redirect the SPA to signup completion
 
+**CSRF protection on OAuth login (`state`):** Google, GitHub, and Facebook strategies
+are configured with `state: true` (`backend/src/middleware/passport.js`), which makes
+passport-oauth2 use its session-backed `NonceStore`: a random nonce is stored in
+`req.session` on `GET /api/auth/<provider>` and verified (then deleted) on the
+callback, rejecting a callback whose `state` doesn't match. This is possible because
+those callbacks are top-level GETs, so the `SameSite=Lax` session cookie is sent.
+
+Apple's callback is a cross-site POST (`response_mode: form_post`), so the session
+cookie is not sent and the session-backed nonce approach doesn't work. Instead
+`backend/src/middleware/oauth-state.js` implements a dedicated state cookie:
+`GET /api/auth/apple` generates a random value, sets it in a short-lived
+`ofl.apple_state` cookie scoped to `path=/api/auth/apple/callback` (`HttpOnly`,
+`Secure` + `SameSite=None` when `config.session.cookieSecure` is true, `SameSite=Lax`
+otherwise), and passes it explicitly as `passport.authenticate('apple', { state })`.
+On `POST /api/auth/apple/callback`, `verifyAppleState` runs before
+`passport.authenticate`: it compares the cookie value against `req.body.state`
+(constant-time), always clears the cookie, and redirects to
+`/#/login?error=apple` on any missing/mismatched value. `validateAppleUser` similarly
+guards against passport-apple's unguarded `JSON.parse(req.body.user)`, redirecting to
+the same failure page instead of a 500 on malformed input.
+
+**Dev limitation:** without HTTPS, the Apple state cookie can only be set as
+`SameSite=Lax` (browsers require `Secure` for `SameSite=None`), and Lax cookies are
+not sent on Apple's cross-site POST callback. Apple Sign In therefore only works
+end-to-end over HTTPS (production, or a local HTTPS tunnel).
+
 **Account linking:** when a user signs in with a new provider whose verified email matches an existing identity, the new identity is linked to the existing user automatically. No separate linking UI exists.
 
 Other auth endpoints:
@@ -301,7 +327,9 @@ Other auth endpoints:
 Account endpoints:
 
 - `GET /api/account/export?includeStreams=true`
-- `DELETE /api/account`
+- `DELETE /api/account` — deletes the user (DB cascade), destroys the current
+  session, and revokes every other session tracked for the user (see
+  [Session revocation on account deletion](#session-revocation-on-account-deletion))
 
 ### Events
 
@@ -453,13 +481,33 @@ Primary route usage:
 - Sessions use `express-session` with a Valkey-backed `connect-redis` store.
 - Session cookie name is `ofl.sid`.
 - Cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
-- CSRF protection is session-based and applied before protected state-changing requests.
+- OAuth login is CSRF-protected: Google/GitHub/Facebook use passport-oauth2's
+  session-backed `state` nonce; Apple uses a dedicated short-lived state cookie
+  (see [OAuth login](#authentication-and-account) above).
+- CSRF protection (for state-changing API requests, separate from OAuth `state`) is
+  session-based and applied before protected state-changing requests.
 - Repositories and services enforce ownership with `user_id` / `req.userId`.
 - Parameterized SQL is used through repository helpers.
 - Auth, callback, upload, and general API routes are rate-limited.
 - All API responses set `Cache-Control: no-store` to prevent proxy or browser caching of session-scoped data.
 - Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb). Multer's 50 MB `fileSize` limit applies to compressed bytes only.
 - `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint.
+
+### Session revocation on account deletion
+
+Every session that logs a user in is tracked in Valkey: `backend/src/session-registry.js`
+`SADD`s the session ID into `ofl:user-sessions:<userId>` (TTL refreshed to the
+session max age) whenever `req.session.userId` is set — in
+`auth-service.handleOAuthCallback` (normal login) and `auth-service.completeSignup`.
+Pending-signup sessions are not tracked (no `userId` yet).
+
+`DELETE /api/account` (`backend/src/routes/account.js`) deletes the user row (DB
+cascade removes child rows), destroys the current session, then calls
+`revokeUserSessions(userId)`, which reads the tracked session ID set, deletes each
+underlying `connect-redis` session key (`ofl:sess:<sid>` — the same prefix configured
+in `middleware/session.js`) directly from Valkey, and deletes the tracking set itself.
+This ensures Strava access tokens and `req.session.userId` in any other logged-in
+browser session are invalidated immediately, not just on natural cookie/session expiry.
 
 ## Architectural decisions
 
