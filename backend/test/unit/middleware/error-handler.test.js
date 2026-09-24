@@ -4,6 +4,7 @@ const { errorHandler } = require('../../../src/middleware/error-handler');
 const {
   ValidationError,
   NotFoundError,
+  ParseError,
   StravaRateLimitError,
   StravaUpstreamError,
 } = require('../../../src/errors');
@@ -139,5 +140,13 @@ describe('error-handler', () => {
     errorHandler(err, {}, res, () => {});
     strictEqual(res.getStatusCode(), 400);
     strictEqual(res.getBody().error, 'name must be a non-empty string');
+  });
+
+  it('returns generic 400 for ParseError (parser text not allowlisted)', () => {
+    const res = makeRes();
+    const err = new ParseError('Error in line 12 while parsing at offset 42');
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'Bad request');
   });
 });

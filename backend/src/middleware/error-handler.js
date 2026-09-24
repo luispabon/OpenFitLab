@@ -1,5 +1,4 @@
 const {
-  ParseError,
   ValidationError,
   NotFoundError,
   LengthRequiredError,
@@ -15,7 +14,6 @@ const {
  * carry their own text to the client; any other error message is replaced with a fixed one.
  */
 const PUBLIC_ERROR_TYPES = [
-  ParseError,
   ValidationError,
   NotFoundError,
   LengthRequiredError,

@@ -20,8 +20,8 @@ info:
 
     **Error shape:** All error responses use `{ "error": "<message>" }`. The
     central error handler only returns an error's own message for its allowlisted
-    public types (parse, validation, not-found, upload-limit, and Strava
-    connection errors), which carry intentional, fixed, or validated text. Any
+    public types (validation, not-found, upload-limit, and Strava connection
+    errors), which carry intentional, fixed, or validated text. Any
     other 4xx error returns the fixed message `"Bad request"`, and other 5xx
     errors return the fixed message `"Internal server error"`, so unexpected
     details are never reflected to the client (upstream Strava failures return
