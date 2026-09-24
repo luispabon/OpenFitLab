@@ -25,6 +25,8 @@
   import {
     state as loaderState,
     reload as loaderReload,
+    refresh as loaderRefresh,
+    cancelRefresh as loaderCancelRefresh,
     loadStreams as loaderLoadStreams,
     setSelectedActivities,
     setSelectedStreamTypes,
@@ -104,14 +106,15 @@
     loaderReload(comparisonId, eventIdsFromQueryState);
   });
 
-  // Also reload when user returns to this tab (visibility visible) to pick up external edits.
+  // Also refresh saved comparisons when the user returns to this tab (visibility visible) to pick
+  // up external edits. Unsaved comparisons are never refetched, and the refresh is skipped while
+  // the name is being edited inline or a settings write is still in flight.
   $effect(() => {
     const id = comparisonId;
-    const eventIds = eventIdsFromQueryState;
     const handler = () => {
-      if (document.visibilityState === 'visible') {
-        loaderReload(id, eventIds);
-      }
+      if (document.visibilityState !== 'visible') return;
+      if (isEditingName || pendingSettingsWrites > 0) return;
+      void loaderRefresh(id);
     };
     document.addEventListener('visibilitychange', handler);
     return () => document.removeEventListener('visibilitychange', handler);
@@ -129,6 +132,19 @@
 
   let settingsSaveError = $state<string | null>(null);
   let settingsSaveErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // In-flight settings writes; visibility refresh must not overwrite unsaved local edits.
+  let pendingSettingsWrites = 0;
+
+  function beginSettingsWrite(): void {
+    pendingSettingsWrites += 1;
+    // A refresh that started earlier must not commit stale settings over this local write.
+    loaderCancelRefresh();
+  }
+
+  function endSettingsWrite(): void {
+    pendingSettingsWrites -= 1;
+  }
 
   function showSettingsError(message: string) {
     settingsSaveError = message;
@@ -325,9 +341,12 @@
         hiddenStats: Array.from(loaderState.hiddenStats),
         referenceActivityId: loaderState.referenceActivityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
-        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
-      });
+      beginSettingsWrite();
+      updateComparisonSettings(savedComparison.id, settings)
+        .catch((e) => {
+          showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+        })
+        .finally(endSettingsWrite);
     }
   }
 
@@ -340,9 +359,12 @@
         hiddenStats: [],
         referenceActivityId: loaderState.referenceActivityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
-        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
-      });
+      beginSettingsWrite();
+      updateComparisonSettings(savedComparison.id, settings)
+        .catch((e) => {
+          showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+        })
+        .finally(endSettingsWrite);
     }
   }
 
@@ -360,9 +382,12 @@
         hiddenStats: Array.from(loaderState.hiddenStats),
         referenceActivityId: activityId,
       };
-      updateComparisonSettings(savedComparison.id, settings).catch((e) => {
-        showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
-      });
+      beginSettingsWrite();
+      updateComparisonSettings(savedComparison.id, settings)
+        .catch((e) => {
+          showSettingsError(e instanceof Error ? e.message : 'Failed to save settings');
+        })
+        .finally(endSettingsWrite);
     }
   }
 
@@ -458,6 +483,8 @@
 
   function openNameEditor() {
     if (savedComparison) {
+      // A refresh that started earlier must not replace the name being edited.
+      loaderCancelRefresh();
       nameSaveError = null;
       editNameValue = savedComparison.name;
       isEditingName = true;
@@ -478,6 +505,8 @@
     }
     isSavingName = true;
     nameSaveError = null;
+    // A refresh that started before this update must not revert the new name.
+    loaderCancelRefresh();
     try {
       await updateComparisonName(comp.id, trimmed);
       setComparison({ ...comp, name: trimmed });
