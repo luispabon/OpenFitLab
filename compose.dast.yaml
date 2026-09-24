@@ -19,6 +19,8 @@ services:
       AUTH_CALLBACK_RATE_LIMIT_WINDOW_MS: 60000
       UPLOAD_RATE_LIMIT_MAX: 1000
       UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
+      # Parallel test workers share one user; lift the per-user in-flight upload cap.
+      UPLOAD_MAX_CONCURRENT_PER_USER: 50
       # Disable OAuth so ZAP never follows redirects to external providers
       GITHUB_CLIENT_ID: ""
       GITHUB_CLIENT_SECRET: ""
