@@ -168,3 +168,43 @@ after(() => {
   // Give a microtask turn for any pending logs, then exit
   setImmediate(() => process.exit(0));
 });
+
+describe('mountAuthLimiters', () => {
+  const express = require('express');
+  const request = require('supertest');
+  const { mountAuthLimiters } = require('../../../src/middleware/rate-limit');
+
+  function createApp() {
+    const hits = { auth: [], callback: [] };
+    const app = express();
+    mountAuthLimiters(app, {
+      authLimiter: (req, res, next) => {
+        hits.auth.push(req.originalUrl);
+        next();
+      },
+      callbackLimiter: (req, res, next) => {
+        hits.callback.push(req.originalUrl);
+        next();
+      },
+    });
+    app.all('/{*splat}', (req, res) => res.sendStatus(204));
+    return { app, hits };
+  }
+
+  for (const provider of ['google', 'github', 'apple', 'facebook']) {
+    it(`${provider}: login initiation hits only the auth limiter`, async () => {
+      const { app, hits } = createApp();
+      await request(app).get(`/api/auth/${provider}`).expect(204);
+      strictEqual(hits.auth.length, 1);
+      strictEqual(hits.callback.length, 0);
+    });
+
+    it(`${provider}: callback hits only the callback limiter`, async () => {
+      const { app, hits } = createApp();
+      const method = provider === 'apple' ? 'post' : 'get';
+      await request(app)[method](`/api/auth/${provider}/callback?code=x&state=y`).expect(204);
+      strictEqual(hits.auth.length, 0);
+      strictEqual(hits.callback.length, 1);
+    });
+  }
+});

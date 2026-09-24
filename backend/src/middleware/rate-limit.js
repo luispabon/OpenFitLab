@@ -90,7 +90,22 @@ const integrationLimiter = buildLimiter({
   message: { error: 'Too many import requests, please try again later.' },
 });
 
+const OAUTH_PROVIDERS = ['google', 'github', 'apple', 'facebook'];
+
+/**
+ * Mounts the login-initiation and callback limiters for each OAuth provider. Initiation uses an
+ * exact-path GET: app.use() would prefix-match `/callback` too, charging every login twice
+ * against the stricter auth limit.
+ */
+function mountAuthLimiters(app, limiters = { authLimiter, callbackLimiter }) {
+  for (const provider of OAUTH_PROVIDERS) {
+    app.get(`/api/auth/${provider}`, limiters.authLimiter);
+    app.use(`/api/auth/${provider}/callback`, limiters.callbackLimiter);
+  }
+}
+
 module.exports = {
+  mountAuthLimiters,
   apiLimiter,
   authLimiter,
   callbackLimiter,
