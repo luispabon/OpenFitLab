@@ -41,7 +41,7 @@ From the project root:
 docker compose up -d
 ```
 
-This starts:
+This starts (all ports bound to `127.0.0.1` only, not reachable from the network):
 - **DB:** MariaDB on `localhost:3306` (user/password/database from `.env` or defaults in `compose.yaml`)
 - **API:** http://localhost:3000 (GET `/` or `/health` returns `{ "ok": true }`)
 - **Frontend:** http://localhost:4200 (Svelte/Vite dev server)
