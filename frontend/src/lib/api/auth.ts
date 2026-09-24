@@ -2,6 +2,33 @@ import { apiFetch } from './client';
 
 const API_BASE = '/api/auth';
 
+export type LoginProviders = {
+  google: boolean;
+  github: boolean;
+  apple: boolean;
+  facebook: boolean;
+};
+
+/**
+ * Fetch which OAuth login providers are enabled (public capability endpoint).
+ * Returns null when the request fails so callers keep provider buttons hidden.
+ */
+export async function fetchLoginProviders(): Promise<LoginProviders | null> {
+  try {
+    const res = await apiFetch(`${API_BASE}/providers`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as Partial<Record<keyof LoginProviders, unknown>>;
+    return {
+      google: data.google === true,
+      github: data.github === true,
+      apple: data.apple === true,
+      facebook: data.facebook === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type CompleteSignupResult =
   | {
       ok: true;

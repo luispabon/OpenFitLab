@@ -1,5 +1,5 @@
 const { describe, it, mock, afterEach } = require('node:test');
-const { strictEqual, ok } = require('node:assert/strict');
+const { strictEqual, deepStrictEqual, ok } = require('node:assert/strict');
 const express = require('express');
 const passport = require('passport');
 const request = require('supertest');
@@ -86,6 +86,42 @@ describe('auth routes', () => {
     strictEqual(res.status, 200);
     strictEqual(res.body.pendingSignup, true);
     strictEqual(res.body.profile.displayName, 'P');
+  });
+
+  describe('GET /providers', () => {
+    const snapshot = {
+      google: config.oauth.google.enabled,
+      github: config.oauth.github.enabled,
+      apple: config.oauth.apple.enabled,
+      facebook: config.oauth.facebook.enabled,
+    };
+
+    afterEach(() => {
+      config.oauth.google.enabled = snapshot.google;
+      config.oauth.github.enabled = snapshot.github;
+      config.oauth.apple.enabled = snapshot.apple;
+      config.oauth.facebook.enabled = snapshot.facebook;
+    });
+
+    it('returns the four capability booleans without requiring a session', async () => {
+      const app = createApp();
+      const res = await request(app).get('/api/auth/providers');
+      strictEqual(res.status, 200);
+      for (const provider of ['google', 'github', 'apple', 'facebook']) {
+        strictEqual(typeof res.body[provider], 'boolean');
+      }
+    });
+
+    it('reflects config.oauth enabled flags and exposes no other fields', async () => {
+      config.oauth.google.enabled = true;
+      config.oauth.github.enabled = false;
+      config.oauth.apple.enabled = true;
+      config.oauth.facebook.enabled = false;
+      const app = createApp();
+      const res = await request(app).get('/api/auth/providers');
+      strictEqual(res.status, 200);
+      deepStrictEqual(res.body, { google: true, github: false, apple: true, facebook: false });
+    });
   });
 
   it('POST /logout returns ok', async () => {

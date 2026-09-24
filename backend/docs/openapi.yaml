@@ -9,7 +9,8 @@ info:
     (`ofl.sid`). Obtain a session by completing the OAuth flow via one of the
     configured providers: `GET /api/auth/google`, `GET /api/auth/github`,
     `GET /api/auth/apple`, or `GET /api/auth/facebook` (only providers with
-    credentials in the environment are usable).
+    credentials in the environment are usable; the public
+    `GET /api/auth/providers` endpoint reports which of them are enabled).
 
     **CSRF:** All state-changing requests (POST, PATCH, DELETE) must include the
     token in a header: `CSRF-Token` (used by the web app) or `x-csrf-token`
@@ -62,6 +63,21 @@ components:
         error:
           type: string
           example: Not found
+
+    AuthProviders:
+      type: object
+      description: Which OAuth login providers are enabled (credentials configured), booleans only
+      required: [google, github, apple, facebook]
+      properties:
+        google:
+          type: boolean
+        github:
+          type: boolean
+        apple:
+          type: boolean
+        facebook:
+          type: boolean
+      additionalProperties: false
 
     Stats:
       type: object
@@ -518,6 +534,23 @@ paths:
                 $ref: "#/components/schemas/AuthMe"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/providers:
+    get:
+      tags: [auth]
+      summary: List enabled login providers
+      description: |
+        Public capability endpoint (no session required). Reports which OAuth
+        login providers are configured so the login page renders buttons only
+        for usable providers. Returns booleans only — never client IDs, secrets,
+        or other configuration.
+      responses:
+        "200":
+          description: Enabled login providers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthProviders"
 
   /api/auth/google:
     get:

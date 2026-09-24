@@ -22,11 +22,13 @@ services:
       UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
       # Parallel test workers share one user; lift the per-user in-flight upload cap.
       UPLOAD_MAX_CONCURRENT_PER_USER: 50
-      # Disable OAuth so Playwright never follows redirects to external providers
+      # OAuth stays unconfigured except Google, which gets dummy credentials so the
+      # login page has one configured provider to render. Tests never click through
+      # to the external provider; the remaining providers stay disabled (buttons hidden).
       GITHUB_CLIENT_ID: ""
       GITHUB_CLIENT_SECRET: ""
-      GOOGLE_CLIENT_ID: ""
-      GOOGLE_CLIENT_SECRET: ""
+      GOOGLE_CLIENT_ID: "e2e-google-client-id"
+      GOOGLE_CLIENT_SECRET: "e2e-google-client-secret"
       APPLE_CLIENT_ID: ""
       APPLE_TEAM_ID: ""
       APPLE_KEY_ID: ""

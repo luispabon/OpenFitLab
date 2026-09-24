@@ -1,6 +1,6 @@
 ### OAuth Provider Setup
 
-At least one OAuth provider must be configured for login to work. All are optional — only the providers with credentials present in `.env` will appear on the login page.
+At least one OAuth provider must be configured for login to work. All are optional — only the providers with credentials present in `.env` will appear on the login page. The login page fetches the public `GET /api/auth/providers` endpoint to decide which buttons to render, so a provider without credentials is never advertised.
 
 #### Google
 
