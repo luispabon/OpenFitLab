@@ -490,7 +490,40 @@ describe('ComparisonView', () => {
     expect(nameInput).toHaveValue('Cycling / Garmin Forerunner 945 vs Wahoo Elemnt');
   });
 
-  it('reloads data when page becomes visible again (visibilitychange)', async () => {
+  it('refreshes a saved comparison on visibilitychange without showing the spinner', async () => {
+    mockGetComparison.mockResolvedValue(comparisonFixture);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+    });
+    const comparisonCallsBefore = mockGetComparison.mock.calls.length;
+
+    let resolveRefresh: ((value: unknown) => void) | undefined;
+    mockGetComparison.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+
+    // Simulate tab becoming visible again (e.g. user switched back to this tab)
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(mockGetComparison.mock.calls.length).toBeGreaterThan(comparisonCallsBefore);
+    });
+    // Current content stays mounted: no spinner, no error view.
+    expect(document.querySelector('svg.animate-spin')).not.toBeInTheDocument();
+    expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
+
+    resolveRefresh?.({ ...comparisonFixture, name: 'Run vs Ride (edited elsewhere)' });
+    await waitFor(() => {
+      expect(screen.getByText('Run vs Ride (edited elsewhere)')).toBeInTheDocument();
+    });
+  });
+
+  it('does not refetch an unsaved comparison on visibilitychange', async () => {
     render(ComparisonView, {
       props: { params: { id: 'new' }, query: { events: 'evt-1,evt-2' } },
     });
@@ -498,14 +531,109 @@ describe('ComparisonView', () => {
       expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
     });
     const getEventCallsBefore = mockGetEvent.mock.calls.length;
+    const getComparisonCallsBefore = mockGetComparison.mock.calls.length;
     expect(getEventCallsBefore).toBeGreaterThanOrEqual(2);
 
-    // Simulate tab becoming visible again (e.g. user switched back to this tab)
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
+    expect(mockGetEvent.mock.calls.length).toBe(getEventCallsBefore);
+    expect(mockGetComparison.mock.calls.length).toBe(getComparisonCallsBefore);
+    expect(screen.getByRole('button', { name: 'Save Comparison' })).toBeInTheDocument();
+  });
+
+  it('skips visibility refresh while the name editor is open', async () => {
+    mockGetComparison.mockResolvedValue(comparisonFixture);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
     await waitFor(() => {
-      expect(mockGetEvent.mock.calls.length).toBeGreaterThan(getEventCallsBefore);
+      expect(screen.getByText('Run vs Ride')).toBeInTheDocument();
     });
+    await fireEvent.click(screen.getByText('Run vs Ride'));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Comparison name')).toBeInTheDocument();
+    });
+    const comparisonCallsBefore = mockGetComparison.mock.calls.length;
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockGetComparison.mock.calls.length).toBe(comparisonCallsBefore);
+    expect(screen.getByPlaceholderText('Comparison name')).toBeInTheDocument();
+  });
+
+  it('skips visibility refresh while a settings update is pending', async () => {
+    const compWithHidden = {
+      ...comparisonFixture,
+      settings: { hiddenStats: ['Duration'] },
+    };
+    mockGetComparison.mockResolvedValue(compWithHidden);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+    });
+
+    let resolveSettings: ((value: unknown) => void) | undefined;
+    mockUpdateComparisonSettings.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSettings = resolve;
+        })
+    );
+    const comparisonCallsBefore = mockGetComparison.mock.calls.length;
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    expect(mockUpdateComparisonSettings).toHaveBeenCalledWith(
+      'cmp-1',
+      expect.objectContaining({ hiddenStats: [] })
+    );
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockGetComparison.mock.calls.length).toBe(comparisonCallsBefore);
+
+    resolveSettings?.(undefined);
+  });
+
+  it('does not let a pending refresh revert a settings change made while it was in flight', async () => {
+    const compWithHidden = {
+      ...comparisonFixture,
+      settings: { hiddenStats: ['Duration'] },
+    };
+    mockGetComparison.mockResolvedValue(compWithHidden);
+    render(ComparisonView, { props: { params: { id: 'cmp-1' } } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Show all' })).toBeInTheDocument();
+    });
+    const comparisonCallsBefore = mockGetComparison.mock.calls.length;
+
+    // A background refresh starts and stays pending.
+    let resolveRefresh: ((value: unknown) => void) | undefined;
+    mockGetComparison.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await waitFor(() => {
+      expect(mockGetComparison.mock.calls.length).toBeGreaterThan(comparisonCallsBefore);
+    });
+
+    // The user clears the hidden stats while the refresh is still pending.
+    await fireEvent.click(screen.getByRole('button', { name: 'Show all' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/row.*hidden/)).not.toBeInTheDocument();
+    });
+
+    // The stale refresh response arrives with the settings it fetched before the write.
+    resolveRefresh?.(compWithHidden);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(screen.queryByText(/row.*hidden/)).not.toBeInTheDocument();
   });
 });

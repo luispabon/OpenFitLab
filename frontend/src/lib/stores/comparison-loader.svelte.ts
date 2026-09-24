@@ -15,6 +15,7 @@ let lastLoadedKey = '';
 let loadGeneration = 0;
 let loadedStreamsSignature = '';
 let abortController: AbortController | null = null;
+let refreshInFlight: number | null = null;
 
 /** Single reactive state object (mutate properties, do not reassign) so it can be exported. */
 export const state = $state({
@@ -69,6 +70,7 @@ export function reset(): void {
   abortController = null;
   lastLoadedKey = '';
   loadGeneration = 0;
+  refreshInFlight = null;
   loadedStreamsSignature = '';
   state.status = 'idle';
   state.comparison = null;
@@ -91,16 +93,31 @@ function deriveKey(comparisonId: string, eventIdsFromQuery: string[]): string {
   return comparisonId;
 }
 
-async function loadEventsAndStreams(
+interface StagedViewData {
+  events: EventDetail[];
+  selectedActivities: Record<string, string>;
+  streamsByEventId: Record<string, StreamData[]>;
+  signature: string;
+  selectedStreamTypes: Set<string>;
+}
+
+/**
+ * Fetches events and (unless the current streams can be reused) their streams without touching
+ * state, so callers can commit a complete view in one go and a failure leaves the loaded view in
+ * place. Returns null when a newer load supersedes this one.
+ */
+async function fetchViewData(
   eventIds: string[],
   signal: AbortSignal,
-  myGen: number
-): Promise<void> {
+  myGen: number,
+  reuseUnchangedStreams = false,
+  selectedStreamTypesOverride: Set<string> | null = null
+): Promise<StagedViewData | null> {
   const loadedEvents = await Promise.all(eventIds.map((id) => getEvent(id, { signal })));
-  if (myGen !== loadGeneration) return;
-  state.events = loadedEvents;
+  if (myGen !== loadGeneration) return null;
+  // Read after the await: load() runs inside an effect that must not start tracking this state.
+  const selectedStreamTypes = selectedStreamTypesOverride ?? state.selectedStreamTypes;
 
-  let activitiesChanged = false;
   const nextActivities: Record<string, string> = {};
   for (const eventDetail of loadedEvents) {
     const eventId = eventDetail.event.id;
@@ -113,45 +130,48 @@ async function loadEventsAndStreams(
       nextActivities[eventId] = existingActivityId;
     } else if (eventDetail.activities.length > 0) {
       nextActivities[eventId] = eventDetail.activities[0].id;
-      activitiesChanged = true;
     }
   }
-  if (myGen === loadGeneration) {
-    state.selectedActivities = nextActivities;
-  }
 
-  const currentActivityIds = loadedEvents
-    .map(
-      (e) =>
-        `${e.event.id}:${(activitiesChanged ? nextActivities : state.selectedActivities)[e.event.id] || ''}`
-    )
+  const signature = loadedEvents
+    .map((e) => `${e.event.id}:${nextActivities[e.event.id] || ''}`)
     .sort()
     .join('|');
 
-  const streamsToLoad: Record<string, StreamData[]> = {};
-  await Promise.all(
-    loadedEvents.map(async (eventDetail) => {
-      const eventId = eventDetail.event.id;
-      const activityId = (activitiesChanged ? nextActivities : state.selectedActivities)[eventId];
-      if (!activityId) return;
-      try {
-        const loaded = await getStreams(eventId, activityId, undefined, { signal });
-        if (myGen === loadGeneration) streamsToLoad[eventId] = loaded;
-      } catch (e) {
-        if (!isAbortError(e) && myGen === loadGeneration) {
-          console.error(`Failed to load streams for event ${eventId}:`, e);
-          streamsToLoad[eventId] = [];
-        }
-      }
-    })
-  );
-  if (myGen !== loadGeneration) return;
-  state.streamsByEventId = streamsToLoad;
-  loadedStreamsSignature = currentActivityIds;
+  // A background refresh may keep the streams it already has when the events and their
+  // selected activities are unchanged.
+  const reuseStreams =
+    reuseUnchangedStreams &&
+    loadedStreamsSignature === signature &&
+    Object.keys(state.streamsByEventId).length > 0;
 
-  if (state.selectedStreamTypes.size === 0) {
+  let streamsByEventId = state.streamsByEventId;
+  if (!reuseStreams) {
+    const streamsToLoad: Record<string, StreamData[]> = {};
+    await Promise.all(
+      loadedEvents.map(async (eventDetail) => {
+        const eventId = eventDetail.event.id;
+        const activityId = nextActivities[eventId];
+        if (!activityId) return;
+        try {
+          const loaded = await getStreams(eventId, activityId, undefined, { signal });
+          if (myGen === loadGeneration) streamsToLoad[eventId] = loaded;
+        } catch (e) {
+          if (!isAbortError(e) && myGen === loadGeneration) {
+            console.error(`Failed to load streams for event ${eventId}:`, e);
+            streamsToLoad[eventId] = [];
+          }
+        }
+      })
+    );
+    if (myGen !== loadGeneration) return null;
+    streamsByEventId = streamsToLoad;
+  }
+
+  let nextSelectedStreamTypes = selectedStreamTypes;
+  if (nextSelectedStreamTypes.size === 0) {
     const allStreamTypes = new Set<string>();
-    for (const streamList of Object.values(streamsToLoad)) {
+    for (const streamList of Object.values(streamsByEventId)) {
       for (const stream of streamList) {
         if (
           isChartableStream(stream.type) &&
@@ -165,11 +185,38 @@ async function loadEventsAndStreams(
       }
     }
     if (allStreamTypes.has('Heart Rate')) {
-      state.selectedStreamTypes = new Set(['Heart Rate']);
+      nextSelectedStreamTypes = new Set(['Heart Rate']);
     } else if (allStreamTypes.size > 0) {
-      state.selectedStreamTypes = new Set([Array.from(allStreamTypes)[0]]);
+      nextSelectedStreamTypes = new Set([Array.from(allStreamTypes)[0]]);
     }
   }
+
+  return {
+    events: loadedEvents,
+    selectedActivities: nextActivities,
+    streamsByEventId,
+    signature,
+    selectedStreamTypes: nextSelectedStreamTypes,
+  };
+}
+
+function commitViewData(staged: StagedViewData): void {
+  state.events = staged.events;
+  state.selectedActivities = staged.selectedActivities;
+  state.streamsByEventId = staged.streamsByEventId;
+  loadedStreamsSignature = staged.signature;
+  state.selectedStreamTypes = staged.selectedStreamTypes;
+}
+
+async function loadEventsAndStreams(
+  eventIds: string[],
+  signal: AbortSignal,
+  myGen: number,
+  reuseUnchangedStreams = false
+): Promise<void> {
+  const staged = await fetchViewData(eventIds, signal, myGen, reuseUnchangedStreams);
+  if (!staged) return;
+  commitViewData(staged);
 }
 
 /**
@@ -286,6 +333,76 @@ export function load(comparisonId: string, eventIdsFromQuery: string[]): void {
       if (myGen === loadGeneration)
         state.status = state.status === 'loading' ? 'loaded' : state.status;
     });
+}
+
+/**
+ * Discards an in-flight background refresh so its response cannot commit over state that a local
+ * edit (settings write, inline name edit) is about to change.
+ */
+export function cancelRefresh(): void {
+  if (refreshInFlight === null) return;
+  loadGeneration++;
+  refreshInFlight = null;
+}
+
+/**
+ * Background refresh of a saved comparison (e.g. when the tab becomes visible again) so external
+ * edits show up without unmounting the current view. Never sets status to 'loading'; the whole
+ * view is staged and committed together, so a failed or superseded refresh leaves the previously
+ * loaded data untouched.
+ */
+export async function refresh(comparisonId: string): Promise<void> {
+  if (!comparisonId || comparisonId === 'new') return;
+  if (state.status !== 'loaded') return;
+
+  // Each refresh gets its own generation so a superseded (or locally cancelled) refresh cannot
+  // commit its response, even when the aborted request still resolves.
+  loadGeneration++;
+  const myGen = loadGeneration;
+  refreshInFlight = myGen;
+
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+  const signal = abortController.signal;
+
+  try {
+    let comp: Comparison;
+    try {
+      comp = await getComparison(comparisonId, { signal });
+    } catch (e) {
+      if (!isAbortError(e)) console.error('Failed to refresh comparison:', e);
+      return;
+    }
+    if (myGen !== loadGeneration) return;
+
+    const ids = comp.eventIds;
+    // A comparison edited elsewhere down to fewer than two events cannot be rendered. Keep the
+    // currently loaded data instead of mixing it with the new comparison.
+    if (!Array.isArray(ids) || ids.length < 2) return;
+
+    let staged: StagedViewData | null;
+    try {
+      staged = await fetchViewData(
+        ids,
+        signal,
+        myGen,
+        true,
+        new Set(comp.settings?.selectedStreams ?? [])
+      );
+    } catch (e) {
+      if (!isAbortError(e)) console.error('Failed to refresh comparison data:', e);
+      return;
+    }
+    if (!staged) return;
+
+    state.comparison = comp;
+    state.xAxisMode = comp.settings?.xAxisMode ?? 'elapsed';
+    state.hiddenStats = new Set(comp.settings?.hiddenStats ?? []);
+    state.referenceActivityId = comp.settings?.referenceActivityId ?? null;
+    commitViewData(staged);
+  } finally {
+    if (refreshInFlight === myGen) refreshInFlight = null;
+  }
 }
 
 /**
