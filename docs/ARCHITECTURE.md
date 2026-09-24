@@ -137,6 +137,10 @@ Both local and CI runs use the same strategy:
 3. Fetch a CSRF token from `GET /api/auth/me` using the seeded session cookie.
 4. Run ZAP with two replacer rules that inject the session cookie and CSRF token as fixed headers on every request.
 
+Local `make dast-scan` attaches the ZAP container to the Compose project's default network (`openfitlab-dast_default`, derived from the project name set by `compose.dast.yaml` and the Makefile's `DAST_PROJECT`) and scans `http://api:3000`, instead of using `--network host`. The health check and the cookie/CSRF fetches still go through the host-published `API_HOST_PORT`; the seed runs inside the api container. Renaming `DAST_PROJECT` therefore renames the network too; scanning a stack started under a different project name fails with `network openfitlab-dast_default not found`. CI runs its own scanner flow (the `zaproxy/action-api-scan` action) and is unaffected.
+
+**Network limitation:** Docker bridge networking does not restrict outbound egress. The scanner container can still reach the public internet, so this only removes host-network exposure (host loopback and the dev stack's published ports); it does not isolate the scan. Containment still relies on the seeded disposable user, the OAuth env vars zeroed by the overlay, and ZAP's OpenAPI-derived scope.
+
 **`compose.dast.yaml` overlay:**
 - Sets project name `openfitlab-dast` to avoid collisions with the dev stack.
 - Relaxes all rate limits so ZAP's active scan is not throttled.

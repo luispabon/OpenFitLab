@@ -97,6 +97,9 @@ backup-fetch-safety-dump:
 ZAP_REPORT_DIR  ?= $(CURDIR)/zap-reports
 DAST_COOKIE_FILE = /tmp/ofl-dast-cookie
 DAST_PROJECT     = openfitlab-dast
+# Default Compose network for the DAST project; the ZAP container joins it so it can
+# reach the API as api:3000 without host networking.
+DAST_NETWORK     = $(DAST_PROJECT)_default
 DAST_API_PORT   ?= 3099
 DAST_DB_PORT    ?= 3307
 # Multi-arch index digest for ghcr.io/zaproxy/zaproxy:stable, resolved 2026-09-24.
@@ -123,9 +126,12 @@ dast-seed:
 	  printf '%s' "$$COOKIE" > $(DAST_COOKIE_FILE) && \
 	  echo "Session cookie saved to $(DAST_COOKIE_FILE)"
 
-# Fetches the CSRF token from /api/auth/me, writes a ZAP replacer properties file,
-# then runs ZAP in Docker with --network host so it can reach localhost:$(DAST_API_PORT).
-# -O overrides the server URL baked into openapi.yaml (localhost:3000) with the DAST port.
+# Fetches the CSRF token from /api/auth/me over the host-published port, writes a ZAP
+# replacer properties file, then runs ZAP in Docker attached to the DAST Compose network
+# ($(DAST_NETWORK)) so it reaches the API as api:3000. -O overrides the server URL baked
+# into openapi.yaml (localhost:3000) with the in-network service address.
+# Bridge networking is not an egress restriction: the scanner container can still reach
+# the public internet; this only keeps the scan off the host network namespace.
 # Only the OpenAPI spec is mounted into the container (not the whole repo, which
 # would expose .env and other credentials); the config file is created with
 # restrictive permissions (umask 077) and removed via trap even on failure.
@@ -150,7 +156,7 @@ dast-scan:
 	  > "$$CONFIG" && \
 	mkdir -p $(ZAP_REPORT_DIR) && \
 	docker run --rm \
-	  --network host \
+	  --network $(DAST_NETWORK) \
 	  -v $(CURDIR)/backend/docs/openapi.yaml:/zap/wrk/openapi.yaml:ro \
 	  -v $(ZAP_REPORT_DIR):/zap/reports \
 	  -v "$$CONFIG":/tmp/zap.properties:ro \
@@ -158,7 +164,7 @@ dast-scan:
 	  zap-api-scan.py \
 	    -t /zap/wrk/openapi.yaml \
 	    -f openapi \
-	    -O http://localhost:$(DAST_API_PORT) \
+	    -O http://api:3000 \
 	    -I \
 	    -r /zap/reports/report.html \
 	    -J /zap/reports/report.json \
