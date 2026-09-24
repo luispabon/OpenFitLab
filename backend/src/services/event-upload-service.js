@@ -82,7 +82,10 @@ async function buildUploadResults(files, userId, processUploadFn, options = {}) 
         activities,
       });
     } catch (err) {
-      if (err instanceof ParseError || err instanceof ValidationError) {
+      if (err instanceof ParseError) {
+        // Parse errors may wrap parser-library internals; return a fixed public message.
+        results.push({ success: false, filename, error: 'Could not parse file' });
+      } else if (err instanceof ValidationError) {
         results.push({ success: false, filename, error: err.message });
       } else {
         console.error(err);

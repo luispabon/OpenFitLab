@@ -20,7 +20,7 @@ const { deleteEventById } = require('../../../src/services/event-delete-service'
 const { getStreamsForActivity } = require('../../../src/services/stream-service');
 const { updateActivity } = require('../../../src/services/activity-service');
 const { processUpload, buildUploadResults } = require('../../../src/services/event-upload-service');
-const { ParseError } = require('../../../src/errors');
+const { ParseError, ValidationError } = require('../../../src/errors');
 const exportService = require('../../../src/services/export-service');
 const eventsRouterModule = require('../../../src/routes/events');
 const { errorHandler } = require('../../../src/middleware/error-handler');
@@ -241,15 +241,26 @@ describe('Events route → service parameter mapping', () => {
       strictEqual(results[0].error, 'Failed to process file');
     });
 
-    it('processUpload throw of ParseError yields success: false with the parse error message', async () => {
+    it('processUpload throw of ParseError yields success: false with fixed message', async () => {
       const failingProcessUpload = async () => {
-        throw new ParseError('Invalid JSON format');
+        throw new ParseError('Invalid JSON format at offset 42');
       };
       const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
       const results = await buildUploadResults(files, 'u1', failingProcessUpload);
       strictEqual(results.length, 1);
       strictEqual(results[0].success, false);
-      strictEqual(results[0].error, 'Invalid JSON format');
+      strictEqual(results[0].error, 'Could not parse file');
+    });
+
+    it('processUpload throw of ValidationError keeps its message', async () => {
+      const failingProcessUpload = async () => {
+        throw new ValidationError('file must contain at least one activity');
+      };
+      const files = [{ buffer: Buffer.from('x'), originalname: 'a.tcx' }];
+      const results = await buildUploadResults(files, 'u1', failingProcessUpload);
+      strictEqual(results.length, 1);
+      strictEqual(results[0].success, false);
+      strictEqual(results[0].error, 'file must contain at least one activity');
     });
 
     it('throws NotFoundError once when folderId is not owned by the user', async () => {

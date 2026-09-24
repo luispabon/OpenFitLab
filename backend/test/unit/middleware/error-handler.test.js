@@ -1,7 +1,12 @@
 const { describe, it } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
 const { errorHandler } = require('../../../src/middleware/error-handler');
-const { StravaRateLimitError, StravaUpstreamError } = require('../../../src/errors');
+const {
+  ValidationError,
+  NotFoundError,
+  StravaRateLimitError,
+  StravaUpstreamError,
+} = require('../../../src/errors');
 
 function makeRes() {
   let statusCode = 200;
@@ -42,13 +47,23 @@ describe('error-handler', () => {
     strictEqual(nextCalled, false);
   });
 
-  it('returns 404 when err.statusCode is 404', () => {
+  it('hides message of untyped 4xx errors (400 Bad request)', () => {
     const res = makeRes();
-    const err = new Error('missing');
-    err.statusCode = 404;
+    const err = new Error('connect ECONNREFUSED 10.0.0.5:3306');
+    err.statusCode = 400;
     errorHandler(err, {}, res, () => {});
-    strictEqual(res.getStatusCode(), 404);
-    strictEqual(res.getBody().error, 'missing');
+    strictEqual(res.getStatusCode(), 400);
+    strictEqual(res.getBody().error, 'Bad request');
+  });
+
+  it('does not expose messages from non-allowlisted Error subclasses', () => {
+    class CustomClientError extends Error {}
+    const res = makeRes();
+    const err = new CustomClientError('internal parser detail: unexpected token at line 42');
+    err.statusCode = 422;
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 422);
+    strictEqual(res.getBody().error, 'Bad request');
   });
 
   it('maps EBADCSRFTOKEN to 403 with fixed message', () => {
@@ -110,10 +125,17 @@ describe('error-handler', () => {
     strictEqual(res.getBody().error, 'Internal server error');
   });
 
+  it('preserves message of allowlisted public 4xx type', () => {
+    const res = makeRes();
+    const err = new NotFoundError('Event not found');
+    errorHandler(err, {}, res, () => {});
+    strictEqual(res.getStatusCode(), 404);
+    strictEqual(res.getBody().error, 'Event not found');
+  });
+
   it('preserves typed 4xx message', () => {
     const res = makeRes();
-    const err = new Error('name must be a non-empty string');
-    err.statusCode = 400;
+    const err = new ValidationError('name must be a non-empty string');
     errorHandler(err, {}, res, () => {});
     strictEqual(res.getStatusCode(), 400);
     strictEqual(res.getBody().error, 'name must be a non-empty string');
