@@ -6,12 +6,7 @@ const db = require('./db');
 const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
 const { csrfProtection } = require('./middleware/csrf');
-const {
-  apiLimiter,
-  authLimiter,
-  callbackLimiter,
-  attachRateLimitClient,
-} = require('./middleware/rate-limit');
+const { apiLimiter, mountAuthLimiters, attachRateLimitClient } = require('./middleware/rate-limit');
 const { getRedisClient } = require('./redis-client');
 const authRouter = require('./routes/auth');
 const accountRouter = require('./routes/account');
@@ -91,14 +86,7 @@ async function start() {
   app.use(csrfProtection);
 
   // Auth routes (public — session middleware is applied above)
-  app.use('/api/auth/google', authLimiter);
-  app.use('/api/auth/github', authLimiter);
-  app.use('/api/auth/apple', authLimiter);
-  app.use('/api/auth/facebook', authLimiter);
-  app.use('/api/auth/google/callback', callbackLimiter);
-  app.use('/api/auth/github/callback', callbackLimiter);
-  app.use('/api/auth/apple/callback', callbackLimiter);
-  app.use('/api/auth/facebook/callback', callbackLimiter);
+  mountAuthLimiters(app);
   app.use('/api/auth', authRouter);
 
   // Protected routes (require auth)
