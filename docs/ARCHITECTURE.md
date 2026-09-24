@@ -46,9 +46,9 @@ Health checks ensure `api` and `frontend` only start after `db` and `valkey` are
 
 **Production services** (`compose.prod.yaml`):
 - `db` and `valkey` — same images, restart: unless-stopped
-- `api` — `ghcr.io/luispabon/openfitlab-backend:${OPENFITLAB_IMAGE_TAG:-main}` (default tag `main`), 2 replicas, Traefik labels, `deploy.resources.limits.memory: 1g` and `NODE_OPTIONS=--max-old-space-size=512` (headroom below the container limit, since multer's upload buffers live outside the V8 heap)
-- `frontend` — `ghcr.io/luispabon/openfitlab-frontend:${OPENFITLAB_IMAGE_TAG:-main}`, 2 replicas, Traefik labels
-- `backup` — optional (`profiles: backup`); scheduled DB dumps. `fake-gcs` / `fake-gcs-init` — optional (`profiles: dev-backup`) for local backup testing
+- `api` — image pinned by digest: `ghcr.io/luispabon/openfitlab-backend@${OPENFITLAB_BACKEND_IMAGE_DIGEST}` (var required; see [Production image deployment](#production-image-deployment-digest-pinning)), 2 replicas, Traefik labels, `deploy.resources.limits.memory: 1g` and `NODE_OPTIONS=--max-old-space-size=512` (headroom below the container limit, since multer's upload buffers live outside the V8 heap)
+- `frontend` — `ghcr.io/luispabon/openfitlab-frontend@${OPENFITLAB_FRONTEND_IMAGE_DIGEST}` (var required), 2 replicas, Traefik labels
+- `backup` — optional (`profiles: backup`); scheduled DB dumps; image pinned by digest via `OPENFITLAB_BACKUP_IMAGE_DIGEST` (required when the profile is enabled). `fake-gcs` / `fake-gcs-init` — optional (`profiles: dev-backup`) for local backup testing
 
 MariaDB is pinned in both Compose files. Before changing that pin on an existing `db_data` volume, follow the upgrade path in [`backup/README.md`](../backup/README.md#mariadb-image-upgrades-existing-data-volumes).
 
@@ -69,13 +69,53 @@ Traefik terminates TLS and routes (see `compose.prod.yaml` labels; host is `${OP
 - `Host(...)` + `PathPrefix(/api/)` → api
 - `Host(...)` (no path prefix) → frontend
 
-Both services are tagged for Watchtower auto-updates.
+Production images (`api`, `frontend`, `backup`) are pinned by digest and not tagged for Watchtower auto-updates; updates are applied manually (see [Production image deployment](#production-image-deployment-digest-pinning)).
 
 ### Container registry and CI/CD
 
 Images are published to `ghcr.io/luispabon/openfitlab-backend` and `ghcr.io/luispabon/openfitlab-frontend` on every push to `main` via `.github/workflows/publish.yml`. Tags: `latest` and `sha-<short-hash>`. The `prod` target is built in CI.
 
 Local publishing uses `make docker-push` (or `make docker-push-backend` / `make docker-push-frontend`).
+
+### Production image deployment (digest pinning)
+
+Production Compose references each first-party image by digest instead of a mutable tag:
+
+| Service | Image | Required env var |
+|---|---|---|
+| `api` | `ghcr.io/luispabon/openfitlab-backend@<digest>` | `OPENFITLAB_BACKEND_IMAGE_DIGEST` |
+| `frontend` | `ghcr.io/luispabon/openfitlab-frontend@<digest>` | `OPENFITLAB_FRONTEND_IMAGE_DIGEST` |
+| `backup` | `ghcr.io/luispabon/openfitlab-backup@<digest>` | `OPENFITLAB_BACKUP_IMAGE_DIGEST` |
+
+A digest is immutable, so a deploy always runs the exact build that was reviewed. Compose fails fast when a digest var is unset (`${VAR:?...}`). The managed images carry no `com.centurylinklabs.watchtower.enable` label, so Watchtower does not auto-update them; updates are manual. The digest var value is the full `sha256:...` string, including the `sha256:` prefix. These vars are production Compose only, so they are documented here rather than in `.env.example`.
+
+**1. Resolve a digest** from the trusted published build you intend to run (a `main` build or a release tag). Pull only from GHCR:
+
+```bash
+docker buildx imagetools inspect ghcr.io/luispabon/openfitlab-backend:main
+# read the "Digest:" line, e.g. sha256:<hex>
+```
+
+Record which image tag/commit the digest corresponds to before deploying it.
+
+**2. Set the digests** in the production `.env`:
+
+```bash
+OPENFITLAB_BACKEND_IMAGE_DIGEST=sha256:<backend-digest>
+OPENFITLAB_FRONTEND_IMAGE_DIGEST=sha256:<frontend-digest>
+OPENFITLAB_BACKUP_IMAGE_DIGEST=sha256:<backup-digest>
+```
+
+**3. Deploy or update:**
+
+```bash
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d
+```
+
+To roll a single service, resolve the new digest, update its var, then `docker compose -f compose.prod.yaml pull api && docker compose -f compose.prod.yaml up -d api` (add `--profile backup` for the backup service).
+
+**4. Roll back:** set the var back to the previously deployed digest and rerun the `pull` + `up -d` commands. Keep the previous digest noted; it stays pullable from GHCR while the image is retained.
 
 ### DAST (ZAP API scan)
 
@@ -112,6 +152,7 @@ Required in production only (names in `.env.example`; production compose may use
 - `SESSION_SECRET` — min 32 chars, generate with `openssl rand -hex 32`
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`
 - `OAUTH_CALLBACK_URL` — public API base URL (no trailing slash); used for OAuth redirects
+- Image digests for the first-party images: `OPENFITLAB_BACKEND_IMAGE_DIGEST`, `OPENFITLAB_FRONTEND_IMAGE_DIGEST`, `OPENFITLAB_BACKUP_IMAGE_DIGEST` (see [Production image deployment](#production-image-deployment-digest-pinning))
 
 Optional: OAuth credentials (`GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET`, `APPLE_CLIENT_ID/TEAM_ID/KEY_ID/PRIVATE_KEY`, `FACEBOOK_APP_ID/APP_SECRET`), **Strava import** (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` — both required to enable Strava; register redirect `{OAUTH_CALLBACK_URL}/api/integrations/strava/callback` in the Strava app), rate limit overrides, upload limit overrides (`UPLOAD_MAX_FILE_BYTES`, `UPLOAD_MAX_REQUEST_BYTES`, `UPLOAD_MAX_CONCURRENT_PER_USER`, `UPLOAD_MAX_IN_FLIGHT_BYTES`, `UPLOAD_MAX_CONCURRENT_PER_PROCESS`), `VITE_GA_MEASUREMENT_ID` (GA4 Measurement ID; presence enables frontend analytics).
 

@@ -33,7 +33,9 @@ jobs:
     name: SAST
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      # Digest-pinned (semgrep/semgrep 1.178.0 multi-arch index). Bump deliberately:
+      # resolve the new digest with `docker buildx imagetools inspect semgrep/semgrep:<version>`.
+      image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: semgrep ci --config p/nodejs --config p/javascript --config p/typescript
