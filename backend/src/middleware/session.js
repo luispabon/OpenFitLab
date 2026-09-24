@@ -1,6 +1,7 @@
 const session = require('express-session');
 const { RedisStore } = require('connect-redis');
 const { getRedisClient } = require('../redis-client');
+const { SESSION_KEY_PREFIX } = require('../session-registry');
 const config = require('../config');
 
 /**
@@ -13,7 +14,7 @@ async function createSessionMiddleware() {
 
   const store = new RedisStore({
     client,
-    prefix: 'ofl:sess:',
+    prefix: SESSION_KEY_PREFIX,
   });
 
   // secure and maxAge set; domain omitted by design (same-origin). See AGENTS.md Security.

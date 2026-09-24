@@ -1,6 +1,8 @@
 const express = require('express');
 const { asyncHandler } = require('../middleware/async-handler');
 const { exportUserData, deleteAccount } = require('../services/account-service');
+const { destroySession } = require('../services/auth-service');
+const { revokeUserSessions } = require('../session-registry');
 const { validateExportQuery } = require('../utils/validation');
 const { NotFoundError } = require('../errors');
 
@@ -24,6 +26,8 @@ router.delete(
   asyncHandler(async (req, res) => {
     const deleted = await deleteAccount(req.userId);
     if (!deleted) throw new NotFoundError('User not found');
+    await destroySession(req);
+    await revokeUserSessions(req.userId);
     res.clearCookie('ofl.sid', { path: '/' });
     res.status(204).send();
   })

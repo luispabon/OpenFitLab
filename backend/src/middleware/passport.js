@@ -87,6 +87,7 @@ function configurePassport() {
           clientSecret: config.oauth.google.clientSecret,
           callbackURL: `${callbackURL}/api/auth/google/callback`,
           scope: ['profile', 'email'],
+          state: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           await handleOAuthVerify(
@@ -113,6 +114,7 @@ function configurePassport() {
           clientSecret: config.oauth.github.clientSecret,
           callbackURL: `${callbackURL}/api/auth/github/callback`,
           scope: ['user:email'],
+          state: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
@@ -209,6 +211,7 @@ function configurePassport() {
           clientSecret: config.oauth.facebook.clientSecret,
           callbackURL: `${callbackURL}/api/auth/facebook/callback`,
           profileFields: ['id', 'displayName', 'photos', 'email'],
+          state: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           const rawEmail = profile.emails?.[0]?.value;
