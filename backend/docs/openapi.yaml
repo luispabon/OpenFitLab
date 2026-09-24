@@ -50,19 +50,6 @@ tags:
 # Reusable components
 # ---------------------------------------------------------------------------
 components:
-  responses:
-    TooManyRequests:
-      description: Rate limit exceeded
-      headers:
-        Retry-After:
-          schema:
-            type: integer
-          description: Seconds until the rate limit resets
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
   schemas:
     Error:
       type: object
@@ -474,6 +461,17 @@ components:
             $ref: "#/components/schemas/Error"
     Forbidden:
       description: Invalid or missing CSRF token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the rate limit resets
       content:
         application/json:
           schema:
