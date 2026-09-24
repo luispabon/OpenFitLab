@@ -8,7 +8,7 @@
 
 1. Copy `.env.example` to `.env` and fill in required values (see [Configuration, runtime, and deployment](docs/ARCHITECTURE.md#configuration-runtime-and-deployment) in ARCHITECTURE.md).
 2. Start the local stack from the repo root with `docker compose up -d`.
-3. Services:
+3. Services (all ports bound to `127.0.0.1` only):
    - API: `http://localhost:3000`
    - Frontend: `http://localhost:4200`
    - MariaDB: `localhost:3306`

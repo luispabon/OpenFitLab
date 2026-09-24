@@ -99,6 +99,8 @@ DAST_COOKIE_FILE = /tmp/ofl-dast-cookie
 DAST_PROJECT     = openfitlab-dast
 DAST_API_PORT   ?= 3099
 DAST_DB_PORT    ?= 3307
+# Multi-arch index digest for ghcr.io/zaproxy/zaproxy:stable, resolved 2026-09-24.
+ZAP_IMAGE       ?= ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef
 
 # Shorthand so every docker-compose call in a DAST target uses the same flags.
 DAST_COMPOSE = DB_HOST_PORT=$(DAST_DB_PORT) API_HOST_PORT=$(DAST_API_PORT) \
@@ -124,12 +126,16 @@ dast-seed:
 # Fetches the CSRF token from /api/auth/me, writes a ZAP replacer properties file,
 # then runs ZAP in Docker with --network host so it can reach localhost:$(DAST_API_PORT).
 # -O overrides the server URL baked into openapi.yaml (localhost:3000) with the DAST port.
+# Only the OpenAPI spec is mounted into the container (not the whole repo, which
+# would expose .env and other credentials); the config file is created with
+# restrictive permissions (umask 077) and removed via trap even on failure.
 .PHONY: dast-scan
 dast-scan:
 	@COOKIE=$$(cat $(DAST_COOKIE_FILE)) && \
 	RESPONSE=$$(curl -sf -H "Cookie: ofl.sid=$$COOKIE" http://localhost:$(DAST_API_PORT)/api/auth/me) && \
 	TOKEN=$$(printf '%s' "$$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['csrfToken'])") && \
-	CONFIG=$$(mktemp /tmp/zap-config-XXXXXX.properties) && \
+	CONFIG=$$(umask 077 && mktemp /tmp/zap-config-XXXXXX.properties) && \
+	trap 'rm -f "$$CONFIG"' EXIT INT TERM && \
 	printf '%s\n' \
 	  "replacer.full_list(0).description=session_cookie" \
 	  "replacer.full_list(0).enabled=true" \
@@ -145,19 +151,19 @@ dast-scan:
 	mkdir -p $(ZAP_REPORT_DIR) && \
 	docker run --rm \
 	  --network host \
-	  -v $(CURDIR):/zap/wrk:ro \
+	  -v $(CURDIR)/backend/docs/openapi.yaml:/zap/wrk/openapi.yaml:ro \
 	  -v $(ZAP_REPORT_DIR):/zap/reports \
 	  -v "$$CONFIG":/tmp/zap.properties:ro \
-	  ghcr.io/zaproxy/zaproxy:stable \
+	  $(ZAP_IMAGE) \
 	  zap-api-scan.py \
-	    -t /zap/wrk/backend/docs/openapi.yaml \
+	    -t /zap/wrk/openapi.yaml \
 	    -f openapi \
 	    -O http://localhost:$(DAST_API_PORT) \
 	    -I \
 	    -r /zap/reports/report.html \
 	    -J /zap/reports/report.json \
 	    -z "-configfile /tmp/zap.properties" ; \
-	EXIT=$$? ; rm -f "$$CONFIG" ; \
+	EXIT=$$? ; \
 	echo "Reports written to $(ZAP_REPORT_DIR)" ; exit $$EXIT
 
 .PHONY: dast-down

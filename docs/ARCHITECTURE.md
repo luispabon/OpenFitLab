@@ -35,7 +35,7 @@ Two stacks serve different purposes:
 | Development | `compose.yaml` | Source-mounted services with hot-reload |
 | Production | `compose.prod.yaml` | Pre-built images from GHCR |
 
-**Development services** (`compose.yaml`):
+**Development services** (`compose.yaml`); all published ports are bound to `127.0.0.1` only, not reachable from the network:
 - `db` — MariaDB 12.3.3, port 3306, persistent volume `db_data`
 - `valkey` — Valkey 9 Alpine (Redis-compatible session store), persistent volume `valkey_data`
 - `api` — Node 24 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
