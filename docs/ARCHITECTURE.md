@@ -365,7 +365,7 @@ Folder semantics:
 
 - `POST /api/comparisons`
   - body: `{ name, activityIds, settings?, folderId? }`
-  - `activityIds` must have 2–50 unique UUIDs (`MAX_COMPARISON_ITEMS` in `backend/src/utils/validation.js`); `folderId`, if given, must be owned by the caller (`404` otherwise)
+  - `activityIds` must have 2–200 unique UUIDs (`MAX_COMPARISON_ITEMS` in `backend/src/utils/validation.js`); `folderId`, if given, must be owned by the caller (`404` otherwise)
 - `GET /api/comparisons?folderId=...`
 - `POST /api/comparisons/by-events`
   - body: `{ eventIds }` — deduped server-side and capped at `MAX_COMPARISON_ITEMS`

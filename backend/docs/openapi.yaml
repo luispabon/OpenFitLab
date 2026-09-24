@@ -18,11 +18,13 @@ info:
     **Ownership:** All resource endpoints scope data to the authenticated user.
     A missing or unowned resource returns `404` (not `403`) to avoid leaking existence.
 
-    **Error shape:** All error responses use `{ "error": "<message>" }`. 4xx
-    responses include a specific message. 5xx responses (including unexpected
-    errors and upstream Strava failures) always return the fixed message
+    **Error shape:** All error responses use `{ "error": "<message>" }`. For
+    errors handled by the central error handler, 4xx responses include a
+    specific message, while 5xx responses (including unexpected errors and
+    upstream Strava failures) always return the fixed message
     `"Internal server error"` to avoid leaking internal details; details are
-    logged server-side only.
+    logged server-side only. (`GET /health` reports a fixed, non-sensitive
+    `503` message directly and does not go through the central handler.)
 
 servers:
   - url: http://localhost:3000
@@ -1085,7 +1087,7 @@ paths:
                 activityIds:
                   type: array
                   minItems: 2
-                  maxItems: 50
+                  maxItems: 200
                   uniqueItems: true
                   items:
                     type: string
@@ -1135,7 +1137,7 @@ paths:
                 eventIds:
                   type: array
                   minItems: 1
-                  maxItems: 50
+                  maxItems: 200
                   items:
                     type: string
                     format: uuid

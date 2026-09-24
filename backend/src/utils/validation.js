@@ -1,5 +1,11 @@
-/** Maximum number of activity/event IDs accepted in a single comparison request. */
-const MAX_COMPARISON_ITEMS = 50;
+/**
+ * Maximum number of activity/event IDs accepted in a single comparison request.
+ * The workouts table lets a user accumulate a row selection across multiple
+ * pages (up to 50 rows each) before bulk-deleting or comparing, so this is set
+ * well above a single page size (matches the GET /api/events `limit` cap)
+ * while still keeping the SQL `IN (...)` list bounded.
+ */
+const MAX_COMPARISON_ITEMS = 200;
 
 /**
  * Validates UUID format
