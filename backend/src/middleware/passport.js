@@ -5,6 +5,7 @@ const AppleStrategy = require('passport-apple');
 const FacebookStrategy = require('passport-facebook').Strategy;
 const userRepository = require('../repositories/user-repository');
 const { normalizeEmail } = require('../utils/email');
+const { resolveGithubVerifiedEmail } = require('../utils/oauth-email');
 const config = require('../config');
 
 /**
@@ -118,35 +119,9 @@ function configurePassport() {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            let email = profile.emails?.[0]?.value ?? null;
-            let emailVerified = false;
-            if (!email || email.trim() === '') {
-              try {
-                const res = await fetch('https://api.github.com/user/emails', {
-                  headers: {
-                    Accept: 'application/vnd.github+json',
-                    Authorization: `Bearer ${accessToken}`,
-                  },
-                });
-                if (res.ok) {
-                  const emails = await res.json();
-                  const primaryVerified =
-                    Array.isArray(emails) &&
-                    emails.find((e) => e.primary === true && e.verified === true);
-                  const firstVerified =
-                    Array.isArray(emails) && emails.find((e) => e.verified === true);
-                  const chosen = primaryVerified || firstVerified;
-                  if (chosen) {
-                    email = chosen.email ?? null;
-                    emailVerified = true;
-                  }
-                }
-              } catch {
-                // Leave email null, emailVerified false
-              }
-            } else {
-              emailVerified = true;
-            }
+            // Only trust an address GitHub reports as verified; the primary email in
+            // `profile.emails` is not guaranteed to be verified.
+            const { email, emailVerified } = await resolveGithubVerifiedEmail(accessToken);
             await handleOAuthVerify(
               {
                 provider: 'github',

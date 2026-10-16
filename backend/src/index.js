@@ -58,7 +58,7 @@ app.get('/', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/health', async (req, res) => {
+app.get('/health', apiLimiter, async (req, res) => {
   try {
     await db.query('SELECT 1');
     res.json({ ok: true });

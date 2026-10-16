@@ -17,16 +17,19 @@ const PAYLOAD_TOO_LARGE_MULTER_CODES = new Set([
 ]);
 
 /**
- * Maps a multer error to a typed error with a statusCode: 413 for size/count limits
- * (LIMIT_FILE_SIZE, LIMIT_FILE_COUNT, etc.), 400 for anything else (e.g. LIMIT_UNEXPECTED_FILE).
- * Non-multer errors are returned unchanged.
+ * Maps an error from the multipart upload middleware to a typed error with a
+ * statusCode: 413 for size/count limits (LIMIT_FILE_SIZE, LIMIT_FILE_COUNT, etc.),
+ * and 400 for everything else, including LIMIT_UNEXPECTED_FILE and non-multer
+ * multipart parse failures (e.g. busboy "Unexpected end of form").
  */
 function mapMulterError(err) {
-  if (!(err instanceof multer.MulterError)) return err;
-  if (PAYLOAD_TOO_LARGE_MULTER_CODES.has(err.code)) {
-    return new PayloadTooLargeError(err.message);
+  if (err instanceof multer.MulterError) {
+    if (PAYLOAD_TOO_LARGE_MULTER_CODES.has(err.code)) {
+      return new PayloadTooLargeError(err.message);
+    }
+    return new ValidationError(err.message);
   }
-  return new ValidationError(err.message);
+  return new ValidationError('Invalid multipart upload');
 }
 
 /**

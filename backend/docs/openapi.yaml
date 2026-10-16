@@ -1759,7 +1759,10 @@ paths:
     get:
       tags: []
       summary: Health check
-      description: Returns 200 when the API and database are reachable, 503 otherwise.
+      description: >-
+        Returns 200 when the API and database are reachable, 503 otherwise. Performs a
+        database round trip and is subject to the same per-IP rate limit as the rest of
+        the API.
       responses:
         "200":
           description: Healthy
@@ -1770,6 +1773,8 @@ paths:
                 properties:
                   ok:
                     type: boolean
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "503":
           description: Unhealthy
           content:
