@@ -128,6 +128,20 @@ function searchX(points: readonly ViewportPoint[], value: number, strict: boolea
   return low;
 }
 
+/** Min and max of the non-null y values, or null when there are none. */
+export function nonNullYRange(
+  points: readonly ViewportPoint[]
+): { min: number; max: number } | null {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const { y } of points) {
+    if (y === null) continue;
+    if (y < min) min = y;
+    if (y > max) max = y;
+  }
+  return min <= max ? { min, max } : null;
+}
+
 export interface ViewportDecimationPluginOptions {
   /** Complete source points. Read-only here; every reduction is computed from this array. */
   fullPoints: readonly ViewportPoint[];
@@ -137,10 +151,10 @@ export interface ViewportDecimationPluginOptions {
 
 /**
  * Local Chart.js plugin for a single-dataset line chart. Before each update it replaces
- * dataset 0 with `decimateViewportPoints(fullPoints, ...)` for the current x range and
- * bucket count (about half the canvas width). Results are cached by range and bucket count,
- * so updates with unchanged inputs do not reassign the data. The plugin is not registered
- * globally.
+ * dataset 0 with `decimateViewportPoints(fullPoints, ...)` for the current x range and bucket
+ * count (half the canvas width). Results are cached by range and bucket count, so updates with
+ * unchanged inputs do not reassign the data. If the x range is missing, dataset 0 is set back to
+ * `fullPoints`. The plugin is not registered globally.
  */
 export function createViewportDecimationPlugin({
   fullPoints,
@@ -151,22 +165,32 @@ export function createViewportDecimationPlugin({
   return {
     id,
     beforeUpdate(chart: Chart<'line'>) {
-      // Read x bounds from options, not scale.getUserBounds(): Chart.js refreshes scale bounds
-      // after beforeUpdate, so during a zoom or pan update the scale still has the old range.
+      const dataset = chart.data.datasets[0];
+      if (!dataset) return;
+
+      // Zoom and pan write the live range to the x scale options before they call update, so the
+      // options are read here. scale.getUserBounds() is not used: Chart.js sets its bounds in
+      // buildOrUpdateScales(), which runs after beforeUpdate, so it still holds the previous range.
       const xOptions = chart.options.scales?.x;
       const minX = xOptions?.min;
       const maxX = xOptions?.max;
-      if (typeof minX !== 'number' || typeof maxX !== 'number') return;
+      if (typeof minX !== 'number' || typeof maxX !== 'number') {
+        // No usable range: show the full source rather than a reduction of an unknown range.
+        cache = null;
+        dataset.data = fullPoints as ViewportPoint[];
+        return;
+      }
 
-      const width = chart.chartArea?.width ?? chart.width;
-      const bucketCount = Number.isFinite(width) ? Math.max(2, Math.floor(width / 2)) : 2;
+      // chart.width is the current canvas width. chartArea is laid out after beforeUpdate, so it
+      // would lag a resize by one update.
+      const bucketCount = Number.isFinite(chart.width)
+        ? Math.max(2, Math.floor(chart.width / 2))
+        : 2;
       if (cache?.minX === minX && cache.maxX === maxX && cache.bucketCount === bucketCount) {
         return;
       }
       cache = { minX, maxX, bucketCount };
 
-      const dataset = chart.data.datasets[0];
-      if (!dataset) return;
       dataset.data = decimateViewportPoints(fullPoints, {
         minX,
         maxX,

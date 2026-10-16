@@ -14,7 +14,7 @@
     CHART_GRID_COLOR,
     type AlignedSeriesData,
   } from '../utils/chart-utils';
-  import { createViewportDecimationPlugin } from '../utils/viewport-decimation';
+  import { createViewportDecimationPlugin, nonNullYRange } from '../utils/viewport-decimation';
 
   interface Props {
     streamData: StreamData;
@@ -68,6 +68,10 @@
     const { xMin, xMax } = chartData;
     const data = chartData.data;
     const fullPoints = toXYPoints(data, 1);
+    // Fixed y bounds from the full stream, so x zoom does not narrow the y range. A constant
+    // stream keeps Chart.js auto range, since Chart.js cannot widen a fixed min === max.
+    const yRange = nonNullYRange(fullPoints);
+    const yBounds = yRange && yRange.min < yRange.max ? yRange : {};
     const chart = new Chart(canvasEl, {
       type: 'line',
       data: {
@@ -108,6 +112,7 @@
             title: { display: true, text: 'Elapsed Time', color: CHART_TEXT_COLOR },
           },
           y: {
+            ...yBounds,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => formatYValue(Number(value), streamConfig.label),

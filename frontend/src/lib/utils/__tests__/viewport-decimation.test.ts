@@ -3,6 +3,7 @@ import type { Chart, Plugin } from 'chart.js';
 import {
   createViewportDecimationPlugin,
   decimateViewportPoints,
+  nonNullYRange,
   type ViewportDecimationOptions,
   type ViewportPoint,
 } from '../viewport-decimation';
@@ -272,6 +273,16 @@ describe('decimateViewportPoints', () => {
         }
       }
     });
+
+    it('keeps only the run ends and the neighbours when the whole selection is null', () => {
+      const points = series(100, () => null);
+      const result = decimateViewportPoints(points, { minX: 0, maxX: 99, targetBucketCount: 5 });
+      const indices = expectOriginalSubset(points, result);
+      expect(indices).toEqual(expect.arrayContaining([0, 99]));
+      expect(result.every((p) => p.y === null)).toBe(true);
+      expect(result.length).toBeLessThan(points.length);
+      expectGapRulesHold(points, result, 0, 99);
+    });
   });
 
   describe('viewport clipping and neighbours', () => {
@@ -315,6 +326,32 @@ describe('decimateViewportPoints', () => {
   });
 });
 
+describe('nonNullYRange', () => {
+  it('returns the min and max of the non-null values, never reading null as 0', () => {
+    const points = [
+      { x: 0, y: 50 },
+      { x: 1, y: null },
+      { x: 2, y: 70 },
+      { x: 3, y: 60 },
+    ];
+    expect(nonNullYRange(points)).toEqual({ min: 50, max: 70 });
+  });
+
+  it('returns null when there are no non-null values', () => {
+    expect(nonNullYRange([])).toBeNull();
+    expect(
+      nonNullYRange([
+        { x: 0, y: null },
+        { x: 1, y: null },
+      ])
+    ).toBeNull();
+  });
+
+  it('spans every point of the source it is given', () => {
+    expect(nonNullYRange(series(5000, (i) => (i * 7919) % 1000))).toEqual({ min: 0, max: 999 });
+  });
+});
+
 describe('createViewportDecimationPlugin', () => {
   const FULL_RANGE = { min: 0, max: 19999 };
 
@@ -323,14 +360,12 @@ describe('createViewportDecimationPlugin', () => {
     const dataset = { data: initialData };
     const chart: {
       options: { scales: { x: { min?: unknown; max?: unknown } } };
-      chartArea?: { width: number };
       width: number;
       data: { datasets: { data: ViewportPoint[] }[] };
       scales: { x: { min: number; max: number; getUserBounds: () => unknown } };
       update: ReturnType<typeof vi.fn>;
     } = {
       options: { scales: { x: { min: FULL_RANGE.min, max: FULL_RANGE.max } } },
-      chartArea: { width: 800 },
       width: 800,
       data: { datasets: [dataset] },
       // Stale on purpose: Chart.js refreshes scale bounds after beforeUpdate.
@@ -447,27 +482,26 @@ describe('createViewportDecimationPlugin', () => {
     const sentinel: ViewportPoint[] = [];
     dataset.data = sentinel;
     // floor(801 / 2) = floor(800 / 2) = 400
-    chart.chartArea = { width: 801 };
+    chart.width = 801;
     runBeforeUpdate(plugin, chart);
 
     expect(dataset.data).toBe(sentinel);
   });
 
-  it('recomputes when the width changes the bucket count', () => {
+  it('recomputes on resize when the canvas width changes the bucket count', () => {
     const plugin = createViewportDecimationPlugin({ fullPoints: full });
     const { chart, dataset } = fakeChart(full);
     runBeforeUpdate(plugin, chart);
 
-    chart.chartArea = { width: 1000 };
+    chart.width = 1000;
     runBeforeUpdate(plugin, chart);
 
     expect(dataset.data).toEqual(decimated(0, 19999, 500));
   });
 
-  it('falls back to the canvas width when chartArea is not laid out yet', () => {
+  it('uses the canvas width for the bucket count', () => {
     const plugin = createViewportDecimationPlugin({ fullPoints: full });
     const { chart, dataset } = fakeChart(full);
-    chart.chartArea = undefined;
     chart.width = 200;
 
     runBeforeUpdate(plugin, chart);
@@ -475,15 +509,18 @@ describe('createViewportDecimationPlugin', () => {
     expect(dataset.data).toEqual(decimated(0, 19999, 100));
   });
 
-  it('does nothing when the x range options are not numbers', () => {
+  it('restores the full source when the x range is missing, and recomputes once it is back', () => {
     const plugin = createViewportDecimationPlugin({ fullPoints: full });
     const { chart, dataset } = fakeChart(full);
-    const sentinel: ViewportPoint[] = [];
-    dataset.data = sentinel;
-    chart.options.scales.x.min = undefined;
-
     runBeforeUpdate(plugin, chart);
+    expect(dataset.data).not.toBe(full);
 
-    expect(dataset.data).toBe(sentinel);
+    chart.options.scales.x.min = undefined;
+    runBeforeUpdate(plugin, chart);
+    expect(dataset.data).toBe(full);
+
+    chart.options.scales.x.min = FULL_RANGE.min;
+    runBeforeUpdate(plugin, chart);
+    expect(dataset.data).toEqual(decimated(0, 19999, 400));
   });
 });

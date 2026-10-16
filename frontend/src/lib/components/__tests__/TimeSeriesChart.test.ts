@@ -199,6 +199,43 @@ describe('TimeSeriesChart', () => {
       expect(config.plugins?.[0].id).toBe('viewportDecimation');
       expect(config.options.plugins).not.toHaveProperty('decimation');
     });
+
+    it('fixes the y range to the non-null min and max of the full stream', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: {
+            type: 'Heart Rate',
+            data: [
+              { time: 1000, value: 80 },
+              { time: 2000, value: 150 },
+              { time: 3000, value: 60 },
+            ],
+          },
+          activityStartDate: 1000,
+        },
+      });
+      const yScale = getLastChartConfig().options.scales.y;
+      expect(yScale.min).toBe(60);
+      expect(yScale.max).toBe(150);
+    });
+
+    it('leaves the y range auto for a constant stream', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: {
+            type: 'Heart Rate',
+            data: [
+              { time: 1000, value: 80 },
+              { time: 2000, value: 80 },
+            ],
+          },
+          activityStartDate: 1000,
+        },
+      });
+      const yScale = getLastChartConfig().options.scales.y;
+      expect(yScale.min).toBeUndefined();
+      expect(yScale.max).toBeUndefined();
+    });
   });
 
   describe('effect and chart lifecycle', () => {
