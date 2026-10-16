@@ -2,7 +2,7 @@
  * Per-user session tracking in Valkey, used to revoke all of a user's sessions
  * on account deletion. Not a `services/*` module so both services/auth-service.js
  * and services/account-service.js can depend on it without creating a
- * service-to-service dependency (see .cursor/rules/backend-architecture.mdc).
+ * service-to-service dependency (see AGENTS.md, Backend conventions).
  */
 
 const redisClient = require('./redis-client');

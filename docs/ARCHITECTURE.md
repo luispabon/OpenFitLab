@@ -1,6 +1,6 @@
 # Architecture Documentation
 
-**Role:** Canonical technical reference for schema, API contracts, security, and architectural decisions. Agent quickstart and commands live in [AGENTS.md](../AGENTS.md). Product intent lives in [docs/PRD.md](PRD.md).
+**Role:** Canonical technical reference for schema, API contracts, security, and architectural decisions. Agent quickstart and commands live in [AGENTS.md](../AGENTS.md).
 
 ## System overview
 
@@ -73,9 +73,9 @@ Production images (`api`, `frontend`, `backup`) are pinned by digest and not tag
 
 ### Container registry and CI/CD
 
-Images are published to `ghcr.io/luispabon/openfitlab-backend` and `ghcr.io/luispabon/openfitlab-frontend` on every push to `main` via `.github/workflows/publish.yml`. Tags: `latest` and `sha-<short-hash>`. The `prod` target is built in CI.
+Images are published to `ghcr.io/luispabon/openfitlab-backend`, `ghcr.io/luispabon/openfitlab-frontend`, and `ghcr.io/luispabon/openfitlab-backup` on every push to `main` via `.github/workflows/publish.yml`. Tags: `latest` and `sha-<short-hash>`. The `prod` target is built in CI.
 
-Local publishing uses `make docker-push` (or `make docker-push-backend` / `make docker-push-frontend`).
+Local publishing uses `make docker-push` (or `make docker-push-backend` / `make docker-push-frontend` / `make docker-push-backup`).
 
 ### Production image deployment (digest pinning)
 
@@ -121,7 +121,7 @@ To roll a single service, resolve the new digest, update its var, then `docker c
 
 Dynamic application security testing runs ZAP in API-scan mode against the OpenAPI spec (`backend/docs/openapi.yaml`).
 
-**GitHub Actions** (`.github/workflows/dast.yml`): runs weekly (Tuesdays at 04:00 UTC) and on demand via `workflow_dispatch`. Not on every PR — stack spinup plus an active scan is too slow for a dev feedback loop.
+**GitHub Actions** (`.github/workflows/security-scheduled.yml`): runs daily at 04:00 UTC and on demand via `workflow_dispatch`. Not on every PR: stack spinup plus an active scan is too slow for a dev feedback loop.
 
 **Local run** (`Makefile`):
 

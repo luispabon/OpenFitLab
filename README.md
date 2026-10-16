@@ -113,7 +113,6 @@ Data in MariaDB is kept in the `db_data` volume. Use `docker compose down -v` to
 - **[AGENTS.md](AGENTS.md)** - AI coding agent context and instructions
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Detailed system architecture
 - **[docs/INTEGRATIONS_INSTRUCTIONS.md](docs/INTEGRATIONS_INSTRUCTIONS.md)** - OAuth providers (Google, GitHub, Apple, Facebook) and Strava import setup
-- **[docs/PRD.md](docs/PRD.md)** - Product Requirements Document
 
 ## Key Architectural Decisions
 
