@@ -26,6 +26,8 @@ Chart.register(
   zoomPlugin
 );
 
+Chart.defaults.plugins.tooltip.caretPadding = 24;
+
 /** Text color for axes, ticks, and labels (matches dark theme). */
 export const CHART_TEXT_COLOR = '#a0a0a8';
 
