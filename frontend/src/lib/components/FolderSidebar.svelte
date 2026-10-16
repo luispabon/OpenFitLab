@@ -178,8 +178,8 @@
         </div>
 
         {#if sidebarEffectivelyExpanded}
-          <div class="mt-1 pl-11">
-            <div class="flex items-center gap-0.5 py-0.5">
+          <div class="mt-1 pl-11" role="list">
+            <div class="flex items-center gap-0.5 py-0.5" role="listitem">
               <a
                 href={buildFolderHash(FOLDER_SELECTION_ALL)}
                 class="flex min-w-0 flex-1 items-center gap-2 py-2 pr-0 text-sm text-text-secondary transition-colors hover:text-text-primary {isWorkoutsActive &&
@@ -196,6 +196,7 @@
               </a>
             </div>
             <div
+              role="listitem"
               class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === '__unfiled__'
                 ? 'bg-card-hover ring-1 ring-accent'
                 : ''}"
@@ -226,6 +227,7 @@
             </div>
             {#each pinnedFolders as folder (folder.id)}
               <div
+                role="listitem"
                 class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === folder.id
                   ? 'bg-card-hover ring-1 ring-accent'
                   : ''}"
@@ -277,6 +279,7 @@
             {/each}
             {#each unpinnedFolders as folder (folder.id)}
               <div
+                role="listitem"
                 class="flex items-center gap-0.5 py-0.5 rounded {dragOverFolderId === folder.id
                   ? 'bg-card-hover ring-1 ring-accent'
                   : ''}"
