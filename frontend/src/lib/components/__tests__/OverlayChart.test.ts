@@ -187,6 +187,16 @@ describe('OverlayChart', () => {
   });
 
   describe('zoom and reset flow', () => {
+    it('disables animation for zoom and reset transitions', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream],
+          activityStartDate: 1000,
+        },
+      });
+      expect(getLastChartConfig().options.transitions?.zoom?.animation?.duration).toBe(0);
+    });
+
     it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(OverlayChart, {
         props: {
@@ -206,6 +216,7 @@ describe('OverlayChart', () => {
       resetBtn.click();
       await tick();
       expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(instance.resetZoom).toHaveBeenCalledWith('none');
       expect(resetBtn).toHaveStyle({ display: 'none' });
     });
   });

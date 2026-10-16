@@ -46,6 +46,7 @@ export interface MockChartInstance {
 
 export interface MockChartOptions {
   interaction?: { mode: string; intersect: boolean };
+  transitions?: { zoom?: { animation?: { duration?: number } } };
   scales: Record<string, MockScale>;
   plugins: {
     legend?: unknown;

@@ -160,6 +160,17 @@ describe('ComparisonChart', () => {
   });
 
   describe('zoom and reset flow', () => {
+    it('disables animation for zoom and reset transitions', () => {
+      render(ComparisonChart, {
+        props: {
+          streamType: 'Heart Rate',
+          entries: [entry(1000, [{ time: 1000, value: 80 }])],
+          xAxisMode: 'elapsed',
+        },
+      });
+      expect(getLastChartConfig().options.transitions?.zoom?.animation?.duration).toBe(0);
+    });
+
     it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(ComparisonChart, {
         props: {
@@ -180,6 +191,7 @@ describe('ComparisonChart', () => {
       resetBtn.click();
       await tick();
       expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(instance.resetZoom).toHaveBeenCalledWith('none');
       expect(resetBtn).toHaveStyle({ display: 'none' });
     });
   });

@@ -5,6 +5,7 @@
     toXYPoints,
     areaGradient,
     ZOOM_DRAG_OPTIONS,
+    ZOOM_TRANSITION_OPTIONS,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
     CHART_POWER_COLOR,
@@ -99,7 +100,7 @@
 
   function resetZoom() {
     if (!chartInstance || !chartData.data) return;
-    chartInstance.resetZoom();
+    chartInstance.resetZoom('none');
     isZoomed = false;
   }
 
@@ -136,6 +137,7 @@
       type: 'line',
       data: { datasets },
       options: {
+        ...ZOOM_TRANSITION_OPTIONS,
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },

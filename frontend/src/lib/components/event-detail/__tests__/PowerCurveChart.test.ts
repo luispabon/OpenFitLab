@@ -178,6 +178,11 @@ describe('PowerCurveChart', () => {
   });
 
   describe('zoom and reset flow', () => {
+    it('disables animation for zoom and reset transitions', () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      expect(getLastChartConfig().options.transitions?.zoom?.animation?.duration).toBe(0);
+    });
+
     it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(PowerCurveChart, { props: { series: singleSeries } });
       await tick();
@@ -193,6 +198,7 @@ describe('PowerCurveChart', () => {
       resetBtn.click();
       await tick();
       expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(instance.resetZoom).toHaveBeenCalledWith('none');
       expect(resetBtn).toHaveStyle({ display: 'none' });
     });
   });
