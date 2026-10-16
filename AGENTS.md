@@ -175,6 +175,7 @@ For full-stack verification, run `make e2e` — the Playwright suite covers all 
 | Schema | `backend/sql/schema.sql` |
 | Backend conventions | `backend/README.md`, `.cursor/rules/backend-architecture.mdc` |
 | Frontend conventions | `.cursor/rules/svelte-frontend.mdc` |
+| Deferred dependency upgrades (TypeScript 7 blocked by svelte-check and typescript-eslint) | `frontend/README.md` |
 | Frontend data flow | `frontend/src/routes/`, `frontend/src/lib/api/`, `frontend/src/lib/stores/auth.svelte.ts` |
 | Package scripts | `backend/package.json`, `frontend/package.json` |
 
