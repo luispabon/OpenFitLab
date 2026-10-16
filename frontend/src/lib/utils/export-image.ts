@@ -22,7 +22,7 @@ export async function exportAsPng(element: HTMLElement, filename: string): Promi
   // CSS variable is not defined (e.g. in tests or un-themed environments).
   const solidBg =
     getComputedStyle(document.documentElement).getPropertyValue('--color-surface-solid').trim() ||
-    '#121223';
+    '#0e0e10';
 
   const dataUrl = await toPng(element, {
     pixelRatio: 2,

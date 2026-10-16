@@ -49,7 +49,7 @@
   }}
 >
   <div
-    class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
+    class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl"
     role="presentation"
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}

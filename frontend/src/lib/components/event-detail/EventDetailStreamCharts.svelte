@@ -47,7 +47,7 @@
       <div class="space-y-6">
         {#each [1, 2, 3] as _}
           <div
-            class="animate-pulse overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur"
+            class="animate-pulse overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm"
           >
             <div class="h-64 w-full rounded bg-surface"></div>
           </div>
@@ -56,7 +56,7 @@
     </div>
   </div>
 {:else if streamsError}
-  <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
+  <div class="mt-6 rounded-md border border-border bg-card p-4">
     <p class="text-sm font-medium text-text-primary">
       {streamsError}
     </p>
@@ -76,7 +76,7 @@
                 <button
                   type="button"
                   class="px-3 py-2 text-sm font-medium transition-colors {isSelected
-                    ? 'border-b-2 border-accent text-accent'
+                    ? 'border-b-2 border-accent text-accent-text'
                     : 'text-text-secondary hover:text-text-primary'}"
                   onclick={() => onSelectActivity(activity.id)}
                 >
@@ -136,17 +136,13 @@
 
     {#if visibleStreams.length > 0}
       {#if viewMode === 'overlay'}
-        <div
-          class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
-        >
+        <div class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
           <OverlayChart streams={visibleStreams} {activityStartDate} />
         </div>
       {:else}
         <div class="space-y-6">
           {#each visibleStreams as stream (stream.type)}
-            <div
-              class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
-            >
+            <div class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
               <TimeSeriesChart streamData={stream} {activityStartDate} />
             </div>
           {/each}
@@ -159,7 +155,7 @@
     {/if}
   </div>
 {:else if hasSelectedActivity}
-  <div class="mt-6 rounded-md border border-border bg-card p-4 backdrop-blur">
+  <div class="mt-6 rounded-md border border-border bg-card p-4">
     <p class="text-sm font-medium text-text-primary">No stream data available</p>
     <p class="mt-1 text-xs text-text-secondary">
       This activity does not contain time-series data (heart rate, speed, etc.).

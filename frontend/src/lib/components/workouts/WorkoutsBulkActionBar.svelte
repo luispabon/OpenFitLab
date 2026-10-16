@@ -11,9 +11,7 @@
 </script>
 
 {#if selectedCount > 0}
-  <div
-    class="flex h-full flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 backdrop-blur"
-  >
+  <div class="flex h-full flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
     <p class="text-sm font-medium text-text-primary">
       {selectedCount} event{selectedCount !== 1 ? 's' : ''} selected
     </p>

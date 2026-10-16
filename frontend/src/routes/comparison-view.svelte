@@ -585,11 +585,11 @@
       <LoadingSpinner />
     </div>
   {:else if error}
-    <div class="rounded-md border border-danger/20 bg-danger/10 p-4 backdrop-blur">
+    <div class="rounded-md border border-danger/20 bg-danger/10 p-4">
       <p class="text-sm font-medium text-danger">{error}</p>
     </div>
   {:else if events.length < 2}
-    <div class="rounded-md border border-border bg-card p-4 backdrop-blur">
+    <div class="rounded-md border border-border bg-card p-4">
       <p class="text-sm font-medium text-text-primary">
         At least 2 events are required for comparison
       </p>
@@ -753,14 +753,14 @@
               {deviceName}
               {#if isRef}
                 <span
-                  class="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+                  class="rounded bg-accent/15 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-text"
                   >Ref</span
                 >
               {/if}
             </button>
             <button
               type="button"
-              class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+              class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
               title="View original event"
               aria-label="View original event"
               onclick={() =>
@@ -806,7 +806,7 @@
         </span>
         <button
           type="button"
-          class="ml-auto text-sm text-accent hover:underline"
+          class="ml-auto text-sm text-accent-text hover:underline"
           onclick={handleClearHiddenStats}
         >
           Show all
@@ -907,7 +907,7 @@
     {#if powerCurveSeries.length > 0}
       <div
         bind:this={powerCurveSectionEl}
-        class="mb-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
+        class="mb-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm"
       >
         <div class="mb-4 flex items-center justify-between">
           <h3 class="text-base font-semibold text-text-primary">Power Curve</h3>
@@ -958,7 +958,7 @@
       }}
     >
       <div
-        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl backdrop-blur-xl"
+        class="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl"
         role="presentation"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}

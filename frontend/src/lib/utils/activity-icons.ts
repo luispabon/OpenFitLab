@@ -197,3 +197,63 @@ export function getActivityIcon(activityType: string | undefined | null): string
 
   return 'category';
 }
+
+/**
+ * Tailwind text-colour class for an activity's icon, grouped by activity family.
+ * Keyed on the Material icon name so every activity type (exact or substring match) is covered.
+ * Classes are written out in full so Tailwind can detect them.
+ */
+const ACTIVITY_COLOR_BY_ICON: Record<string, string> = {
+  // On foot and cardio machines
+  directions_run: 'text-data-green',
+  run_circle: 'text-data-green',
+  directions_walk: 'text-data-green',
+  hiking: 'text-data-green',
+  nordic_walking: 'text-data-green',
+  snowshoeing: 'text-data-green',
+  monitor_heart: 'text-data-green',
+  stairs: 'text-data-green',
+  // Cycling
+  directions_bike: 'text-data-blue',
+  pedal_bike: 'text-data-blue',
+  electric_bike: 'text-data-blue',
+  // Gym and strength
+  fitness_center: 'text-data-orange',
+  sports_gymnastics: 'text-data-orange',
+  sports_martial_arts: 'text-data-orange',
+  // Mind and body
+  self_improvement: 'text-data-violet',
+  // Water and snow
+  pool: 'text-data-teal',
+  kayaking: 'text-data-teal',
+  rowing: 'text-data-teal',
+  sailing: 'text-data-teal',
+  surfing: 'text-data-teal',
+  kitesurfing: 'text-data-teal',
+  scuba_diving: 'text-data-teal',
+  directions_boat: 'text-data-teal',
+  downhill_skiing: 'text-data-teal',
+  snowboarding: 'text-data-teal',
+  ice_skating: 'text-data-teal',
+  ac_unit: 'text-data-teal',
+  // Ball and team sports
+  sports: 'text-data-amber',
+  sports_basketball: 'text-data-amber',
+  sports_soccer: 'text-data-amber',
+  sports_football: 'text-data-amber',
+  sports_baseball: 'text-data-amber',
+  sports_tennis: 'text-data-amber',
+  sports_hockey: 'text-data-amber',
+  sports_volleyball: 'text-data-amber',
+  sports_handball: 'text-data-amber',
+  sports_cricket: 'text-data-amber',
+  sports_golf: 'text-data-amber',
+  sports_rugby: 'text-data-amber',
+};
+
+const ACTIVITY_COLOR_FALLBACK = 'text-text-secondary';
+
+/** Colour class for the activity icon of `activityType`; neutral when the family is unknown. */
+export function getActivityIconColor(activityType: string | undefined | null): string {
+  return ACTIVITY_COLOR_BY_ICON[getActivityIcon(activityType)] ?? ACTIVITY_COLOR_FALLBACK;
+}

@@ -31,6 +31,13 @@ describe('StatCard', () => {
     expect(iconSpan).toBeInTheDocument();
   });
 
+  it('colours the icon by metric', () => {
+    const { container } = render(StatCard, {
+      props: { statType: 'Average Heart Rate', value: '145', unit: 'bpm' },
+    });
+    expect(container.querySelector('.material-icons')).toHaveClass('text-data-red');
+  });
+
   it('renders nothing when stat type has no icon', () => {
     render(StatCard, {
       props: { statType: 'Banana', value: '42', unit: '' },

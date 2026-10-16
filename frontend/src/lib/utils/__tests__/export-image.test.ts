@@ -49,13 +49,13 @@ describe('exportAsPng', () => {
     document.documentElement.style.removeProperty('--color-surface-solid');
   });
 
-  it('falls back to #121223 backgroundColor when --color-surface-solid is not set', async () => {
+  it('falls back to #0e0e10 backgroundColor when --color-surface-solid is not set', async () => {
     const { toPng } = await import('html-to-image');
     document.documentElement.style.removeProperty('--color-surface-solid');
     await exportAsPng(element, 'my-export');
     expect(toPng).toHaveBeenCalledWith(
       element,
-      expect.objectContaining({ backgroundColor: '#121223' })
+      expect.objectContaining({ backgroundColor: '#0e0e10' })
     );
   });
 

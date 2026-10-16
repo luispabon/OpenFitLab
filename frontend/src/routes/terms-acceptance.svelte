@@ -68,7 +68,7 @@
       class="mb-6 max-h-64 overflow-y-auto rounded border border-border bg-surface p-4 text-sm text-text-secondary"
     >
       <div
-        class="terms-doc [&_h1]:mb-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-text-primary [&_p]:mb-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mb-1 [&_a]:text-accent [&_a]:underline [&_a]:hover:opacity-90"
+        class="terms-doc [&_h1]:mb-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:text-text-primary [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-text-primary [&_p]:mb-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mb-1 [&_a]:text-accent-text [&_a]:underline [&_a]:hover:opacity-90"
       >
         <!-- eslint-disable-next-line svelte/no-at-html-tags -- content from static docs/TERMS_OF_SERVICE.html at build time -->
         {@html termsOfServiceContent}
@@ -85,7 +85,7 @@
         Please review our
         <button
           type="button"
-          class="text-accent hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+          class="text-accent-text hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
           onclick={() => (showPrivacyModal = true)}
         >
           Privacy Policy
@@ -93,7 +93,7 @@
         to understand how we collect, use, and protect your data.
         {#if privacyConfig.email}
           For questions:
-          <a href="mailto:{privacyConfig.email}" class="text-accent hover:underline"
+          <a href="mailto:{privacyConfig.email}" class="text-accent-text hover:underline"
             >{privacyConfig.email}</a
           >
         {/if}
@@ -110,7 +110,7 @@
       <input
         type="checkbox"
         bind:checked={accepted}
-        class="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
+        class="mt-1 h-4 w-4 rounded border-border text-accent-text focus:ring-accent"
       />
       <span class="text-sm text-text-primary">
         I have read and agree to the Terms of Service. I understand that continued use is subject to

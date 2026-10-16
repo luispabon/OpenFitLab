@@ -28,7 +28,7 @@
       />
     {:else}
       <div
-        class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+        class="flex h-9 w-9 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent-text"
       >
         {initials(props.displayName)}
       </div>
@@ -46,7 +46,7 @@
       />
     {:else}
       <div
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent"
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-sm font-semibold text-accent-text"
       >
         {initials(props.displayName)}
       </div>
@@ -57,7 +57,7 @@
       </div>
       <div class="mt-1.5 flex items-center gap-2">
         <button
-          class="rounded-md bg-accent/15 px-2.5 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/25"
+          class="rounded-md bg-accent/15 px-2.5 py-0.5 text-xs font-medium text-accent-text transition-colors hover:bg-accent/25"
           onclick={() => push('/account')}
           type="button"
         >

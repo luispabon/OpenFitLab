@@ -2,6 +2,7 @@
   import type { ActivityRow } from '../../types';
   import {
     getActivityIcon,
+    getActivityIconColor,
     getActivityDeviceName,
     formatDateWithOriginalTimezone,
   } from '../../utils';
@@ -54,7 +55,7 @@
   let draggingEventId = $state<string | null>(null);
 </script>
 
-<div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
+<div class="overflow-hidden rounded-lg border border-border bg-card">
   <table class="w-full table-fixed divide-y divide-border text-[1.00625rem]">
     <thead class="bg-surface">
       <tr>
@@ -62,7 +63,7 @@
           <input
             type="checkbox"
             bind:this={selectAllCheckbox}
-            class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+            class="h-4 w-4 rounded border-border text-accent-text focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
             checked={selectAllChecked}
             onchange={onSelectAllChange}
             aria-label="Select all events"
@@ -148,7 +149,7 @@
             <td class="px-3 py-4" onclick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                class="h-4 w-4 rounded border-border text-accent-text focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                 checked={isSelected}
                 onchange={() => onToggleEventSelection(row.event.id)}
                 aria-label={`Select event ${row.event.name || row.event.id}`}
@@ -157,10 +158,15 @@
             </td>
             <td class="px-3 py-4">
               <div class="flex min-w-0 items-center gap-2">
-                <span
-                  class="material-icons inline-flex h-12 w-12 shrink-0 items-center justify-center text-[3rem] leading-none text-text-secondary"
-                  aria-hidden="true">{getActivityIcon(row.activity.type)}</span
+                <!-- Centre via this wrapper: .material-icons (unlayered) forces display:inline-block on the glyph span. -->
+                <div
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-card-hover"
                 >
+                  <span
+                    class="material-icons {getActivityIconColor(row.activity.type)}"
+                    aria-hidden="true">{getActivityIcon(row.activity.type)}</span
+                  >
+                </div>
                 <div class="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span class="truncate font-medium text-text-primary"
                     >{row.activity.type || '—'}</span
@@ -177,19 +183,19 @@
                 </div>
               </div>
             </td>
-            <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
+            <td class="whitespace-nowrap px-3 py-4 font-mono tabular-nums text-text-primary">
               {formatDurationCell(row.activity.stats)}
             </td>
-            <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
+            <td class="whitespace-nowrap px-3 py-4 font-mono tabular-nums text-text-primary">
               {formatAvgHeartRateCell(row.activity.stats)}
             </td>
-            <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
+            <td class="whitespace-nowrap px-3 py-4 font-mono tabular-nums text-text-primary">
               {formatCaloriesCell(row.activity.stats)}
             </td>
-            <td class="whitespace-nowrap px-3 py-4 text-text-secondary">
+            <td class="whitespace-nowrap px-3 py-4 font-mono tabular-nums text-text-primary">
               {formatDistanceCell(row.activity.stats)}
             </td>
-            <td class="whitespace-nowrap px-3 py-4 text-sm text-text-secondary">
+            <td class="whitespace-nowrap px-3 py-4 text-sm tabular-nums text-text-secondary">
               {formatDateWithOriginalTimezone(
                 row.activity.startDate ?? row.event.startDate,
                 row.activity.startTimezone ?? row.event.startTimezone
@@ -199,7 +205,7 @@
               <div class="flex items-center justify-end gap-1">
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-text-secondary hover:bg-card-hover hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="View activity"
                   aria-label="View"
                   onclick={(e) => {
@@ -213,7 +219,7 @@
                 </button>
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-accent/30 bg-card px-2 text-xs font-medium text-accent shadow-sm hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-text-secondary hover:bg-card-hover hover:text-accent-text focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="Find comparisons"
                   aria-label="Find comparisons"
                   onclick={(e) => {
@@ -227,8 +233,9 @@
                 </button>
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-text-primary shadow-sm hover:bg-card-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-text-secondary hover:bg-card-hover hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="Move to folder"
+                  aria-label="Move to folder"
                   onclick={(e) => onMoveClick(row.event.id, e)}
                 >
                   <span class="material-icons text-base leading-none" aria-hidden="true"
@@ -237,7 +244,7 @@
                 </button>
                 <button
                   type="button"
-                  class="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-danger/30 bg-card px-2 text-xs font-medium text-danger shadow-sm hover:bg-danger/10 focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:ring-offset-transparent"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md border-0 bg-transparent text-text-secondary hover:bg-card-hover hover:text-danger focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-transparent"
                   title="Delete activity"
                   aria-label="Delete"
                   onclick={(e) => onDeleteClick(row.event.id, e)}

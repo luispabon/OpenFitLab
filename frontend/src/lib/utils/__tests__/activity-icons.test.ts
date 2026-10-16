@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getActivityIcon } from '../activity-icons';
+import { getActivityIcon, getActivityIconColor } from '../activity-icons';
 
 describe('getActivityIcon', () => {
   it('returns directions_run for running', () => {
@@ -43,5 +43,37 @@ describe('getActivityIcon', () => {
   });
   it('exact match takes priority (skating -> ice_skating)', () => {
     expect(getActivityIcon('skating')).toBe('ice_skating');
+  });
+});
+
+describe('getActivityIconColor', () => {
+  it('colours foot-based and cardio-machine activities green', () => {
+    expect(getActivityIconColor('running')).toBe('text-data-green');
+    expect(getActivityIconColor('Elliptical Trainer')).toBe('text-data-green');
+  });
+  it('colours cycling blue', () => {
+    expect(getActivityIconColor('Indoor Cycling')).toBe('text-data-blue');
+  });
+  it('colours strength training orange', () => {
+    expect(getActivityIconColor('Strength Training')).toBe('text-data-orange');
+  });
+  it('colours yoga violet', () => {
+    expect(getActivityIconColor('yoga')).toBe('text-data-violet');
+  });
+  it('colours water activities teal', () => {
+    expect(getActivityIconColor('swimming')).toBe('text-data-teal');
+  });
+  it('colours ball sports amber', () => {
+    expect(getActivityIconColor('tennis')).toBe('text-data-amber');
+  });
+  it('uses the first activity of a comma-separated list', () => {
+    expect(getActivityIconColor('cycling, running')).toBe('text-data-blue');
+  });
+  it('falls back to a neutral colour for unknown, empty or missing types', () => {
+    expect(getActivityIconColor('Underwater Basket Weaving')).toBe('text-text-secondary');
+    expect(getActivityIconColor('Other')).toBe('text-text-secondary');
+    expect(getActivityIconColor('')).toBe('text-text-secondary');
+    expect(getActivityIconColor(null)).toBe('text-text-secondary');
+    expect(getActivityIconColor(undefined)).toBe('text-text-secondary');
   });
 });

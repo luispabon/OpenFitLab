@@ -100,3 +100,20 @@ export function getStatLabel(statType: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
+
+/**
+ * Tailwind text-colour class for a stat's icon, one colour per metric family.
+ * Metrics without a dedicated colour stay neutral.
+ */
+export function getStatIconColor(statType: string): string {
+  const lower = parseStat(statType).metric.toLowerCase();
+  if (lower === 'duration' || lower === 'time' || lower === 'moving time' || lower === 'movingtime')
+    return 'text-data-blue';
+  if (lower === 'distance') return 'text-data-green';
+  if (lower.includes('heart rate') || lower.includes('heartrate')) return 'text-data-red';
+  if (lower === 'energy' || lower.includes('calorie')) return 'text-data-orange';
+  if (lower.includes('speed')) return 'text-data-teal';
+  if (lower.includes('cadence')) return 'text-data-violet';
+  if (lower.includes('power')) return 'text-data-amber';
+  return 'text-text-muted';
+}
