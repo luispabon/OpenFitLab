@@ -69,6 +69,9 @@ describe('exportAsPng', () => {
 
   it('keeps the shared stylesheet first in head until the last concurrent export settles', async () => {
     const { toPng } = await import('html-to-image');
+    // Pre-existing inline sheet (like Vite's dev style tags): the shared sheet must go ahead of it.
+    const marker = document.createElement('style');
+    document.head.appendChild(marker);
     const existing = new Set(document.head.querySelectorAll('style'));
     const resolvers: Array<(url: string) => void> = [];
     (toPng as ReturnType<typeof vi.fn>)
@@ -92,6 +95,7 @@ describe('exportAsPng', () => {
     const [sheet] = sharedSheets();
     expect(sharedSheets()).toHaveLength(1);
     expect(document.head.firstChild).toBe(sheet);
+    expect(sheet.nextSibling).toBe(marker);
     expect(sheet.isConnected).toBe(true);
 
     resolvers[0]('data:image/png;base64,abc123');
@@ -101,6 +105,7 @@ describe('exportAsPng', () => {
     resolvers[1]('data:image/png;base64,abc123');
     await second;
     expect(sheet.isConnected).toBe(false);
+    marker.remove();
   });
 
   it('uses --color-surface-solid CSS variable as backgroundColor', async () => {
