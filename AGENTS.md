@@ -2,7 +2,9 @@
 
 ## Purpose and scope
 
-**Role:** Fast AI-agent entrypoint. Use this file for operational context, safety rules, and where to look next. Deep technical reference lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Product intent lives in [docs/PRD.md](docs/PRD.md).
+**Role:** Agent entrypoint for this repo. Use this file for operational context, safety rules, and where to look next. The canonical technical reference is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The API contract is [backend/docs/openapi.yaml](backend/docs/openapi.yaml).
+
+This is the only tracked agent instruction file. Put agent conventions here, not in tool-specific files.
 
 ## Quickstart
 
@@ -32,7 +34,7 @@
 ### Frontend
 
 - Run: `npm run dev` in `frontend/`
-- Main quality gate: `npm run ci`
+- Main quality gate: `npm run ci` (format, lint, svelte-check, tests, build)
 - Runtime: Node 22.22.2+ locally (Docker and CI use Node 24)
 
 ### DAST
@@ -51,24 +53,41 @@
 
 ### Docker images
 
-- Build both images: `make docker-build`
-- Build backend only: `make docker-build-backend`
-- Build frontend only: `make docker-build-frontend`
-- Build and push both to GHCR: `make docker-push`
-- Registry: `ghcr.io/luispabon` (images: `openfitlab-backend`, `openfitlab-frontend`)
+- Build all three images (backend, frontend, backup): `make docker-build`
+- Build one image: `make docker-build-backend`, `make docker-build-frontend`, `make docker-build-backup`
+- Build and push all three to GHCR: `make docker-push`
+- Registry: `ghcr.io/luispabon` (images: `openfitlab-backend`, `openfitlab-frontend`, `openfitlab-backup`)
 
 ### CI
 
 - Backend: lint, format, unit tests (including Node 24 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
-- Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
-- DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
-- E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Docker image publishing (`publish.yml`) requires all three check jobs (backend, frontend, E2E) to pass. The suite does not call live Strava; Strava flows are covered by unit/integration tests and manual checks.
+- Security: Gitleaks, dependency-review, Semgrep, and a Docker config Trivy scan on PRs to `main`. See `.github/workflows/security-checks.yml`.
+- DAST: ZAP API scan against `backend/docs/openapi.yaml`, daily at 04:00 UTC and on demand. The same workflow runs a full-history secrets scan. See `.github/workflows/security-scheduled.yml`.
+- E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Image publishing (`publish.yml`) pushes the backend, frontend, and backup images only after the backend, frontend, and E2E check jobs pass. The suite does not call live Strava; Strava flows are covered by unit/integration tests and manual checks.
 - Releases: pushing a `v*` tag creates a GitHub Release with generated notes. See `.github/workflows/release.yml`.
+
+## Quality gates
+
+- **Backend:** from `backend/`, `npm run format`, `npm run lint`, and `npm run test` must all exit 0. Run them before and after changes. Also run `npm run test:unit` or `npm run test:coverage` when you change service, repository, or DB behavior.
+- **Frontend:** from `frontend/`, `npm run ci` must exit 0 (format, lint, svelte-check, tests, build). Run it before and after changes. `npm run test` alone is not enough, because type errors surface in `npm run check`.
+- **Tests:** new or changed backend behavior needs unit tests in `backend/test/unit/`, including error branches and edge cases. New or changed frontend logic needs `*.test.ts` tests under `frontend/src/` (for example in a `__tests__/` directory next to the module). Run the full suite, not only the new test file.
+- **Local checks must match CI.** If a check fails, the task is not done. Fix the failure and rerun the full gate. Do not commit broken work. If a check cannot be fixed, report the exact error and do not mark the task complete.
+
+## Commit messages
+
+- Do not add a `Made-with` line, AI tool signature, git trailer, or footer.
+- List changes under a bold `**Changes:**` line, with `*` bullets:
+
+```
+**Changes:**
+ * Drop created_at from stream_data_points (never read)
+ * Drop event_start_date from activities (redundant with event.start_date)
+```
 
 ## Agent-critical invariants
 
-Rules below are the non-negotiables for agents changing code. **Schema shape, storage layout, migrations, deployment, and security details** are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — read that for full context, not duplicated here.
+Rules below are the non-negotiables for agents changing code. **Schema shape, storage layout, migrations, deployment, and security details** are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Read that for full context instead of duplicating it here.
 
 - Server-side sessions (OAuth + Valkey store). **No** JWT or localStorage auth.
 - State-changing requests need the CSRF token from `GET /api/auth/me`. Send it as **`CSRF-Token`** (SPA default) or **`x-csrf-token`** (also accepted; see [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml)).
@@ -78,7 +97,7 @@ Rules below are the non-negotiables for agents changing code. **Schema shape, st
 - **Relational** stats (`event_stats`, `activity_stats`); **relational** comparison membership (`comparison_event_activities`); **packed** stream points in `streams.data`.
 - Event delete must clear comparisons that reference the event first (service workflow).
 - New FKs: `ON DELETE CASCADE` unless unfile semantics apply (`folder_id` → `SET NULL`).
-- **New migrations only** — never edit applied migration files; `backend/sql/schema.sql` is a snapshot.
+- **New migrations only.** Never edit applied migration files. `backend/sql/schema.sql` is a reference snapshot, not a migration.
 - Config only via [`backend/src/config.js`](backend/src/config.js).
 
 ## API contract
@@ -96,20 +115,26 @@ Key points:
 
 ### Backend
 
-- All SQL lives in repositories (`backend/src/repositories/`). Services and routes must not contain SQL.
-- Routes are thin: validate input, call a service, return the response. No business logic in route handlers.
-- Input validation is Express middleware in `backend/src/utils/validation.js`.
-- Services accept `opts.db` for dependency injection and use `db.transaction()` for multi-statement writes.
-- Errors use `ParseError`, `ValidationError`, or `NotFoundError` from `backend/src/errors.js`. The central error handler maps `statusCode` to HTTP status; do not send ad-hoc error responses.
-- API error responses use `{ error: string }`.
+- All SQL lives in repositories (`backend/src/repositories/`). Repositories run queries through `runQuery` (multi-row) or `runQueryOne` (first row or `null`) from `repositories/query-helper.js`, which uses `opts.conn` when set, else `opts.db`. Services and routes must not contain SQL.
+- Services that touch the DB accept optional injection: `const db = opts?.db ?? defaultDb`, then pass `{ ...opts, db }` to repositories. Use `db.transaction(async (conn) => ...)` for multi-statement atomic writes and pass `{ ...opts, db, conn }` inside it.
+- Routes are thin: validate with Express middleware in `backend/src/utils/validation.js`, call a service, return the response. No business logic or DB access in route handlers.
+- Use the shared `asyncHandler` from `backend/src/middleware/async-handler.js`. Do not redefine it in route files.
+- Errors use `ParseError`, `ValidationError`, or `NotFoundError` from `backend/src/errors.js`. The central error handler maps `statusCode` to HTTP status, and API error responses use `{ error: string }`. Do not send ad-hoc error responses.
 - API response shapes are built by helpers in `backend/src/utils/transforms.js` (`mapEventRow`, `mapActivityRow`, `aggregateStats`).
+- Avoid N+1 queries. Load related data for many parents with batched `IN (...)` queries and placeholders from `placeholders(n)` in `utils/transforms.js`.
+- If a new query needs an index for its filters or `ORDER BY`, add it in a new migration (e.g. `backend/sql/migrations/NNN_description.sql`).
+- Do not add circular dependencies. Services must not require other services; routes may require several services. Accepted exception: `event-update-service` imports `event-query-service.getEventById` to build the update response. Prefer repositories for new cross-module access.
 
 ### Frontend
 
 - Svelte 5 runes only: `$state()`, `$derived()`, `$effect()`, `$props()`. Do not use legacy `let` reactivity, `$:`, or `export let`.
-- Tailwind CSS v4 only. No component-level `<style>` blocks for layout or colors.
-- `svelte-spa-router` for routing.
+- Tailwind CSS v4 only. No component-level `<style>` blocks, SCSS, or Sass for layout or colors.
+- API calls use `fetch()` in plain `.ts` modules. Work with plain API JSON and TypeScript interfaces. No RxJS or Angular HttpClient.
+- Routing uses `svelte-spa-router`, with routes defined in a central config. Navigate with `push()`, `replace()`, and `params`.
+- File names: components and routes `kebab-case.svelte`; services and utils `kebab-case.ts` or `camelCase.ts`.
+- Icons: `<span class="material-icons">{iconName}</span>` (Material Icons). Custom SVG names are mapped via `getStatIconMaterialName()`.
 - Do not use `@sports-alliance/sports-lib` in the frontend.
+- Modal dialogs (elements with `role="dialog"` and `aria-modal="true"`) must close on the Escape key. Attach `onkeydown` to the dialog, or to a wrapper that holds focus (`tabindex="-1"`), and call the same close logic as the overlay click and Cancel button: `if (e.key === 'Escape') onClose();`.
 
 ## Key entry points
 
@@ -135,15 +160,16 @@ Key points:
 
 ## Documentation
 
-When you change behavior that the project’s authoritative docs describe, update those docs in the same change. See `.cursor/rules/documentation-updates.mdc` for the full rule.
+When you change behavior that an authoritative doc describes, update that doc in the same change.
 
 | Change type | Update |
 |---|---|
 | New or changed REST endpoints, request/response shapes, auth | `backend/docs/openapi.yaml` |
 | Schema (migrations) | New migration file only; update `backend/sql/schema.sql` as reference snapshot; update `docs/ARCHITECTURE.md` if it affects documented architecture |
 | Config, env, deployment | `docs/ARCHITECTURE.md`, and `backend/README.md` or `frontend/README.md` if they reference it |
-| Key commands, invariants, entry points | `AGENTS.md`, and the relevant README |
-| Product scope or features | `docs/PRD.md` (if the PRD describes them) |
+| Key commands, invariants, entry points, conventions | `AGENTS.md`, and the relevant README |
+| Backend run, test, or config usage | `backend/README.md` |
+| Frontend run, test, or build usage | `frontend/README.md` |
 
 ## Validation checklist
 
@@ -157,16 +183,19 @@ After meaningful refactors, verify:
 6. Folder-filtered views still behave correctly.
 7. Deleting an event removes it cleanly.
 
-For full-stack verification, run `make e2e` — the Playwright suite covers all of the above automatically.
+For full-stack verification, run `make e2e`. The Playwright suite covers all of the above automatically.
+
+## Non-authoritative files
+
+Do not read, cite, or rely on documents under `implementation_plans/` unless the user explicitly asks to use them, or the task is to create or update an implementation plan. That directory is gitignored working material, not authoritative.
 
 ## When unsure
 
 | Topic | Read |
 |---|---|
-| Which doc to update when I change code | "Documentation" subsection above, `.cursor/rules/documentation-updates.mdc` |
+| Which doc to update when code changes | "Documentation" section above |
 | Technical reference | `docs/ARCHITECTURE.md` |
 | OAuth / Strava integration setup | `docs/INTEGRATIONS_INSTRUCTIONS.md` |
-| Product intent | `docs/PRD.md` |
 | API contract | `backend/docs/openapi.yaml` |
 | API routes | `backend/src/routes/` |
 | Auth flow | `backend/src/routes/auth.js`, `backend/src/middleware/session.js`, `backend/src/middleware/require-auth.js` |
@@ -174,8 +203,8 @@ For full-stack verification, run `make e2e` — the Playwright suite covers all 
 | Comparisons | `backend/src/services/comparison-service.js`, `backend/src/routes/comparisons.js` |
 | Folders | `backend/src/services/folder-service.js`, `backend/src/routes/folders.js` |
 | Schema | `backend/sql/schema.sql` |
-| Backend conventions | `backend/README.md`, `.cursor/rules/backend-architecture.mdc` |
-| Frontend conventions | `.cursor/rules/svelte-frontend.mdc` |
+| Backend conventions | "Conventions > Backend" above, `backend/README.md` |
+| Frontend conventions | "Conventions > Frontend" above, `frontend/README.md` |
 | Deferred dependency upgrades (TypeScript 7 blocked by svelte-check and typescript-eslint) | `frontend/README.md` |
 | Frontend data flow | `frontend/src/routes/`, `frontend/src/lib/api/`, `frontend/src/lib/stores/auth.svelte.ts` |
 | Package scripts | `backend/package.json`, `frontend/package.json` |

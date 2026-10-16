@@ -17,7 +17,7 @@ async function createSessionMiddleware() {
     prefix: SESSION_KEY_PREFIX,
   });
 
-  // secure and maxAge set; domain omitted by design (same-origin). See AGENTS.md Security.
+  // secure and maxAge set; domain omitted by design (same-origin). See docs/ARCHITECTURE.md (Security and ownership invariants).
   return session({
     secret: config.session.secret,
     store,

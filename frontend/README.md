@@ -12,7 +12,7 @@ Svelte 5, Vite, Tailwind CSS v4, svelte-spa-router. The app calls `/api` (proxie
 
 **Theme ("Graphite"):** All colours and fonts are tokens in the `@theme` block of `src/app.css`. Surfaces are flat zinc greys stepped by lightness (`bg` → `surface` → `card` → `card-hover`, with `border`); there are no gradients or translucent glass panels. Colour is reserved for data and icons: use the `data-*` tokens (`text-data-green`, …) via `getActivityIconColor` / `getStatIconColor`, and keep the single blue accent for primary buttons and selected state (`accent` as a fill, `accent-text` as text on dark panels). Numbers in tables and stat tiles use `font-mono tabular-nums`. IBM Plex Sans/Mono load from Google Fonts in `index.html`, the same way as Material Icons.
 
-**Commands and quality gate:** [AGENTS.md](../AGENTS.md) (`npm run ci`). Conventions: [.cursor/rules/frontend-lint-test.mdc](../.cursor/rules/frontend-lint-test.mdc), [.cursor/rules/svelte-frontend.mdc](../.cursor/rules/svelte-frontend.mdc).
+**Commands, quality gate, and conventions:** [AGENTS.md](../AGENTS.md) (`npm run ci`).
 
 **Google Analytics (optional):** Set `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` at build time to enable GA4 tracking. Omit the variable (or leave it blank) to disable analytics entirely — no script is injected and no data is sent.
 

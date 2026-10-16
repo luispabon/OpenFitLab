@@ -15,7 +15,7 @@ Node.js Express API for OpenFitLab. See [AGENTS.md](../AGENTS.md) at project roo
 
 ## Data access
 
-SQL in repositories only; services pass `opts.db` or `opts.conn` (inside transactions). See [.cursor/rules/backend-architecture.mdc](../.cursor/rules/backend-architecture.mdc) for full conventions (transactions, routes, testing).
+SQL in repositories only; services pass `opts.db` or `opts.conn` (inside transactions). See [AGENTS.md](../AGENTS.md) for full conventions (transactions, routes, testing).
 
 ## Errors
 
