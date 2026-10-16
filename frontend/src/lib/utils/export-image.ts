@@ -5,6 +5,10 @@ import { toPng } from 'html-to-image';
 const excludeExportControls = (node: Node): boolean =>
   !(node instanceof Element && node.hasAttribute('data-export-exclude'));
 
+// Shared same-origin stylesheet for webfont embedding, and the number of exports using it.
+let fontStyle: HTMLStyleElement | null = null;
+let inFlightExports = 0;
+
 /**
  * Captures a DOM element (including any embedded <canvas> elements, such as Chart.js
  * charts or a MapLibre WebGL canvas with preserveDrawingBuffer enabled) and triggers
@@ -24,12 +28,15 @@ export async function exportAsPng(element: HTMLElement, filename: string): Promi
     getComputedStyle(document.documentElement).getPropertyValue('--color-surface-solid').trim() ||
     '#0e0e10';
 
-  // html-to-image copies webfont @font-face rules into a same-origin stylesheet. The
-  // Google Fonts sheets are cross-origin and unreadable, and production builds have no
-  // inline stylesheet, so the fonts would be dropped and captured text would reflow in a
-  // fallback font (e.g. wrapping the card title). This temporary style element is that target.
-  const fontStyle = document.createElement('style');
-  document.head.appendChild(fontStyle);
+  // html-to-image copies webfont @font-face rules into the first inline stylesheet it finds.
+  // Google Fonts sheets are cross-origin and production builds have no inline stylesheet, so
+  // without one the fonts are dropped and captured text reflows (e.g. wrapping the card title).
+  // A shared sheet is kept first in <head> while any export is in flight.
+  if (inFlightExports === 0) {
+    fontStyle = document.createElement('style');
+    document.head.insertBefore(fontStyle, document.head.firstChild);
+  }
+  inFlightExports++;
   let dataUrl: string;
   try {
     dataUrl = await toPng(element, {
@@ -38,7 +45,11 @@ export async function exportAsPng(element: HTMLElement, filename: string): Promi
       filter: excludeExportControls,
     });
   } finally {
-    fontStyle.remove();
+    inFlightExports--;
+    if (inFlightExports === 0) {
+      fontStyle?.remove();
+      fontStyle = null;
+    }
   }
   const a = document.createElement('a');
   a.download = `${filename}.png`;

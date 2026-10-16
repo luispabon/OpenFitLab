@@ -67,6 +67,42 @@ describe('exportAsPng', () => {
     expect(added[0].isConnected).toBe(false);
   });
 
+  it('keeps the shared stylesheet first in head until the last concurrent export settles', async () => {
+    const { toPng } = await import('html-to-image');
+    const existing = new Set(document.head.querySelectorAll('style'));
+    const resolvers: Array<(url: string) => void> = [];
+    (toPng as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolvers.push(resolve);
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolvers.push(resolve);
+          })
+      );
+    const sharedSheets = () =>
+      Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+
+    const first = exportAsPng(element, 'first');
+    const second = exportAsPng(element, 'second');
+    const [sheet] = sharedSheets();
+    expect(sharedSheets()).toHaveLength(1);
+    expect(document.head.firstChild).toBe(sheet);
+    expect(sheet.isConnected).toBe(true);
+
+    resolvers[0]('data:image/png;base64,abc123');
+    await first;
+    expect(sheet.isConnected).toBe(true);
+
+    resolvers[1]('data:image/png;base64,abc123');
+    await second;
+    expect(sheet.isConnected).toBe(false);
+  });
+
   it('uses --color-surface-solid CSS variable as backgroundColor', async () => {
     const { toPng } = await import('html-to-image');
     document.documentElement.style.setProperty('--color-surface-solid', 'rgb(18, 18, 35)');
