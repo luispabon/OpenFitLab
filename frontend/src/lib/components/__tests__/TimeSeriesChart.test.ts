@@ -1,44 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import TimeSeriesChart from '../TimeSeriesChart.svelte';
+import { ZOOM_DRAG_OPTIONS } from '../../utils/chart-utils';
+import { getStreamConfig } from '../../utils/stream-config';
+import {
+  chartRegistry,
+  getLastChartConfig,
+  getLastChartInstance,
+  resetChartMock,
+} from '../../../test/chartjs-mock';
 
-vi.mock('uplot', () => {
-  const instance = {
-    destroy: vi.fn(),
-    batch: vi.fn((fn: () => void) => {
-      if (fn) fn();
-    }),
-    setSize: vi.fn(),
-    setScale: vi.fn(),
-  };
-  (globalThis as { __timeSeriesChartMock?: { instance: typeof instance } }).__timeSeriesChartMock =
-    {
-      instance,
-    };
-  const Mock = vi.fn(function (this: unknown) {
-    return instance;
-  });
-  (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
-    spline: () => () => {},
-    linear: () => () => {},
-  };
-  return { default: Mock };
-});
-
-function getTimeSeriesChartMock() {
-  return (
-    globalThis as {
-      __timeSeriesChartMock?: {
-        instance: {
-          destroy: ReturnType<typeof vi.fn>;
-          batch: ReturnType<typeof vi.fn>;
-          setScale: ReturnType<typeof vi.fn>;
-        };
-      };
-    }
-  ).__timeSeriesChartMock!;
-}
+vi.mock('chart.js', async () => (await import('../../../test/chartjs-mock')).chartJsModuleMock());
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
 const streamWithData = {
   type: 'Heart Rate',
@@ -49,6 +23,10 @@ const streamWithData = {
 };
 
 describe('TimeSeriesChart', () => {
+  afterEach(() => {
+    resetChartMock();
+  });
+
   describe('empty / no-data', () => {
     it('renders "No data available" when streamData has no data', () => {
       render(TimeSeriesChart, {
@@ -58,6 +36,7 @@ describe('TimeSeriesChart', () => {
         },
       });
       expect(screen.getByText(/No data available/)).toBeInTheDocument();
+      expect(chartRegistry.configs).toHaveLength(0);
     });
 
     it('renders "No valid numeric data" when streamData has only non-numeric values', () => {
@@ -74,6 +53,7 @@ describe('TimeSeriesChart', () => {
         },
       });
       expect(screen.getByText(/No valid numeric data/)).toBeInTheDocument();
+      expect(chartRegistry.configs).toHaveLength(0);
     });
   });
 
@@ -103,8 +83,76 @@ describe('TimeSeriesChart', () => {
     });
   });
 
-  describe('effect and chart lifecycle', () => {
-    it('resetZoom button click calls batch and setScale when chart exists', async () => {
+  describe('chart configuration', () => {
+    it('creates one line dataset of elapsed-time points from the stream values', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.type).toBe('line');
+      expect(config.data.datasets).toHaveLength(1);
+      expect(config.data.datasets[0].label).toBe(getStreamConfig('Heart Rate').label);
+      expect(config.data.datasets[0].data).toEqual([
+        { x: 0, y: 80 },
+        { x: 1000, y: 90 },
+      ]);
+    });
+
+    it('uses a linear x axis spanning the elapsed range', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const xScale = getLastChartConfig().options.scales.x;
+      expect(xScale.type).toBe('linear');
+      expect(xScale.min).toBe(0);
+      expect(xScale.max).toBe(1000);
+    });
+
+    it('titles the y axis with the stream label and unit', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const { label, unit } = getStreamConfig('Heart Rate');
+      expect(getLastChartConfig().options.scales.y.title?.text).toBe(
+        unit ? `${label} (${unit})` : label
+      );
+    });
+
+    it('enables drag zoom on the x axis only, with the shared drag style', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const zoom = getLastChartConfig().options.plugins.zoom?.zoom;
+      expect(zoom?.mode).toBe('x');
+      expect(zoom?.drag).toEqual(ZOOM_DRAG_OPTIONS);
+    });
+
+    it('formats the tooltip title as elapsed time', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const title = getLastChartConfig().options.plugins.tooltip?.callbacks?.title;
+      expect(title?.([{ datasetIndex: 0, dataset: {}, parsed: { x: 125000, y: 0 } }])).toBe('2:05');
+    });
+  });
+
+  describe('zoom and reset flow', () => {
+    it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(TimeSeriesChart, {
         props: {
           streamData: streamWithData,
@@ -112,17 +160,23 @@ describe('TimeSeriesChart', () => {
         },
       });
       await tick();
-      const resetBtn = screen.getByText('Reset Zoom').closest('button');
-      expect(resetBtn).toBeInTheDocument();
-      resetBtn!.click();
-      expect(getTimeSeriesChartMock().instance.batch).toHaveBeenCalled();
-      expect(getTimeSeriesChartMock().instance.setScale).toHaveBeenCalledWith(
-        'x',
-        expect.any(Object)
-      );
-    });
+      const instance = getLastChartInstance();
+      const resetBtn = screen.getByText('Reset Zoom').closest('button')!;
 
-    it('destroys previous chart when streamData changes (chartRef.current path)', async () => {
+      instance.isZoomedOrPanned.mockReturnValue(true);
+      getLastChartConfig().options.plugins.zoom?.zoom.onZoomComplete?.({ chart: instance });
+      await tick();
+      expect(resetBtn).toHaveStyle({ display: 'block' });
+
+      resetBtn.click();
+      await tick();
+      expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(resetBtn).toHaveStyle({ display: 'none' });
+    });
+  });
+
+  describe('effect and chart lifecycle', () => {
+    it('destroys previous chart when streamData changes', async () => {
       const { rerender } = render(TimeSeriesChart, {
         props: {
           streamData: streamWithData,
@@ -130,7 +184,7 @@ describe('TimeSeriesChart', () => {
         },
       });
       await tick();
-      const destroyCallsBefore = getTimeSeriesChartMock().instance.destroy.mock.calls.length;
+      const first = getLastChartInstance();
       rerender({
         streamData: {
           type: 'Cadence',
@@ -139,32 +193,21 @@ describe('TimeSeriesChart', () => {
         activityStartDate: 1000,
       });
       await tick();
-      expect(getTimeSeriesChartMock().instance.destroy.mock.calls.length).toBeGreaterThan(
-        destroyCallsBefore
-      );
+      expect(first.destroy).toHaveBeenCalled();
+      expect(getLastChartConfig().data.datasets[0].label).toBe(getStreamConfig('Cadence').label);
     });
 
-    it('cleanup on unmount calls destroy and ResizeObserver disconnect', () => {
-      const disconnectSpy = vi.fn();
-      const OriginalRO = window.ResizeObserver;
-      window.ResizeObserver = class {
-        observe = vi.fn();
-        disconnect = disconnectSpy;
-        unobserve = vi.fn();
-        constructor(_cb: ResizeObserverCallback) {}
-      } as unknown as typeof ResizeObserver;
-
+    it('destroys the chart on unmount', async () => {
       const { unmount } = render(TimeSeriesChart, {
         props: {
           streamData: streamWithData,
           activityStartDate: 1000,
         },
       });
+      await tick();
+      const instance = getLastChartInstance();
       unmount();
-
-      expect(getTimeSeriesChartMock().instance.destroy).toHaveBeenCalled();
-      expect(disconnectSpy).toHaveBeenCalled();
-      window.ResizeObserver = OriginalRO;
+      expect(instance.destroy).toHaveBeenCalled();
     });
   });
 });

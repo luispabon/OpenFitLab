@@ -3,33 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import StreamAnalysisSection from '../StreamAnalysisSection.svelte';
 import { eventDetailFixture, eventDetailEvt2Fixture } from '../../../../test/fixtures/event-detail';
 
-vi.mock('uplot', () => {
-  const instance = {
-    destroy: vi.fn(),
-    setSize: vi.fn(),
-    ctx: {
-      save: vi.fn(),
-      restore: vi.fn(),
-      strokeStyle: '',
-      lineWidth: 0,
-      setLineDash: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      stroke: vi.fn(),
-    },
-    valToPos: vi.fn(() => 100),
-    bbox: { left: 0, width: 200, top: 0, height: 200 },
-  };
-  const Mock = vi.fn(function (this: unknown) {
-    return instance;
-  });
-  (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
-    spline: () => () => {},
-    linear: () => () => {},
-  };
-  return { default: Mock };
-});
+vi.mock('chart.js', async () =>
+  (await import('../../../../test/chartjs-mock')).chartJsModuleMock()
+);
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
 const evt1 = {
   ...eventDetailFixture,
