@@ -240,7 +240,7 @@
   </div>
 
   {#if editingError}
-    <div class="mb-4 rounded-md border border-danger/20 bg-danger/10 p-3 backdrop-blur">
+    <div class="mb-4 rounded-md border border-danger/20 bg-danger/10 p-3">
       <p class="text-sm font-medium text-danger">{editingError}</p>
     </div>
   {/if}
@@ -250,18 +250,18 @@
       <LoadingSpinner />
     </div>
   {:else if error}
-    <div class="rounded-md border border-danger/20 bg-danger/10 p-4 backdrop-blur">
+    <div class="rounded-md border border-danger/20 bg-danger/10 p-4">
       <p class="text-sm font-medium text-danger">{error}</p>
     </div>
   {:else if comparisons.length === 0}
-    <div class="rounded-md border border-border bg-card p-8 text-center backdrop-blur">
+    <div class="rounded-md border border-border bg-card p-8 text-center">
       <p class="text-sm font-medium text-text-primary">No saved comparisons yet.</p>
       <p class="mt-2 text-xs text-text-secondary">
         Create a comparison from Workouts to save it here.
       </p>
     </div>
   {:else}
-    <div class="overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg">
+    <div class="overflow-hidden rounded-lg border border-border bg-card shadow">
       <table class="min-w-full divide-y divide-border">
         <thead class="bg-surface">
           <tr>

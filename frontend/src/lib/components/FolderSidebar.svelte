@@ -129,7 +129,7 @@
 </script>
 
 <nav
-  class="fixed left-0 top-0 z-50 h-screen border-r border-border bg-surface backdrop-blur-xl transition-all duration-300"
+  class="fixed left-0 top-0 z-50 h-screen border-r border-border bg-surface transition-all duration-300"
   style="width: {sidebarEffectivelyExpanded ? '16rem' : '4rem'};"
 >
   <div class="flex h-full flex-col">

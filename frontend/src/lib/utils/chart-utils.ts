@@ -4,10 +4,10 @@ import uPlot from 'uplot';
 export const CHART_HEIGHT = 384;
 
 /** Text color for axes, ticks, and labels (matches dark theme). */
-export const CHART_TEXT_COLOR = '#d1d5db';
+export const CHART_TEXT_COLOR = '#a0a0a8';
 
 /** Grid line color for chart axes. */
-export const CHART_GRID_COLOR = 'rgba(255,255,255,0.12)';
+export const CHART_GRID_COLOR = '#2e2e33';
 
 /** Default color for power curves (matches Power stream in stream-config). */
 export const CHART_POWER_COLOR = '#a855f7';

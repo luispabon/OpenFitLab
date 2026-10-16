@@ -56,7 +56,7 @@
 
   {#if open}
     <div
-      class="absolute right-0 top-full z-10 mt-1 min-w-[200px] rounded-md border border-border bg-card shadow-lg backdrop-blur-lg"
+      class="absolute right-0 top-full z-10 mt-1 min-w-[200px] rounded-md border border-border bg-card shadow-lg"
     >
       <div class="py-1">
         <button

@@ -27,7 +27,7 @@
   );
 </script>
 
-<div class="mb-4 rounded-md border border-border bg-card p-4 backdrop-blur">
+<div class="mb-4 rounded-md border border-border bg-card p-4">
   <div class="mb-2 flex items-center justify-between">
     <p class="text-sm font-medium text-text-primary">
       {label}

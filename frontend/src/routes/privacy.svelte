@@ -11,7 +11,7 @@
 <div class="mx-auto max-w-4xl px-4 py-8">
   {#if authState.pendingSignup && !embeddedInModal}
     <p class="mb-4 text-sm text-text-secondary">
-      <a href="#/" class="text-accent hover:underline">Back to terms</a>
+      <a href="#/" class="text-accent-text hover:underline">Back to terms</a>
     </p>
   {/if}
   <h1 class="mb-6 text-3xl font-bold text-text-primary">Privacy Policy</h1>
@@ -105,7 +105,7 @@
           href="https://tools.google.com/dlpage/gaoptout"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-accent hover:underline">Google opt-out add-on</a
+          class="text-accent-text hover:underline">Google opt-out add-on</a
         >, Do Not Track, or ad blockers.
       </p>
     {/if}
@@ -149,7 +149,7 @@
       <p class="text-text-secondary">
         For privacy questions, data export/deletion, or to exercise your rights:<br />
         <strong>Email:</strong>
-        <a href="mailto:{privacyConfig.email}" class="text-accent hover:underline"
+        <a href="mailto:{privacyConfig.email}" class="text-accent-text hover:underline"
           >{privacyConfig.email}</a
         ><br />
         <strong>Region:</strong>
@@ -159,7 +159,7 @@
           href="https://ico.org.uk/"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-accent hover:underline">Information Commissioner's Office (ICO)</a
+          class="text-accent-text hover:underline">Information Commissioner's Office (ICO)</a
         >.
       </p>
     {:else}
@@ -170,7 +170,7 @@
           href="https://ico.org.uk/"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-accent hover:underline">ICO</a
+          class="text-accent-text hover:underline">ICO</a
         >.
       </p>
     {/if}

@@ -72,7 +72,7 @@
   </p>
 
   <!-- Privacy Settings -->
-  <div class="mb-8 rounded-lg border border-border bg-card p-6 shadow backdrop-blur-lg">
+  <div class="mb-8 rounded-lg border border-border bg-card p-6 shadow">
     <h2 class="mb-4 text-xl font-semibold text-text-primary">Privacy Settings</h2>
 
     <div class="flex flex-col gap-6">
@@ -140,7 +140,7 @@
     </div>
   </div>
 
-  <div class="rounded-lg border border-border border-danger/30 bg-card p-6 shadow backdrop-blur-lg">
+  <div class="rounded-lg border border-border border-danger/30 bg-card p-6 shadow">
     <h2 class="text-lg font-medium text-text-primary">Delete my account</h2>
     <p class="mt-2 text-sm text-text-secondary">
       Deleting your account will <strong class="text-danger">permanently</strong> remove:
@@ -157,7 +157,7 @@
         <input
           type="checkbox"
           bind:checked={confirmChecked}
-          class="mt-1 h-4 w-4 rounded border-border text-accent focus:ring-accent"
+          class="mt-1 h-4 w-4 rounded border-border text-accent-text focus:ring-accent"
           disabled={isDeleting}
         />
         <span class="text-sm text-text-primary">

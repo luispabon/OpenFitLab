@@ -3,7 +3,7 @@
 </script>
 
 <section class="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 py-6">
-  <div class="rounded-lg border border-border bg-card p-8 text-center backdrop-blur-lg">
+  <div class="rounded-lg border border-border bg-card p-8 text-center">
     <h1 class="text-2xl font-semibold text-text-primary">Page not found</h1>
     <p class="mt-2 text-sm text-text-secondary">
       The page you're looking for doesn't exist or has been moved.

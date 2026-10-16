@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getStatIcon, getStatIconMaterialName, getStatUnit, getStatLabel } from '../stat-icons';
+import {
+  getStatIcon,
+  getStatIconColor,
+  getStatIconMaterialName,
+  getStatUnit,
+  getStatLabel,
+} from '../stat-icons';
 
 describe('getStatIcon', () => {
   it('returns access_time for Duration', () => {
@@ -145,5 +151,28 @@ describe('getStatLabel', () => {
   });
   it('title-cases words', () => {
     expect(getStatLabel('maximum heart rate')).toBe('Maximum Heart Rate');
+  });
+});
+
+describe('getStatIconColor', () => {
+  it.each([
+    ['Duration', 'text-data-blue'],
+    ['Moving Time', 'text-data-blue'],
+    ['Distance', 'text-data-green'],
+    ['Average Heart Rate', 'text-data-red'],
+    ['Energy', 'text-data-orange'],
+    ['Average Speed', 'text-data-teal'],
+    ['Average Cadence', 'text-data-violet'],
+    ['Average Power', 'text-data-amber'],
+  ])('returns the metric colour for %s', (statType, expected) => {
+    expect(getStatIconColor(statType)).toBe(expected);
+  });
+  it('keeps the same colour across aggregation and unit variants', () => {
+    expect(getStatIconColor('Maximum Heart Rate')).toBe('text-data-red');
+    expect(getStatIconColor('Average Speed in Knots')).toBe('text-data-teal');
+  });
+  it('stays neutral for metrics without a dedicated colour', () => {
+    expect(getStatIconColor('Ascent')).toBe('text-text-muted');
+    expect(getStatIconColor('Banana')).toBe('text-text-muted');
   });
 });

@@ -57,7 +57,7 @@
 
 <div
   bind:this={tableEl}
-  class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow backdrop-blur-lg"
+  class="mb-6 overflow-hidden rounded-lg border border-border bg-card shadow"
 >
   <div class="flex items-center justify-between border-b border-border px-6 py-3">
     <span class="text-sm font-medium uppercase tracking-wider text-text-secondary">Stats</span>
@@ -97,7 +97,7 @@
                 {#if onNavigateToEvent}
                   <button
                     type="button"
-                    class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                    class="rounded p-0.5 text-text-muted hover:bg-accent/10 hover:text-accent-text focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                     title="View original event"
                     aria-label="View original event"
                     onclick={() => onNavigateToEvent(eventId)}

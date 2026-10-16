@@ -1,25 +1,41 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-surface: rgba(15, 15, 30, 0.7);
-  --color-surface-solid: rgb(18, 18, 35);
-  --color-card: rgba(25, 25, 50, 0.5);
-  --color-card-solid: rgb(28, 28, 52);
-  --color-card-hover: rgba(35, 35, 60, 0.6);
-  --color-card-hover-solid: rgb(38, 38, 62);
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.15);
-  --color-text-primary: #f0f0f5;
-  --color-text-secondary: #9ca3af;
-  --color-text-muted: #6b7280;
-  --color-accent: #3b82f6;
+  /* Graphite: flat zinc surfaces stepped by lightness. Colour is reserved for data and icons. */
+  --color-bg: #121214;
+  --color-surface: #0e0e10;
+  --color-surface-solid: #0e0e10;
+  --color-card: #1a1a1d;
+  --color-card-solid: #1a1a1d;
+  --color-card-hover: #222226;
+  --color-card-hover-solid: #222226;
+  --color-border: #2e2e33;
+  --color-border-hover: #3f3f46;
+  --color-text-primary: #ececee;
+  --color-text-secondary: #a0a0a8;
+  --color-text-muted: #8b8b94;
+  /* Fill accent (buttons, rings, borders); white text on it is 4.7:1. */
+  --color-accent: #2f6fe0;
   --color-accent-hover: #2563eb;
+  /* Accent used as text/icon colour on dark panels (the fill accent is too dark for that). */
+  --color-accent-text: #7fb0ff;
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
+
+  /* Categorical data colours: activity icons, stat icons, charts. Tuned for the dark surfaces. */
+  --color-data-red: #f0616d;
+  --color-data-orange: #f59e42;
+  --color-data-amber: #e8c04a;
+  --color-data-green: #4cc38a;
+  --color-data-teal: #2fb8c4;
+  --color-data-blue: #5b9dff;
+  --color-data-violet: #a78bfa;
+
+  --font-sans: 'IBM Plex Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 }
@@ -28,8 +44,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a0533 0%, #0f1a2e 40%, #0a2a2a 70%, #0d3b3b 100%);
-  background-attachment: fixed;
+  background: var(--color-bg);
   color: var(--color-text-primary);
 }
 

@@ -52,7 +52,7 @@
     }}
   >
     <div
-      class="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl backdrop-blur-xl"
+      class="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
       role="presentation"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => {
@@ -111,7 +111,7 @@
           <p class="mb-4">
             <button
               type="button"
-              class="text-sm font-medium text-accent hover:underline"
+              class="text-sm font-medium text-accent-text hover:underline"
               onclick={onToggleShowAllFolders}
             >
               {showAllFolders ? 'Same folder only' : 'Show all folders'}
@@ -141,7 +141,7 @@
               >
                 <input
                   type="checkbox"
-                  class="h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent"
+                  class="h-4 w-4 rounded border-border text-accent-text focus:ring-2 focus:ring-accent"
                   checked={isSelected}
                   onchange={() => onToggleCandidate(candidate.id)}
                 />

@@ -18,7 +18,7 @@
 {#if entries.length > 0}
   <div
     bind:this={cardEl}
-    class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
+    class="overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm"
   >
     <div class="mb-4 flex items-center justify-between">
       <h3 class="text-lg font-semibold text-text-primary">

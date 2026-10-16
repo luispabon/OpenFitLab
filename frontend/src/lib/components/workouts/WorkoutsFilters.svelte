@@ -86,7 +86,7 @@
 </script>
 
 <div
-  class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3 backdrop-blur"
+  class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3"
   class:relative={activityTypeDropdownOpen || deviceDropdownOpen}
   class:z-30={activityTypeDropdownOpen || deviceDropdownOpen}
 >
@@ -135,7 +135,7 @@
                   type="checkbox"
                   checked={selectedActivityTypes.includes(type)}
                   onchange={() => onToggleActivityType(type)}
-                  class="h-4 w-4 rounded border-border text-accent"
+                  class="h-4 w-4 rounded border-border text-accent-text"
                 />
                 <span class="text-sm text-text-primary">{type}</span>
               </label>
@@ -169,7 +169,7 @@
                 type="checkbox"
                 checked={selectedDevices.includes(device)}
                 onchange={() => onToggleDevice(device)}
-                class="h-4 w-4 rounded border-border text-accent"
+                class="h-4 w-4 rounded border-border text-accent-text"
               />
               <span class="text-sm text-text-primary">{device}</span>
             </label>

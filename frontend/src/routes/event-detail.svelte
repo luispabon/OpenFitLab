@@ -232,11 +232,11 @@
       <LoadingSpinner />
     </div>
   {:else if error}
-    <div class="rounded-md border border-danger/20 bg-danger/10 p-4 backdrop-blur">
+    <div class="rounded-md border border-danger/20 bg-danger/10 p-4">
       <p class="text-sm font-medium text-danger">{error}</p>
     </div>
   {:else if event}
-    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm backdrop-blur-lg">
+    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <!-- Header -->
       <div
         class="flex flex-wrap items-center gap-4 border-b border-border px-6 py-5 sm:flex-nowrap"
@@ -393,7 +393,7 @@
               <span class="text-text-primary">{comparison.name}</span>
               <button
                 type="button"
-                class="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+                class="inline-flex items-center gap-1 text-sm text-accent-text hover:underline"
                 onclick={() => push(`/compare/${comparison.id}`)}
               >
                 View
@@ -416,7 +416,7 @@
     {#if powerCurveSeries.length > 0}
       <div
         bind:this={powerCurveSectionEl}
-        class="mt-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm backdrop-blur-lg"
+        class="mt-6 overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm"
       >
         <div class="mb-4 flex items-center justify-between">
           <h3 class="text-base font-semibold text-text-primary">Power Curve</h3>
