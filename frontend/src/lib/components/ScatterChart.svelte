@@ -24,24 +24,26 @@
   const chartRef = { current: null as Chart | null };
 
   const chartData = $derived.by(
-    (): { data: AlignedSeriesData | null; xMin: number; xMax: number } => {
-      if (pairs.length === 0) return { data: null, xMin: 0, xMax: 0 };
+    (): { data: AlignedSeriesData | null; axisMin: number; axisMax: number } => {
+      if (pairs.length === 0) return { data: null, axisMin: 0, axisMax: 0 };
 
       // Sort by x for regression line to render correctly
       const sorted = [...pairs].sort((a, b) => a.x - b.x);
       const xs = sorted.map((p) => p.x);
       const ys = sorted.map((p) => p.y);
 
-      const xMin = xs[0];
-      const xMax = xs[xs.length - 1];
+      // Shared bounds over all finite x and y values, so both axes use the same scale
+      const values = [...xs, ...ys].filter(Number.isFinite);
+      const axisMin = values.reduce((m, v) => Math.min(m, v), Infinity);
+      const axisMax = values.reduce((m, v) => Math.max(m, v), -Infinity);
 
       if (regressionLine) {
         const { slope, intercept } = regressionLine;
         const regYs: (number | null)[] = xs.map((x) => slope * x + intercept);
-        return { data: [xs, ys, regYs] as AlignedSeriesData, xMin, xMax };
+        return { data: [xs, ys, regYs] as AlignedSeriesData, axisMin, axisMax };
       }
 
-      return { data: [xs, ys] as AlignedSeriesData, xMin, xMax };
+      return { data: [xs, ys] as AlignedSeriesData, axisMin, axisMax };
     }
   );
 
@@ -54,6 +56,7 @@
     }
 
     const data = chartData.data;
+    const { axisMin, axisMax } = chartData;
     const datasets = [
       {
         label: 'Data',
@@ -77,6 +80,18 @@
             },
           ]
         : []),
+      {
+        label: 'Equal readings',
+        data: [
+          { x: axisMin, y: axisMin },
+          { x: axisMax, y: axisMax },
+        ],
+        showLine: true,
+        borderColor: CHART_TEXT_COLOR,
+        borderWidth: 1,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+      },
     ];
 
     const chart = new Chart(canvasEl, {
@@ -89,6 +104,8 @@
         scales: {
           x: {
             type: 'linear',
+            min: axisMin,
+            max: axisMax,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => Number(value).toFixed(1),
@@ -98,6 +115,8 @@
             title: { display: true, text: xLabel, color: CHART_TEXT_COLOR },
           },
           y: {
+            min: axisMin,
+            max: axisMax,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => Number(value).toFixed(1),
@@ -110,6 +129,9 @@
         plugins: {
           legend: { display: false },
           tooltip: {
+            // Show only the first Data item; drops tied duplicates, Regression, and Equal readings
+            filter: (item, index, items) =>
+              item.datasetIndex === 0 && items.findIndex((i) => i.datasetIndex === 0) === index,
             callbacks: {
               label: (item) =>
                 `${item.dataset.label}: (${Number(item.parsed.x).toFixed(1)}, ${Number(item.parsed.y).toFixed(1)})`,
