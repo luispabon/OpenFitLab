@@ -24,15 +24,22 @@ export async function exportAsPng(element: HTMLElement, filename: string): Promi
     getComputedStyle(document.documentElement).getPropertyValue('--color-surface-solid').trim() ||
     '#0e0e10';
 
-  const dataUrl = await toPng(element, {
-    pixelRatio: 2,
-    backgroundColor: solidBg,
-    // Skip font embedding: avoids cross-origin requests to Google Fonts. The font
-    // is already loaded in the browser and its glyphs are drawn into the canvas
-    // pixels directly, so the exported image looks correct without it.
-    skipFonts: true,
-    filter: excludeExportControls,
-  });
+  // html-to-image copies webfont @font-face rules into a same-origin stylesheet. The
+  // Google Fonts sheets are cross-origin and unreadable, and production builds have no
+  // inline stylesheet, so the fonts would be dropped and captured text would reflow in a
+  // fallback font (e.g. wrapping the card title). This temporary style element is that target.
+  const fontStyle = document.createElement('style');
+  document.head.appendChild(fontStyle);
+  let dataUrl: string;
+  try {
+    dataUrl = await toPng(element, {
+      pixelRatio: 2,
+      backgroundColor: solidBg,
+      filter: excludeExportControls,
+    });
+  } finally {
+    fontStyle.remove();
+  }
   const a = document.createElement('a');
   a.download = `${filename}.png`;
   a.href = dataUrl;

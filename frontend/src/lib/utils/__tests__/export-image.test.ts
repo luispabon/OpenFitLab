@@ -29,13 +29,42 @@ describe('exportAsPng', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   });
 
-  it('calls toPng with the provided element, pixelRatio 2, and skipFonts true', async () => {
+  it('calls toPng with the provided element and pixelRatio 2, without skipFonts', async () => {
     const { toPng } = await import('html-to-image');
     await exportAsPng(element, 'my-export');
-    expect(toPng).toHaveBeenCalledWith(
-      element,
-      expect.objectContaining({ pixelRatio: 2, skipFonts: true })
-    );
+    expect(toPng).toHaveBeenCalledWith(element, expect.objectContaining({ pixelRatio: 2 }));
+    const opts = (toPng as ReturnType<typeof vi.fn>).mock.calls[0][1] as object;
+    expect(opts).not.toHaveProperty('skipFonts');
+  });
+
+  it('provides a same-origin inline stylesheet in document.head during toPng, then removes it', async () => {
+    const { toPng } = await import('html-to-image');
+    const existing = new Set(document.head.querySelectorAll('style'));
+    let added: HTMLStyleElement[] = [];
+    let sheetDuringCall: CSSStyleSheet | null = null;
+    (toPng as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      added = Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+      sheetDuringCall = added[0]?.sheet ?? null;
+      return Promise.resolve('data:image/png;base64,abc123');
+    });
+    await exportAsPng(element, 'my-export');
+    expect(added).toHaveLength(1);
+    expect(sheetDuringCall).not.toBeNull();
+    expect(sheetDuringCall!.href).toBeNull();
+    expect(added[0].isConnected).toBe(false);
+  });
+
+  it('removes the temporary stylesheet when toPng rejects', async () => {
+    const { toPng } = await import('html-to-image');
+    const existing = new Set(document.head.querySelectorAll('style'));
+    let added: HTMLStyleElement[] = [];
+    (toPng as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      added = Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+      return Promise.reject(new Error('canvas error'));
+    });
+    await expect(exportAsPng(element, 'my-export')).rejects.toThrow('canvas error');
+    expect(added).toHaveLength(1);
+    expect(added[0].isConnected).toBe(false);
   });
 
   it('uses --color-surface-solid CSS variable as backgroundColor', async () => {
