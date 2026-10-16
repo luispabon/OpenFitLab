@@ -69,8 +69,8 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 
 ## Quality gates
 
-- **Backend:** from `backend/`, `npm run format`, `npm run lint`, and `npm run test` must all exit 0. Run them before and after changes. Also run `npm run test:unit` or `npm run test:coverage` when you change service, repository, or DB behavior.
-- **Frontend:** from `frontend/`, `npm run ci` must exit 0 (format, lint, svelte-check, tests, build). Run it before and after changes. `npm run test` alone is not enough, because type errors surface in `npm run check`.
+- **Backend:** from `backend/`, `npm run format` and `npm run test` must exit 0, and `npm run lint` must report no errors or warnings. Run them before and after changes. Also run `npm run test:unit` or `npm run test:coverage` when you change service, repository, or DB behavior.
+- **Frontend:** from `frontend/`, `npm run ci` must exit 0 (format, lint, svelte-check, tests, build), and lint must report no errors or warnings. Run it before and after changes. `npm run test` alone is not enough, because type errors surface in `npm run check`.
 - **Tests:** new or changed backend behavior needs unit tests in `backend/test/unit/`, including error branches and edge cases. New or changed frontend logic needs `*.test.ts` tests under `frontend/src/` (for example in a `__tests__/` directory next to the module). Run the full suite, not only the new test file.
 - **Local checks must match CI.** If a check fails, the task is not done. Fix the failure and rerun the full gate. Do not commit broken work. If a check cannot be fixed, report the exact error and do not mark the task complete.
 
@@ -118,10 +118,12 @@ Key points:
 - All SQL lives in repositories (`backend/src/repositories/`). Repositories run queries through `runQuery` (multi-row) or `runQueryOne` (first row or `null`) from `repositories/query-helper.js`, which uses `opts.conn` when set, else `opts.db`. Services and routes must not contain SQL.
 - Services that touch the DB accept optional injection: `const db = opts?.db ?? defaultDb`, then pass `{ ...opts, db }` to repositories. Use `db.transaction(async (conn) => ...)` for multi-statement atomic writes and pass `{ ...opts, db, conn }` inside it.
 - Routes are thin: validate with Express middleware in `backend/src/utils/validation.js`, call a service, return the response. No business logic or DB access in route handlers.
+- Input limits (e.g. max `limit`) are enforced in validation middleware, or the server cap is documented in one place so validation and services stay aligned.
+- Services that touch the DB must be unit-testable with an injected fake `db` that provides `query`, `queryOne`, and `transaction`, plus `getPool` where used (the contract used by `backend/src/db.js`). Keep `opts` pass-through so tests can substitute it.
 - Use the shared `asyncHandler` from `backend/src/middleware/async-handler.js`. Do not redefine it in route files.
 - Errors use `ParseError`, `ValidationError`, or `NotFoundError` from `backend/src/errors.js`. The central error handler maps `statusCode` to HTTP status, and API error responses use `{ error: string }`. Do not send ad-hoc error responses.
 - API response shapes are built by helpers in `backend/src/utils/transforms.js` (`mapEventRow`, `mapActivityRow`, `aggregateStats`).
-- Avoid N+1 queries. Load related data for many parents with batched `IN (...)` queries and placeholders from `placeholders(n)` in `utils/transforms.js`.
+- Avoid N+1 queries. Load related data for many parents with batched `IN (...)` queries and placeholders from `placeholders(n)` in `backend/src/repositories/query-helper.js`.
 - If a new query needs an index for its filters or `ORDER BY`, add it in a new migration (e.g. `backend/sql/migrations/NNN_description.sql`).
 - Do not add circular dependencies. Services must not require other services; routes may require several services. Accepted exception: `event-update-service` imports `event-query-service.getEventById` to build the update response. Prefer repositories for new cross-module access.
 
