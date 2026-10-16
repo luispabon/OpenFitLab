@@ -44,11 +44,12 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "chart.js": "4.5.1",
+    "chartjs-plugin-zoom": "2.2.0",
     "html-to-image": "^1.11.13",
     "maplibre-gl": "^6.11.2",
     "svelte-maplibre-gl": "^2.2.1",
     "svelte-spa-router": "^5.1.1",
-    "tailwindcss": "^4.1.18",
-    "uplot": "^1.6.32"
+    "tailwindcss": "^4.1.18"
   }
 }

@@ -1,14 +1,14 @@
 <script lang="ts">
-  import uPlot from 'uplot';
-  import 'uplot/dist/uPlot.min.css';
+  import { Chart } from 'chart.js';
   import {
     formatDurationCompact,
-    getPowerCurveSplits,
-    CHART_HEIGHT,
+    toXYPoints,
+    areaGradient,
+    ZOOM_DRAG_OPTIONS,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
     CHART_POWER_COLOR,
-    getSmoothPath,
+    type AlignedSeriesData,
   } from '../../utils/chart-utils';
 
   export interface CurveSeries {
@@ -34,12 +34,10 @@
     maxDuration,
   }: Props = $props();
 
-  let containerEl: HTMLDivElement | null = $state(null);
-  let chartInstance: uPlot | null = $state(null);
+  let canvasEl: HTMLCanvasElement | null = $state(null);
+  let chartInstance: Chart | null = $state(null);
   let isZoomed = $state(false);
-  const chartRef = { current: null as uPlot | null };
-
-  const smoothPath = getSmoothPath();
+  const chartRef = { current: null as Chart | null };
 
   /** Series to display: filter by selectedActivityIds when in comparison mode. */
   const visibleSeries = $derived.by(() => {
@@ -83,160 +81,111 @@
 
   const chartData = $derived.by(() => {
     if (visibleSeries.length === 0 || sharedX.length === 0)
-      return { data: null as uPlot.AlignedData | null, xMin: 0, xMax: 0 };
+      return { data: null as AlignedSeriesData | null, xMin: 0, xMax: 0 };
 
     const xMin = sharedX[0];
-    // Use maxDuration if provided (activity duration), otherwise use max from data
-    const xMax = maxDuration ?? sharedX[sharedX.length - 1];
+    // Use maxDuration if positive (activity duration), otherwise use max from data.
+    // A non-positive maxDuration is invalid on a logarithmic axis.
+    const xMax = maxDuration && maxDuration > 0 ? maxDuration : sharedX[sharedX.length - 1];
     const yArrays: (number | null)[][] = [];
 
     for (const s of visibleSeries) {
       yArrays.push(sharedX.map((x) => powerAtDuration(s.data, x)));
     }
 
-    const data: uPlot.AlignedData = [sharedX, ...yArrays];
+    const data: AlignedSeriesData = [sharedX, ...yArrays];
     return { data, xMin, xMax };
   });
 
   function resetZoom() {
     if (!chartInstance || !chartData.data) return;
-    const { xMin, xMax } = chartData;
-    chartInstance.batch(() => {
-      chartInstance!.setScale('x', { min: xMin, max: xMax });
-    });
+    chartInstance.resetZoom();
     isZoomed = false;
   }
 
   $effect(() => {
-    if (!containerEl || !chartData.data || visibleSeries.length === 0) return;
-
-    const textColor = CHART_TEXT_COLOR;
-    const gridColor = CHART_GRID_COLOR;
+    if (!canvasEl || !chartData.data || visibleSeries.length === 0) return;
 
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    const { data, xMin, xMax } = chartData;
-    const nSeries = visibleSeries.length;
-
-    const uPlotSeries: uPlot.Series[] = [{}];
-    for (let i = 0; i < nSeries; i++) {
-      const s = visibleSeries[i];
+    const { xMin, xMax } = chartData;
+    const data = chartData.data;
+    const datasets = visibleSeries.map((s, i) => {
       const color = s.color || CHART_POWER_COLOR;
-      uPlotSeries.push({
+      return {
         label: s.activityName,
-        stroke: color,
-        width: 2,
-        paths: smoothPath,
-        fill: (u, seriesIdx) => {
-          const ser = u.series[seriesIdx];
-          const scaleKey = (ser.scale as string) || 'y';
-          const sc = u.scales[scaleKey];
-          if (!sc || sc.min == null || sc.max == null) return color + '40';
-          const top = u.valToPos(sc.max, scaleKey, true);
-          const bottom = u.valToPos(sc.min, scaleKey, true);
-          const ctx = u.ctx;
-          if (!ctx) return color + '40';
-          const grd = ctx.createLinearGradient(0, top, 0, bottom);
-          grd.addColorStop(0, color + '40');
-          grd.addColorStop(1, color + '00');
-          return grd;
-        },
-        value: (_u, raw) => (raw == null ? '' : `${Math.round(raw)} W`),
-      });
-    }
-
-    const opts: uPlot.Options = {
-      width: containerEl.offsetWidth,
-      height: CHART_HEIGHT,
-      series: uPlotSeries,
-      scales: {
-        x: {
-          time: false,
-          distr: 3,
-          log: 10,
-          range: () => [xMin, xMax],
-        },
-        y: { auto: true },
-      },
-      axes: [
-        {
-          stroke: textColor,
-          grid: {
-            stroke: gridColor,
-            width: 1,
-            filter: (_u, splits) => splits,
-          },
-          ticks: {
-            stroke: textColor,
-            filter: (_u, splits) => splits,
-          },
-          filter: (_u, splits) => splits,
-          splits: (_u, _axisIdx, scaleMin, scaleMax) => getPowerCurveSplits(scaleMin, scaleMax),
-          values: (_u, ticks) =>
-            ticks.map((t) => (typeof t === 'number' ? formatDurationCompact(t) : '')),
-          label: 'Duration',
-          labelFont: '13px system-ui',
-          font: '13px system-ui',
-          size: 40,
-          gap: 8,
-          space: 1,
-        },
-        {
-          stroke: textColor,
-          grid: { stroke: gridColor, width: 1 },
-          ticks: { stroke: textColor },
-          values: (_u, ticks) =>
-            ticks.map((t) => (typeof t === 'number' ? `${Math.round(t)}` : '')),
-          label: 'Power (W)',
-          labelFont: '13px system-ui',
-          font: '13px system-ui',
-          size: 36,
-          gap: 5,
-          space: 80,
-          labelGap: 12,
-          labelSize: 42,
-        },
-      ],
-      cursor: {
-        show: true,
-        x: true,
-        y: true,
-        drag: { setScale: true, x: true, y: false },
-        points: { show: true, size: 10, width: 2, stroke: '#ffffff', fill: CHART_POWER_COLOR },
-      },
-      legend: { show: true, live: true },
-      hooks: {
-        setSelect: [
-          (u) => {
-            setTimeout(() => {
-              const xScale = u.scales.x;
-              if (!xScale || xScale.min == null || xScale.max == null) return;
-              const tol = (chartData.xMax - chartData.xMin) * 0.01;
-              isZoomed =
-                Math.abs(xScale.min - chartData.xMin) > tol ||
-                Math.abs(xScale.max - chartData.xMax) > tol;
-            }, 0);
-          },
-        ],
-      },
-    };
-
-    const u = new uPlot(opts, data, containerEl);
-    chartRef.current = u;
-    chartInstance = u;
-
-    const ro = new ResizeObserver(() => {
-      if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT });
-      }
+        data: toXYPoints(data, i + 1),
+        borderColor: color,
+        borderWidth: 2,
+        backgroundColor: areaGradient(color, '40'),
+        fill: 'start' as const,
+        tension: 0.4,
+        spanGaps: false,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#ffffff',
+        pointHoverBorderWidth: 2,
+      };
     });
-    ro.observe(containerEl);
+
+    const chart = new Chart(canvasEl, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: {
+            type: 'logarithmic',
+            min: xMin,
+            max: xMax,
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => formatDurationCompact(Number(value)),
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: { display: true, text: 'Duration', color: CHART_TEXT_COLOR },
+          },
+          y: {
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => `${Math.round(Number(value))}`,
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: { display: true, text: 'Power (W)', color: CHART_TEXT_COLOR },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: CHART_TEXT_COLOR } },
+          tooltip: {
+            callbacks: {
+              title: (items) => formatDurationCompact(Number(items[0].parsed.x)),
+              label: (item) => `${item.dataset.label}: ${Math.round(Number(item.parsed.y))} W`,
+            },
+          },
+          zoom: {
+            zoom: {
+              mode: 'x',
+              drag: ZOOM_DRAG_OPTIONS,
+              onZoomComplete: ({ chart }) => {
+                isZoomed = chart.isZoomedOrPanned();
+              },
+            },
+          },
+        },
+      },
+    });
+    chartRef.current = chart;
+    chartInstance = chart;
 
     return () => {
-      ro.disconnect();
       if (chartRef.current) {
         chartRef.current.destroy();
         chartRef.current = null;
@@ -291,7 +240,9 @@
       >
         Reset Zoom
       </button>
-      <div class="h-96 w-full" bind:this={containerEl}></div>
+      <div class="h-96 w-full">
+        <canvas bind:this={canvasEl}></canvas>
+      </div>
     </div>
   {/if}
 </div>
@@ -309,12 +260,5 @@
   }
   .animate-fade-in {
     animation: fade-in 0.3s ease-out;
-  }
-  :global(.uplot .u-legend) {
-    color: var(--color-text-secondary);
-    margin-bottom: 0.75rem;
-  }
-  :global(.uplot .u-legend tbody tr:first-child) {
-    display: none;
   }
 </style>

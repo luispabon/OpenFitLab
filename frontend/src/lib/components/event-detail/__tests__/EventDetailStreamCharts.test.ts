@@ -4,24 +4,10 @@ import EventDetailStreamCharts from '../EventDetailStreamCharts.svelte';
 import type { Activity, StreamData } from '../../../types';
 import { activityFixture } from '../../../../test/fixtures/event-detail';
 
-vi.mock('uplot', () => {
-  const mockInstance = {
-    destroy: vi.fn(),
-    batch: vi.fn((fn: () => void) => {
-      if (fn) fn();
-    }),
-    setSize: vi.fn(),
-    setScale: vi.fn(),
-  };
-  const Mock = vi.fn(function (this: unknown) {
-    return mockInstance;
-  });
-  (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
-    spline: () => () => {},
-    linear: () => () => {},
-  };
-  return { default: Mock };
-});
+vi.mock('chart.js', async () =>
+  (await import('../../../../test/chartjs-mock')).chartJsModuleMock()
+);
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
 const heartRateStream: StreamData = {
   type: 'Heart Rate',

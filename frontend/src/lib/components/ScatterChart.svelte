@@ -1,8 +1,12 @@
 <script lang="ts">
-  import uPlot from 'uplot';
-  import 'uplot/dist/uPlot.min.css';
+  import { Chart } from 'chart.js';
   import type { AlignedPair } from '../utils/stream-analysis';
-  import { CHART_TEXT_COLOR, CHART_GRID_COLOR } from '../utils/chart-utils';
+  import {
+    toXYPoints,
+    CHART_TEXT_COLOR,
+    CHART_GRID_COLOR,
+    type AlignedSeriesData,
+  } from '../utils/chart-utils';
 
   const SCATTER_CHART_HEIGHT = 300;
 
@@ -16,115 +20,129 @@
 
   let { pairs, regressionLine, xLabel, yLabel, color }: Props = $props();
 
-  let containerEl: HTMLDivElement | null = $state(null);
-  const chartRef = { current: null as uPlot | null };
+  let canvasEl: HTMLCanvasElement | null = $state(null);
+  const chartRef = { current: null as Chart | null };
 
   const chartData = $derived.by(
-    (): { data: uPlot.AlignedData | null; xMin: number; xMax: number } => {
-      if (pairs.length === 0) return { data: null, xMin: 0, xMax: 0 };
+    (): { data: AlignedSeriesData | null; axisMin: number; axisMax: number } => {
+      if (pairs.length === 0) return { data: null, axisMin: 0, axisMax: 0 };
 
       // Sort by x for regression line to render correctly
       const sorted = [...pairs].sort((a, b) => a.x - b.x);
       const xs = sorted.map((p) => p.x);
       const ys = sorted.map((p) => p.y);
 
-      const xMin = xs[0];
-      const xMax = xs[xs.length - 1];
+      // Shared bounds over all finite x and y values, so both axes use the same scale
+      const values = [...xs, ...ys].filter(Number.isFinite);
+      const axisMin = values.reduce((m, v) => Math.min(m, v), Infinity);
+      const axisMax = values.reduce((m, v) => Math.max(m, v), -Infinity);
 
       if (regressionLine) {
         const { slope, intercept } = regressionLine;
         const regYs: (number | null)[] = xs.map((x) => slope * x + intercept);
-        return { data: [xs, ys, regYs] as uPlot.AlignedData, xMin, xMax };
+        return { data: [xs, ys, regYs] as AlignedSeriesData, axisMin, axisMax };
       }
 
-      return { data: [xs, ys] as uPlot.AlignedData, xMin, xMax };
+      return { data: [xs, ys] as AlignedSeriesData, axisMin, axisMax };
     }
   );
 
   $effect(() => {
-    if (!containerEl || !chartData.data) return;
+    if (!canvasEl || !chartData.data) return;
 
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    const textColor = CHART_TEXT_COLOR;
-    const gridColor = CHART_GRID_COLOR;
-    const { data } = chartData;
-
-    const series: uPlot.Series[] = [{}];
-
-    // Scatter series
-    series.push({
-      label: 'Data',
-      stroke: color,
-      width: 0,
-      points: { show: true, size: 4, width: 0, fill: color },
-    });
-
-    // Regression line series (if provided)
-    if (regressionLine) {
-      series.push({
-        label: 'Regression',
-        stroke: '#6b7280',
-        width: 1.5,
-        points: { show: false },
-        dash: [4, 4],
-      });
-    }
-
-    const opts: uPlot.Options = {
-      width: containerEl.offsetWidth,
-      height: SCATTER_CHART_HEIGHT,
-      series,
-      scales: {
-        x: { time: false, auto: true },
-        y: { auto: true },
+    const data = chartData.data;
+    const { axisMin, axisMax } = chartData;
+    const datasets = [
+      {
+        label: 'Data',
+        data: toXYPoints(data, 1),
+        backgroundColor: color,
+        borderColor: color,
+        pointRadius: 2,
+        pointHoverRadius: 4,
       },
-      axes: [
-        {
-          stroke: textColor,
-          grid: { stroke: gridColor, width: 1 },
-          ticks: { stroke: textColor },
-          values: (_u, ticks) => ticks.map((t) => (typeof t === 'number' ? t.toFixed(1) : '')),
-          label: xLabel,
-          labelFont: '12px system-ui',
-          font: '12px system-ui',
-          size: 36,
-          gap: 8,
-          space: 50,
-        },
-        {
-          stroke: textColor,
-          grid: { stroke: gridColor, width: 1 },
-          ticks: { stroke: textColor },
-          values: (_u, ticks) => ticks.map((t) => (typeof t === 'number' ? t.toFixed(1) : '')),
-          label: yLabel,
-          labelFont: '12px system-ui',
-          font: '12px system-ui',
-          size: 36,
-          gap: 5,
-          space: 50,
-          labelGap: 12,
-          labelSize: 40,
-        },
-      ],
-      legend: { show: false },
-    };
+      ...(regressionLine
+        ? [
+            {
+              label: 'Regression',
+              data: toXYPoints(data, 2),
+              showLine: true,
+              borderColor: '#6b7280',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              pointHoverRadius: 0,
+            },
+          ]
+        : []),
+      {
+        label: 'Equal readings',
+        data: [
+          { x: axisMin, y: axisMin },
+          { x: axisMax, y: axisMax },
+        ],
+        showLine: true,
+        borderColor: CHART_TEXT_COLOR,
+        borderWidth: 1,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+      },
+    ];
 
-    const u = new uPlot(opts, data!, containerEl);
-    chartRef.current = u;
-
-    const ro = new ResizeObserver(() => {
-      if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: SCATTER_CHART_HEIGHT });
-      }
+    const chart = new Chart(canvasEl, {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        scales: {
+          x: {
+            type: 'linear',
+            min: axisMin,
+            max: axisMax,
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => Number(value).toFixed(1),
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: { display: true, text: xLabel, color: CHART_TEXT_COLOR },
+          },
+          y: {
+            min: axisMin,
+            max: axisMax,
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => Number(value).toFixed(1),
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: { display: true, text: yLabel, color: CHART_TEXT_COLOR },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            // Show only the first Data item; drops tied duplicates, Regression, and Equal readings
+            filter: (item, index, items) =>
+              item.datasetIndex === 0 && items.findIndex((i) => i.datasetIndex === 0) === index,
+            callbacks: {
+              label: (item) =>
+                `${item.dataset.label}: (${Number(item.parsed.x).toFixed(1)}, ${Number(item.parsed.y).toFixed(1)})`,
+            },
+          },
+        },
+      },
     });
-    ro.observe(containerEl);
+    chartRef.current = chart;
 
     return () => {
-      ro.disconnect();
       if (chartRef.current) {
         chartRef.current.destroy();
         chartRef.current = null;
@@ -142,6 +160,8 @@
       <p class="text-sm text-text-secondary">No data</p>
     </div>
   {:else}
-    <div class="w-full" bind:this={containerEl}></div>
+    <div class="w-full" style="height: {SCATTER_CHART_HEIGHT}px">
+      <canvas bind:this={canvasEl}></canvas>
+    </div>
   {/if}
 </div>

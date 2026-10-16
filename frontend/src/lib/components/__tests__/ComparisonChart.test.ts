@@ -1,53 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import ComparisonChart from '../ComparisonChart.svelte';
 import type { ComparisonChartEntry } from '../../utils/comparison-chart-data';
-import type uPlot from 'uplot';
+import { ZOOM_DRAG_OPTIONS } from '../../utils/chart-utils';
+import { getStreamConfig } from '../../utils/stream-config';
+import {
+  chartRegistry,
+  getLastChartConfig,
+  getLastChartInstance,
+  resetChartMock,
+} from '../../../test/chartjs-mock';
 
-interface ComparisonChartMockRef {
-  lastOptsRef: { current: uPlot.Options | null };
-  instance: {
-    destroy: ReturnType<typeof vi.fn>;
-    batch: ReturnType<typeof vi.fn>;
-    setSize: ReturnType<typeof vi.fn>;
-    setScale: ReturnType<typeof vi.fn>;
-  };
-}
-
-vi.mock('uplot', () => {
-  const lastOptsRef = { current: null as uPlot.Options | null };
-  const instance = {
-    destroy: vi.fn(),
-    batch: vi.fn((fn: () => void) => {
-      if (fn) fn();
-    }),
-    setSize: vi.fn(),
-    setScale: vi.fn(),
-  };
-  (globalThis as { __comparisonChartMock?: ComparisonChartMockRef }).__comparisonChartMock = {
-    lastOptsRef,
-    instance,
-  };
-  const Mock = vi.fn(function (
-    _this: unknown,
-    opts: uPlot.Options,
-    _data: uPlot.AlignedData,
-    _container: HTMLElement
-  ) {
-    lastOptsRef.current = opts;
-    return instance;
-  });
-  (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
-    spline: () => () => {},
-    linear: () => () => {},
-  };
-  return { default: Mock };
-});
-
-function getChartMock(): ComparisonChartMockRef {
-  return (globalThis as { __comparisonChartMock?: ComparisonChartMockRef }).__comparisonChartMock!;
-}
+vi.mock('chart.js', async () => (await import('../../../test/chartjs-mock')).chartJsModuleMock());
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
 function entry(
   activityStartDate: number,
@@ -64,6 +30,10 @@ function entry(
 }
 
 describe('ComparisonChart', () => {
+  afterEach(() => {
+    resetChartMock();
+  });
+
   describe('empty / no-data rendering', () => {
     it('shows "No data available" when entries is empty', () => {
       render(ComparisonChart, {
@@ -74,6 +44,7 @@ describe('ComparisonChart', () => {
         },
       });
       expect(screen.getByText(/No data available/)).toBeInTheDocument();
+      expect(chartRegistry.configs).toHaveLength(0);
     });
 
     it('shows "No data available" when single entry has empty stream data', () => {
@@ -117,40 +88,104 @@ describe('ComparisonChart', () => {
     });
   });
 
-  describe('props passed through', () => {
-    it('renders chart with xAxisMode wall-clock', () => {
+  describe('chart configuration', () => {
+    const twoEntries = [
+      entry(
+        1000,
+        [
+          { time: 1000, value: 80 },
+          { time: 2000, value: 90 },
+        ],
+        { eventName: 'Device A', color: '#ef4444' }
+      ),
+      entry(2000, [{ time: 2000, value: 100 }], { eventName: 'Device B', color: '#3b82f6' }),
+    ];
+
+    it('creates one line dataset per entry, colored by entry', () => {
       render(ComparisonChart, {
-        props: {
-          streamType: 'Heart Rate',
-          entries: [
-            entry(1000, [{ time: 1000, value: 80 }]),
-            entry(2000, [{ time: 2000, value: 90 }]),
-          ],
-          xAxisMode: 'wall-clock',
-        },
+        props: { streamType: 'Heart Rate', entries: twoEntries, xAxisMode: 'elapsed' },
       });
-      expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
-      expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+      const config = getLastChartConfig();
+      expect(config.type).toBe('line');
+      expect(config.data.datasets.map((d) => d.label)).toEqual(['Device A', 'Device B']);
+      expect(config.data.datasets.map((d) => d.borderColor)).toEqual(['#ef4444', '#3b82f6']);
     });
 
-    it('renders chart with xAxisMode elapsed', () => {
+    it('aligns elapsed x values to the earliest activity start', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: twoEntries, xAxisMode: 'elapsed' },
+      });
+      const config = getLastChartConfig();
+      expect(config.data.datasets[0].data).toEqual([
+        { x: 0, y: 80 },
+        { x: 1000, y: 90 },
+      ]);
+      expect(config.data.datasets[1].data).toEqual([
+        { x: 0, y: 100 },
+        { x: 1000, y: 100 },
+      ]);
+      expect(config.options.scales.x.min).toBe(0);
+      expect(config.options.scales.x.max).toBe(1000);
+      expect(config.options.scales.x.title?.text).toBe('Elapsed Time');
+    });
+
+    it('uses absolute times and a Time axis title in wall-clock mode', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: twoEntries, xAxisMode: 'wall-clock' },
+      });
+      const config = getLastChartConfig();
+      expect(config.options.scales.x.min).toBe(1000);
+      expect(config.options.scales.x.max).toBe(2000);
+      expect(config.options.scales.x.title?.text).toBe('Time');
+    });
+
+    it('titles the y axis with the stream label and unit', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: twoEntries, xAxisMode: 'elapsed' },
+      });
+      const { label, unit } = getStreamConfig('Heart Rate');
+      expect(getLastChartConfig().options.scales.y.title?.text).toBe(
+        unit ? `${label} (${unit})` : label
+      );
+    });
+
+    it('enables drag zoom on the x axis only, with the shared drag style', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: twoEntries, xAxisMode: 'elapsed' },
+      });
+      const zoom = getLastChartConfig().options.plugins.zoom?.zoom;
+      expect(zoom?.mode).toBe('x');
+      expect(zoom?.drag).toEqual(ZOOM_DRAG_OPTIONS);
+    });
+  });
+
+  describe('zoom and reset flow', () => {
+    it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(ComparisonChart, {
         props: {
           streamType: 'Heart Rate',
-          entries: [
-            entry(1000, [{ time: 1000, value: 80 }]),
-            entry(2000, [{ time: 2000, value: 90 }]),
-          ],
+          entries: [entry(1000, [{ time: 1000, value: 80 }])],
           xAxisMode: 'elapsed',
         },
       });
-      expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
-      expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+      await tick();
+      const instance = getLastChartInstance();
+      const resetBtn = screen.getByText('Reset Zoom').closest('button')!;
+
+      instance.isZoomedOrPanned.mockReturnValue(true);
+      getLastChartConfig().options.plugins.zoom?.zoom.onZoomComplete?.({ chart: instance });
+      await tick();
+      expect(resetBtn).toHaveStyle({ display: 'block' });
+
+      resetBtn.click();
+      await tick();
+      expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(resetBtn).toHaveStyle({ display: 'none' });
     });
   });
 
   describe('effect and chart lifecycle', () => {
-    it('destroys previous chart when entries change (chartRef.current path)', async () => {
+    it('destroys previous chart when entries change', async () => {
       const { rerender } = render(ComparisonChart, {
         props: {
           streamType: 'Heart Rate',
@@ -159,7 +194,7 @@ describe('ComparisonChart', () => {
         },
       });
       await tick();
-      const destroyCallsBefore = getChartMock().instance.destroy.mock.calls.length;
+      const first = getLastChartInstance();
       rerender({
         streamType: 'Heart Rate',
         entries: [
@@ -169,40 +204,11 @@ describe('ComparisonChart', () => {
         xAxisMode: 'elapsed',
       });
       await tick();
-      expect(getChartMock().instance.destroy.mock.calls.length).toBeGreaterThan(destroyCallsBefore);
+      expect(first.destroy).toHaveBeenCalled();
+      expect(getLastChartConfig().data.datasets).toHaveLength(2);
     });
 
-    it('resetZoom button click calls batch and setScale when chart exists', async () => {
-      render(ComparisonChart, {
-        props: {
-          streamType: 'Heart Rate',
-          entries: [
-            entry(1000, [
-              { time: 1000, value: 80 },
-              { time: 2000, value: 90 },
-            ]),
-          ],
-          xAxisMode: 'elapsed',
-        },
-      });
-      await tick();
-      const resetBtn = screen.getByText('Reset Zoom').closest('button');
-      expect(resetBtn).toBeInTheDocument();
-      resetBtn!.click();
-      expect(getChartMock().instance.batch).toHaveBeenCalled();
-      expect(getChartMock().instance.setScale).toHaveBeenCalledWith('x', expect.any(Object));
-    });
-
-    it('cleanup on unmount calls destroy and ResizeObserver disconnect', () => {
-      const disconnectSpy = vi.fn();
-      const OriginalRO = window.ResizeObserver;
-      window.ResizeObserver = class {
-        observe = vi.fn();
-        disconnect = disconnectSpy;
-        unobserve = vi.fn();
-        constructor(_cb: ResizeObserverCallback) {}
-      } as unknown as typeof ResizeObserver;
-
+    it('destroys the chart on unmount', async () => {
       const { unmount } = render(ComparisonChart, {
         props: {
           streamType: 'Heart Rate',
@@ -210,11 +216,10 @@ describe('ComparisonChart', () => {
           xAxisMode: 'elapsed',
         },
       });
+      await tick();
+      const instance = getLastChartInstance();
       unmount();
-
-      expect(getChartMock().instance.destroy).toHaveBeenCalled();
-      expect(disconnectSpy).toHaveBeenCalled();
-      window.ResizeObserver = OriginalRO;
+      expect(instance.destroy).toHaveBeenCalled();
     });
   });
 });

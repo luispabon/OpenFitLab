@@ -1,7 +1,32 @@
-import uPlot from 'uplot';
+import {
+  Chart,
+  Filler,
+  Legend,
+  LinearScale,
+  LineController,
+  LineElement,
+  LogarithmicScale,
+  PointElement,
+  ScatterController,
+  Tooltip,
+  type ScriptableContext,
+} from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 
-/** Height used for all time-series charts (single source of truth). */
-export const CHART_HEIGHT = 384;
+Chart.register(
+  LineController,
+  ScatterController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  LogarithmicScale,
+  Filler,
+  Tooltip,
+  Legend,
+  zoomPlugin
+);
+
+Chart.defaults.plugins.tooltip.caretPadding = 24;
 
 /** Text color for axes, ticks, and labels (matches dark theme). */
 export const CHART_TEXT_COLOR = '#a0a0a8';
@@ -12,19 +37,40 @@ export const CHART_GRID_COLOR = '#2e2e33';
 /** Default color for power curves (matches Power stream in stream-config). */
 export const CHART_POWER_COLOR = '#a855f7';
 
-/**
- * Human-meaningful duration breakpoints (seconds) for Power Curve x-axis gridlines.
- * Labels: 1s, 2s, 5s, 10s, 15s, 20s, 30s, 1m, 2m, 5m, 10m, 20m, 30m, 1h, 1.5h, 2h.
- */
-export const POWER_CURVE_SPLITS = [
-  1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 1200, 1800, 3600, 5400, 7200,
-];
+/** Drag-to-zoom selection rectangle: translucent blue fill with a 1px blue border. */
+export const ZOOM_DRAG_OPTIONS = {
+  enabled: true,
+  backgroundColor: 'rgba(59, 130, 246, 0.25)',
+  borderColor: 'rgb(59, 130, 246)',
+  borderWidth: 1,
+};
+
+/** Shared x values (index 0) followed by one y array per series. null y values leave gaps. */
+export type AlignedSeriesData = [number[], ...(number | null)[][]];
 
 /**
- * Returns Power Curve x-axis splits (gridline positions) within the visible scale range.
+ * Chart.js {x, y} points for one series of aligned data. A missing y stays as { x, y: null }
+ * (never a bare null, which Chart.js does not handle in object-form datasets).
  */
-export function getPowerCurveSplits(scaleMin: number, scaleMax: number): number[] {
-  return POWER_CURVE_SPLITS.filter((v) => v >= scaleMin && v <= scaleMax);
+export function toXYPoints(
+  data: AlignedSeriesData,
+  seriesIndex: number
+): { x: number; y: number | null }[] {
+  const ys = data[seriesIndex] ?? [];
+  return data[0].map((x, i) => ({ x, y: ys[i] ?? null }));
+}
+
+/** Vertical gradient fill: `color` + `alpha` at the top of the plot area, fading to transparent. */
+export function areaGradient(color: string, alpha: string) {
+  return (ctx: ScriptableContext<'line'>) => {
+    const { chart } = ctx;
+    if (!chart.chartArea) return color + alpha;
+    const { top, bottom } = chart.chartArea;
+    const grd = chart.ctx.createLinearGradient(0, top, 0, bottom);
+    grd.addColorStop(0, color + alpha);
+    grd.addColorStop(1, color + '00');
+    return grd;
+  };
 }
 
 /**
@@ -69,12 +115,4 @@ export function formatWallClockTime(ms: number): string {
 export function formatYValue(value: number, seriesLabel: string): string {
   if (seriesLabel === 'Heart Rate') return Math.round(value).toString();
   return value.toFixed(1);
-}
-
-/**
- * uPlot path renderer: spline when available, else linear.
- * Shared by TimeSeriesChart, OverlayChart, and ComparisonChart.
- */
-export function getSmoothPath(): uPlot.Series.PathBuilder {
-  return (uPlot.paths.spline?.() ?? uPlot.paths.linear?.())!;
 }

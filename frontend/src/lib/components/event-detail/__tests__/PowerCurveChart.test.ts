@@ -1,25 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import PowerCurveChart from '../PowerCurveChart.svelte';
+import { CHART_POWER_COLOR, ZOOM_DRAG_OPTIONS } from '../../../utils/chart-utils';
+import {
+  chartRegistry,
+  getLastChartConfig,
+  getLastChartInstance,
+  resetChartMock,
+} from '../../../../test/chartjs-mock';
 
-vi.mock('uplot', () => {
-  const mockInstance = {
-    destroy: vi.fn(),
-    batch: vi.fn((fn: () => void) => {
-      if (fn) fn();
-    }),
-    setSize: vi.fn(),
-    setScale: vi.fn(),
-  };
-  const Mock = vi.fn(function (this: unknown) {
-    return mockInstance;
-  });
-  (Mock as unknown as { paths: Record<string, () => () => void> }).paths = {
-    spline: () => () => {},
-    linear: () => () => {},
-  };
-  return { default: Mock };
-});
+vi.mock('chart.js', async () =>
+  (await import('../../../../test/chartjs-mock')).chartJsModuleMock()
+);
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
 const singleSeries = [
   {
@@ -50,9 +44,14 @@ const multiSeries = [
 ];
 
 describe('PowerCurveChart', () => {
+  afterEach(() => {
+    resetChartMock();
+  });
+
   it('shows no power curve data message when series is empty', () => {
     render(PowerCurveChart, { props: { series: [] } });
     expect(screen.getByText('No power curve data')).toBeInTheDocument();
+    expect(chartRegistry.configs).toHaveLength(0);
   });
 
   it('renders chart when single series is provided', () => {
@@ -103,11 +102,98 @@ describe('PowerCurveChart', () => {
       },
     });
     expect(screen.getByText('Select activities above to view power curves')).toBeInTheDocument();
+    expect(chartRegistry.configs).toHaveLength(0);
   });
 
   it('shows chart container when series is provided', () => {
     render(PowerCurveChart, { props: { series: singleSeries } });
     const chartContainer = document.querySelector('.h-96');
     expect(chartContainer).toBeInTheDocument();
+  });
+
+  describe('chart configuration', () => {
+    it('uses a logarithmic duration axis from the first duration to maxDuration', () => {
+      render(PowerCurveChart, { props: { series: singleSeries, maxDuration: 600 } });
+      const xScale = getLastChartConfig().options.scales.x;
+      expect(xScale.type).toBe('logarithmic');
+      expect(xScale.min).toBe(1);
+      expect(xScale.max).toBe(600);
+      expect(xScale.title?.text).toBe('Duration');
+    });
+
+    it('uses the largest duration in the data as the x max when maxDuration is not given', () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      const xScale = getLastChartConfig().options.scales.x;
+      expect(xScale.type).toBe('logarithmic');
+      expect(xScale.min).toBe(1);
+      expect(xScale.max).toBe(300);
+    });
+
+    it('plots power at each shared duration for one series', () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      const config = getLastChartConfig();
+      expect(config.data.datasets).toHaveLength(1);
+      expect(config.data.datasets[0].label).toBe('Power');
+      expect(config.data.datasets[0].data).toEqual([
+        { x: 1, y: 417 },
+        { x: 5, y: 411 },
+        { x: 60, y: 362 },
+        { x: 300, y: 335 },
+      ]);
+    });
+
+    it('fills gaps in one series with the nearest earlier power at the shared durations', () => {
+      render(PowerCurveChart, { props: { series: multiSeries } });
+      const config = getLastChartConfig();
+      expect(config.data.datasets.map((d) => d.label)).toEqual(['Activity 1', 'Activity 2']);
+      expect(config.data.datasets[1].data).toEqual([
+        { x: 1, y: 400 },
+        { x: 5, y: 400 },
+        { x: 60, y: 350 },
+        { x: 300, y: 320 },
+      ]);
+    });
+
+    it('uses the default power color when a series has no color', () => {
+      render(PowerCurveChart, {
+        props: {
+          series: [{ activityId: 'a', activityName: 'No color', data: singleSeries[0].data }],
+        },
+      });
+      expect(getLastChartConfig().data.datasets[0].borderColor).toBe(CHART_POWER_COLOR);
+    });
+
+    it('enables drag zoom on the x axis only, with the shared drag style', () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      const zoom = getLastChartConfig().options.plugins.zoom?.zoom;
+      expect(zoom?.mode).toBe('x');
+      expect(zoom?.drag).toEqual(ZOOM_DRAG_OPTIONS);
+    });
+
+    it('formats the tooltip title as a compact duration', () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      const title = getLastChartConfig().options.plugins.tooltip?.callbacks?.title;
+      expect(title?.([{ datasetIndex: 0, dataset: {}, parsed: { x: 60, y: 0 } }])).toBe('1m');
+    });
+  });
+
+  describe('zoom and reset flow', () => {
+    it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
+      render(PowerCurveChart, { props: { series: singleSeries } });
+      await tick();
+      const instance = getLastChartInstance();
+      const resetBtn = screen.getByText('Reset Zoom').closest('button')!;
+      expect(resetBtn).toHaveStyle({ display: 'none' });
+
+      instance.isZoomedOrPanned.mockReturnValue(true);
+      getLastChartConfig().options.plugins.zoom?.zoom.onZoomComplete?.({ chart: instance });
+      await tick();
+      expect(resetBtn).toHaveStyle({ display: 'block' });
+
+      resetBtn.click();
+      await tick();
+      expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(resetBtn).toHaveStyle({ display: 'none' });
+    });
   });
 });

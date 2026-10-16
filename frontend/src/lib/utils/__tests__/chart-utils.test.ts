@@ -1,24 +1,110 @@
 import { describe, it, expect, vi } from 'vitest';
+import { Chart } from 'chart.js';
 
-vi.mock('uplot', () => ({
-  default: {
-    paths: {
-      spline: undefined,
-      linear: () => () => {},
-    },
-  },
-}));
+vi.mock('chart.js', async () => (await import('../../../test/chartjs-mock')).chartJsModuleMock());
+vi.mock('chartjs-plugin-zoom', () => ({ default: { id: 'zoom' } }));
 
+import zoomPlugin from 'chartjs-plugin-zoom';
+import { chartJsRegistrables, chartRegistry } from '../../../test/chartjs-mock';
 import {
   formatElapsedTime,
   formatWallClockTime,
   formatYValue,
   formatDurationCompact,
+  toXYPoints,
+  areaGradient,
+  ZOOM_DRAG_OPTIONS,
   CHART_POWER_COLOR,
-  getPowerCurveSplits,
-  getSmoothPath,
-  POWER_CURVE_SPLITS,
 } from '../chart-utils';
+
+type GradientContext = Parameters<ReturnType<typeof areaGradient>>[0];
+
+describe('chart.js setup on module load', () => {
+  it('registers controllers, elements, scales, tooltip, legend, and zoom plugin', () => {
+    expect(chartRegistry.registered).toEqual([
+      chartJsRegistrables.LineController,
+      chartJsRegistrables.ScatterController,
+      chartJsRegistrables.LineElement,
+      chartJsRegistrables.PointElement,
+      chartJsRegistrables.LinearScale,
+      chartJsRegistrables.LogarithmicScale,
+      chartJsRegistrables.Filler,
+      chartJsRegistrables.Tooltip,
+      chartJsRegistrables.Legend,
+      zoomPlugin,
+    ]);
+  });
+
+  it('sets the global tooltip caret padding to 24', () => {
+    expect(Chart.defaults.plugins.tooltip.caretPadding).toBe(24);
+  });
+});
+
+describe('toXYPoints', () => {
+  const data: [number[], ...(number | null)[][]] = [
+    [1, 2, 3],
+    [10, null, 30],
+    [5, 6, 7],
+  ];
+
+  it('maps shared x values and the selected series to {x, y} points', () => {
+    expect(toXYPoints(data, 1)).toEqual([
+      { x: 1, y: 10 },
+      { x: 2, y: null },
+      { x: 3, y: 30 },
+    ]);
+  });
+
+  it('keeps null y values as { x, y: null } points', () => {
+    expect(toXYPoints(data, 1)[1]).toEqual({ x: 2, y: null });
+  });
+
+  it('returns null y values when the series index does not exist', () => {
+    expect(toXYPoints(data, 3)).toEqual([
+      { x: 1, y: null },
+      { x: 2, y: null },
+      { x: 3, y: null },
+    ]);
+  });
+});
+
+describe('areaGradient', () => {
+  it('fills from the top to the bottom of the chart area, fading to transparent', () => {
+    const addColorStop = vi.fn();
+    const createLinearGradient = vi.fn(() => ({ addColorStop }));
+    const ctx = {
+      chart: { chartArea: { top: 10, bottom: 110 }, ctx: { createLinearGradient } },
+    } as unknown as GradientContext;
+
+    const fill = areaGradient('#ff0000', '40')(ctx);
+
+    expect(createLinearGradient).toHaveBeenCalledWith(0, 10, 0, 110);
+    expect(addColorStop).toHaveBeenCalledWith(0, '#ff000040');
+    expect(addColorStop).toHaveBeenCalledWith(1, '#ff000000');
+    expect(fill).toEqual({ addColorStop });
+  });
+
+  it('falls back to a solid color before the chart area is laid out', () => {
+    const createLinearGradient = vi.fn();
+    const ctx = {
+      chart: { chartArea: undefined, ctx: { createLinearGradient } },
+    } as unknown as GradientContext;
+
+    expect(areaGradient('#ff0000', '40')(ctx)).toBe('#ff000040');
+    expect(createLinearGradient).not.toHaveBeenCalled();
+  });
+});
+
+describe('ZOOM_DRAG_OPTIONS', () => {
+  it('is the translucent blue drag-to-zoom rectangle', () => {
+    expect(ZOOM_DRAG_OPTIONS).toEqual({
+      enabled: true,
+      backgroundColor: 'rgba(59, 130, 246, 0.25)',
+      borderColor: 'rgb(59, 130, 246)',
+      borderWidth: 1,
+    });
+  });
+});
 
 describe('formatElapsedTime', () => {
   it('formats zero as 0:00', () => {
@@ -68,28 +154,6 @@ describe('formatYValue', () => {
   });
   it('formats exact integer Heart Rate', () => {
     expect(formatYValue(120, 'Heart Rate')).toBe('120');
-  });
-});
-
-describe('getPowerCurveSplits', () => {
-  it('returns only breakpoints within the given range', () => {
-    expect(getPowerCurveSplits(10, 120)).toEqual([10, 15, 20, 30, 60, 120]);
-    expect(getPowerCurveSplits(1, 30)).toEqual([1, 2, 5, 10, 15, 20, 30]);
-  });
-  it('returns the full array when range covers all breakpoints', () => {
-    expect(getPowerCurveSplits(1, 7200)).toEqual(POWER_CURVE_SPLITS);
-    expect(getPowerCurveSplits(0, 10000)).toEqual(POWER_CURVE_SPLITS);
-  });
-  it('returns empty when range is outside all breakpoints', () => {
-    expect(getPowerCurveSplits(0.5, 0.9)).toEqual([]);
-    expect(getPowerCurveSplits(10000, 20000)).toEqual([]);
-  });
-});
-
-describe('getSmoothPath', () => {
-  it('returns linear path builder when spline is missing (fallback)', () => {
-    const pathBuilder = getSmoothPath();
-    expect(typeof pathBuilder).toBe('function');
   });
 });
 
