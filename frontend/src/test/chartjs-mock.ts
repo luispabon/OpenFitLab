@@ -71,6 +71,7 @@ export interface MockChartConfig {
   type: string;
   data: { datasets: MockDataset[] };
   options: MockChartOptions;
+  plugins?: { id?: string }[];
 }
 
 /** Configs and instances in creation order. Cleared by resetChartMock(). */

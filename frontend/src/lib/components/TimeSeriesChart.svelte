@@ -14,6 +14,7 @@
     CHART_GRID_COLOR,
     type AlignedSeriesData,
   } from '../utils/chart-utils';
+  import { createViewportDecimationPlugin } from '../utils/viewport-decimation';
 
   interface Props {
     streamData: StreamData;
@@ -66,13 +67,14 @@
 
     const { xMin, xMax } = chartData;
     const data = chartData.data;
+    const fullPoints = toXYPoints(data, 1);
     const chart = new Chart(canvasEl, {
       type: 'line',
       data: {
         datasets: [
           {
             label: streamConfig.label,
-            data: toXYPoints(data, 1),
+            data: fullPoints,
             borderColor: streamConfig.color,
             borderWidth: 2,
             backgroundColor: areaGradient(streamConfig.color, '40'),
@@ -139,6 +141,7 @@
           },
         },
       },
+      plugins: [createViewportDecimationPlugin({ fullPoints })],
     });
     chartRef.current = chart;
     chartInstance = chart;

@@ -186,6 +186,21 @@ describe('TimeSeriesChart', () => {
     });
   });
 
+  describe('viewport decimation', () => {
+    it('registers exactly one local viewport decimation plugin and no built-in decimation', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins).toHaveLength(1);
+      expect(config.plugins?.[0].id).toBe('viewportDecimation');
+      expect(config.options.plugins).not.toHaveProperty('decimation');
+    });
+  });
+
   describe('effect and chart lifecycle', () => {
     it('destroys previous chart when streamData changes', async () => {
       const { rerender } = render(TimeSeriesChart, {
