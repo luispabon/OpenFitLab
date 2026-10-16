@@ -187,6 +187,16 @@ describe('OverlayChart', () => {
   });
 
   describe('zoom and reset flow', () => {
+    it('disables animation for zoom and reset transitions', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream],
+          activityStartDate: 1000,
+        },
+      });
+      expect(getLastChartConfig().options.transitions?.zoom?.animation?.duration).toBe(0);
+    });
+
     it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(OverlayChart, {
         props: {
@@ -206,6 +216,7 @@ describe('OverlayChart', () => {
       resetBtn.click();
       await tick();
       expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(instance.resetZoom).toHaveBeenCalledWith('none');
       expect(resetBtn).toHaveStyle({ display: 'none' });
     });
   });
@@ -240,6 +251,96 @@ describe('OverlayChart', () => {
       const instance = getLastChartInstance();
       unmount();
       expect(instance.destroy).toHaveBeenCalled();
+    });
+  });
+
+  describe('viewport decimation', () => {
+    const powerStream = {
+      type: 'Power',
+      data: [
+        { time: 1000, value: 150 },
+        { time: 2000, value: 300 },
+      ] as { time: number; value: number }[],
+    };
+
+    it('uses one local aligned decimation plugin and no built-in Decimation', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream],
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins?.map((plugin) => plugin.id)).toEqual(['alignedViewportDecimation']);
+      expect(config.options.plugins).not.toHaveProperty('decimation');
+    });
+
+    it('suggests the full y range of each axis instead of a fixed min or max', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream],
+          activityStartDate: 1000,
+        },
+      });
+      const { y, y1 } = getLastChartConfig().options.scales;
+      expect(y.suggestedMin).toBe(80);
+      expect(y.suggestedMax).toBe(90);
+      expect(y1.suggestedMin).toBe(90);
+      expect(y1.suggestedMax).toBe(90);
+      expect(y.min).toBeUndefined();
+      expect(y.max).toBeUndefined();
+    });
+
+    it('combines every series on the same axis into one suggested range', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream, powerStream],
+          activityStartDate: 1000,
+        },
+      });
+      // Left axis: heart rate (80..90) and power (150..300). Right axis: cadence (90).
+      const { y, y1 } = getLastChartConfig().options.scales;
+      expect(y.suggestedMin).toBe(80);
+      expect(y.suggestedMax).toBe(300);
+      expect(y1.suggestedMin).toBe(90);
+      expect(y1.suggestedMax).toBe(90);
+    });
+
+    it('keeps interleaved series unchanged through the local plugin when zoomed', () => {
+      // Heart Rate has points at even seconds and Cadence at odd ones, so each series has a null
+      // between every pair of its points. Strict run preservation keeps every point.
+      const interleaved = (type: string, parity: number, base: number) => ({
+        type,
+        data: Array.from({ length: 300 }, (_, k) => ({
+          time: 1000 + (2 * k + parity) * 1000,
+          value: base + (k % 10),
+        })),
+      });
+      render(OverlayChart, {
+        props: {
+          streams: [interleaved('Heart Rate', 0, 80), interleaved('Cadence', 1, 90)],
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins?.map((plugin) => plugin.id)).toEqual(['alignedViewportDecimation']);
+
+      // Zoomed x range with a narrow canvas: 600 points exceed 4 * 50 buckets, yet nothing drops.
+      const plugin = config.plugins?.[0] as unknown as {
+        beforeUpdate: (chart: object, args: object, options: object) => void;
+      };
+      const chart = {
+        options: { scales: { x: { min: 0, max: 599000 } } },
+        width: 100,
+        data: { datasets: config.data.datasets.map(() => ({ data: [] as unknown[] })) },
+      };
+      plugin.beforeUpdate(chart, {}, {});
+
+      config.data.datasets.forEach((dataset, i) => {
+        const reduced = chart.data.datasets[i].data;
+        expect(reduced).toEqual(dataset.data);
+        expect(reduced.filter((p) => (p as { y: number | null }).y === null)).toHaveLength(300);
+      });
     });
   });
 });

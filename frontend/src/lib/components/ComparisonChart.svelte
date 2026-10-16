@@ -6,12 +6,17 @@
   } from '../utils/comparison-chart-data';
   import { getStreamConfig } from '../utils/stream-config';
   import {
+    alignedYRange,
+    createAlignedViewportDecimationPlugin,
+  } from '../utils/viewport-decimation';
+  import {
     formatElapsedTime,
     formatWallClockTime,
     formatYValue,
     toXYPoints,
     areaGradient,
     ZOOM_DRAG_OPTIONS,
+    ZOOM_TRANSITION_OPTIONS,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
   } from '../utils/chart-utils';
@@ -32,6 +37,8 @@
   const streamConfig = $derived(getStreamConfig(streamType));
 
   const chartData = $derived.by(() => buildComparisonChartData(entries, xAxisMode));
+  // Entries that produced a series, in series order. Dataset i maps to series i + 1.
+  const retainedEntries = $derived(chartData.entries);
 
   function formatXValue(value: number): string {
     return xAxisMode === 'elapsed' ? formatElapsedTime(value) : formatWallClockTime(value);
@@ -39,12 +46,12 @@
 
   function resetZoom() {
     if (!chartInstance || !chartData.data) return;
-    chartInstance.resetZoom();
+    chartInstance.resetZoom('none');
     isZoomed = false;
   }
 
   $effect(() => {
-    if (!canvasEl || !chartData.data || entries.length === 0) return;
+    if (!canvasEl || !chartData.data || retainedEntries.length === 0) return;
 
     if (chartRef.current) {
       chartRef.current.destroy();
@@ -54,8 +61,16 @@
     const { xMin, xMax } = chartData;
     const data = chartData.data;
 
+    // Suggested y bounds from the full data of every series, so a zoomed slice cannot narrow the
+    // axis below the global extremes.
+    const yRange = alignedYRange(
+      data,
+      retainedEntries.map((_, i) => i + 1)
+    );
+    const yBounds = yRange ? { suggestedMin: yRange.min, suggestedMax: yRange.max } : {};
+
     // Series: one per event, all share same Y-axis
-    const datasets = entries.map((entry, i) => ({
+    const datasets = retainedEntries.map((entry, i) => ({
       label: entry.eventName,
       data: toXYPoints(data, i + 1),
       borderColor: entry.color,
@@ -75,6 +90,7 @@
       type: 'line',
       data: { datasets },
       options: {
+        ...ZOOM_TRANSITION_OPTIONS,
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -96,6 +112,7 @@
             },
           },
           y: {
+            ...yBounds,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => formatYValue(Number(value), streamConfig.label),
@@ -129,6 +146,7 @@
           },
         },
       },
+      plugins: [createAlignedViewportDecimationPlugin({ fullData: data })],
     });
     chartRef.current = chart;
     chartInstance = chart;
@@ -144,7 +162,7 @@
 </script>
 
 <div class="w-full animate-fade-in">
-  {#if entries.length === 0 || !chartData.data}
+  {#if retainedEntries.length === 0 || !chartData.data}
     <div class="flex h-96 items-center justify-center rounded-lg border border-border bg-card">
       <p class="text-sm text-text-secondary">No data available</p>
     </div>

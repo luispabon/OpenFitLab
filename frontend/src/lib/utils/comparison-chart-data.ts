@@ -28,7 +28,12 @@ export interface ComparisonChartEntry {
 export function buildComparisonChartData(
   entries: ComparisonChartEntry[],
   xAxisMode: 'elapsed' | 'wall-clock'
-): { data: AlignedSeriesData | null; xMin: number; xMax: number } {
+): {
+  data: AlignedSeriesData | null;
+  xMin: number;
+  xMax: number;
+  entries: ComparisonChartEntry[];
+} {
   const withPoints: { entry: ComparisonChartEntry; pts: { x: number; y: number }[] }[] = [];
 
   for (const entry of entries) {
@@ -47,7 +52,7 @@ export function buildComparisonChartData(
   }
 
   if (withPoints.length === 0) {
-    return { data: null, xMin: 0, xMax: 0 };
+    return { data: null, xMin: 0, xMax: 0, entries: [] };
   }
 
   // Elapsed mode: use common time origin so all series align by real time
@@ -70,7 +75,7 @@ export function buildComparisonChartData(
     for (const p of pts) xSet.add(p.x);
   }
   const xSorted = Array.from(xSet).sort((a, b) => a - b);
-  if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0 };
+  if (xSorted.length === 0) return { data: null, xMin: 0, xMax: 0, entries: [] };
 
   // Create Y arrays: one per event, aligned to union X array
   // Always use linear interpolation to fill gaps for smooth visualization
@@ -129,5 +134,6 @@ export function buildComparisonChartData(
   const data: AlignedSeriesData = [xSorted, ...yArrays];
   const xMin = xSorted[0];
   const xMax = xSorted[xSorted.length - 1];
-  return { data, xMin, xMax };
+  const retained = withPoints.map(({ entry }) => entry);
+  return { data, xMin, xMax, entries: retained };
 }

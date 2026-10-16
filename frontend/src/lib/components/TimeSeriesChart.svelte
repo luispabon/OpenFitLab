@@ -9,10 +9,12 @@
     toXYPoints,
     areaGradient,
     ZOOM_DRAG_OPTIONS,
+    ZOOM_TRANSITION_OPTIONS,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
     type AlignedSeriesData,
   } from '../utils/chart-utils';
+  import { createViewportDecimationPlugin, nonNullYRange } from '../utils/viewport-decimation';
 
   interface Props {
     streamData: StreamData;
@@ -51,7 +53,7 @@
 
   export function resetZoom() {
     if (!chartInstance || !chartData.data) return;
-    chartInstance.resetZoom();
+    chartInstance.resetZoom('none');
     isZoomed = false;
   }
 
@@ -65,13 +67,18 @@
 
     const { xMin, xMax } = chartData;
     const data = chartData.data;
+    const fullPoints = toXYPoints(data, 1);
+    // Full-stream y extrema as suggestions: Chart.js keeps auto range and tick rounding, but a
+    // zoomed slice cannot narrow the y range below the global min and max.
+    const yRange = nonNullYRange(fullPoints);
+    const yBounds = yRange ? { suggestedMin: yRange.min, suggestedMax: yRange.max } : {};
     const chart = new Chart(canvasEl, {
       type: 'line',
       data: {
         datasets: [
           {
             label: streamConfig.label,
-            data: toXYPoints(data, 1),
+            data: fullPoints,
             borderColor: streamConfig.color,
             borderWidth: 2,
             backgroundColor: areaGradient(streamConfig.color, '40'),
@@ -87,6 +94,7 @@
         ],
       },
       options: {
+        ...ZOOM_TRANSITION_OPTIONS,
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'nearest', intersect: false },
@@ -104,6 +112,7 @@
             title: { display: true, text: 'Elapsed Time', color: CHART_TEXT_COLOR },
           },
           y: {
+            ...yBounds,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => formatYValue(Number(value), streamConfig.label),
@@ -137,6 +146,7 @@
           },
         },
       },
+      plugins: [createViewportDecimationPlugin({ fullPoints })],
     });
     chartRef.current = chart;
     chartInstance = chart;

@@ -29,13 +29,83 @@ describe('exportAsPng', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   });
 
-  it('calls toPng with the provided element, pixelRatio 2, and skipFonts true', async () => {
+  it('calls toPng with the provided element and pixelRatio 2, without skipFonts', async () => {
     const { toPng } = await import('html-to-image');
     await exportAsPng(element, 'my-export');
-    expect(toPng).toHaveBeenCalledWith(
-      element,
-      expect.objectContaining({ pixelRatio: 2, skipFonts: true })
-    );
+    expect(toPng).toHaveBeenCalledWith(element, expect.objectContaining({ pixelRatio: 2 }));
+    const opts = (toPng as ReturnType<typeof vi.fn>).mock.calls[0][1] as object;
+    expect(opts).not.toHaveProperty('skipFonts');
+  });
+
+  it('provides a same-origin inline stylesheet in document.head during toPng, then removes it', async () => {
+    const { toPng } = await import('html-to-image');
+    const existing = new Set(document.head.querySelectorAll('style'));
+    let added: HTMLStyleElement[] = [];
+    let sheetDuringCall: CSSStyleSheet | null = null;
+    (toPng as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      added = Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+      sheetDuringCall = added[0]?.sheet ?? null;
+      return Promise.resolve('data:image/png;base64,abc123');
+    });
+    await exportAsPng(element, 'my-export');
+    expect(added).toHaveLength(1);
+    expect(sheetDuringCall).not.toBeNull();
+    expect(sheetDuringCall!.href).toBeNull();
+    expect(added[0].isConnected).toBe(false);
+  });
+
+  it('removes the temporary stylesheet when toPng rejects', async () => {
+    const { toPng } = await import('html-to-image');
+    const existing = new Set(document.head.querySelectorAll('style'));
+    let added: HTMLStyleElement[] = [];
+    (toPng as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      added = Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+      return Promise.reject(new Error('canvas error'));
+    });
+    await expect(exportAsPng(element, 'my-export')).rejects.toThrow('canvas error');
+    expect(added).toHaveLength(1);
+    expect(added[0].isConnected).toBe(false);
+  });
+
+  it('keeps the shared stylesheet first in head until the last concurrent export settles', async () => {
+    const { toPng } = await import('html-to-image');
+    // Pre-existing inline sheet (like Vite's dev style tags): the shared sheet must go ahead of it.
+    const marker = document.createElement('style');
+    document.head.appendChild(marker);
+    const existing = new Set(document.head.querySelectorAll('style'));
+    const resolvers: Array<(url: string) => void> = [];
+    (toPng as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolvers.push(resolve);
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>((resolve) => {
+            resolvers.push(resolve);
+          })
+      );
+    const sharedSheets = () =>
+      Array.from(document.head.querySelectorAll('style')).filter((s) => !existing.has(s));
+
+    const first = exportAsPng(element, 'first');
+    const second = exportAsPng(element, 'second');
+    const [sheet] = sharedSheets();
+    expect(sharedSheets()).toHaveLength(1);
+    expect(document.head.firstChild).toBe(sheet);
+    expect(sheet.nextSibling).toBe(marker);
+    expect(sheet.isConnected).toBe(true);
+
+    resolvers[0]('data:image/png;base64,abc123');
+    await first;
+    expect(sheet.isConnected).toBe(true);
+
+    resolvers[1]('data:image/png;base64,abc123');
+    await second;
+    expect(sheet.isConnected).toBe(false);
+    marker.remove();
   });
 
   it('uses --color-surface-solid CSS variable as backgroundColor', async () => {

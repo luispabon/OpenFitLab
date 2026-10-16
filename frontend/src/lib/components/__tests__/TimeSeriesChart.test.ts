@@ -152,6 +152,16 @@ describe('TimeSeriesChart', () => {
   });
 
   describe('zoom and reset flow', () => {
+    it('disables animation for zoom and reset transitions', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      expect(getLastChartConfig().options.transitions?.zoom?.animation?.duration).toBe(0);
+    });
+
     it('shows Reset Zoom after a zoom completes and hides it after reset', async () => {
       render(TimeSeriesChart, {
         props: {
@@ -171,7 +181,62 @@ describe('TimeSeriesChart', () => {
       resetBtn.click();
       await tick();
       expect(instance.resetZoom).toHaveBeenCalledTimes(1);
+      expect(instance.resetZoom).toHaveBeenCalledWith('none');
       expect(resetBtn).toHaveStyle({ display: 'none' });
+    });
+  });
+
+  describe('viewport decimation', () => {
+    it('registers exactly one local viewport decimation plugin and no built-in decimation', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: streamWithData,
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins).toHaveLength(1);
+      expect(config.plugins?.[0].id).toBe('viewportDecimation');
+      expect(config.options.plugins).not.toHaveProperty('decimation');
+    });
+
+    it('suggests the non-null min and max of the full stream to the y scale', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: {
+            type: 'Heart Rate',
+            data: [
+              { time: 1000, value: 80 },
+              { time: 2000, value: 150 },
+              { time: 3000, value: 60 },
+            ],
+          },
+          activityStartDate: 1000,
+        },
+      });
+      const yScale = getLastChartConfig().options.scales.y;
+      expect(yScale.suggestedMin).toBe(60);
+      expect(yScale.suggestedMax).toBe(150);
+      expect(yScale.min).toBeUndefined();
+      expect(yScale.max).toBeUndefined();
+    });
+
+    it('suggests the constant value for a constant stream', () => {
+      render(TimeSeriesChart, {
+        props: {
+          streamData: {
+            type: 'Heart Rate',
+            data: [
+              { time: 1000, value: 80 },
+              { time: 2000, value: 80 },
+            ],
+          },
+          activityStartDate: 1000,
+        },
+      });
+      const yScale = getLastChartConfig().options.scales.y;
+      expect(yScale.suggestedMin).toBe(80);
+      expect(yScale.suggestedMax).toBe(80);
     });
   });
 

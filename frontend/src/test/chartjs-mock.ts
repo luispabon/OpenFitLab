@@ -26,6 +26,8 @@ export interface MockScale {
   position?: string;
   min?: number;
   max?: number;
+  suggestedMin?: number;
+  suggestedMax?: number;
   ticks?: { color?: string; callback?: (value: number | string) => string };
   title?: { text?: string };
 }
@@ -46,6 +48,7 @@ export interface MockChartInstance {
 
 export interface MockChartOptions {
   interaction?: { mode: string; intersect: boolean };
+  transitions?: { zoom?: { animation?: { duration?: number } } };
   scales: Record<string, MockScale>;
   plugins: {
     legend?: unknown;
@@ -70,6 +73,7 @@ export interface MockChartConfig {
   type: string;
   data: { datasets: MockDataset[] };
   options: MockChartOptions;
+  plugins?: { id?: string }[];
 }
 
 /** Configs and instances in creation order. Cleared by resetChartMock(). */

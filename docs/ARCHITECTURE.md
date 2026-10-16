@@ -466,7 +466,7 @@ Stream analysis (alignment, scatter, regression, delta series) runs entirely cli
 
 ### Image export (frontend-only)
 
-Users can export sections of the comparison view as PNG files using client-side DOM capture (`frontend/src/lib/utils/export-image.ts`, `html-to-image`). No API endpoints. Elements marked `data-export-exclude` are omitted from captures (e.g. export controls). Map exports require WebGL readback support where the map component enables it.
+Users can export sections of the comparison view as PNG files using client-side DOM capture (`frontend/src/lib/utils/export-image.ts`, `html-to-image`). No API endpoints. Captures embed the app's webfonts (fetched from Google Fonts at export time) so captured HTML text keeps its on-screen layout. Elements marked `data-export-exclude` are omitted from captures (e.g. export controls). Map exports require WebGL readback support where the map component enables it.
 
 ### File export (TCX/GPX)
 

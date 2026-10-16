@@ -45,6 +45,11 @@ export const ZOOM_DRAG_OPTIONS = {
   borderWidth: 1,
 };
 
+/** Zoom updates should not animate long-series layout on every frame. */
+export const ZOOM_TRANSITION_OPTIONS = {
+  transitions: { zoom: { animation: { duration: 0 } } },
+};
+
 /** Shared x values (index 0) followed by one y array per series. null y values leave gaps. */
 export type AlignedSeriesData = [number[], ...(number | null)[][]];
 
