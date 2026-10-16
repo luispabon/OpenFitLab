@@ -1,5 +1,8 @@
-const { describe, it, afterEach } = require('node:test');
+const { describe, it, afterEach, mock } = require('node:test');
 const { strictEqual, ok } = require('node:assert/strict');
+
+process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'a'.repeat(32);
+
 const config = require('../../../src/config');
 const { configurePassport } = require('../../../src/middleware/passport');
 
@@ -171,5 +174,101 @@ describe('configurePassport OAuth state handling', () => {
 
     ok(req.session['oauth2:accounts.google.com'].state, 'nonce stored in session');
     ok(redirectUrl.includes(`state=${req.session['oauth2:accounts.google.com'].state}`));
+  });
+});
+
+describe('configurePassport GitHub email verification', () => {
+  const originalGithub = { ...config.oauth.github };
+  const userRepository = require('../../../src/repositories/user-repository');
+
+  afterEach(() => {
+    Object.assign(config.oauth.github, originalGithub);
+  });
+
+  function githubStrategy() {
+    config.oauth.github.enabled = true;
+    config.oauth.github.clientId = 'ghid';
+    config.oauth.github.clientSecret = 'ghsecret';
+    return configurePassport()._strategy('github');
+  }
+
+  function runVerify(strategy, profile) {
+    return new Promise((resolve, reject) => {
+      strategy._verify('token', null, profile, (err, out) => (err ? reject(err) : resolve(out)));
+    });
+  }
+
+  it('does not trust an unverified primary GitHub email for account linking', async () => {
+    const findIdentity = mock.method(userRepository, 'findIdentityByProvider', async () => null);
+    const fetchMock = mock.method(globalThis, 'fetch', async () => ({
+      ok: true,
+      json: async () => [{ email: 'victim@example.com', primary: true, verified: false }],
+    }));
+
+    try {
+      const result = await runVerify(githubStrategy(), {
+        id: 'gh1',
+        emails: [{ value: 'victim@example.com' }],
+      });
+      strictEqual(result.pendingSignup, true);
+      ok(!result.profile.email, 'unverified email is not used for linking');
+    } finally {
+      findIdentity.mock.restore();
+      fetchMock.mock.restore();
+    }
+  });
+
+  it('links an existing account when GitHub reports a verified primary email', async () => {
+    const findIdentity = mock.method(userRepository, 'findIdentityByProvider', async () => null);
+    const findByEmail = mock.method(userRepository, 'findIdentitiesByEmail', async () => [
+      { user_id: 'u1' },
+    ]);
+    const link = mock.method(userRepository, 'linkIdentity', async () => {});
+    const findById = mock.method(userRepository, 'findById', async () => ({
+      id: 'u1',
+      displayName: 'Alice',
+    }));
+    const fetchMock = mock.method(globalThis, 'fetch', async (url, options) => {
+      strictEqual(url, 'https://api.github.com/user/emails');
+      strictEqual(options.headers.Authorization, 'Bearer token');
+      return {
+        ok: true,
+        json: async () => [{ email: 'alice@example.com', primary: true, verified: true }],
+      };
+    });
+
+    try {
+      const result = await runVerify(githubStrategy(), { id: 'gh2', emails: [{ value: 'x' }] });
+      strictEqual(result.pendingSignup, false);
+      strictEqual(result.user.id, 'u1');
+      strictEqual(findByEmail.mock.callCount(), 1);
+      strictEqual(link.mock.callCount(), 1);
+      strictEqual(findById.mock.callCount(), 1);
+    } finally {
+      findIdentity.mock.restore();
+      findByEmail.mock.restore();
+      link.mock.restore();
+      findById.mock.restore();
+      fetchMock.mock.restore();
+    }
+  });
+
+  it('treats a GitHub email lookup failure as unverified (no linking)', async () => {
+    const findIdentity = mock.method(userRepository, 'findIdentityByProvider', async () => null);
+    const fetchMock = mock.method(globalThis, 'fetch', async () => {
+      throw new Error('network');
+    });
+
+    try {
+      const result = await runVerify(githubStrategy(), {
+        id: 'gh3',
+        emails: [{ value: 'alice@example.com' }],
+      });
+      strictEqual(result.pendingSignup, true);
+      ok(!result.profile.email);
+    } finally {
+      findIdentity.mock.restore();
+      fetchMock.mock.restore();
+    }
   });
 });
