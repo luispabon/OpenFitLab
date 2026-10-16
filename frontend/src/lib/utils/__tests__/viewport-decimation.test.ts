@@ -666,6 +666,31 @@ describe('decimateAlignedViewportData', () => {
     });
   });
 
+  describe('heavily interleaved series keep the full input', () => {
+    // Series A and C are non-null at even indices, series B at odd indices. Every null run is one
+    // point, so strict run preservation keeps every point and no reduction is shorter.
+    const interleaved = () =>
+      alignedData(
+        3000,
+        (i) => (i % 2 ? null : (i * 37) % 101),
+        (i) => (i % 2 ? (i * 7919) % 1000 : null),
+        (i) => (i % 2 ? null : 5)
+      );
+
+    it.each<[string, ViewportDecimationOptions]>([
+      ['the full range', { minX: 0, maxX: 2999, targetBucketCount: 50 }],
+      ['a middle range', { minX: 1000.5, maxX: 1800.5, targetBucketCount: 20 }],
+      ['a fine bucket count', { minX: 0, maxX: 2999, targetBucketCount: 700 }],
+    ])('returns the input reference for %s, with every gap kept', (_label, options) => {
+      const data = interleaved();
+      const before = data.map((series) => [...series]);
+      const result = decimateAlignedViewportData(data, options);
+      expect(result).toBe(data);
+      expect(data).toEqual(before);
+      expectAlignedGapRulesHold(data, result, options.minX, options.maxX);
+    });
+  });
+
   describe('output is an original subset with identical index alignment', () => {
     it('is deterministic, never mutates the input, and keeps source x and y values', () => {
       const data = alignedData(

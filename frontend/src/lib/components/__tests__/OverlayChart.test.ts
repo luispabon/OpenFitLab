@@ -305,5 +305,42 @@ describe('OverlayChart', () => {
       expect(y1.suggestedMin).toBe(90);
       expect(y1.suggestedMax).toBe(90);
     });
+
+    it('keeps interleaved series unchanged through the local plugin when zoomed', () => {
+      // Heart Rate has points at even seconds and Cadence at odd ones, so each series has a null
+      // between every pair of its points. Strict run preservation keeps every point.
+      const interleaved = (type: string, parity: number, base: number) => ({
+        type,
+        data: Array.from({ length: 300 }, (_, k) => ({
+          time: 1000 + (2 * k + parity) * 1000,
+          value: base + (k % 10),
+        })),
+      });
+      render(OverlayChart, {
+        props: {
+          streams: [interleaved('Heart Rate', 0, 80), interleaved('Cadence', 1, 90)],
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins?.map((plugin) => plugin.id)).toEqual(['alignedViewportDecimation']);
+
+      // Zoomed x range with a narrow canvas: 600 points exceed 4 * 50 buckets, yet nothing drops.
+      const plugin = config.plugins?.[0] as unknown as {
+        beforeUpdate: (chart: object, args: object, options: object) => void;
+      };
+      const chart = {
+        options: { scales: { x: { min: 0, max: 599000 } } },
+        width: 100,
+        data: { datasets: config.data.datasets.map(() => ({ data: [] as unknown[] })) },
+      };
+      plugin.beforeUpdate(chart, {}, {});
+
+      config.data.datasets.forEach((dataset, i) => {
+        const reduced = chart.data.datasets[i].data;
+        expect(reduced).toEqual(dataset.data);
+        expect(reduced.filter((p) => (p as { y: number | null }).y === null)).toHaveLength(300);
+      });
+    });
   });
 });
