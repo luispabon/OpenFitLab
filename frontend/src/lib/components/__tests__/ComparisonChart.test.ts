@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import ComparisonChart from '../ComparisonChart.svelte';
-import type { ComparisonChartEntry } from '../../utils/comparison-chart-data';
+import {
+  buildComparisonChartData,
+  type ComparisonChartEntry,
+} from '../../utils/comparison-chart-data';
 import { ZOOM_DRAG_OPTIONS } from '../../utils/chart-utils';
 import { getStreamConfig } from '../../utils/stream-config';
 import {
@@ -232,6 +235,50 @@ describe('ComparisonChart', () => {
       const instance = getLastChartInstance();
       unmount();
       expect(instance.destroy).toHaveBeenCalled();
+    });
+  });
+
+  describe('entries without numeric points', () => {
+    const withEmptyMiddle = [
+      entry(
+        1000,
+        [
+          { time: 1000, value: 80 },
+          { time: 2000, value: 90 },
+        ],
+        { eventName: 'Device A', color: '#ef4444' }
+      ),
+      entry(1500, [], { eventName: 'Device B', color: '#22c55e' }),
+      entry(2000, [{ time: 2000, value: 100 }], { eventName: 'Device C', color: '#3b82f6' }),
+    ];
+
+    it('datasets cover only retained entries, each with its own series values', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: withEmptyMiddle, xAxisMode: 'elapsed' },
+      });
+      const { data } = buildComparisonChartData(withEmptyMiddle, 'elapsed');
+      const config = getLastChartConfig();
+      expect(screen.queryByText(/No data available/)).not.toBeInTheDocument();
+      expect(config.data.datasets.map((d) => d.label)).toEqual(['Device A', 'Device C']);
+      expect(config.data.datasets.map((d) => d.borderColor)).toEqual(['#ef4444', '#3b82f6']);
+      expect(config.data.datasets).toHaveLength(data!.length - 1);
+      expect(config.data.datasets[0].data).toEqual([
+        { x: 0, y: 80 },
+        { x: 1000, y: 90 },
+      ]);
+      expect(config.data.datasets[1].data).toEqual([
+        { x: 0, y: 100 },
+        { x: 1000, y: 100 },
+      ]);
+    });
+
+    it('keeps the aligned viewport decimation plugin', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries: withEmptyMiddle, xAxisMode: 'elapsed' },
+      });
+      expect(getLastChartConfig().plugins?.map((plugin) => plugin.id)).toEqual([
+        'alignedViewportDecimation',
+      ]);
     });
   });
 

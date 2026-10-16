@@ -37,6 +37,8 @@
   const streamConfig = $derived(getStreamConfig(streamType));
 
   const chartData = $derived.by(() => buildComparisonChartData(entries, xAxisMode));
+  // Entries that produced a series, in series order. Dataset i maps to series i + 1.
+  const retainedEntries = $derived(chartData.entries);
 
   function formatXValue(value: number): string {
     return xAxisMode === 'elapsed' ? formatElapsedTime(value) : formatWallClockTime(value);
@@ -49,7 +51,7 @@
   }
 
   $effect(() => {
-    if (!canvasEl || !chartData.data || entries.length === 0) return;
+    if (!canvasEl || !chartData.data || retainedEntries.length === 0) return;
 
     if (chartRef.current) {
       chartRef.current.destroy();
@@ -63,12 +65,12 @@
     // axis below the global extremes.
     const yRange = alignedYRange(
       data,
-      entries.map((_, i) => i + 1)
+      retainedEntries.map((_, i) => i + 1)
     );
     const yBounds = yRange ? { suggestedMin: yRange.min, suggestedMax: yRange.max } : {};
 
     // Series: one per event, all share same Y-axis
-    const datasets = entries.map((entry, i) => ({
+    const datasets = retainedEntries.map((entry, i) => ({
       label: entry.eventName,
       data: toXYPoints(data, i + 1),
       borderColor: entry.color,
@@ -160,7 +162,7 @@
 </script>
 
 <div class="w-full animate-fade-in">
-  {#if entries.length === 0 || !chartData.data}
+  {#if retainedEntries.length === 0 || !chartData.data}
     <div class="flex h-96 items-center justify-center rounded-lg border border-border bg-card">
       <p class="text-sm text-text-secondary">No data available</p>
     </div>

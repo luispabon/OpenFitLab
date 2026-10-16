@@ -24,6 +24,7 @@ describe('buildComparisonChartData', () => {
     it('returns null data for empty entries', () => {
       const result = buildComparisonChartData([], 'elapsed');
       expect(result.data).toBeNull();
+      expect(result.entries).toEqual([]);
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
     });
@@ -31,6 +32,7 @@ describe('buildComparisonChartData', () => {
     it('returns null data when all entries have no data points', () => {
       const result = buildComparisonChartData([entry(1000, []), entry(2000, [])], 'elapsed');
       expect(result.data).toBeNull();
+      expect(result.entries).toEqual([]);
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
     });
@@ -44,6 +46,7 @@ describe('buildComparisonChartData', () => {
       };
       const result = buildComparisonChartData([noDataPoints], 'elapsed');
       expect(result.data).toBeNull();
+      expect(result.entries).toEqual([]);
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
     });
@@ -303,6 +306,30 @@ describe('buildComparisonChartData', () => {
       expect(result.xMin).toBe(0);
       expect(result.xMax).toBe(0);
     });
+  });
+});
+
+describe('buildComparisonChartData retained entries', () => {
+  it('returns the single retained entry', () => {
+    const a = entry(1000, [{ time: 1000, value: 80 }], { eventName: 'A' });
+    expect(buildComparisonChartData([a], 'elapsed').entries).toEqual([a]);
+  });
+
+  it('returns all entries in series order when every entry has points', () => {
+    const a = entry(1000, [{ time: 1000, value: 80 }], { eventName: 'A' });
+    const b = entry(2000, [{ time: 2000, value: 90 }], { eventName: 'B' });
+    expect(buildComparisonChartData([a, b], 'elapsed').entries).toEqual([a, b]);
+  });
+
+  it('drops entries with no numeric points and keeps series aligned to retained entries', () => {
+    const a = entry(1000, [{ time: 1000, value: 80 }], { eventName: 'A' });
+    const b = entry(1500, [{ time: 1500, value: NaN }], { eventName: 'B' });
+    const c = entry(2000, [{ time: 2000, value: 100 }], { eventName: 'C' });
+    const result = buildComparisonChartData([a, b, c], 'elapsed');
+    expect(result.entries).toEqual([a, c]);
+    expect(result.data).toHaveLength(result.entries.length + 1);
+    expect((result.data as number[][])[1]).toEqual([80, 80]);
+    expect((result.data as number[][])[2]).toEqual([100, 100]);
   });
 });
 
