@@ -22,7 +22,6 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/maplibre-gl')) return 'maplibre'
           if (id.includes('node_modules/svelte-maplibre-gl')) return 'maplibre'
-          if (id.includes('node_modules/uplot')) return 'uplot'
         },
       },
     },

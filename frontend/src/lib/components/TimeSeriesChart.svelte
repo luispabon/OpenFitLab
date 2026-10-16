@@ -1,16 +1,17 @@
 <script lang="ts">
-  import uPlot from 'uplot';
-  import 'uplot/dist/uPlot.min.css';
+  import { Chart } from 'chart.js';
   import type { StreamData } from '../types';
   import type { StreamConfig } from '../utils/stream-config';
   import { getStreamConfig } from '../utils/stream-config';
   import {
     formatElapsedTime,
     formatYValue,
-    getSmoothPath,
-    CHART_HEIGHT,
+    toXYPoints,
+    areaGradient,
+    ZOOM_DRAG_OPTIONS,
     CHART_TEXT_COLOR,
     CHART_GRID_COLOR,
+    type AlignedSeriesData,
   } from '../utils/chart-utils';
 
   interface Props {
@@ -21,20 +22,18 @@
 
   let { streamData, activityStartDate, config }: Props = $props();
 
-  let containerEl: HTMLDivElement | null = $state(null);
-  let chartInstance: uPlot | null = $state(null);
+  let canvasEl: HTMLCanvasElement | null = $state(null);
+  let chartInstance: Chart | null = $state(null);
   let isZoomed = $state(false);
   // Ref to avoid effect re-running when we assign chartInstance (effect must not read reactive chartInstance)
-  const chartRef = { current: null as uPlot | null };
+  const chartRef = { current: null as Chart | null };
 
   const streamConfig = $derived(config ?? getStreamConfig(streamData.type));
 
-  const smoothPath = getSmoothPath();
-
-  // Build uPlot data [x[], y[]] and full x range for reset zoom
+  // Build [x[], y[]] and full x range for reset zoom
   const chartData = $derived.by(() => {
     if (!streamData.data?.length)
-      return { data: null as uPlot.AlignedData | null, xMin: 0, xMax: 0, pointCount: 0 };
+      return { data: null as AlignedSeriesData | null, xMin: 0, xMax: 0, pointCount: 0 };
     const xs: number[] = [];
     const ys: (number | null)[] = [];
     for (const p of streamData.data) {
@@ -47,131 +46,102 @@
     if (xs.length === 0) return { data: null, xMin: 0, xMax: 0, pointCount: 0 };
     const xMin = xs[0];
     const xMax = xs[xs.length - 1];
-    return { data: [xs, ys] as uPlot.AlignedData, xMin, xMax, pointCount: xs.length };
+    return { data: [xs, ys] as AlignedSeriesData, xMin, xMax, pointCount: xs.length };
   });
 
   export function resetZoom() {
     if (!chartInstance || !chartData.data) return;
-    const { xMin, xMax } = chartData;
-    chartInstance.batch(() => {
-      chartInstance!.setScale('x', { min: xMin, max: xMax });
-    });
+    chartInstance.resetZoom();
     isZoomed = false;
   }
 
   $effect(() => {
-    if (!containerEl || !chartData.data || chartData.pointCount === 0) return;
-
-    const textColor = CHART_TEXT_COLOR;
-    const gridColor = CHART_GRID_COLOR;
+    if (!canvasEl || !chartData.data || chartData.pointCount === 0) return;
 
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    const { data, xMin, xMax } = chartData;
-    const opts: uPlot.Options = {
-      width: containerEl.offsetWidth,
-      height: CHART_HEIGHT,
-      series: [
-        {},
-        {
-          label: streamConfig.label,
-          stroke: streamConfig.color,
-          width: 2,
-          paths: smoothPath,
-          fill: (u, seriesIdx) => {
-            const s = u.series[seriesIdx];
-            const scaleKey = (s.scale as string) || 'y';
-            const sc = u.scales[scaleKey];
-            if (!sc || sc.min == null || sc.max == null) return streamConfig.color + '40';
-            const top = u.valToPos(sc.max, scaleKey, true);
-            const bottom = u.valToPos(sc.min, scaleKey, true);
-            const ctx = u.ctx;
-            if (!ctx) return streamConfig.color + '40';
-            const grd = ctx.createLinearGradient(0, top, 0, bottom);
-            grd.addColorStop(0, streamConfig.color + '40');
-            grd.addColorStop(1, streamConfig.color + '00');
-            return grd;
-          },
-          value: (_u, raw) =>
-            raw == null
-              ? ''
-              : `${formatYValue(raw, streamConfig.label)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
-        },
-      ],
-      scales: {
-        x: { time: false, min: xMin, max: xMax },
-        y: { auto: true },
-      },
-      axes: [
-        {
-          stroke: textColor,
-          grid: { stroke: gridColor, width: 1 },
-          ticks: { stroke: textColor },
-          values: (_u, ticks) => ticks.map((t) => formatElapsedTime(t)),
-          label: 'Elapsed Time',
-          labelFont: '13px system-ui',
-          font: '13px system-ui',
-          size: 40,
-          gap: 8,
-          space: 44,
-        },
-        {
-          stroke: textColor,
-          grid: { stroke: gridColor, width: 1 },
-          ticks: { stroke: textColor },
-          values: (_u, ticks) =>
-            ticks.map((t) => (typeof t === 'number' ? formatYValue(t, streamConfig.label) : '')),
-          label: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
-          labelFont: '13px system-ui',
-          font: '13px system-ui',
-          size: 36,
-          gap: 5,
-          space: 80,
-          labelGap: 12,
-          labelSize: 42,
-        },
-      ],
-      cursor: {
-        show: true,
-        x: true,
-        y: true,
-        drag: { setScale: true, x: true, y: false },
-        points: { show: true, size: 10, width: 2, stroke: '#ffffff', fill: streamConfig.color },
-      },
-      legend: { show: true, live: true },
-      hooks: {
-        setSelect: [
-          (u) => {
-            // Use setTimeout to avoid synchronous state updates during chart initialization
-            setTimeout(() => {
-              const xScale = u.scales.x;
-              if (!xScale || xScale.min == null || xScale.max == null) return;
-              const tol = (chartData.xMax - chartData.xMin) * 0.01;
-              isZoomed =
-                Math.abs(xScale.min - chartData.xMin) > tol ||
-                Math.abs(xScale.max - chartData.xMax) > tol;
-            }, 0);
+    const { xMin, xMax } = chartData;
+    const data = chartData.data;
+    const chart = new Chart(canvasEl, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: streamConfig.label,
+            data: toXYPoints(data, 1),
+            borderColor: streamConfig.color,
+            borderWidth: 2,
+            backgroundColor: areaGradient(streamConfig.color, '40'),
+            fill: 'start',
+            tension: 0.4,
+            spanGaps: false,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: streamConfig.color,
+            pointHoverBorderColor: '#ffffff',
+            pointHoverBorderWidth: 2,
           },
         ],
       },
-    };
-
-    const u = new uPlot(opts, data, containerEl);
-    chartRef.current = u;
-    chartInstance = u;
-
-    const ro = new ResizeObserver(() => {
-      if (chartRef.current && containerEl) {
-        chartRef.current.setSize({ width: containerEl.offsetWidth, height: CHART_HEIGHT });
-      }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        scales: {
+          x: {
+            type: 'linear',
+            min: xMin,
+            max: xMax,
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => formatElapsedTime(Number(value)),
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: { display: true, text: 'Elapsed Time', color: CHART_TEXT_COLOR },
+          },
+          y: {
+            ticks: {
+              color: CHART_TEXT_COLOR,
+              callback: (value) => formatYValue(Number(value), streamConfig.label),
+            },
+            grid: { color: CHART_GRID_COLOR },
+            border: { color: CHART_TEXT_COLOR },
+            title: {
+              display: true,
+              text: streamConfig.label + (streamConfig.unit ? ` (${streamConfig.unit})` : ''),
+              color: CHART_TEXT_COLOR,
+            },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: CHART_TEXT_COLOR } },
+          tooltip: {
+            callbacks: {
+              title: (items) => formatElapsedTime(Number(items[0].parsed.x)),
+              label: (item) =>
+                `${item.dataset.label}: ${formatYValue(Number(item.parsed.y), streamConfig.label)}${streamConfig.unit ? ' ' + streamConfig.unit : ''}`,
+            },
+          },
+          zoom: {
+            zoom: {
+              mode: 'x',
+              drag: ZOOM_DRAG_OPTIONS,
+              onZoomComplete: ({ chart }) => {
+                isZoomed = chart.isZoomedOrPanned();
+              },
+            },
+          },
+        },
+      },
     });
-    ro.observe(containerEl);
+    chartRef.current = chart;
+    chartInstance = chart;
 
     return () => {
-      ro.disconnect();
       if (chartRef.current) {
         chartRef.current.destroy();
         chartRef.current = null;
@@ -202,18 +172,9 @@
       >
         Reset Zoom
       </button>
-      <div class="h-96 w-full" bind:this={containerEl}></div>
+      <div class="h-96 w-full">
+        <canvas bind:this={canvasEl}></canvas>
+      </div>
     </div>
   {/if}
 </div>
-
-<style>
-  :global(.uplot .u-legend) {
-    color: var(--color-text-secondary);
-    margin-bottom: 0.75rem;
-  }
-  /* Hide the "Value: --" row (series 0) in live legend */
-  :global(.uplot .u-legend tbody tr:first-child) {
-    display: none;
-  }
-</style>

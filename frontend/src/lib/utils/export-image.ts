@@ -6,7 +6,7 @@ const excludeExportControls = (node: Node): boolean =>
   !(node instanceof Element && node.hasAttribute('data-export-exclude'));
 
 /**
- * Captures a DOM element (including any embedded <canvas> elements, such as uPlot
+ * Captures a DOM element (including any embedded <canvas> elements, such as Chart.js
  * charts or a MapLibre WebGL canvas with preserveDrawingBuffer enabled) and triggers
  * a browser download of the result as a retina-quality PNG.
  *

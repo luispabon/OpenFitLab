@@ -1,4 +1,4 @@
-import type uPlot from 'uplot';
+import type { AlignedSeriesData } from './chart-utils';
 import type { StreamData } from '../types';
 
 /**
@@ -28,7 +28,7 @@ export interface ComparisonChartEntry {
 export function buildComparisonChartData(
   entries: ComparisonChartEntry[],
   xAxisMode: 'elapsed' | 'wall-clock'
-): { data: uPlot.AlignedData | null; xMin: number; xMax: number } {
+): { data: AlignedSeriesData | null; xMin: number; xMax: number } {
   const withPoints: { entry: ComparisonChartEntry; pts: { x: number; y: number }[] }[] = [];
 
   for (const entry of entries) {
@@ -126,7 +126,7 @@ export function buildComparisonChartData(
     yArrays.push(interpolated);
   }
 
-  const data: uPlot.AlignedData = [xSorted, ...yArrays];
+  const data: AlignedSeriesData = [xSorted, ...yArrays];
   const xMin = xSorted[0];
   const xMax = xSorted[xSorted.length - 1];
   return { data, xMin, xMax };
