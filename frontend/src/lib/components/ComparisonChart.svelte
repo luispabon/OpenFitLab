@@ -6,6 +6,10 @@
   } from '../utils/comparison-chart-data';
   import { getStreamConfig } from '../utils/stream-config';
   import {
+    alignedYRange,
+    createAlignedViewportDecimationPlugin,
+  } from '../utils/viewport-decimation';
+  import {
     formatElapsedTime,
     formatWallClockTime,
     formatYValue,
@@ -55,6 +59,14 @@
     const { xMin, xMax } = chartData;
     const data = chartData.data;
 
+    // Suggested y bounds from the full data of every series, so a zoomed slice cannot narrow the
+    // axis below the global extremes.
+    const yRange = alignedYRange(
+      data,
+      entries.map((_, i) => i + 1)
+    );
+    const yBounds = yRange ? { suggestedMin: yRange.min, suggestedMax: yRange.max } : {};
+
     // Series: one per event, all share same Y-axis
     const datasets = entries.map((entry, i) => ({
       label: entry.eventName,
@@ -98,6 +110,7 @@
             },
           },
           y: {
+            ...yBounds,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => formatYValue(Number(value), streamConfig.label),
@@ -131,6 +144,7 @@
           },
         },
       },
+      plugins: [createAlignedViewportDecimationPlugin({ fullData: data })],
     });
     chartRef.current = chart;
     chartInstance = chart;

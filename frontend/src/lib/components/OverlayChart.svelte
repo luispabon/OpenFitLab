@@ -3,6 +3,10 @@
   import type { StreamData } from '../types';
   import { getStreamConfig } from '../utils/stream-config';
   import {
+    alignedYRange,
+    createAlignedViewportDecimationPlugin,
+  } from '../utils/viewport-decimation';
+  import {
     formatElapsedTime,
     formatYValue,
     toXYPoints,
@@ -86,6 +90,24 @@
     const leftConfig = configs[0];
     const rightConfig = configs.length > 1 ? configs[1] : null;
 
+    // Suggested bounds from the full data of each y axis: Chart.js keeps auto range and tick
+    // rounding, and a zoomed slice cannot narrow the axis below the global extremes.
+    const seriesIndices = configs.map((_, i) => i + 1);
+    const leftRange = alignedYRange(
+      data,
+      seriesIndices.filter((_, i) => getYScaleKey(i, nSeries) === 'y')
+    );
+    const rightRange = alignedYRange(
+      data,
+      seriesIndices.filter((_, i) => getYScaleKey(i, nSeries) === 'y1')
+    );
+    const leftBounds = leftRange
+      ? { suggestedMin: leftRange.min, suggestedMax: leftRange.max }
+      : {};
+    const rightBounds = rightRange
+      ? { suggestedMin: rightRange.min, suggestedMax: rightRange.max }
+      : {};
+
     const datasets = configs.map((cfg, i) => ({
       label: cfg.label,
       data: toXYPoints(data, i + 1),
@@ -126,6 +148,7 @@
           },
           y: {
             position: 'left',
+            ...leftBounds,
             ticks: {
               color: CHART_TEXT_COLOR,
               callback: (value) => formatYValue(Number(value), leftConfig.label),
@@ -142,6 +165,7 @@
             ? {
                 y1: {
                   position: 'right' as const,
+                  ...rightBounds,
                   ticks: {
                     color: CHART_TEXT_COLOR,
                     callback: (value: number | string) =>
@@ -180,6 +204,7 @@
           },
         },
       },
+      plugins: [createAlignedViewportDecimationPlugin({ fullData: data })],
     });
     chartRef.current = chart;
     chartInstance = chart;

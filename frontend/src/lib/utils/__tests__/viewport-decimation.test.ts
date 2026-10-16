@@ -1,12 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Chart, Plugin } from 'chart.js';
 import {
+  alignedYRange,
+  createAlignedViewportDecimationPlugin,
   createViewportDecimationPlugin,
+  decimateAlignedViewportData,
   decimateViewportPoints,
   nonNullYRange,
   type ViewportDecimationOptions,
   type ViewportPoint,
 } from '../viewport-decimation';
+import { toXYPoints, type AlignedSeriesData } from '../chart-utils';
 
 /** Points at x = 0..n-1. `yAt` gives the y for each index (default: y = index). */
 function series(n: number, yAt: (i: number) => number | null = (i) => i): ViewportPoint[] {
@@ -513,5 +517,476 @@ describe('createViewportDecimationPlugin', () => {
     chart.options.scales.x.min = FULL_RANGE.min;
     runBeforeUpdate(plugin, chart);
     expect(dataset.data).toEqual(decimated(0, 19999, 400));
+  });
+});
+
+/** Aligned data with x = index and one series per `yAt` function. */
+function alignedData(n: number, ...yAt: ((i: number) => number | null)[]): AlignedSeriesData {
+  const xs = Array.from({ length: n }, (_, i) => i);
+  return [xs, ...yAt.map((yOf) => xs.map((_, i) => yOf(i)))] as AlignedSeriesData;
+}
+
+/**
+ * Maps each output x to its source index (x values are unique in these fixtures). Fails unless the
+ * output x values are strictly increasing source values, every series has the output's length, and
+ * every y equals the source y at the same index.
+ */
+function expectAlignedSubset(source: AlignedSeriesData, result: AlignedSeriesData): number[] {
+  const indexOf = new Map(source[0].map((x, index): [number, number] => [x, index]));
+  const indices = result[0].map((x) => indexOf.get(x) ?? -1);
+  expect(indices).not.toContain(-1);
+  for (let i = 1; i < indices.length; i++) {
+    expect(indices[i]).toBeGreaterThan(indices[i - 1]);
+  }
+  for (let s = 1; s < result.length; s++) {
+    expect(result[s]).toHaveLength(result[0].length);
+    result[s].forEach((y, k) => expect(y).toBe(source[s][indices[k]]));
+  }
+  return indices;
+}
+
+/**
+ * Null-gap rules for every series, with the selection of [minX, maxX] (the viewport plus one
+ * neighbour per side), as `expectGapRulesHold` checks one series:
+ * - each null run in the selection keeps its first and last null, plus the adjacent non-null
+ *   points that are in the selection;
+ * - no two adjacent output points that are both non-null for a series have a source null
+ *   between them.
+ */
+function expectAlignedGapRulesHold(
+  source: AlignedSeriesData,
+  result: AlignedSeriesData,
+  minX: number,
+  maxX: number
+): void {
+  const indices = expectAlignedSubset(source, result);
+  const kept = new Set(indices);
+  const xs = source[0];
+  const inside = xs.flatMap((x, index) => (x >= minX && x <= maxX ? [index] : []));
+  expect(inside.length).toBeGreaterThan(0);
+  const selectionStart = Math.max(0, inside[0] - 1);
+  const selectionEnd = Math.min(xs.length - 1, inside[inside.length - 1] + 1);
+
+  const violations: string[] = [];
+  source.slice(1).forEach((ys, s) => {
+    for (let i = selectionStart; i <= selectionEnd;) {
+      if (ys[i] !== null) {
+        i++;
+        continue;
+      }
+      let runEnd = i;
+      while (runEnd + 1 <= selectionEnd && ys[runEnd + 1] === null) runEnd++;
+      const required = [i, runEnd];
+      if (i - 1 >= selectionStart) required.push(i - 1);
+      if (runEnd + 1 <= selectionEnd) required.push(runEnd + 1);
+      for (const index of required) {
+        if (!kept.has(index)) {
+          violations.push(`series ${s} null run ${i}..${runEnd} lost point ${index}`);
+        }
+      }
+      i = runEnd + 1;
+    }
+
+    for (let k = 1; k < indices.length; k++) {
+      const a = indices[k - 1];
+      const b = indices[k];
+      if (ys[a] === null || ys[b] === null) continue;
+      for (let m = a + 1; m < b; m++) {
+        if (ys[m] === null) violations.push(`series ${s}: retained ${a} and ${b} bridge null ${m}`);
+      }
+    }
+  });
+  expect(violations).toEqual([]);
+}
+
+describe('decimateAlignedViewportData', () => {
+  describe('no-op inputs return the original reference', () => {
+    it('returns the input when there are no x values', () => {
+      const data: AlignedSeriesData = [[], []];
+      expect(decimateAlignedViewportData(data, { minX: 0, maxX: 1, targetBucketCount: 4 })).toBe(
+        data
+      );
+    });
+
+    it('returns the input when a series length differs from the x length', () => {
+      const options = { minX: 0, maxX: 199, targetBucketCount: 10 };
+      const data = alignedData(
+        200,
+        (i) => i,
+        (i) => i
+      );
+      const shortSeries = [data[0], data[1], data[2].slice(1)] as AlignedSeriesData;
+      const shortX = [data[0].slice(1), data[1], data[2]] as AlignedSeriesData;
+      expect(decimateAlignedViewportData(shortSeries, options)).toBe(shortSeries);
+      expect(decimateAlignedViewportData(shortX, options)).toBe(shortX);
+    });
+
+    it.each<[string, ViewportDecimationOptions]>([
+      ['zero buckets', { minX: 0, maxX: 199, targetBucketCount: 0 }],
+      ['negative buckets', { minX: 0, maxX: 199, targetBucketCount: -3 }],
+      ['fractional buckets', { minX: 0, maxX: 199, targetBucketCount: 2.5 }],
+      ['NaN buckets', { minX: 0, maxX: 199, targetBucketCount: NaN }],
+      ['equal bounds', { minX: 50, maxX: 50, targetBucketCount: 10 }],
+      ['reversed bounds', { minX: 199, maxX: 0, targetBucketCount: 10 }],
+      ['infinite minX', { minX: -Infinity, maxX: 199, targetBucketCount: 10 }],
+      ['NaN maxX', { minX: 0, maxX: NaN, targetBucketCount: 10 }],
+    ])('returns the input for %s', (_label, options) => {
+      const data = alignedData(
+        200,
+        (i) => i,
+        (i) => i % 7
+      );
+      const before = data.map((series) => [...series]);
+      expect(decimateAlignedViewportData(data, options)).toBe(data);
+      expect(data).toEqual(before);
+    });
+
+    it('returns the input below the decimation threshold', () => {
+      // Selection 0..9 holds 10 points, which does not exceed 4 * 3 = 12.
+      const data = alignedData(
+        10,
+        (i) => i,
+        (i) => (i % 2 ? null : i)
+      );
+      expect(decimateAlignedViewportData(data, { minX: 0, maxX: 9, targetBucketCount: 3 })).toBe(
+        data
+      );
+    });
+
+    it('returns the input when decimation would not shorten the selection', () => {
+      // Each null is a single-point run in both series, so every point is retained.
+      const data = alignedData(
+        20,
+        (i) => (i % 2 ? null : 1),
+        (i) => (i % 2 ? 1 : null)
+      );
+      expect(decimateAlignedViewportData(data, { minX: 0, maxX: 19, targetBucketCount: 2 })).toBe(
+        data
+      );
+    });
+  });
+
+  describe('output is an original subset with identical index alignment', () => {
+    it('is deterministic, never mutates the input, and keeps source x and y values', () => {
+      const data = alignedData(
+        3000,
+        (i) => (i * 37) % 101,
+        (i) => (i % 13 === 0 ? null : (i * 7919) % 1000),
+        (i) => (i * 17) % 53
+      );
+      const before = data.map((series) => [...series]);
+      const options = { minX: 0, maxX: 2999, targetBucketCount: 50 };
+      const first = decimateAlignedViewportData(data, options);
+      const second = decimateAlignedViewportData(data, options);
+      expect(first[0].length).toBeLessThan(data[0].length);
+      expect(second).toEqual(first);
+      expectAlignedSubset(data, first);
+      expect(data).toEqual(before);
+    });
+  });
+
+  describe('bucket extremes', () => {
+    it('keeps the shared bucket first and last and each series min and max', () => {
+      // Four buckets over [0, 100): width 25. Series A has its bucket 0 min at x 3 and max at x 10.
+      const seriesA = (i: number) => {
+        if (i === 3) return -5;
+        if (i === 10) return 50;
+        return 10;
+      };
+      const data = alignedData(100, seriesA, () => 7);
+      const result = decimateAlignedViewportData(data, {
+        minX: 0,
+        maxX: 100,
+        targetBucketCount: 4,
+      });
+      expect(expectAlignedSubset(data, result)).toEqual([0, 3, 10, 24, 25, 49, 50, 74, 75, 99]);
+    });
+
+    it('keeps the earliest point on a tie for the max and for the min', () => {
+      // Series A is 0 except x 30 and x 40, both 99, in bucket 1 (x 25..49). Only x 30 is kept.
+      const seriesA = (i: number) => (i === 30 || i === 40 ? 99 : 0);
+      const data = alignedData(100, seriesA, () => 5);
+      const result = decimateAlignedViewportData(data, {
+        minX: 0,
+        maxX: 100,
+        targetBucketCount: 4,
+      });
+      const indices = expectAlignedSubset(data, result);
+      expect(indices).toEqual([0, 24, 25, 30, 49, 50, 74, 75, 99]);
+      expect(indices).not.toContain(40);
+    });
+  });
+
+  describe('null gaps across several series', () => {
+    const value = (i: number) => (i * 37) % 101;
+    const inRange = (i: number, from: number, to: number) => i >= from && i <= to;
+
+    it('keeps the run boundaries and neighbours of every series, with runs in different places', () => {
+      const data = alignedData(
+        400,
+        (i) => (inRange(i, 100, 130) ? null : value(i)),
+        (i) => (inRange(i, 0, 20) ? null : value(i)),
+        (i) => (inRange(i, 370, 399) ? null : value(i)),
+        (i) =>
+          inRange(i, 50, 60) || inRange(i, 200, 210) || inRange(i, 300, 305) ? null : value(i)
+      );
+      const result = decimateAlignedViewportData(data, {
+        minX: 0,
+        maxX: 399,
+        targetBucketCount: 10,
+      });
+      const indices = expectAlignedSubset(data, result);
+      expect(indices).toEqual(expect.arrayContaining([99, 100, 130, 131]));
+      expect(indices).toEqual(expect.arrayContaining([0, 20, 21]));
+      expect(indices).toEqual(expect.arrayContaining([369, 370, 399]));
+      expect(indices).toEqual(
+        expect.arrayContaining([49, 50, 60, 61, 199, 200, 210, 211, 299, 300, 305, 306])
+      );
+      expectAlignedGapRulesHold(data, result, 0, 399);
+    });
+
+    it('clips a null run at the viewport edges and keeps its boundaries inside the selection', () => {
+      // Run 100..140 is cut by the viewport on the left.
+      const data = alignedData(
+        300,
+        (i) => i,
+        (i) => (inRange(i, 100, 140) ? null : i)
+      );
+      const result = decimateAlignedViewportData(data, {
+        minX: 120.5,
+        maxX: 250.5,
+        targetBucketCount: 10,
+      });
+      const indices = expectAlignedSubset(data, result);
+      expect(indices).toEqual(expect.arrayContaining([120, 140, 141]));
+      expectAlignedGapRulesHold(data, result, 120.5, 250.5);
+    });
+
+    it('holds the gap rules on random series across viewports and bucket counts', () => {
+      const random = seededRandom(11);
+      const randomSeries = (): (number | null)[] => {
+        let inGap = false;
+        return Array.from({ length: 3000 }, () => {
+          if (random() < 0.04) inGap = !inGap;
+          return inGap ? null : Math.round(random() * 100);
+        });
+      };
+      const data = [
+        Array.from({ length: 3000 }, (_, i) => i),
+        randomSeries(),
+        randomSeries(),
+        randomSeries(),
+      ] as AlignedSeriesData;
+      const viewports: [number, number][] = [
+        [0, 2999],
+        [100.5, 1500.25],
+        [2500, 2600],
+        [-10, 40],
+        [1200, 1200.5],
+      ];
+      for (const [minX, maxX] of viewports) {
+        for (const targetBucketCount of [1, 5, 37]) {
+          const result = decimateAlignedViewportData(data, { minX, maxX, targetBucketCount });
+          expectAlignedGapRulesHold(data, result, minX, maxX);
+        }
+      }
+    });
+  });
+
+  describe('viewport clipping and neighbours', () => {
+    it('keeps the nearest point outside each side of the viewport', () => {
+      const data = alignedData(
+        1000,
+        (i) => i,
+        (i) => (i * 3) % 17
+      );
+      const result = decimateAlignedViewportData(data, {
+        minX: 300.5,
+        maxX: 600.5,
+        targetBucketCount: 10,
+      });
+      const indices = expectAlignedSubset(data, result);
+      expect(indices[0]).toBe(300);
+      expect(indices[indices.length - 1]).toBe(601);
+    });
+  });
+});
+
+describe('alignedYRange', () => {
+  const data: AlignedSeriesData = [
+    [0, 1, 2, 3],
+    [50, null, 70, 60],
+    [1000, 2000, 3000, 4000],
+  ];
+
+  it('returns the min and max of the chosen series, never reading null as 0', () => {
+    expect(alignedYRange(data, [1])).toEqual({ min: 50, max: 70 });
+  });
+
+  it('spans every chosen series', () => {
+    expect(alignedYRange(data, [1, 2])).toEqual({ min: 50, max: 4000 });
+  });
+
+  it('ignores non-finite values', () => {
+    const withNonFinite: AlignedSeriesData = [
+      [0, 1, 2],
+      [Infinity, 5, NaN],
+    ];
+    expect(alignedYRange(withNonFinite, [1])).toEqual({ min: 5, max: 5 });
+  });
+
+  it('returns null when the chosen series has no numeric values or none are chosen', () => {
+    const empty: AlignedSeriesData = [
+      [0, 1],
+      [null, null],
+    ];
+    expect(alignedYRange(empty, [1])).toBeNull();
+    expect(alignedYRange(data, [])).toBeNull();
+    expect(alignedYRange(data, [9])).toBeNull();
+  });
+});
+
+describe('createAlignedViewportDecimationPlugin', () => {
+  const FULL_RANGE = { min: 0, max: 19999 };
+  const full = alignedData(
+    20000,
+    (i) => (i * 7919) % 1000,
+    (i) => (i % 50 < 5 ? null : (i * 31) % 997),
+    (i) => (i * 13) % 211
+  );
+
+  /** Fake chart with three datasets by default. `x` holds the live bounds read from options. */
+  function fakeAlignedChart(datasetCount: number) {
+    const datasets = Array.from({ length: datasetCount }, () => ({
+      data: [] as ViewportPoint[],
+    }));
+    const x: { min?: unknown; max?: unknown } = { min: FULL_RANGE.min, max: FULL_RANGE.max };
+    const chart = {
+      options: { scales: { x } },
+      width: 800,
+      data: { datasets },
+      update: vi.fn(),
+    };
+    return { chart, datasets, x };
+  }
+
+  function runAligned(plugin: Plugin<'line'>, chart: object): void {
+    plugin.beforeUpdate?.(chart as Chart<'line'>, { mode: 'default', cancelable: true }, {});
+  }
+
+  const decimatedAligned = (minX: number, maxX: number, targetBucketCount: number) =>
+    decimateAlignedViewportData(full, { minX, maxX, targetBucketCount });
+
+  it('uses the plugin id default and a custom id when given', () => {
+    expect(createAlignedViewportDecimationPlugin({ fullData: full }).id).toBe(
+      'alignedViewportDecimation'
+    );
+    expect(createAlignedViewportDecimationPlugin({ fullData: full, id: 'custom' }).id).toBe(
+      'custom'
+    );
+  });
+
+  it('sets every dataset to the same x sequence with its own series y, and never calls update', () => {
+    const snapshot = full.map((series) => [...series]);
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets } = fakeAlignedChart(3);
+
+    runAligned(plugin, chart);
+
+    const reduced = decimatedAligned(0, 19999, 400);
+    expect(reduced[0].length).toBeLessThan(full[0].length);
+    const xs = datasets[0].data.map((p) => p.x);
+    datasets.forEach((dataset, i) => {
+      expect(dataset.data.map((p) => p.x)).toEqual(xs);
+      expect(dataset.data).toEqual(toXYPoints(reduced, i + 1));
+    });
+    expect(full).toEqual(snapshot);
+    expect(chart.update).not.toHaveBeenCalled();
+  });
+
+  it('touches no dataset when the bounds and bucket count are unchanged', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets } = fakeAlignedChart(3);
+    runAligned(plugin, chart);
+
+    const sentinels = datasets.map(() => [] as ViewportPoint[]);
+    datasets.forEach((dataset, i) => (dataset.data = sentinels[i]));
+    runAligned(plugin, chart);
+
+    datasets.forEach((dataset, i) => expect(dataset.data).toBe(sentinels[i]));
+  });
+
+  it('recomputes every dataset on a range change, keeping the x sequences identical', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets, x } = fakeAlignedChart(3);
+    runAligned(plugin, chart);
+
+    x.min = 5000;
+    x.max = 9000;
+    runAligned(plugin, chart);
+
+    const reduced = decimatedAligned(5000, 9000, 400);
+    const xs = datasets[0].data.map((p) => p.x);
+    expect(xs[0]).toBe(4999);
+    expect(xs[xs.length - 1]).toBe(9001);
+    datasets.forEach((dataset, i) => {
+      expect(dataset.data.map((p) => p.x)).toEqual(xs);
+      expect(dataset.data).toEqual(toXYPoints(reduced, i + 1));
+    });
+  });
+
+  it('restores every full series when the x range is missing, and recomputes once it is back', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets, x } = fakeAlignedChart(3);
+    runAligned(plugin, chart);
+
+    x.min = undefined;
+    runAligned(plugin, chart);
+    datasets.forEach((dataset, i) => {
+      expect(dataset.data).toEqual(toXYPoints(full, i + 1));
+    });
+
+    x.min = FULL_RANGE.min;
+    runAligned(plugin, chart);
+    expect(datasets[0].data).toEqual(toXYPoints(decimatedAligned(0, 19999, 400), 1));
+  });
+
+  it('recomputes every dataset on resize when the bucket count changes', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets } = fakeAlignedChart(3);
+    runAligned(plugin, chart);
+
+    chart.width = 1000;
+    runAligned(plugin, chart);
+
+    const reduced = decimatedAligned(0, 19999, 500);
+    datasets.forEach((dataset, i) => {
+      expect(dataset.data).toEqual(toXYPoints(reduced, i + 1));
+    });
+  });
+
+  it('keeps the cache when the width changes but the bucket count does not', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets } = fakeAlignedChart(3);
+    runAligned(plugin, chart);
+
+    const sentinel: ViewportPoint[] = [];
+    datasets[0].data = sentinel;
+    // floor(801 / 2) = floor(800 / 2) = 400
+    chart.width = 801;
+    runAligned(plugin, chart);
+
+    expect(datasets[0].data).toBe(sentinel);
+  });
+
+  it('does nothing when the dataset count differs from the series count', () => {
+    const plugin = createAlignedViewportDecimationPlugin({ fullData: full });
+    const { chart, datasets } = fakeAlignedChart(2);
+    const sentinels = datasets.map(() => [] as ViewportPoint[]);
+    datasets.forEach((dataset, i) => (dataset.data = sentinels[i]));
+
+    runAligned(plugin, chart);
+
+    datasets.forEach((dataset, i) => expect(dataset.data).toBe(sentinels[i]));
   });
 });

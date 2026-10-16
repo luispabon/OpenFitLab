@@ -253,4 +253,57 @@ describe('OverlayChart', () => {
       expect(instance.destroy).toHaveBeenCalled();
     });
   });
+
+  describe('viewport decimation', () => {
+    const powerStream = {
+      type: 'Power',
+      data: [
+        { time: 1000, value: 150 },
+        { time: 2000, value: 300 },
+      ] as { time: number; value: number }[],
+    };
+
+    it('uses one local aligned decimation plugin and no built-in Decimation', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream],
+          activityStartDate: 1000,
+        },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins?.map((plugin) => plugin.id)).toEqual(['alignedViewportDecimation']);
+      expect(config.options.plugins).not.toHaveProperty('decimation');
+    });
+
+    it('suggests the full y range of each axis instead of a fixed min or max', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream],
+          activityStartDate: 1000,
+        },
+      });
+      const { y, y1 } = getLastChartConfig().options.scales;
+      expect(y.suggestedMin).toBe(80);
+      expect(y.suggestedMax).toBe(90);
+      expect(y1.suggestedMin).toBe(90);
+      expect(y1.suggestedMax).toBe(90);
+      expect(y.min).toBeUndefined();
+      expect(y.max).toBeUndefined();
+    });
+
+    it('combines every series on the same axis into one suggested range', () => {
+      render(OverlayChart, {
+        props: {
+          streams: [heartRateStream, cadenceStream, powerStream],
+          activityStartDate: 1000,
+        },
+      });
+      // Left axis: heart rate (80..90) and power (150..300). Right axis: cadence (90).
+      const { y, y1 } = getLastChartConfig().options.scales;
+      expect(y.suggestedMin).toBe(80);
+      expect(y.suggestedMax).toBe(300);
+      expect(y1.suggestedMin).toBe(90);
+      expect(y1.suggestedMax).toBe(90);
+    });
+  });
 });

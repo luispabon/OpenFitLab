@@ -234,4 +234,39 @@ describe('ComparisonChart', () => {
       expect(instance.destroy).toHaveBeenCalled();
     });
   });
+
+  describe('viewport decimation', () => {
+    const entries = [
+      entry(
+        1000,
+        [
+          { time: 1000, value: 80 },
+          { time: 2000, value: 90 },
+        ],
+        { eventName: 'Device A' }
+      ),
+      entry(2000, [{ time: 2000, value: 100 }], { eventName: 'Device B' }),
+    ];
+
+    it('uses one local aligned decimation plugin and no built-in Decimation', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries, xAxisMode: 'elapsed' },
+      });
+      const config = getLastChartConfig();
+      expect(config.plugins?.map((plugin) => plugin.id)).toEqual(['alignedViewportDecimation']);
+      expect(config.options.plugins).not.toHaveProperty('decimation');
+    });
+
+    it('suggests the y range across all entries instead of a fixed min or max', () => {
+      render(ComparisonChart, {
+        props: { streamType: 'Heart Rate', entries, xAxisMode: 'elapsed' },
+      });
+      // Device A spans 80..90. Device B is flat at 100 after extrapolation.
+      const y = getLastChartConfig().options.scales.y;
+      expect(y.suggestedMin).toBe(80);
+      expect(y.suggestedMax).toBe(100);
+      expect(y.min).toBeUndefined();
+      expect(y.max).toBeUndefined();
+    });
+  });
 });
