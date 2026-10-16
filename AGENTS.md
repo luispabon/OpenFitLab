@@ -64,6 +64,7 @@
 - Security: Gitleaks, dependency-review, Semgrep, Trivy on PRs. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against the OpenAPI spec, weekly (Tuesdays) and on demand. See `.github/workflows/dast.yml`.
 - E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Docker image publishing (`publish.yml`) requires all three check jobs (backend, frontend, E2E) to pass. The suite does not call live Strava; Strava flows are covered by unit/integration tests and manual checks.
+- Releases: pushing a `v*` tag creates a GitHub Release with generated notes. See `.github/workflows/release.yml`.
 
 ## Agent-critical invariants
 
