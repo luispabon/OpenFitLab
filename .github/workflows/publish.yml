@@ -82,3 +82,22 @@ jobs:
             ${{ matrix.name == 'frontend' && format('VITE_GA_MEASUREMENT_ID={0}', secrets.VITE_GA_MEASUREMENT_ID) || '' }}
           cache-from: type=registry,ref=${{ matrix.image }}:cache-main
           cache-to: type=registry,ref=${{ matrix.image }}:cache-main,mode=max
+
+  release:
+    name: Create release
+    needs: [build]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes --title "${{ github.ref_name }}"

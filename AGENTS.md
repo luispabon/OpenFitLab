@@ -65,7 +65,7 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 - Security: Gitleaks, dependency-review, Semgrep, and a Docker config Trivy scan on PRs to `main`. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against `backend/docs/openapi.yaml`, daily at 04:00 UTC and on demand. The same workflow runs a full-history secrets scan. See `.github/workflows/security-scheduled.yml`.
 - E2E: Playwright browser tests on every PR targeting `main`. See `.github/workflows/e2e-checks.yml`. Image publishing (`publish.yml`) pushes the backend, frontend, and backup images only after the backend, frontend, and E2E check jobs pass. The suite does not call live Strava; Strava flows are covered by unit/integration tests and manual checks.
-- Releases: pushing a `v*` tag creates a GitHub Release with generated notes. See `.github/workflows/release.yml`.
+- Releases: pushing a `v*` tag creates a GitHub Release with generated notes, after the image build succeeds. See the `release` job in `.github/workflows/publish.yml`.
 
 ## Quality gates
 
