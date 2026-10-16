@@ -168,9 +168,7 @@ export function createViewportDecimationPlugin({
       const dataset = chart.data.datasets[0];
       if (!dataset) return;
 
-      // Zoom and pan write the live range to the x scale options before they call update, so the
-      // options are read here. scale.getUserBounds() is not used: Chart.js sets its bounds in
-      // buildOrUpdateScales(), which runs after beforeUpdate, so it still holds the previous range.
+      // Zoom and pan write the live range to the x scale options before they call update.
       const xOptions = chart.options.scales?.x;
       const minX = xOptions?.min;
       const maxX = xOptions?.max;

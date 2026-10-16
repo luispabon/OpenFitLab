@@ -362,20 +362,11 @@ describe('createViewportDecimationPlugin', () => {
       options: { scales: { x: { min?: unknown; max?: unknown } } };
       width: number;
       data: { datasets: { data: ViewportPoint[] }[] };
-      scales: { x: { min: number; max: number; getUserBounds: () => unknown } };
       update: ReturnType<typeof vi.fn>;
     } = {
       options: { scales: { x: { min: FULL_RANGE.min, max: FULL_RANGE.max } } },
       width: 800,
       data: { datasets: [dataset] },
-      // Stale on purpose: Chart.js refreshes scale bounds after beforeUpdate.
-      scales: {
-        x: {
-          min: FULL_RANGE.min,
-          max: FULL_RANGE.max,
-          getUserBounds: () => ({ ...FULL_RANGE, minDefined: true, maxDefined: true }),
-        },
-      },
       update: vi.fn(),
     };
     return { chart, dataset };
