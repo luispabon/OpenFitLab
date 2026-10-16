@@ -68,10 +68,10 @@
     const { xMin, xMax } = chartData;
     const data = chartData.data;
     const fullPoints = toXYPoints(data, 1);
-    // Fixed y bounds from the full stream, so x zoom does not narrow the y range. A constant
-    // stream keeps Chart.js auto range, since Chart.js cannot widen a fixed min === max.
+    // Full-stream y extrema as suggestions: Chart.js keeps auto range and tick rounding, but a
+    // zoomed slice cannot narrow the y range below the global min and max.
     const yRange = nonNullYRange(fullPoints);
-    const yBounds = yRange && yRange.min < yRange.max ? yRange : {};
+    const yBounds = yRange ? { suggestedMin: yRange.min, suggestedMax: yRange.max } : {};
     const chart = new Chart(canvasEl, {
       type: 'line',
       data: {

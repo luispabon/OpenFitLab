@@ -200,7 +200,7 @@ describe('TimeSeriesChart', () => {
       expect(config.options.plugins).not.toHaveProperty('decimation');
     });
 
-    it('fixes the y range to the non-null min and max of the full stream', () => {
+    it('suggests the non-null min and max of the full stream to the y scale', () => {
       render(TimeSeriesChart, {
         props: {
           streamData: {
@@ -215,11 +215,13 @@ describe('TimeSeriesChart', () => {
         },
       });
       const yScale = getLastChartConfig().options.scales.y;
-      expect(yScale.min).toBe(60);
-      expect(yScale.max).toBe(150);
+      expect(yScale.suggestedMin).toBe(60);
+      expect(yScale.suggestedMax).toBe(150);
+      expect(yScale.min).toBeUndefined();
+      expect(yScale.max).toBeUndefined();
     });
 
-    it('leaves the y range auto for a constant stream', () => {
+    it('suggests the constant value for a constant stream', () => {
       render(TimeSeriesChart, {
         props: {
           streamData: {
@@ -233,8 +235,8 @@ describe('TimeSeriesChart', () => {
         },
       });
       const yScale = getLastChartConfig().options.scales.y;
-      expect(yScale.min).toBeUndefined();
-      expect(yScale.max).toBeUndefined();
+      expect(yScale.suggestedMin).toBe(80);
+      expect(yScale.suggestedMax).toBe(80);
     });
   });
 

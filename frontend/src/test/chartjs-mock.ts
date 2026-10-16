@@ -26,6 +26,8 @@ export interface MockScale {
   position?: string;
   min?: number;
   max?: number;
+  suggestedMin?: number;
+  suggestedMax?: number;
   ticks?: { color?: string; callback?: (value: number | string) => string };
   title?: { text?: string };
 }
