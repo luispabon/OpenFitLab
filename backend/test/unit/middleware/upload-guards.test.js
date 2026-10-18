@@ -242,8 +242,9 @@ describe('mapMulterError', () => {
     strictEqual(mapped.statusCode, 400);
   });
 
-  it('returns non-multer errors unchanged', () => {
-    const original = new Error('boom');
-    strictEqual(mapMulterError(original), original);
+  it('maps non-multer multipart errors to a 400 error', () => {
+    const mapped = mapMulterError(new Error('Unexpected end of form'));
+    strictEqual(mapped.statusCode, 400);
+    strictEqual(mapped.message, 'Invalid multipart upload');
   });
 });

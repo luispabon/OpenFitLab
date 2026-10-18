@@ -311,10 +311,8 @@ erDiagram
 
 ### Health
 
-- `GET /`
-- `GET /health`
-
-Both return `{ ok: true }`.
+- `GET /`: returns `{ ok: true }`; unauthenticated and not rate limited
+- `GET /health`: runs `SELECT 1` and returns `{ ok: true }` when reachable, or `503` when the database is unreachable; subject to the same per-IP API rate limit, returning `429` when exceeded
 
 ### Authentication and account
 
