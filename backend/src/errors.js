@@ -44,6 +44,15 @@ class PayloadTooLargeError extends Error {
   }
 }
 
+/** Request uses a Content-Encoding the server does not decode (request bodies are never decompressed). */
+class UnsupportedMediaTypeError extends Error {
+  constructor(message = 'Unsupported media type', options = {}) {
+    super(message, options);
+    this.name = 'UnsupportedMediaTypeError';
+    this.statusCode = 415;
+  }
+}
+
 /** Per-user upload concurrency limit exceeded. */
 class TooManyUploadsError extends Error {
   constructor(message = 'Too many concurrent uploads, please try again shortly.', options = {}) {
@@ -87,6 +96,7 @@ module.exports = {
   NotFoundError,
   LengthRequiredError,
   PayloadTooLargeError,
+  UnsupportedMediaTypeError,
   TooManyUploadsError,
   StravaTokenExpiredError,
   StravaRateLimitError,

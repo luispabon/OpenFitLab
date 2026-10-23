@@ -32,7 +32,7 @@ services:
       start_period: 5s
 
   api:
-    image: node:24-alpine
+    image: node:26.12.1-alpine
     working_dir: /app
     command: sh -c "npm install && npm run dev"
     ports:
@@ -66,7 +66,7 @@ services:
       - ./backend:/app
 
   frontend:
-    image: node:24-alpine
+    image: node:26.12.1-alpine
     working_dir: /workspace/frontend
     command: sh -c "npm install && npm run dev"
     ports:

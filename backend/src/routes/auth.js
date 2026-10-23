@@ -100,7 +100,7 @@ router.get('/apple', (req, res, next) => {
 
 router.post(
   '/apple/callback',
-  express.urlencoded({ extended: true }),
+  express.urlencoded({ extended: true, inflate: false }),
   (req, res, next) => {
     if (!isEnabled('apple')) return res.status(404).json({ error: 'Not found' });
     next();

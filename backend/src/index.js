@@ -6,6 +6,7 @@ const db = require('./db');
 const config = require('./config');
 const { requireAuth } = require('./middleware/require-auth');
 const { csrfProtection } = require('./middleware/csrf');
+const { rejectContentEncoding } = require('./middleware/reject-content-encoding');
 const { apiLimiter, mountAuthLimiters, attachRateLimitClient } = require('./middleware/rate-limit');
 const { getRedisClient } = require('./redis-client');
 const authRouter = require('./routes/auth');
@@ -44,7 +45,8 @@ app.use(
 
 // CORS lockdown - only enable credentials for trusted origins in production
 app.use(cors({ origin: config.server.corsAllowedOrigins, credentials: true }));
-app.use(express.json({ limit: '1mb' }));
+app.use(rejectContentEncoding);
+app.use(express.json({ limit: '1mb', inflate: false }));
 app.use((_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
