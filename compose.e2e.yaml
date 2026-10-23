@@ -22,6 +22,8 @@ services:
       UPLOAD_RATE_LIMIT_WINDOW_MS: 60000
       # Parallel test workers share one user; lift the per-user in-flight upload cap.
       UPLOAD_MAX_CONCURRENT_PER_USER: 50
+      # Same reason: the process-wide cap (default 4) rejects parallel uploads with 429.
+      UPLOAD_MAX_CONCURRENT_PER_PROCESS: 50
       # OAuth stays unconfigured except Google, which gets dummy credentials so the
       # login page has one configured provider to render. Tests never click through
       # to the external provider; the remaining providers stay disabled (buttons hidden).
