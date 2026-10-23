@@ -1,11 +1,13 @@
 <script lang="ts">
   import { push, replace } from 'svelte-spa-router';
   import { logout } from '../stores/auth.svelte';
-  const props = $props<{
+  interface Props {
     displayName: string | null;
     avatarUrl: string | null;
     collapsed?: boolean;
-  }>();
+  }
+
+  const props: Props = $props();
 
   function initials(name: string | null) {
     if (!name) return 'U';
