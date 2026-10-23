@@ -500,6 +500,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    UnsupportedMediaType:
+      description: Request Content-Encoding is not supported. Compressed request bodies (gzip, br, deflate) are rejected before parsing.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
 
   securitySchemes:
     csrfToken:
@@ -643,6 +649,8 @@ paths:
       responses:
         "302":
           description: Redirect to SPA
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   /api/auth/facebook:
     get:
@@ -832,6 +840,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -950,6 +960,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
     delete:
       tags: [events]
@@ -1088,6 +1100,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   /api/events/{id}/activities/{activityId}/streams:
     get:
@@ -1242,6 +1256,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   /api/comparisons/{id}:
     get:
@@ -1310,6 +1326,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   /api/comparisons/{id}/settings:
     patch:
@@ -1357,6 +1375,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   # ── Folders ───────────────────────────────────────────────────────────────
 
@@ -1413,6 +1433,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
   /api/folders/{id}:
     get:
@@ -1468,6 +1490,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
 
     delete:
       tags: [folders]
@@ -1712,6 +1736,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
