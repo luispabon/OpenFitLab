@@ -185,8 +185,10 @@ dast: dast-up dast-seed dast-scan
 # seeds a disposable test user + session, then runs the Playwright suite.
 #
 # Usage:
-#   make e2e          — full pipeline: install → up → run (stack stays up on pass)
-#   make e2e-install  — install/update Playwright and Chromium browser
+#   make e2e          — up → run (stack stays up on pass); no installs
+#   make e2e-install  — one-off setup: e2e-deps (npm ci) + e2e-browsers (Chromium, apt)
+#   make e2e-deps     — npm ci in e2e/ only
+#   make e2e-browsers — install Chromium and system deps (uses apt, may need sudo)
 #   make e2e-down     — tear down stack and remove volumes when done
 #
 # Reports are written to ./e2e/playwright-report/ and ./e2e/test-results/ (gitignored).
@@ -226,13 +228,20 @@ e2e-run:
 	  E2E_COMPOSE_PROJECT=$(E2E_PROJECT) \
 	  npx playwright test
 
+.PHONY: e2e-deps
+e2e-deps:
+	cd e2e && npm ci
+
+.PHONY: e2e-browsers
+e2e-browsers:
+	cd e2e && npx playwright install --with-deps chromium
+
 .PHONY: e2e-install
-e2e-install:
-	cd e2e && npm ci && npx playwright install --with-deps chromium
+e2e-install: e2e-deps e2e-browsers
 
 .PHONY: e2e-down
 e2e-down:
 	$(E2E_COMPOSE) down -v
 
 .PHONY: e2e
-e2e: e2e-install e2e-up e2e-run
+e2e: e2e-up e2e-run

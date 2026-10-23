@@ -45,7 +45,8 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 
 ### E2E (Playwright)
 
-- Run full E2E suite (stack up + seed + tests): `make e2e`
+- One-off setup (npm deps and Chromium via apt), repeat only when `e2e/package-lock.json` or the Playwright version changes: `make e2e-install` (or `make e2e-deps` / `make e2e-browsers` separately)
+- Run full E2E suite (stack up + seed + tests, no installs): `make e2e`
 - Tear down E2E stack and volumes: `make e2e-down`
 - Reports: `e2e/playwright-report/` and `e2e/test-results/` (gitignored).
 - Stack ports: API `3098`, DB `3308`, Frontend `4201` (avoids conflicts with dev stack).
