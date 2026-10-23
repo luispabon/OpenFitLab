@@ -38,8 +38,8 @@ Two stacks serve different purposes:
 **Development services** (`compose.yaml`); all published ports are bound to `127.0.0.1` only, not reachable from the network:
 - `db` — MariaDB 12.3.3, port 3306, persistent volume `db_data`
 - `valkey` — Valkey 9 Alpine (Redis-compatible session store), persistent volume `valkey_data`
-- `api` — Node 24 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
-- `frontend` — Node 24 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
+- `api` — Node 26.12.1 Alpine, port 3000, source-mounted from `backend/`, runs `npm install && npm run dev`
+- `frontend` — Node 26.12.1 Alpine, port 4200, source-mounted from repo root, runs `npm install && npm run dev`
 - `adminer` — DB admin UI, port 8080
 
 Health checks ensure `api` and `frontend` only start after `db` and `valkey` are healthy.
@@ -56,8 +56,8 @@ MariaDB is pinned in both Compose files. Before changing that pin on an existing
 
 Both use multi-stage builds with named targets:
 
-- **`backend/Dockerfile`**: `dev` target (Node 24 Alpine, `npm install`, `npm run dev`) and `prod` target (extends dev, `npm ci --omit=dev`, `node src/index.js`). Runs as non-root `appuser`.
-- **`frontend/Dockerfile`**: `build` target (Node 24 Alpine, runs `npm ci && npm run build`) and `prod` target (Nginx Alpine serving the built `dist/`).
+- **`backend/Dockerfile`**: `dev` target (Node 26.12.1 Alpine, `npm install`, `npm run dev`) and `prod` target (extends dev, `npm ci --omit=dev`, `node src/index.js`). Runs as non-root `appuser`.
+- **`frontend/Dockerfile`**: `build` target (Node 26.12.1 Alpine, runs `npm ci && npm run build`) and `prod` target (Nginx Alpine serving the built `dist/`).
 
 ### Production networking
 
@@ -537,6 +537,7 @@ Primary route usage:
 - Auth, callback, upload, and general API routes are rate-limited. The login limiter applies only to the exact `GET /api/auth/<provider>` initiation path; callbacks count only against the separate callback limiter (`mountAuthLimiters`). In production, all limiters share hit counters across API replicas via a Valkey-backed `rate-limit-redis` store (`backend/src/middleware/rate-limit.js`); outside production (including tests), each limiter falls back to express-rate-limit's in-memory store. Store errors fail open (`passOnStoreError: true`), so a store failure never itself returns 429 or 500 — but since sessions use the same Valkey client, a Valkey outage still affects the API (node-redis queues commands while disconnected rather than erroring immediately).
 - All API responses set `Cache-Control: no-store` to prevent proxy or browser caching of session-scoped data.
 - Gzip decompression of uploaded files is capped at 100 MB (`MAX_DECOMPRESSED_BYTES` in `file-parser.js`) to prevent decompression DoS (gzip bomb).
+- Request bodies with a non-identity `Content-Encoding` are rejected with 415, and the body parsers run with inflate disabled.
 - Upload requests (`POST /api/events`) are bounded to limit memory use: multer's per-file `fileSize` limit defaults to 25 MiB (`UPLOAD_MAX_FILE_BYTES`), and a `Content-Length`-based guard rejects the whole request (413) before multer buffers anything if the aggregate size exceeds 128 MiB (`UPLOAD_MAX_REQUEST_BYTES`; sized so the frontend's 5-file upload chunks fit at the per-file cap); multipart uploads without a `Content-Length` header are rejected with 411. A per-user concurrency guard (`UPLOAD_MAX_CONCURRENT_PER_USER`, default 2) limits in-flight uploads per API process and responds 429 above the limit. A process-wide budget guard (`UPLOAD_MAX_IN_FLIGHT_BYTES`, default 256 MiB, and `UPLOAD_MAX_CONCURRENT_PER_PROCESS`, default 4) additionally reserves `Content-Length` bytes and upload slots before multer, responding 429 when either would be exceeded. That budget is shared across all users, so a single busy user can consume it and cause other users' uploads to be rejected with 429. It bounds in-flight compressed request bytes and concurrent parse/decompress load only: it is not a strict memory ceiling, and does not account for decompressed size, parsed results, or other heap use. It applies per API process — with multiple replicas the deployment-wide ceiling is the per-process budget times the replica count. Multer limit errors (file size, file count, parts, fields) map to 413; other multer errors map to 400.
 - `folderId` in upload requests is validated as a UUID before any DB query, consistent with the event PATCH endpoint, and its ownership is checked before any file is processed.
 - Comparison create and folder-assignment endpoints resolve a non-null `folderId` against the caller's own folders (`404` if missing or not owned), the same pattern used for events and Strava import.

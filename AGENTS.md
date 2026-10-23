@@ -25,7 +25,7 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 - Run: `npm run dev` in `backend/`
 - Checks: `npm run format`, `npm run lint`, `npm run test`
 - Coverage: `npm run test:coverage`
-- Runtime: Node 24+
+- Runtime: Node ^26.12.1 (patched against CVE-2026-111497, see https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
 
 ### DB / stats
 
@@ -35,7 +35,7 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 
 - Run: `npm run dev` in `frontend/`
 - Main quality gate: `npm run ci` (format, lint, svelte-check, tests, build)
-- Runtime: Node 22.22.2+ locally (Docker and CI use Node 24)
+- Runtime: Node ^26.12.1 locally (Docker and CI use Node 26.12.1)
 
 ### DAST
 
@@ -60,7 +60,7 @@ This is the only tracked agent instruction file. Put agent conventions here, not
 
 ### CI
 
-- Backend: lint, format, unit tests (including Node 24 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
+- Backend: lint, format, unit tests (including Node 26.12.1 deprecation check), coverage. See `.github/workflows/backend-checks.yml`.
 - Frontend: format, lint, svelte-check, tests with coverage, build. See `.github/workflows/frontend-checks.yml`.
 - Security: Gitleaks, dependency-review, Semgrep, and a Docker config Trivy scan on PRs to `main`. See `.github/workflows/security-checks.yml`.
 - DAST: ZAP API scan against `backend/docs/openapi.yaml`, daily at 04:00 UTC and on demand. The same workflow runs a full-history secrets scan. See `.github/workflows/security-scheduled.yml`.
